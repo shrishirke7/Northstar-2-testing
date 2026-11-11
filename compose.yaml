@@ -1,0 +1,114 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: northstar
+      POSTGRES_USER: northstar
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      TZ: ${TZ:-Asia/Kolkata}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U northstar -d northstar"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    networks: [internal]
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:18000:8000"
+    environment:
+      DATABASE_URL: postgresql://northstar:${DB_PASSWORD}@db:5432/northstar
+      UPLOAD_DIR: /app/uploads
+      COOKIE_SECURE: "true"
+      GO2RTC_API: http://go2rtc:1984
+    volumes:
+      - ./uploads:/app/uploads
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+      go2rtc:
+        condition: service_started
+    networks: [internal]
+
+  scanner:
+    build: .
+    command: ["python", "scanner_agent.py"]
+    restart: unless-stopped
+    user: "0:0"
+    env_file: .env
+    environment:
+      SCANNER_URL: http://127.0.0.1:18000
+    network_mode: host
+    cap_drop: [ALL]
+    cap_add: [NET_RAW]
+    depends_on: [app]
+
+  web:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    environment:
+      APP_FQDN: ${APP_FQDN:?set APP_FQDN in .env}
+      HTTP_PORT: ${HTTP_PORT:-8848}
+      HTTPS_PORT: ${HTTPS_PORT:-8849}
+      NGINX_ENVSUBST_FILTER: '^(APP_FQDN|HTTP_PORT|HTTPS_PORT)$'
+    ports:
+      - "${HTTP_PORT:-8898}:${HTTP_PORT:-8848}"
+      - "${HTTPS_PORT:-8899}:${HTTPS_PORT:-8849}"
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./secrets/nginx.crt:/etc/nginx/certs/nginx.crt:ro
+      - ./secrets/nginx.key:/etc/nginx/certs/nginx.key:ro
+    depends_on: [app, go2rtc]
+    networks: [internal]
+
+  go2rtc:
+    image: alexxit/go2rtc:1.9.13
+    restart: unless-stopped
+    ports:
+      - "${WEBRTC_BIND_IP:-127.0.0.1}:${WEBRTC_PORT:-8555}:8555/tcp"
+      - "${WEBRTC_BIND_IP:-127.0.0.1}:${WEBRTC_PORT:-8555}:8555/udp"
+    volumes:
+      - go2rtc_data:/config
+    environment:
+      WEBRTC_CANDIDATE: ${WEBRTC_CANDIDATE:-${APP_FQDN}}
+    depends_on:
+      go2rtc-config-init:
+        condition: service_completed_successfully
+    networks: [internal]
+
+  go2rtc-config-init:
+    image: alpine:3.21
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ ! -s /config/go2rtc.yaml ]; then
+          cat > /config/go2rtc.yaml <<EOF
+        api:
+          listen: ":1984"
+        webrtc:
+          listen: ":8555"
+          candidates:
+            - "$${WEBRTC_CANDIDATE}:8555"
+        streams:
+        EOF
+        fi
+    environment:
+      WEBRTC_CANDIDATE: ${WEBRTC_CANDIDATE:-${APP_FQDN}}
+    volumes:
+      - go2rtc_data:/config
+    networks: [internal]
+
+networks:
+  internal:
+    driver: bridge
+volumes:
+  postgres_data:
+  go2rtc_data:

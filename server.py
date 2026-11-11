@@ -1,0 +1,2371 @@
+import json
+import os
+import re
+import secrets
+import hashlib
+import hmac
+import subprocess
+import uuid
+import ipaddress
+import threading
+import unicodedata
+import shutil
+import tempfile
+import base64
+import socket
+from datetime import datetime, timezone
+from functools import wraps
+from pathlib import Path
+from urllib.parse import quote
+from urllib.request import Request as URLRequest, urlopen
+from urllib.error import URLError, HTTPError
+from cryptography.fernet import Fernet, InvalidToken
+
+import psycopg
+from flask import Flask, abort, jsonify, redirect, request, send_from_directory, session
+from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.utils import secure_filename
+from werkzeug.security import check_password_hash, generate_password_hash
+
+ROOT = Path(__file__).resolve().parent
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", ROOT / "uploads"))
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+BACKUP_DIR = Path(os.getenv("BACKUP_DIR", "/backups"))
+RESTORE_LOCK_PATH = Path("/tmp/northstar-restore-in-progress")
+DEFAULT_CAMERA_PROFILES = [
+    {"id": "unv_camera", "name": "UNV · Direct camera", "protocol": "rtsp", "port": 554,
+     "mainPath": "/media/video1", "subPath": "/media/video2", "requiresChannel": False, "sourceType": "camera"},
+    {"id": "unv_nvr", "name": "UNV · NVR channel", "protocol": "rtsp", "port": 554,
+     "mainPath": "/unicast/c{channel}/s0/live", "subPath": "/unicast/c{channel}/s1/live", "requiresChannel": True, "sourceType": "nvr"},
+    {"id": "hikvision", "name": "Hikvision · Camera/NVR", "protocol": "rtsp", "port": 10554,
+     "mainPath": "/Streaming/Channels/{channelStream}", "subPath": "/Streaming/Channels/{channelStream}", "requiresChannel": True, "sourceType": "camera"},
+    {"id": "dahua", "name": "Dahua · Camera/NVR", "protocol": "rtsp", "port": 554,
+     "mainPath": "/cam/realmonitor?channel={channel}&subtype={streamIndex}", "subPath": "/cam/realmonitor?channel={channel}&subtype={streamIndex}", "requiresChannel": True, "sourceType": "camera"},
+    {"id": "axis", "name": "Axis · Camera", "protocol": "rtsp", "port": 554,
+     "mainPath": "/axis-media/media.amp", "subPath": "/axis-media/media.amp", "requiresChannel": False, "sourceType": "camera"},
+    {"id": "custom_rtsp", "name": "Other brand · Custom RTSP", "protocol": "rtsp", "port": 554,
+     "mainPath": "", "subPath": "", "requiresChannel": False, "sourceType": "camera"},
+    {"id": "http_mjpeg", "name": "HTTP · Direct MJPEG/HLS", "protocol": "http", "port": 80,
+     "mainPath": "", "subPath": "", "requiresChannel": False, "sourceType": "camera"},
+    {"id": "https_mjpeg", "name": "HTTPS · Direct MJPEG/HLS", "protocol": "https", "port": 443,
+     "mainPath": "", "subPath": "", "requiresChannel": False, "sourceType": "camera"},
+]
+LOGIN_MEDIA_DIR = UPLOAD_DIR / "login-branding"
+LOGIN_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+PROFILE_MEDIA_DIR = UPLOAD_DIR / 'profiles'
+PROFILE_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+FONT_UPLOAD_DIR = UPLOAD_DIR / "fonts"
+FONT_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+APP_SECRET = os.getenv("APP_SECRET", "")
+if len(APP_SECRET) < 40:
+    raise RuntimeError("APP_SECRET must be a randomly generated secret of at least 40 characters")
+
+app = Flask(__name__, static_folder=None)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+app.secret_key = APP_SECRET
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SECURE=os.getenv("COOKIE_SECURE", "true").lower() == "true",
+    SESSION_COOKIE_SAMESITE="Lax",
+    MAX_CONTENT_LENGTH=64 * 1024 * 1024,
+    PERMANENT_SESSION_LIFETIME=60 * 60 * 8,
+)
+
+
+@app.before_request
+def pause_api_during_restore():
+    request.max_content_length = 1024 * 1024 * 1024 if request.path == "/api/backups/restore" else 64 * 1024 * 1024
+    if request.path.startswith("/api/") and RESTORE_LOCK_PATH.exists():
+        return jsonify(error="A backup restore is in progress. Please try again shortly."), 503
+DATABASE_URL = os.environ["DATABASE_URL"]
+RECOVERY_QUESTIONS = ("Favourite animal", "Favourite colour", "Favourite food")
+RECOVERY_GENERIC_MESSAGE = "If the account and answers match, the password was reset. Try signing in."
+RECOVERY_DUMMY_HASH = generate_password_hash("not-a-real-recovery-answer")
+LOGIN_DUMMY_HASH = generate_password_hash("not-a-real-login-password")
+
+# Module grants are stored on each local account. A missing grant keeps the
+# account's pre-existing access for compatibility; an explicit empty mapping
+# means that a newly configured account has no module access.
+MODULE_IDS = (
+    "overview", "assets", "data_center", "surveillance", "tickets",
+    "maintenance", "ageing", "parts", "users", "departments", "software",
+    "network", "notifications", "reports", "valuation", "billing",
+)
+MODULE_DATA_KEYS = {
+    "overview": ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "invoices"),
+    "assets": ("assets",),
+    "data_center": ("assets", "camera_streams"),
+    "surveillance": ("assets", "camera_streams", "camera_profiles"),
+    "tickets": (),
+    "maintenance": ("assets", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "departments"),
+    "ageing": ("assets", "maintenance"),
+    "parts": ("assets", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "departments"),
+    "users": ("manual_users", "departments"),
+    "departments": ("departments", "assets", "manual_users"),
+    "software": ("software", "assets", "manual_users"),
+    "network": ("assets", "network_ranges", "network_scan", "scanner_heartbeat", "scanner_ip_status"),
+    "notifications": ("notifications",),
+    "reports": ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "invoices", "vendors"),
+    "valuation": ("assets", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "invoices"),
+    "billing": ("invoices", "vendors", "departments", "manual_users"),
+}
+MODULE_API_PATHS = {
+    "/api/invoices": "billing", "/api/tickets": "tickets",
+    "/api/camera-profiles": "surveillance", "/api/camera-streams": "surveillance",
+    "/api/cctv-media-auth": "surveillance", "/api/network-scans": "network",
+    "/api/snmp-metrics": "network", "/api/admin/snmp-monitors": "network",
+}
+
+
+def module_permissions_for(profile):
+    if profile.get("role") == "Administrator":
+        return {module: "write" for module in MODULE_IDS}
+    explicit = profile.get("module_permissions")
+    if isinstance(explicit, dict):
+        return {module: explicit.get(module, "none") if explicit.get(module) in ("none", "read", "write") else "none" for module in MODULE_IDS}
+    if profile.get("role") == "Viewer":
+        return {module: "read" for module in MODULE_IDS}
+    if profile.get("role") == "IT Ticketing":
+        return {module: ("write" if module == "tickets" else "none") for module in MODULE_IDS}
+    # Legacy accounts were not assigned module grants. Preserve their current
+    # access until an administrator explicitly configures the account.
+    return {module: "write" for module in MODULE_IDS}
+
+
+def module_access(profile, module, write=False):
+    grant = module_permissions_for(profile).get(module, "none")
+    return grant == "write" if write else grant in ("read", "write")
+
+
+def data_key_module(key):
+    for module, keys in MODULE_DATA_KEYS.items():
+        if key in keys:
+            # Shared data is writable only through its owning module.
+            if key == "assets": return "assets"
+            if key == "departments": return "departments"
+            if key == "manual_users": return "users"
+            if key in ("software",): return "software"
+            if key.startswith("parts_"): return "parts"
+            if key == "maintenance": return "maintenance"
+            if key in ("invoices", "vendors"): return "billing"
+            if key.startswith("camera_"): return "surveillance"
+            if key.startswith("network_") or key.startswith("scanner_"): return "network"
+            if key == "notifications": return "notifications"
+    return None
+
+
+def db():
+    return psycopg.connect(DATABASE_URL, connect_timeout=8)
+
+
+def camera_secret_box():
+    key = base64.urlsafe_b64encode(hashlib.sha256((APP_SECRET + "|camera-streams-v1").encode()).digest())
+    return Fernet(key)
+
+
+def snmp_secret_box():
+    key = base64.urlsafe_b64encode(hashlib.sha256((APP_SECRET + "|snmp-monitors-v1").encode()).digest())
+    return Fernet(key)
+
+
+def go2rtc_request(method, path, params=None):
+    from urllib.parse import urlencode
+    base = os.getenv("GO2RTC_API", "http://go2rtc:1984").rstrip("/")
+    url = base + path + (("?" + urlencode(params)) if params else "")
+    req = URLRequest(url, method=method)
+    with urlopen(req, timeout=8) as response:
+        response.read(2048)
+
+
+def normalize_recovery_answer(value):
+    return " ".join(unicodedata.normalize("NFKC", str(value or "")).casefold().split())
+
+
+def recovery_answer_hashes(values):
+    if not isinstance(values, list) or len(values) != len(RECOVERY_QUESTIONS):
+        return None
+    answers = [normalize_recovery_answer(value) for value in values]
+    if any(len(answer) < 3 or len(answer) > 200 for answer in answers):
+        return None
+    return [generate_password_hash(answer) for answer in answers]
+
+
+def matches_recovery_answer(stored_hash, answer):
+    try:
+        return check_password_hash(stored_hash, answer)
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
+def init_db():
+    with db() as conn:
+        schema = (ROOT / "schema.sql").read_text(encoding="utf-8")
+        for statement in schema.split(";"):
+            if statement.strip():
+                conn.execute(statement)
+        conn.execute("INSERT INTO app_state(key,value) VALUES('assets','[]'),('software','[]'),('departments','[]'),('maintenance','[]'),('parts_catalog','[]'),('parts_inventory','[]'),('parts_stock_entries','[]'),('parts_assignments','[]'),('invoices','[]'),('vendors','[]'),('manual_users','[]'),('camera_streams','[]'),('camera_profiles','[]'),('network_ranges','[]'),('network_scan','{}'),('scanner_heartbeat','{}'),('scanner_ip_status','{}'),('settings','{}'),('profile_preferences','{}'),('notifications','{\"rules\":[],\"queue\":[]}') ON CONFLICT(key) DO NOTHING")
+
+
+def signed_in(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        profile = session.get("profile")
+        if not profile:
+            return jsonify(error="sign_in_required"), 401
+        username = str(profile.get("username", "")).casefold()
+        with db() as conn:
+            row = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
+        users = row[0] if row else []
+        account = next((u for u in users if str(u.get("username", "")).casefold() == username), None)
+        try:
+            current_version = int(account.get("auth_version", 0)) if account else -1
+            session_version = int(session.get("auth_version", 0))
+        except (TypeError, ValueError):
+            current_version, session_version = -1, 0
+        if not account or not account.get("enabled", True) or current_version != session_version:
+            session.clear()
+            return jsonify(error="session_expired_sign_in_again"), 401
+        # Refresh grants from the current server-side account on every request,
+        # so permission changes take effect immediately without stale sessions.
+        if isinstance(account.get("module_permissions"), dict):
+            session["profile"]["module_permissions"] = account["module_permissions"]
+        else:
+            session["profile"].pop("module_permissions", None)
+        session["profile"]["role"] = account.get("role", "User")
+        session["is_admin"] = session["profile"]["role"] == "Administrator"
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def administrator(fn):
+    @wraps(fn)
+    @signed_in
+    def wrapper(*args, **kwargs):
+        if not session.get("is_admin"):
+            abort(403)
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def ticket_manager(fn):
+    @wraps(fn)
+    @signed_in
+    def wrapper(*args, **kwargs):
+        # Ticket reads are allowed for read-only grants; the global request
+        # guard still requires a write grant for mutations.
+        if not session.get("is_admin") and not module_access(session.get("profile", {}), "tickets"):
+            abort(403)
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+@app.before_request
+def check_api_origin():
+    if request.path.startswith("/api/") and request.method in ("POST", "PUT", "PATCH", "DELETE"):
+        origin = request.headers.get("Origin")
+        if origin and origin.rstrip("/") != request.host_url.rstrip("/"):
+            abort(403)
+        if request.headers.get("X-Requested-With") != "NorthstarIT":
+            abort(403)
+
+
+@app.before_request
+def enforce_module_access():
+    profile = session.get("profile") or {}
+    if not profile or session.get("is_admin") or not request.path.startswith("/api/"):
+        return None
+    path = request.path
+    if path.startswith(("/api/internal/", "/api/public/")) or path in (
+        "/api/login", "/api/logout", "/api/profile", "/api/profile/preferences",
+        "/api/account/password", "/api/account/profile-picture", "/api/account/recovery-answers",
+    ) or path.startswith("/api/recovery/"):
+        return None
+    method = request.method
+    is_write = method in ("POST", "PUT", "PATCH", "DELETE")
+    module = next((value for prefix, value in MODULE_API_PATHS.items() if path == prefix or path.startswith(prefix + "/")), None)
+    if path.startswith("/api/admin/"):
+        # Administration endpoints remain administrator-only.
+        return jsonify(error="Administrator access is required."), 403
+    if path == "/api/backups" or path.startswith("/api/backups/"):
+        return jsonify(error="Administrator access is required."), 403
+    if module:
+        if not module_access(profile, module, write=is_write):
+            return jsonify(error=("This module is read-only for your account." if is_write and module_access(profile, module) else "You do not have access to this module.")), 403
+    return None
+
+
+@app.after_request
+def add_security_headers(response):
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    if request.path in ("/", "/setup", "/api/login", "/api/recovery/reset", "/api/account/recovery-answers"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.get("/cctv-live.js")
+def cctv_live_script():
+    return send_from_directory(ROOT, "cctv-live.js")
+
+
+@app.get("/")
+def index():
+    if not setup_complete():
+        return redirect("/setup")
+    return send_from_directory(ROOT, "index.html")
+
+
+def setup_complete():
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
+    users = row[0] if row else []
+    return any(u.get("enabled", True) and u.get("password_hash") and u.get("role") == "Administrator" for u in users)
+
+
+@app.get("/setup")
+def setup_page():
+    if setup_complete():
+        return redirect("/")
+    return send_from_directory(ROOT, "setup.html")
+
+
+@app.get("/api/setup/status")
+def setup_status():
+    return jsonify(configured=setup_complete())
+
+
+@app.post("/api/setup")
+def initial_setup():
+    body = request.get_json(silent=True) or {}
+    company = str(body.get("company", "")).strip()[:120]
+    full_name = str(body.get("full_name", "")).strip()[:120]
+    username = str(body.get("username", "")).strip()[:80]
+    password = str(body.get("password", ""))
+    answer_hashes = recovery_answer_hashes(body.get("recovery_answers"))
+    if not full_name or not re.fullmatch(r"[A-Za-z0-9._@-]{3,80}", username):
+        return jsonify(error="Enter the administrator name and a valid username (3–80 letters, numbers, dots, underscores, @, or hyphens)."), 400
+    if len(password) < 10 or len(password) > 1024:
+        return jsonify(error="Choose a password with at least 10 characters."), 400
+    if not answer_hashes:
+        return jsonify(error="Answer all three recovery questions (3–200 characters each)."), 400
+    with db() as conn:
+        conn.execute("SELECT pg_advisory_xact_lock(hashtext('northstar-first-setup'))")
+        row = conn.execute("SELECT value FROM app_state WHERE key='manual_users' FOR UPDATE").fetchone()
+        users = row[0] if row else []
+        if any(u.get("enabled", True) and u.get("password_hash") and u.get("role") == "Administrator" for u in users):
+            return jsonify(error="Setup is already complete. Sign in instead."), 409
+        if any(str(u.get("username", "")).casefold() == username.casefold() for u in users):
+            return jsonify(error="That username already exists."), 409
+        users.append({"id":username,"username":username,"name":full_name,"email":"","site":"","dept":"","role":"Administrator","enabled":True,"source":"manual","password_hash":generate_password_hash(password),"auth_version":0,"recovery_answer_hashes":answer_hashes})
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='manual_users'", (json.dumps(users),))
+        settings_row=conn.execute("SELECT value FROM app_state WHERE key='settings' FOR UPDATE").fetchone()
+        settings=settings_row[0] if settings_row else {}
+        branding=dict(settings.get("loginBranding", {}))
+        if company:
+            branding['companyName'] = company
+            settings.update(companyName=company, loginBranding=branding)
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='settings'",(json.dumps(settings),))
+    return jsonify(ok=True, redirect="/"), 201
+
+
+@app.get("/api/login-branding")
+def get_login_branding():
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
+    settings = row[0] if row else {}
+    branding = settings.get("loginBranding", {})
+    return jsonify({
+        "companyName": str(branding.get("companyName") or settings.get("companyName") or "")[:120],
+        "tagline": str(branding.get("tagline") or "")[:180],
+        "showTagline": branding.get("showTagline", True) is not False,
+        "logoUrl": str(branding.get("logoUrl") or "")[:300],
+        "slides": branding.get("slides", [])[:5] if isinstance(branding.get("slides", []), list) else [],
+        "slideInterval": max(3, min(30, int(branding.get("slideInterval", 6) or 6))),
+    })
+
+
+@app.get("/profile-media/<path:filename>")
+def profile_media(filename):
+    if Path(filename).name != filename or Path(filename).suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp"):
+        abort(404)
+    return send_from_directory(PROFILE_MEDIA_DIR, filename, max_age=3600)
+
+
+@app.get("/api/cctv-media-auth")
+@signed_in
+def cctv_media_auth():
+    if request.headers.get("X-Original-Method") not in ("POST", "GET"):
+        abort(403)
+    origin = request.headers.get("X-Original-Origin", "").rstrip("/")
+    if origin != request.host_url.rstrip("/"):
+        abort(403)
+    return "", 204
+
+
+def stored_camera_profiles():
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='camera_profiles'").fetchone()
+    profiles = row[0] if row else []
+    return profiles if isinstance(profiles, list) and profiles else DEFAULT_CAMERA_PROFILES
+
+
+def valid_camera_profile_path(value, allow_empty=False):
+    path = str(value or "").strip()
+    if not path and allow_empty:
+        return ""
+    if (not path.startswith("/") or path.startswith("//") or len(path) > 512
+            or any(ord(ch) < 32 for ch in path)):
+        return None
+    tokens = set(re.findall(r"\{([^{}]+)\}", path))
+    remainder = re.sub(r"\{[^{}]+\}", "", path)
+    if ("{" in remainder or "}" in remainder
+            or not tokens.issubset({"channel", "stream", "streamIndex", "channelStream"})):
+        return None
+    return path
+
+
+@app.get("/api/camera-profiles")
+@signed_in
+def get_camera_profiles():
+    return jsonify(items=stored_camera_profiles())
+
+
+@app.put("/api/admin/camera-profiles")
+@administrator
+def save_camera_profiles():
+    body = request.get_json(force=True)
+    profiles = body.get("items") if isinstance(body, dict) else None
+    if not isinstance(profiles, list) or not 1 <= len(profiles) <= 50:
+        return jsonify(error="Save between 1 and 50 camera profiles."), 400
+    clean, ids = [], set()
+    for item in profiles:
+        if not isinstance(item, dict):
+            return jsonify(error="Each camera profile must be an object."), 400
+        profile_id = str(item.get("id", "")).strip().lower()[:40]
+        name = str(item.get("name", "")).strip()[:80]
+        protocol = str(item.get("protocol", "")).strip().lower()
+        try:
+            port = int(item.get("port", 0))
+        except (ValueError, TypeError):
+            port = 0
+        if (not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,39}", profile_id) or profile_id in ids
+                or not name or protocol not in ("rtsp", "http", "https") or not 1 <= port <= 65535):
+            return jsonify(error="Check each profile's unique ID, name, protocol and port."), 400
+        main_path = valid_camera_profile_path(item.get("mainPath"), allow_empty=protocol in ("http", "https"))
+        sub_path = valid_camera_profile_path(item.get("subPath"), allow_empty=True)
+        if main_path is None or sub_path is None:
+            return jsonify(error="Stream paths must start with / and can use {channel}, {stream}, {streamIndex}, or {channelStream}."), 400
+        ids.add(profile_id)
+        clean.append({"id": profile_id, "name": name, "protocol": protocol, "port": port,
+                      "mainPath": main_path, "subPath": sub_path,
+                      "requiresChannel": bool(item.get("requiresChannel")),
+                      "sourceType": "nvr" if str(item.get("sourceType", "camera")).lower() == "nvr" else "camera"})
+    with db() as conn:
+        conn.execute("INSERT INTO app_state(key,value) VALUES('camera_profiles',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+                     (json.dumps(clean),))
+    return jsonify(ok=True, items=clean)
+
+
+@app.get("/api/camera-streams")
+@signed_in
+def get_camera_streams():
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='camera_streams'").fetchone()
+    items = row[0] if row else []
+    # go2rtc streams are runtime entries. Recreate them from the encrypted
+    # database after a container restart before returning the list to viewers.
+    # Browser WebRTC cannot receive H.265 in common browsers. Route camera RTSP
+    # through go2rtc's bundled FFmpeg H.264 transcoder for a compatible live feed.
+    migrated = False
+    for item in items:
+        try:
+            source = camera_secret_box().decrypt(item["encryptedSource"].encode()).decode()
+            if not source.startswith("ffmpeg:"):
+                source = f"ffmpeg:{source}#video=h264"
+                item["encryptedSource"] = camera_secret_box().encrypt(source.encode()).decode()
+                migrated = True
+            go2rtc_request("PUT", "/api/streams", {"name": item["streamName"], "src": source})
+            item["gatewayReady"] = True
+        except (KeyError, ValueError, InvalidToken, URLError, HTTPError, TimeoutError, OSError):
+            item["gatewayReady"] = False
+    if migrated:
+        with db() as conn:
+            conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='camera_streams'",
+                         (json.dumps(items),))
+    public = [{k: item.get(k, "") for k in ("assetTag", "room", "hub", "channel", "stream", "streamName", "sourceType", "profile", "profileId", "profileName", "protocol", "ip", "rtspReachable")}
+              for item in items if isinstance(item, dict)]
+    for item, safe in zip((x for x in items if isinstance(x, dict)), public):
+        safe["gatewayReady"] = bool(item.get("gatewayReady"))
+    return jsonify(items=public)
+
+
+@app.post("/api/admin/camera-streams")
+@administrator
+def save_camera_stream():
+    body = request.get_json(force=True)
+    asset_tag = str(body.get("assetTag", "")).strip()[:80]
+    room = str(body.get("room", "")).strip()[:100]
+    hub = str(body.get("hub", "")).strip()[:100]
+    source_type = str(body.get("sourceType", "nvr")).lower()
+    legacy_profile = str(body.get("profile", "")).strip().lower()
+    profile_id = str(body.get("profileId", "")).strip().lower()
+    stream = str(body.get("stream", "main")).lower()
+    username = str(body.get("username", "")).strip()[:128]
+    password = str(body.get("password", ""))[:256]
+    try:
+        channel = int(body.get("channel", 1))
+        port = int(body.get("port", 554))
+        camera_ip = ipaddress.ip_address(str(body.get("ip", "")).strip())
+    except (ValueError, TypeError):
+        return jsonify(error="Enter a valid private camera/NVR IP, stream port, and channel."), 400
+    if camera_ip.is_global or camera_ip.is_multicast or camera_ip.is_unspecified or camera_ip.is_loopback or camera_ip.is_link_local or camera_ip.is_reserved:
+        return jsonify(error="Use the camera/NVR's private VLAN IP address."), 400
+    if not asset_tag:
+        return jsonify(error="Select a saved CCTV asset with an asset tag. Register this device as Surveillance → CCTV first."), 400
+    if not room or not hub or not username or not password:
+        return jsonify(error="Enter the hub, room, camera username, and camera password."), 400
+    if stream not in ("main", "sub") or not 1 <= channel <= 256 or not 1 <= port <= 65535:
+        return jsonify(error="Check the stream quality, channel number, and TCP port (1–65535)."), 400
+    stream_path = str(body.get("streamPath", "")).strip()[:512]
+    protocol = "rtsp"
+    profile_name = ""
+    profile_data = next((p for p in stored_camera_profiles() if p.get("id") == profile_id), None) if profile_id else None
+    if profile_id and not profile_data:
+        return jsonify(error="That camera profile no longer exists. Refresh and select a saved profile."), 400
+    if profile_data:
+        protocol = profile_data["protocol"]
+        source_type = profile_data.get("sourceType", "camera")
+        profile_name = profile_data["name"]
+        port = int(body.get("port") or profile_data["port"])
+        template = profile_data.get("mainPath" if stream == "main" else "subPath") or profile_data.get("mainPath", "")
+        tokens = {"channel": str(channel), "stream": stream,
+                  "streamIndex": "0" if stream == "main" else "1",
+                  "channelStream": str(channel * 100 + (1 if stream == "main" else 2))}
+        configured_path = re.sub(r"\{(channel|stream|streamIndex|channelStream)\}", lambda m: tokens[m.group(1)], template)
+        stream_path = stream_path or configured_path
+    elif legacy_profile:
+        profile_name = legacy_profile.replace("_", " ").title()
+        if legacy_profile == "unv_camera":
+            source_type, protocol = "camera", "rtsp"
+            stream_path = stream_path or f"/media/video{'1' if stream == 'main' else '2'}"
+        elif legacy_profile == "unv_nvr":
+            source_type, protocol = "nvr", "rtsp"
+            stream_path = stream_path or f"/unicast/c{channel}/s{'0' if stream == 'main' else '1'}/live"
+        elif legacy_profile == "hikvision":
+            source_type, protocol = "camera", "rtsp"
+            stream_path = stream_path or f"/Streaming/Channels/{channel}0{'1' if stream == 'main' else '2'}"
+        elif legacy_profile == "dahua":
+            source_type, protocol = "camera", "rtsp"
+            stream_path = stream_path or f"/cam/realmonitor?channel={channel}&subtype={'0' if stream == 'main' else '1'}"
+        elif legacy_profile == "axis":
+            source_type, protocol = "camera", "rtsp"
+            stream_path = stream_path or "/axis-media/media.amp"
+        elif legacy_profile == "custom_rtsp":
+            source_type, protocol = "camera", "rtsp"
+        elif legacy_profile == "http_mjpeg":
+            source_type, protocol = "camera", "http"
+        elif legacy_profile == "https_mjpeg":
+            source_type, protocol = "camera", "https"
+        else:
+            return jsonify(error="Choose a supported camera profile."), 400
+    elif source_type in ("nvr", "camera"):
+        profile_id = "unv_nvr" if source_type == "nvr" else "unv_camera"
+        profile_name = "UNV · NVR channel" if source_type == "nvr" else "UNV · Direct camera"
+        protocol = "rtsp"
+        stream_path = (f"/unicast/c{channel}/s{'0' if stream == 'main' else '1'}/live" if source_type == "nvr"
+                       else f"/media/video{'1' if stream == 'main' else '2'}")
+    else:
+        return jsonify(error="Choose a supported camera profile."), 400
+    if (not stream_path.startswith("/") or stream_path.startswith("//")
+            or any(ord(ch) < 32 for ch in stream_path)):
+        return jsonify(error="Enter a valid stream path starting with /; use the camera's video endpoint, not its web login page."), 400
+    rtsp_reachable = False
+    try:
+        with socket.create_connection((str(camera_ip), port), timeout=2):
+            rtsp_reachable = True
+    except OSError:
+        pass
+    with db() as conn:
+        assets_row = conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone()
+        items_row = conn.execute("SELECT value FROM app_state WHERE key='camera_streams' FOR UPDATE").fetchone()
+        assets = assets_row[0] if assets_row else []
+        if not any(str(a.get("tag", "")) == asset_tag and str(a.get("type", "")).casefold() == "surveillance"
+                   and str(a.get("subtype", a.get("subCategory", "CCTV"))).casefold() == "cctv" for a in assets):
+            return jsonify(error="Select a registered CCTV asset first."), 400
+        items = items_row[0] if items_row else []
+        if any(item.get("assetTag") == asset_tag for item in items):
+            return jsonify(error="This CCTV asset already has a live-feed setup. Remove it before adding it again."), 409
+        stream_name = "cam_" + hmac.new(APP_SECRET.encode(), asset_tag.encode(), hashlib.sha256).hexdigest()[:24]
+        host = f"[{camera_ip.compressed}]" if camera_ip.version == 6 else camera_ip.compressed
+        source = f"{protocol}://{quote(username, safe='')}:{quote(password, safe='')}@{host}:{port}{stream_path}"
+        try:
+            go2rtc_request("PUT", "/api/streams", {"name": stream_name, "src": source})
+        except HTTPError as exc:
+            # Keep the gateway response body private: it may echo the camera stream URL,
+            # which contains the camera credentials. The status code is safe and
+            # distinguishes a reachable API rejecting the request from a network failure.
+            try:
+                detail = exc.read(512).decode("utf-8", "replace").strip()
+            except OSError:
+                detail = ""
+            detail = re.sub(r"(?i)(?:rtsp|https?)://[^\s\"'<>]+", "[stream URL redacted]", detail)[:400]
+            message = f"The live-video gateway responded with HTTP {exc.code}."
+            if detail:
+                message += " " + detail
+            return jsonify(error=message), 502
+        except (URLError, TimeoutError, OSError):
+            return jsonify(error="The app cannot reach the go2rtc API at go2rtc:1984. Check Docker service networking and confirm go2rtc is running."), 503
+        item = {"assetTag": asset_tag, "room": room, "hub": hub, "channel": channel, "stream": stream,
+                "sourceType": source_type, "profile": profile_id or legacy_profile or ("unv_nvr" if source_type == "nvr" else "unv_camera"),
+                "profileId": profile_id, "profileName": profile_name,
+                "protocol": protocol.upper(), "streamName": stream_name, "ip": camera_ip.compressed,
+                "rtspReachable": rtsp_reachable,
+                "encryptedSource": camera_secret_box().encrypt(source.encode()).decode()}
+        items.append(item)
+        conn.execute("INSERT INTO app_state(key,value) VALUES('camera_streams',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+                     (json.dumps(items),))
+    return jsonify(ok=True, rtspReachable=rtsp_reachable, item={k: item[k] for k in ("assetTag", "room", "hub", "channel", "stream", "streamName", "sourceType", "profile", "profileId", "profileName", "protocol", "ip", "rtspReachable")}), 201
+
+
+@app.delete("/api/admin/camera-streams/<asset_tag>")
+@administrator
+def delete_camera_stream(asset_tag):
+    asset_tag = str(asset_tag).strip()[:80]
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='camera_streams' FOR UPDATE").fetchone()
+        items = row[0] if row else []
+        item = next((entry for entry in items if entry.get("assetTag") == asset_tag), None)
+        if not item:
+            return jsonify(error="Live-feed setup was not found."), 404
+        try:
+            go2rtc_request("DELETE", "/api/streams", {"src": item["streamName"]})
+        except (URLError, HTTPError, TimeoutError, OSError):
+            return jsonify(error="Could not remove the stream from go2rtc. Keep this setup and retry when the gateway is online."), 503
+        items = [entry for entry in items if entry.get("assetTag") != asset_tag]
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='camera_streams'", (json.dumps(items),))
+    return jsonify(ok=True)
+
+@app.get("/login-media/<path:filename>")
+def login_media(filename):
+    if Path(filename).name != filename or Path(filename).suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp"):
+        abort(404)
+    return send_from_directory(LOGIN_MEDIA_DIR, filename, max_age=3600)
+
+
+@app.post("/api/admin/fonts")
+@administrator
+def upload_custom_font():
+    upload = request.files.get("font")
+    if not upload or not upload.filename:
+        return jsonify(error="Choose a font file to upload."), 400
+    ext = Path(secure_filename(upload.filename)).suffix.lower()
+    signatures = {
+        ".woff2": (b"wOF2", "font/woff2", "woff2"),
+        ".woff": (b"wOFF", "font/woff", "woff"),
+        ".ttf": (b"\x00\x01\x00\x00", "font/ttf", "truetype"),
+        ".otf": (b"OTTO", "font/otf", "opentype"),
+    }
+    if ext not in signatures:
+        return jsonify(error="Use a WOFF2, WOFF, TTF, or OTF font file."), 400
+    data = upload.stream.read(5 * 1024 * 1024 + 1)
+    if not data or len(data) > 5 * 1024 * 1024:
+        return jsonify(error="Font files must be no larger than 5 MB."), 400
+    signature, _, _ = signatures[ext]
+    if not data.startswith(signature):
+        return jsonify(error="The file contents do not match the selected font type."), 400
+    filename = uuid.uuid4().hex + ext
+    (FONT_UPLOAD_DIR / filename).write_bytes(data)
+    return jsonify(name=secure_filename(upload.filename)[:120] or "Custom font", url="/api/custom-fonts/" + filename, format=signatures[ext][2]), 201
+
+
+@app.post("/api/admin/font-settings")
+@administrator
+def save_font_settings():
+    body = request.get_json(silent=True) or {}
+    family = str(body.get("uiFontFamily", "Manrope"))[:180]
+    custom_fonts = body.get("customFonts", [])
+    if not isinstance(custom_fonts, list) or len(custom_fonts) > 10:
+        return jsonify(error="Choose up to 10 uploaded fonts."), 400
+    cleaned = []
+    for font in custom_fonts:
+        if not isinstance(font, dict):
+            continue
+        url = str(font.get("url", ""))
+        if not re.fullmatch(r"/api/custom-fonts/[a-f0-9]{32}\.(?:woff2|woff|ttf|otf)", url):
+            return jsonify(error="A custom font reference is invalid."), 400
+        cleaned.append({"name": str(font.get("name", "Custom font"))[:120], "url": url,
+                        "format": str(font.get("format", "woff2"))[:12]})
+    if family.startswith("custom:") and not any(family == "custom:" + font["url"] for font in cleaned):
+        return jsonify(error="Select an uploaded font that is in the font list."), 400
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='settings' FOR UPDATE").fetchone()
+        settings = row[0] if row and isinstance(row[0], dict) else {}
+        settings["uiFontFamily"] = family
+        settings["customFonts"] = cleaned
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='settings'", (json.dumps(settings),))
+    return jsonify(ok=True, uiFontFamily=family, customFonts=cleaned)
+
+
+@app.get("/api/custom-fonts/<path:filename>")
+def custom_font_file(filename):
+    if Path(filename).name != filename or not re.fullmatch(r"[a-f0-9]{32}\.(?:woff2|woff|ttf|otf)", filename):
+        abort(404)
+    mime = {".woff2": "font/woff2", ".woff": "font/woff", ".ttf": "font/ttf", ".otf": "font/otf"}[Path(filename).suffix]
+    response = send_from_directory(FONT_UPLOAD_DIR, filename, mimetype=mime, max_age=3600)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+def save_login_image(upload):
+    if not upload or not upload.filename:
+        return ""
+    ext = Path(upload.filename).suffix.lower()
+    if ext not in (".png", ".jpg", ".jpeg", ".webp"):
+        raise ValueError("Use PNG, JPG, or WebP images only")
+    data = upload.stream.read(10 * 1024 * 1024 + 1)
+    if not data or len(data) > 10 * 1024 * 1024:
+        raise ValueError("Each sign-in image must be between 1 byte and 10 MB")
+    valid = (ext == ".png" and data.startswith(b"\x89PNG\r\n\x1a\n")) or (ext in (".jpg", ".jpeg") and data.startswith(b"\xff\xd8\xff")) or (ext == ".webp" and data.startswith(b"RIFF") and data[8:12] == b"WEBP")
+    if not valid:
+        raise ValueError("The uploaded file does not match its image type")
+    filename = f"{uuid.uuid4().hex}{ext}"
+    (LOGIN_MEDIA_DIR / filename).write_bytes(data)
+    return "/login-media/" + filename
+
+
+@app.post("/api/admin/login-branding")
+@administrator
+def save_login_branding():
+    try:
+        company = str(request.form.get("companyName", "")).strip()[:120]
+        tagline = str(request.form.get("tagline", "")).strip()[:180]
+        show_tagline = str(request.form.get("showTagline", "true")).strip().lower() in ("true", "yes", "1")
+        try:
+            interval = max(3, min(30, int(request.form.get("slideInterval", "6"))))
+            slides = json.loads(request.form.get("slides", "[]"))
+        except (ValueError, TypeError, json.JSONDecodeError):
+            return jsonify(error="Invalid slideshow settings"), 400
+        if not isinstance(slides, list) or len(slides) > 5 or any(not isinstance(s, dict) or not re.fullmatch(r"/login-media/[a-f0-9]{32}\.(?:png|jpe?g|webp)", str(s.get("imageUrl", ""))) for s in slides):
+            return jsonify(error="Add up to 5 valid slideshow images"), 400
+        uploads = [image for image in request.files.getlist("slidesUpload") if image and image.filename]
+        if len(slides) + len(uploads) > 5:
+            return jsonify(error="The sign-in slideshow supports up to 5 images"), 400
+        with db() as conn:
+            current = (conn.execute("SELECT value FROM app_state WHERE key='settings' FOR UPDATE").fetchone() or ({},))[0]
+            branding = dict(current.get("loginBranding", {}))
+        new_logo = save_login_image(request.files.get("logo"))
+        if new_logo:
+            branding["logoUrl"] = new_logo
+        for image in uploads:
+            image_url = save_login_image(image)
+            if image_url:
+                slides.append({"imageUrl": image_url, "caption": tagline if show_tagline else ""})
+        branding.update(companyName=company, tagline=tagline, showTagline=show_tagline, slides=slides, slideInterval=interval)
+        current["companyName"] = company
+        current["loginBranding"] = branding
+        with db() as conn:
+            conn.execute("INSERT INTO app_state(key,value) VALUES('settings',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(current),))
+        return jsonify(ok=True, branding=branding)
+    except (ValueError, OSError) as exc:
+        return jsonify(error=str(exc)), 400
+
+
+@app.get("/healthz")
+def health():
+    try:
+        with db() as conn:
+            conn.execute("SELECT 1")
+        return jsonify(ok=True)
+    except Exception:
+        return jsonify(ok=False), 503
+
+
+NETWORK_SCAN_LOCK = threading.Lock()
+NETWORK_SCAN_STATE = {"status":"idle", "progress":0, "total":0, "results":[], "error":"", "started_at":"", "finished_at":""}
+
+
+def _persist_network_scan(state, scan_id):
+    with db() as conn:
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='network_scan' AND value->>'id'=%s", (json.dumps(state), scan_id))
+
+
+@app.get("/api/network-scans")
+@signed_in
+def network_scans():
+    with db() as conn:
+        ranges = (conn.execute("SELECT value FROM app_state WHERE key='network_ranges'").fetchone() or ([],))[0]
+        saved = (conn.execute("SELECT value FROM app_state WHERE key='network_scan'").fetchone() or ({},))[0]
+        heartbeat = (conn.execute("SELECT value FROM app_state WHERE key='scanner_heartbeat'").fetchone() or ({},))[0]
+    with NETWORK_SCAN_LOCK:
+        state = dict(NETWORK_SCAN_STATE)
+    if saved:
+        state = saved
+    if state.get("status") == "running" and state.get("started_at"):
+        try:
+            started = datetime.fromisoformat(state["started_at"])
+            if (datetime.now(timezone.utc) - started).total_seconds() > 1800:
+                state.update(status="failed", error="Scan stopped unexpectedly; start a new scan.", finished_at=datetime.now(timezone.utc).isoformat())
+                _persist_network_scan(state, state.get("id", ""))
+        except (ValueError, TypeError):
+            pass
+    last_seen = heartbeat.get('last_seen', '')
+    try:
+        scanner_connected = bool(last_seen) and (datetime.now(timezone.utc) - datetime.fromisoformat(last_seen)).total_seconds() <= 20
+    except (ValueError, TypeError):
+        scanner_connected = False
+    return jsonify(ranges=ranges, scan=state, scannerConnected=scanner_connected)
+
+
+@app.put("/api/admin/network-scan/ranges")
+@administrator
+def save_network_scan_ranges():
+    body = request.get_json(force=True)
+    raw = body.get("ranges", [])
+    if not isinstance(raw, list) or len(raw) > 25000:
+        return jsonify(error="Enter up to 25,000 private IPv4 CIDR ranges"), 400
+    networks = []
+    for value in raw:
+        try:
+            network = ipaddress.ip_network(str(value).strip(), strict=False)
+        except ValueError:
+            return jsonify(error=f"Invalid network range: {value}"), 400
+        if network.version != 4 or not network.is_private or network.is_loopback or network.is_link_local or network.num_addresses > 256:
+            return jsonify(error="Only private IPv4 ranges up to /24 can be scanned"), 400
+        if network not in networks:
+            networks.append(network)
+    values = [str(n) for n in networks]
+    with db() as conn:
+        conn.execute("INSERT INTO app_state(key,value) VALUES('network_ranges',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(values),))
+    return jsonify(ok=True, ranges=values)
+
+
+@app.post("/api/admin/network-scan")
+@administrator
+def start_network_scan():
+    global NETWORK_SCAN_STATE
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='network_ranges'").fetchone()
+        raw = row[0] if row else []
+    if not raw:
+        return jsonify(error="Add the authorized private network ranges to scan first"), 400
+    networks = [ipaddress.ip_network(value, strict=True) for value in raw]
+    hosts_count = sum(n.num_addresses - (2 if n.prefixlen < 31 else 0) for n in networks)
+    if hosts_count > 25000:
+        return jsonify(error="Combined scan limit is 25,000 addresses. CIDR ranges can be /24 or smaller."), 400
+    with db() as conn:
+        current = conn.execute("SELECT value FROM app_state WHERE key='network_scan' FOR UPDATE").fetchone()
+        prior = current[0] if current else {}
+        if prior.get("status") == "running" and prior.get("started_at"):
+            try:
+                recent = (datetime.now(timezone.utc) - datetime.fromisoformat(prior["started_at"])).total_seconds() < 1800
+            except (ValueError, TypeError):
+                recent = False
+            if recent:
+                return jsonify(error="A network scan is already running"), 409
+        scan_id = str(uuid.uuid4())
+        NETWORK_SCAN_STATE = {"id":scan_id,"status":"queued","progress":0,"total":hosts_count,"results":[],"error":"","started_at":datetime.now(timezone.utc).isoformat(),"finished_at":""}
+        conn.execute("INSERT INTO app_state(key,value) VALUES('network_scan',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(NETWORK_SCAN_STATE),))
+    return jsonify(ok=True, scan_id=scan_id, total=hosts_count), 202
+
+
+def _scanner_authorized():
+    supplied = request.headers.get("X-Northstar-Scanner", "")
+    return bool(supplied) and secrets.compare_digest(supplied, APP_SECRET)
+
+
+def _snmp_rows(conn):
+    row = conn.execute("SELECT value FROM app_state WHERE key='snmp_monitors'").fetchone()
+    value = row[0] if row else []
+    return value if isinstance(value, list) else []
+
+
+@app.get("/api/admin/snmp-monitors")
+@administrator
+def get_snmp_monitors():
+    with db() as conn:
+        monitors = _snmp_rows(conn)
+        samples_row = conn.execute("SELECT value FROM app_state WHERE key='snmp_samples'").fetchone()
+    samples = samples_row[0] if samples_row else []
+    clean = [{k: v for k, v in item.items() if k not in ("authSecret", "privacySecret")} | {
+        "hasAuthSecret": bool(item.get("authSecret")), "hasPrivacySecret": bool(item.get("privacySecret"))
+    } for item in monitors]
+    return jsonify(items=clean, samples=samples if isinstance(samples, list) else [])
+
+
+@app.put("/api/admin/snmp-monitors")
+@administrator
+def save_snmp_monitors():
+    body = request.get_json(force=True)
+    items = body.get("items") if isinstance(body, dict) else None
+    if not isinstance(items, list) or len(items) > 100:
+        return jsonify(error="Provide up to 100 SNMP monitor entries."), 400
+    with db() as conn:
+        old_rows = _snmp_rows(conn)
+        old_by_id = {str(item.get("id")): item for item in old_rows if isinstance(item, dict)}
+        clean, seen = [], set()
+        for item in items:
+            if not isinstance(item, dict):
+                return jsonify(error="Each SNMP monitor must be an object."), 400
+            monitor_id = str(item.get("id") or uuid.uuid4()).strip()[:40]
+            name = str(item.get("name", "")).strip()[:80]
+            host = str(item.get("host", "")).strip()
+            try:
+                ip = ipaddress.ip_address(host)
+                port = int(item.get("port", 161))
+                interval = int(item.get("pollSeconds", 60))
+                interface_index = str(item.get("interfaceIndex", "")).strip()
+            except (ValueError, TypeError):
+                return jsonify(error="Use a valid IP address, port, polling interval and interface index."), 400
+            if (not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", monitor_id) or monitor_id in seen
+                    or not name or ip.version != 4 or not ip.is_private or ip.is_multicast or ip.is_loopback
+                    or not 1 <= port <= 65535 or not 15 <= interval <= 600
+                    or (interface_index and (not interface_index.isdigit() or len(interface_index) > 8))):
+                return jsonify(error="Check the unique ID, name, private IPv4, port, 15–600 second interval and optional interface index."), 400
+            seen.add(monitor_id)
+            prior = old_by_id.get(monitor_id, {})
+            auth_protocol = str(item.get("authProtocol", "SHA")).upper()
+            privacy_protocol = str(item.get("privacyProtocol", "AES")).upper()
+            username = str(item.get("username", "")).strip()[:40]
+            auth_secret = str(item.get("authSecret", ""))
+            privacy_secret = str(item.get("privacySecret", ""))
+            if auth_protocol not in ("SHA", "SHA-256", "SHA-384", "SHA-512") or privacy_protocol not in ("AES", "AES-192", "AES-256"):
+                return jsonify(error="Choose a supported SNMPv3 authentication and AES privacy algorithm."), 400
+            if not username or len(username) > 40:
+                return jsonify(error="Enter the SNMPv3 username."), 400
+            if auth_secret:
+                if len(auth_secret) < 8 or len(auth_secret) > 128:
+                    return jsonify(error="SNMP authentication passphrases must be 8–128 characters."), 400
+                auth_secret = snmp_secret_box().encrypt(auth_secret.encode()).decode()
+            else:
+                auth_secret = prior.get("authSecret", "")
+            if privacy_secret:
+                if len(privacy_secret) < 8 or len(privacy_secret) > 128:
+                    return jsonify(error="SNMP privacy passphrases must be 8–128 characters."), 400
+                privacy_secret = snmp_secret_box().encrypt(privacy_secret.encode()).decode()
+            else:
+                privacy_secret = prior.get("privacySecret", "")
+            if not auth_secret or not privacy_secret:
+                return jsonify(error="Enter both SNMPv3 passphrases when adding a monitor."), 400
+            clean.append({"id": monitor_id, "name": name, "host": str(ip), "port": port,
+                          "pollSeconds": interval, "interfaceIndex": interface_index,
+                          "username": username, "authProtocol": auth_protocol,
+                          "privacyProtocol": privacy_protocol, "authSecret": auth_secret,
+                          "privacySecret": privacy_secret, "enabled": bool(item.get("enabled", True)),
+                          "lastPollAt": prior.get("lastPollAt", ""),
+                          "lastStatus": prior.get("lastStatus", "Not checked"),
+                          "lastError": prior.get("lastError", ""),
+                          "nextPollAt": prior.get("nextPollAt", "")})
+        conn.execute("INSERT INTO app_state(key,value) VALUES('snmp_monitors',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(clean),))
+    return jsonify(ok=True, items=[{k: v for k, v in item.items() if k not in ("authSecret", "privacySecret")} for item in clean])
+
+
+@app.get("/api/snmp-metrics")
+@signed_in
+def get_snmp_metrics():
+    with db() as conn:
+        profiles = _snmp_rows(conn)
+        row = conn.execute("SELECT value FROM app_state WHERE key='snmp_samples'").fetchone()
+    samples = row[0] if row else []
+    return jsonify(items=[{"id": p.get("id"), "name": p.get("name"), "host": p.get("host"),
+                           "enabled": p.get("enabled", True), "lastPollAt": p.get("lastPollAt", ""),
+                           "lastStatus": p.get("lastStatus", "Not checked"), "lastError": p.get("lastError", "")}
+                          for p in profiles], samples=samples if isinstance(samples, list) else [])
+
+
+@app.get("/api/internal/snmp-task")
+def snmp_task():
+    if not _scanner_authorized():
+        abort(403)
+    now = datetime.now(timezone.utc)
+    tasks = []
+    with db() as conn:
+        monitors = _snmp_rows(conn)
+        changed = False
+        for item in monitors:
+            if not item.get("enabled", True):
+                continue
+            try:
+                due = not item.get("nextPollAt") or datetime.fromisoformat(item["nextPollAt"]) <= now
+            except (ValueError, TypeError):
+                due = True
+            if not due:
+                continue
+            item["nextPollAt"] = (now + __import__("datetime").timedelta(seconds=int(item.get("pollSeconds", 60)))).isoformat()
+            try:
+                task = {k: v for k, v in item.items() if k not in ("authSecret", "privacySecret")}
+                task["authSecret"] = snmp_secret_box().decrypt(item["authSecret"].encode()).decode()
+                task["privacySecret"] = snmp_secret_box().decrypt(item["privacySecret"].encode()).decode()
+                tasks.append(task)
+            except (KeyError, InvalidToken, ValueError):
+                item["lastStatus"] = "Configuration error"
+                item["lastError"] = "Stored SNMP credentials could not be decrypted; re-save this profile."
+                changed = True
+        if changed or tasks:
+            conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='snmp_monitors'", (json.dumps(monitors),))
+    if not tasks:
+        return ("", 204)
+    return jsonify(items=tasks)
+
+
+@app.post("/api/internal/snmp-results")
+def snmp_results():
+    if not _scanner_authorized():
+        abort(403)
+    body = request.get_json(force=True)
+    profile_id = str(body.get("id", ""))[:40]
+    status = "Online" if body.get("ok") else "Error"
+    message = str(body.get("error", ""))[:180]
+    raw_samples = body.get("samples", [])
+    if not profile_id or not isinstance(raw_samples, list) or len(raw_samples) > 512:
+        return jsonify(error="Invalid SNMP metrics result."), 400
+    clean_samples = []
+    at = datetime.now(timezone.utc).isoformat()
+    for sample in raw_samples:
+        try:
+            index = int(sample.get("interfaceIndex"))
+            rx = max(0.0, min(1e13, float(sample.get("rxBps", 0))))
+            tx = max(0.0, min(1e13, float(sample.get("txBps", 0))))
+            clean_samples.append({"monitorId": profile_id, "interfaceIndex": index,
+                                  "interfaceName": str(sample.get("interfaceName", ""))[:80],
+                                  "rxBps": rx, "txBps": tx, "at": at})
+        except (ValueError, TypeError, AttributeError):
+            continue
+    with db() as conn:
+        profiles = _snmp_rows(conn)
+        profile = next((p for p in profiles if p.get("id") == profile_id), None)
+        if not profile:
+            return jsonify(error="SNMP monitor no longer exists."), 404
+        profile.update(lastPollAt=at, lastStatus=status, lastError=message)
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='snmp_monitors'", (json.dumps(profiles),))
+        row = conn.execute("SELECT value FROM app_state WHERE key='snmp_samples' FOR UPDATE").fetchone()
+        samples = row[0] if row and isinstance(row[0], list) else []
+        samples.extend(clean_samples)
+        cutoff = datetime.now(timezone.utc).timestamp() - 86400
+        retained = []
+        for sample in samples:
+            try:
+                if datetime.fromisoformat(sample.get("at", "")).timestamp() >= cutoff:
+                    retained.append(sample)
+            except (ValueError, TypeError):
+                continue
+        conn.execute("INSERT INTO app_state(key,value) VALUES('snmp_samples',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(retained[-20000:]),))
+    return jsonify(ok=True, accepted=len(clean_samples))
+
+
+def _notification_channel_status():
+    return {
+        "email": bool(os.getenv("SMTP_HOST") and os.getenv("SMTP_FROM")),
+        "whatsapp": bool(os.getenv("WHATSAPP_ACCESS_TOKEN") and os.getenv("WHATSAPP_PHONE_NUMBER_ID")
+                         and os.getenv("WHATSAPP_API_VERSION") and os.getenv("WHATSAPP_TEMPLATE_NAME")),
+    }
+
+
+def _queue_asset_status_notifications(conn, state, asset, previous, current, checked_at, users):
+    if previous not in ("Online", "Offline") or previous == current:
+        return
+    asset_tag = str(asset.get("tag", ""))
+    asset_type = str(asset.get("type", ""))
+    event = current
+    for rule in state.get("rules", []):
+        if not isinstance(rule, dict) or not rule.get("enabled", True) or event not in rule.get("events", []):
+            continue
+        if rule.get("scope") == "device":
+            if asset_tag not in rule.get("deviceTags", []):
+                continue
+        elif rule.get("category") != asset_type:
+            continue
+        recipient_names = {str(value).casefold() for value in rule.get("recipients", [])}
+        recipients = [user for user in users if str(user.get("username") or user.get("id") or "").casefold() in recipient_names]
+        for user in recipients:
+            for channel in ("email", "whatsapp"):
+                if not rule.get("channels", {}).get(channel):
+                    continue
+                destination = str(user.get("email", "") if channel == "email" else user.get("phone", user.get("phone_number", ""))).strip()
+                if not destination or (channel == "whatsapp" and not rule.get("whatsappOptInConfirmed")):
+                    continue
+                state.setdefault("queue", []).append({
+                    "id": str(uuid.uuid4()), "rule": str(rule.get("name", "Status alert"))[:100],
+                    "asset": str(asset.get("name", asset_tag))[:160], "tag": asset_tag[:100],
+                    "category": asset_type[:40], "factory": str(asset.get("site", ""))[:40],
+                    "ip": str(asset.get("ipAddress", asset.get("ip_address", "")))[:45],
+                    "status": current, "previous": previous, "checkedAt": checked_at,
+                    "channel": channel, "recipient": str(user.get("name") or user.get("username") or "")[:120],
+                    "destination": destination[:254], "state": "pending", "attempts": 0,
+                    "createdAt": checked_at, "nextAttemptAt": checked_at, "error": ""
+                })
+    state["queue"] = state.get("queue", [])[-500:]
+
+
+@app.get("/api/admin/notifications")
+@administrator
+def get_notification_rules():
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='notifications'").fetchone()
+        state = row[0] if row else {"rules": [], "queue": []}
+        users_row = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
+        users = users_row[0] if users_row else []
+        asset_row = conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone()
+        assets = asset_row[0] if asset_row else []
+    history = [{k: item.get(k) for k in ("id", "rule", "asset", "tag", "category", "status", "channel", "recipient", "state", "createdAt", "error")} for item in state.get("queue", [])[-100:]]
+    return jsonify(rules=state.get("rules", []), history=history, channels=_notification_channel_status(),
+                   users=[{"username": u.get("username") or u.get("id", ""), "name": u.get("name") or u.get("username") or u.get("id", ""), "email": u.get("email", ""), "phone": u.get("phone") or u.get("phone_number", "")} for u in users],
+                   assets=[{"tag": a.get("tag", ""), "name": a.get("name", ""), "type": a.get("type", ""), "site": a.get("site", "")} for a in assets])
+
+
+@app.put("/api/admin/notifications")
+@administrator
+def save_notification_rules():
+    body = request.get_json(force=True) or {}
+    rules = body.get("rules")
+    if not isinstance(rules, list) or len(rules) > 100:
+        return jsonify(error="Provide up to 100 notification rules."), 400
+    allowed_categories = {"Laptop", "Desktop", "Server", "Printer", "Network", "Mobile", "Tablet"}
+    clean = []
+    seen_ids = set()
+    with db() as conn:
+        user_rows = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
+        configured_users = user_rows[0] if user_rows else []
+        user_map = {str(u.get("username") or u.get("id") or "").casefold(): u for u in configured_users}
+        valid_users = set(user_map)
+        asset_rows = conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone()
+        current_assets = asset_rows[0] if asset_rows else []
+        valid_tags = {str(a.get("tag", "")) for a in current_assets}
+        allowed_categories.update(str(a.get("type", "")) for a in current_assets if a.get("type"))
+        for item in rules:
+            if not isinstance(item, dict):
+                return jsonify(error="Each rule must be an object."), 400
+            rule_id = str(item.get("id") or uuid.uuid4())[:80]
+            name = str(item.get("name", "")).strip()[:100]
+            scope = item.get("scope")
+            category = str(item.get("category", ""))
+            tags = list(dict.fromkeys(str(x) for x in item.get("deviceTags", []) if str(x) in valid_tags))[:100]
+            events = [x for x in (item.get("events") if isinstance(item.get("events"), list) else []) if x in ("Online", "Offline")]
+            recipients = list(dict.fromkeys(str(x) for x in (item.get("recipients") if isinstance(item.get("recipients"), list) else []) if str(x).casefold() in valid_users))[:100]
+            channels = item.get("channels") if isinstance(item.get("channels"), dict) else {}
+            if not name or scope not in ("category", "device") or (scope == "category" and category not in allowed_categories) or (scope == "device" and not tags) or not events or not recipients or not (channels.get("email") or channels.get("whatsapp")):
+                return jsonify(error="Every rule needs a name, scope, event, recipient and delivery channel."), 400
+            selected_users = [user_map[username.casefold()] for username in recipients]
+            if channels.get("email") and any(not str(user.get("email", "")).strip() for user in selected_users):
+                return jsonify(error="Every selected recipient needs an email address to use email alerts."), 400
+            if channels.get("whatsapp") and any(not 8 <= len(re.sub(r"\D", "", str(user.get("phone") or user.get("phone_number") or ""))) <= 15 for user in selected_users):
+                return jsonify(error="Every selected WhatsApp recipient needs a valid phone number with country code."), 400
+            if channels.get("whatsapp") and not item.get("whatsappOptInConfirmed"):
+                return jsonify(error="Confirm WhatsApp recipients have opted in before enabling WhatsApp alerts."), 400
+            if rule_id in seen_ids:
+                return jsonify(error="Rule IDs must be unique."), 400
+            seen_ids.add(rule_id)
+            clean.append({"id": rule_id, "name": name, "enabled": bool(item.get("enabled", True)), "scope": scope,
+                          "category": category if scope == "category" else "", "deviceTags": tags if scope == "device" else [],
+                          "events": list(dict.fromkeys(events)), "recipients": recipients,
+                          "channels": {"email": bool(channels.get("email")), "whatsapp": bool(channels.get("whatsapp"))},
+                          "whatsappOptInConfirmed": bool(item.get("whatsappOptInConfirmed"))})
+        current = conn.execute("SELECT value FROM app_state WHERE key='notifications' FOR UPDATE").fetchone()
+        state = current[0] if current else {"rules": [], "queue": []}
+        state["rules"] = clean
+        conn.execute("INSERT INTO app_state(key,value) VALUES('notifications',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(state),))
+    return jsonify(ok=True, rules=clean)
+
+
+@app.get("/api/internal/notification-task")
+def notification_task():
+    if not _scanner_authorized():
+        abort(403)
+    now = datetime.now(timezone.utc)
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='notifications' FOR UPDATE").fetchone()
+        state = row[0] if row else {"rules": [], "queue": []}
+        channels = _notification_channel_status()
+        for job in state.get("queue", []):
+            if job.get("state") == "sending":
+                try:
+                    stale = (now - datetime.fromisoformat(job.get("claimedAt", ""))).total_seconds() > 180
+                except (ValueError, TypeError):
+                    stale = True
+                if stale:
+                    job["state"] = "pending"
+            if job.get("state") != "pending" or not channels.get(job.get("channel")):
+                continue
+            try:
+                due = datetime.fromisoformat(job.get("nextAttemptAt", "")) <= now
+            except (ValueError, TypeError):
+                due = True
+            if due:
+                job["state"] = "sending"
+                job["claimedAt"] = now.isoformat()
+                job["attempts"] = int(job.get("attempts", 0)) + 1
+                conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='notifications'", (json.dumps(state),))
+                return jsonify(job={k: job.get(k) for k in ("id", "asset", "tag", "category", "factory", "ip", "status", "previous", "checkedAt", "channel", "destination", "attempts")})
+        return ("", 204)
+
+
+@app.post("/api/internal/notification-result")
+def notification_result():
+    if not _scanner_authorized():
+        abort(403)
+    body = request.get_json(force=True) or {}
+    job_id = str(body.get("id", ""))
+    ok = bool(body.get("ok"))
+    error = str(body.get("error", ""))[:300]
+    now = datetime.now(timezone.utc)
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='notifications' FOR UPDATE").fetchone()
+        state = row[0] if row else {"rules": [], "queue": []}
+        job = next((item for item in state.get("queue", []) if item.get("id") == job_id), None)
+        if not job:
+            return jsonify(error="Notification job not found"), 404
+        job["state"] = "sent" if ok else ("pending" if int(job.get("attempts", 0)) < 3 else "failed")
+        job["error"] = "" if ok else error
+        if not ok and job["state"] == "pending":
+            job["nextAttemptAt"] = (now + __import__("datetime").timedelta(seconds=30 * int(job.get("attempts", 1)))).isoformat()
+        job["completedAt"] = now.isoformat() if ok or job["state"] == "failed" else ""
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='notifications'", (json.dumps(state),))
+    return jsonify(ok=True)
+
+
+@app.get("/api/internal/ip-status-task")
+def scanner_ip_status_task():
+    if not _scanner_authorized():
+        abort(403)
+    now = datetime.now(timezone.utc)
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='scanner_ip_status' FOR UPDATE").fetchone()
+        state = row[0] if row else {}
+        prior_time = state.get("finished_at") or state.get("started_at") or ""
+        if prior_time:
+            try:
+                elapsed = (now - datetime.fromisoformat(prior_time)).total_seconds()
+                # Recheck known inventory endpoints frequently; the scanner only
+                # probes saved device IPs here (CIDR discovery is a separate task).
+                if (not state.get("finished_at") and elapsed < 120) or (state.get("finished_at") and elapsed < 5):
+                    return ("", 204)
+            except (ValueError, TypeError):
+                pass
+        ranges = (conn.execute("SELECT value FROM app_state WHERE key='network_ranges'").fetchone() or ([],))[0]
+        if not ranges:
+            return ("", 204)
+        networks = [ipaddress.ip_network(value, strict=True) for value in ranges]
+        inventory = (conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone() or ([],))[0]
+        users = (conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone() or ([],))[0]
+        targets = set()
+        for item, fields, is_asset in ([(a, ("ipAddress", "ip_address"), True) for a in inventory]
+                                       + [(u, ("ip_address", "ipAddress"), False) for u in users]):
+            raw_values = [item.get(key) for key in fields if item.get(key)]
+            if is_asset and isinstance(item.get("networkInterfaces"), list):
+                for interface in item["networkInterfaces"]:
+                    if isinstance(interface, dict):
+                        raw_values.extend(interface.get(key) for key in ("ipAddress", "ip_address", "ip") if interface.get(key))
+            for raw_ip in raw_values:
+                try:
+                    ip = ipaddress.ip_address(str(raw_ip).strip())
+                except ValueError:
+                    continue
+                if ip.version == 4 and ip.is_private and any(ip in network for network in networks):
+                    targets.add(str(ip))
+        if not targets:
+            return ("", 204)
+        task_id = str(uuid.uuid4())
+        state = {"id":task_id,"targets":sorted(targets, key=lambda value:tuple(int(part) for part in value.split("."))),"started_at":now.isoformat(),"finished_at":""}
+        conn.execute("INSERT INTO app_state(key,value) VALUES('scanner_ip_status',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(state),))
+    return jsonify(id=task_id, ips=state["targets"])
+
+
+@app.post("/api/internal/ip-status-results")
+def scanner_ip_status_results():
+    if not _scanner_authorized():
+        abort(403)
+    body = request.get_json(force=True)
+    task_id = str(body.get("id", ""))
+    responsive = set()
+    rows = body.get("online", [])
+    if not task_id or not isinstance(rows, list) or len(rows) > 25000:
+        return jsonify(error="Invalid IP status result"), 400
+    for value in rows:
+        try:
+            ip = ipaddress.ip_address(str(value))
+            if ip.version == 4 and ip.is_private:
+                responsive.add(str(ip))
+        except ValueError:
+            continue
+    checked_at = datetime.now(timezone.utc).isoformat()
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='scanner_ip_status' FOR UPDATE").fetchone()
+        state = row[0] if row else {}
+        if state.get("id") != task_id or state.get("finished_at"):
+            return jsonify(error="IP status task is no longer active"), 409
+        ranges = (conn.execute("SELECT value FROM app_state WHERE key='network_ranges'").fetchone() or ([],))[0]
+        networks = [ipaddress.ip_network(value, strict=True) for value in ranges]
+        target_set = set()
+        for value in state.get("targets", []):
+            try:
+                ip = ipaddress.ip_address(value)
+                if ip.version == 4 and ip.is_private and any(ip in network for network in networks):
+                    target_set.add(str(ip))
+            except ValueError:
+                continue
+        responsive.intersection_update(target_set)
+        inventory_row = conn.execute("SELECT value FROM app_state WHERE key='assets' FOR UPDATE").fetchone()
+        inventory = inventory_row[0] if inventory_row else []
+        users_row = conn.execute("SELECT value FROM app_state WHERE key='manual_users' FOR UPDATE").fetchone()
+        users = users_row[0] if users_row else []
+        notifications_row = conn.execute("SELECT value FROM app_state WHERE key='notifications' FOR UPDATE").fetchone()
+        notifications = notifications_row[0] if notifications_row else {"rules": [], "queue": []}
+        queue_size_before = len(notifications.get("queue", []))
+        assets_changed = users_changed = False
+        for asset in inventory:
+            interfaces = asset.get("networkInterfaces")
+            if not isinstance(interfaces, list):
+                interfaces = []
+            checked_ips = set()
+            for interface in interfaces:
+                if not isinstance(interface, dict):
+                    continue
+                raw_ip = str(interface.get("ipAddress", interface.get("ip_address", interface.get("ip", "")))).strip()
+                if raw_ip not in target_set:
+                    continue
+                interface["ipStatus"] = interface["status"] = "Online" if raw_ip in responsive else "Offline"
+                interface["ipCheckedAt"] = checked_at
+                checked_ips.add(raw_ip)
+                if raw_ip in responsive:
+                    interface["lastSeen"] = checked_at
+            primary_ip = str(asset.get("ipAddress", asset.get("ip_address", ""))).strip()
+            if primary_ip in target_set:
+                checked_ips.add(primary_ip)
+            if not checked_ips:
+                continue
+            previous_status = str(asset.get("ipStatus", asset.get("status", "")))
+            is_online = bool(checked_ips & responsive)
+            asset["status"] = asset["ipStatus"] = "Online" if is_online else "Offline"
+            asset["ipCheckedAt"] = checked_at
+            if is_online:
+                asset["lastSeen"] = checked_at
+            _queue_asset_status_notifications(conn, notifications, asset, previous_status, asset["status"], checked_at, users)
+            assets_changed = True
+        for user in users:
+            raw_ip = str(user.get("ip_address", user.get("ipAddress", ""))).strip()
+            if raw_ip not in target_set:
+                continue
+            user["ipStatus"] = "Online" if raw_ip in responsive else "Offline"
+            user["ipCheckedAt"] = checked_at
+            if raw_ip in responsive:
+                user["lastSeen"] = checked_at
+            users_changed = True
+        if assets_changed:
+            conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='assets'", (json.dumps(inventory),))
+        if users_changed:
+            conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='manual_users'", (json.dumps(users),))
+        state["finished_at"] = checked_at
+        state["online_count"] = len(responsive)
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='scanner_ip_status'", (json.dumps(state),))
+        if len(notifications.get("queue", [])) != queue_size_before:
+            conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='notifications'", (json.dumps(notifications),))
+    return jsonify(ok=True, online=len(responsive), checked=len(target_set))
+
+
+@app.post("/api/internal/scanner-heartbeat")
+def scanner_heartbeat():
+    if not _scanner_authorized():
+        abort(403)
+    state = {"last_seen": datetime.now(timezone.utc).isoformat()}
+    with db() as conn:
+        conn.execute("INSERT INTO app_state(key,value) VALUES('scanner_heartbeat',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(state),))
+    return jsonify(ok=True)
+
+
+@app.get("/api/internal/scanner-task")
+def scanner_task():
+    if not _scanner_authorized():
+        abort(403)
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='network_scan' FOR UPDATE").fetchone()
+        state = row[0] if row else {}
+        ranges = (conn.execute("SELECT value FROM app_state WHERE key='network_ranges'").fetchone() or ([],))[0]
+        if ranges and state.get("status") in (None, "", "idle", "completed", "failed"):
+            last_run = state.get("finished_at") or state.get("started_at") or ""
+            try:
+                due = not last_run or (datetime.now(timezone.utc) - datetime.fromisoformat(last_run)).total_seconds() >= 900
+            except (ValueError, TypeError):
+                due = True
+            if due:
+                hosts_count = sum(len(list(ipaddress.ip_network(value, strict=True).hosts())) for value in ranges)
+                state = {"id":str(uuid.uuid4()),"status":"queued","progress":0,"total":hosts_count,"results":[],"error":"","started_at":datetime.now(timezone.utc).isoformat(),"finished_at":""}
+                conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='network_scan'", (json.dumps(state),))
+        if state.get("status") != "queued":
+            return ("", 204)
+        state["status"] = "running"
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='network_scan'", (json.dumps(state),))
+    return jsonify(id=state.get("id"), ranges=ranges, total=state.get("total", 0))
+
+
+@app.post("/api/internal/scanner-progress")
+def scanner_progress():
+    if not _scanner_authorized():
+        abort(403)
+    body = request.get_json(force=True)
+    scan_id = str(body.get("id", ""))
+    status = body.get("status")
+    if not scan_id or status not in ("running", "completed", "failed"):
+        return jsonify(error="Invalid scanner progress update"), 400
+    try:
+        progress = max(0, min(25000, int(body.get("progress", 0))))
+    except (ValueError, TypeError):
+        return jsonify(error="Invalid scan progress"), 400
+    results = body.get("results", [])
+    if not isinstance(results, list) or len(results) > 25000:
+        return jsonify(error="Invalid scan results"), 400
+    clean = []
+    for item in results:
+        try:
+            ip = ipaddress.ip_address(item.get("ip", ""))
+            mac = str(item.get("mac", ""))[:32]
+            if ip.version != 4 or not ip.is_private:
+                continue
+            raw_latency = item.get("latency_ms")
+            latency = None if raw_latency is None else max(0, min(60000, int(raw_latency)))
+            clean.append({"ip":str(ip), "mac":mac, "hostname":str(item.get("hostname", ""))[:255], "status":"Online", "latency_ms":latency, "last_seen":str(item.get("last_seen", ""))[:64]})
+        except (ValueError, TypeError, AttributeError):
+            continue
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='network_scan' FOR UPDATE").fetchone()
+        state = row[0] if row else {}
+        if state.get("id") != scan_id or state.get("status") not in ("queued", "running"):
+            return jsonify(error="Scan task is no longer active"), 409
+        state.update(status=status, progress=progress, results=clean)
+        if body.get("error"):
+            state["error"] = "Scanner agent failed. Check Ubuntu network access and ping permissions."
+        if status in ("completed", "failed"):
+            state["finished_at"] = datetime.now(timezone.utc).isoformat()
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='network_scan'", (json.dumps(state),))
+        if status == "completed":
+            ranges = (conn.execute("SELECT value FROM app_state WHERE key='network_ranges'").fetchone() or ([],))[0]
+            networks = [ipaddress.ip_network(value, strict=True) for value in ranges]
+            inventory_row = conn.execute("SELECT value FROM app_state WHERE key='assets' FOR UPDATE").fetchone()
+            inventory = inventory_row[0] if inventory_row else []
+            users_row = conn.execute("SELECT value FROM app_state WHERE key='manual_users' FOR UPDATE").fetchone()
+            users = users_row[0] if users_row else []
+            online_ips = {item["ip"] for item in clean}
+            checked_at = datetime.now(timezone.utc).isoformat()
+            assets_changed = False
+            users_changed = False
+            for asset in inventory:
+                try:
+                    ip = ipaddress.ip_address(str(asset.get("ipAddress", asset.get("ip_address", ""))).strip())
+                except ValueError:
+                    continue
+                if ip.version != 4 or not any(ip in network for network in networks):
+                    continue
+                asset["status"] = "Online" if str(ip) in online_ips else "Offline"
+                asset["ipStatus"] = asset["status"]
+                asset["ipCheckedAt"] = checked_at
+                if str(ip) in online_ips:
+                    asset["lastSeen"] = checked_at
+                assets_changed = True
+            for user in users:
+                try:
+                    ip = ipaddress.ip_address(str(user.get("ip_address", user.get("ipAddress", ""))).strip())
+                except ValueError:
+                    continue
+                if ip.version != 4 or not any(ip in network for network in networks):
+                    continue
+                user["ipStatus"] = "Online" if str(ip) in online_ips else "Offline"
+                user["ipCheckedAt"] = checked_at
+                if str(ip) in online_ips:
+                    user["lastSeen"] = checked_at
+                users_changed = True
+            if assets_changed:
+                conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='assets'", (json.dumps(inventory),))
+            if users_changed:
+                conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='manual_users'", (json.dumps(users),))
+    return jsonify(ok=True)
+
+
+@app.post("/api/login")
+def login():
+    body = request.get_json(silent=True) or {}
+    username = str(body.get("username", "")).strip()
+    password = str(body.get("password", ""))
+    if not username or not password or len(username) > 120 or len(password) > 1024:
+        return jsonify(error="Enter your username and password"), 400
+    remote_ip = request.remote_addr or "127.0.0.1"
+    with db() as conn:
+        row = conn.execute("SELECT failures, blocked_until FROM login_attempts WHERE client_ip=%s", (remote_ip,)).fetchone()
+        if row and row[1] and row[1] > datetime.now(timezone.utc):
+            return jsonify(error="Too many attempts. Wait 15 minutes and try again."), 429
+        local_state = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
+    local_users = local_state[0] if local_state else []
+    local_user = next((u for u in local_users if str(u.get("username", "")).casefold() == username.casefold()), None)
+    password_hash = local_user.get("password_hash") if local_user and local_user.get("enabled", True) else LOGIN_DUMMY_HASH
+    if local_user and local_user.get("enabled", True) and local_user.get("password_hash"):
+        try:
+            valid_local = check_password_hash(local_user["password_hash"], password)
+        except (ValueError, TypeError):
+            valid_local = False
+        if valid_local:
+            profile = {"username": str(local_user["username"]).lower(), "name": local_user.get("name") or local_user["username"], "email": local_user.get("email", ""), "dept": local_user.get("dept", ""), "site": local_user.get("site", ""), "role": local_user.get("role", "User"), "profile_picture": local_user.get("profile_picture", ""), "groups": []}
+            profile["module_permissions"] = local_user.get("module_permissions") if isinstance(local_user.get("module_permissions"), dict) else module_permissions_for(profile)
+            with db() as conn:
+                conn.execute("DELETE FROM login_attempts WHERE client_ip=%s", (remote_ip,))
+            session.clear()
+            session.permanent = True
+            session["auth_version"] = int(local_user.get("auth_version", 0) or 0)
+            session["is_admin"] = profile["role"] == "Administrator"
+            session["profile"] = {key:value for key,value in profile.items() if key != "groups"}
+            return jsonify(profile=session["profile"], isAdmin=session["is_admin"])
+    else:
+        try:
+            check_password_hash(password_hash, password)
+        except (ValueError, TypeError):
+            pass
+    with db() as conn:
+        conn.execute("INSERT INTO login_attempts(client_ip,failures,blocked_until) VALUES(%s,1,NULL) ON CONFLICT(client_ip) DO UPDATE SET failures=login_attempts.failures+1, blocked_until=CASE WHEN login_attempts.failures+1>=5 THEN now()+interval '15 minutes' ELSE NULL END", (remote_ip,))
+    return jsonify(error="Sign-in failed. Check your username and password."), 401
+
+
+@app.post("/api/recovery/reset")
+def recover_account_password():
+    body = request.get_json(silent=True) or {}
+    username = str(body.get("username", "")).strip()[:120]
+    raw_answers = body.get("answers", [])
+    new_password = str(body.get("new_password", ""))
+    confirm_password = str(body.get("confirm_password", ""))
+    if not username or len(new_password) < 10 or len(new_password) > 1024 or new_password != confirm_password:
+        return jsonify(message=RECOVERY_GENERIC_MESSAGE), 200
+    normalized = [normalize_recovery_answer(a) for a in raw_answers] if isinstance(raw_answers, list) else []
+    if len(normalized) != len(RECOVERY_QUESTIONS) or any(len(a) < 3 or len(a) > 200 for a in normalized):
+        normalized = ["invalid-answer"] * len(RECOVERY_QUESTIONS)
+    remote_ip = request.remote_addr or "127.0.0.1"
+    username_key = hmac.new(APP_SECRET.encode(), username.casefold().encode(), hashlib.sha256).hexdigest()
+    with db() as conn:
+        attempt = conn.execute(
+            "SELECT failures,blocked_until FROM recovery_attempts WHERE client_ip=%s AND username_hash=%s",
+            (remote_ip, username_key),
+        ).fetchone()
+        if attempt and attempt[1] and attempt[1] > datetime.now(timezone.utc):
+            return jsonify(message="Too many recovery attempts. Wait 15 minutes and try again."), 429
+        row = conn.execute("SELECT value FROM app_state WHERE key='manual_users' FOR UPDATE").fetchone()
+        users = row[0] if row else []
+        account = next((u for u in users if str(u.get("username", "")).casefold() == username.casefold()
+                        and u.get("enabled", True) and u.get("password_hash")), None)
+        hashes = account.get("recovery_answer_hashes", []) if account else []
+        usable_hashes = hashes if isinstance(hashes, list) and len(hashes) == len(RECOVERY_QUESTIONS) else [RECOVERY_DUMMY_HASH] * len(RECOVERY_QUESTIONS)
+        checks = [matches_recovery_answer(stored, answer) for stored, answer in zip(usable_hashes, normalized)]
+        valid = bool(account and len(hashes) == len(RECOVERY_QUESTIONS) and all(checks))
+        if valid:
+            account["password_hash"] = generate_password_hash(new_password)
+            account["auth_version"] = int(account.get("auth_version", 0) or 0) + 1
+            conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='manual_users'", (json.dumps(users),))
+            conn.execute("DELETE FROM recovery_attempts WHERE client_ip=%s AND username_hash=%s", (remote_ip, username_key))
+            conn.execute("DELETE FROM login_attempts WHERE client_ip=%s", (remote_ip,))
+        else:
+            conn.execute(
+                "INSERT INTO recovery_attempts(client_ip,username_hash,failures,blocked_until) VALUES(%s,%s,1,NULL) "
+                "ON CONFLICT(client_ip,username_hash) DO UPDATE SET failures=recovery_attempts.failures+1, "
+                "blocked_until=CASE WHEN recovery_attempts.failures+1>=5 THEN now()+interval '15 minutes' ELSE NULL END",
+                (remote_ip, username_key),
+            )
+    return jsonify(message=RECOVERY_GENERIC_MESSAGE), 200
+
+
+@app.post("/api/account/recovery-answers")
+@signed_in
+def update_recovery_answers():
+    body = request.get_json(silent=True) or {}
+    current_password = str(body.get("current_password", ""))
+    hashes = recovery_answer_hashes(body.get("answers"))
+    if not hashes:
+        return jsonify(error="Answer all three recovery questions with 3–200 characters each."), 400
+    username = session["profile"].get("username", "")
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='manual_users' FOR UPDATE").fetchone()
+        users = row[0] if row else []
+        account = next((u for u in users if str(u.get("username", "")).casefold() == username.casefold()), None)
+        if not account or not account.get("password_hash") or not check_password_hash(account["password_hash"], current_password):
+            return jsonify(error="Current password is incorrect."), 400
+        account["recovery_answer_hashes"] = hashes
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='manual_users'", (json.dumps(users),))
+    return jsonify(ok=True, message="Recovery answers saved securely.")
+
+
+@app.post("/api/logout")
+def logout():
+    session.clear()
+    return jsonify(ok=True)
+
+
+@app.get("/api/profile")
+@signed_in
+def profile():
+    return jsonify(profile=session["profile"], isAdmin=session["is_admin"])
+
+
+@app.get("/api/profile/preferences")
+@signed_in
+def get_profile_preferences():
+    username = str(session["profile"].get("username", ""))
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='profile_preferences'").fetchone()
+    preferences = row[0] if row and isinstance(row[0], dict) else {}
+    return jsonify(preferences=preferences.get(username, {}))
+
+
+@app.put("/api/profile/preferences")
+@signed_in
+def save_profile_preferences():
+    payload = request.get_json(silent=True) or {}
+    valid_views = {"dashboard", "assets", "datacenter", "tickets", "maintenance", "ageing",
+                   "users", "departments", "software", "monitoring", "notifications",
+                   "surveillance", "parts", "reports"}
+    order = payload.get("order")
+    hidden = payload.get("hidden", [])
+    if (not isinstance(order, list) or not isinstance(hidden, list)
+            or len(order) > len(valid_views) or len(hidden) > len(valid_views)
+            or any(not isinstance(item, str) or item not in valid_views for item in order + hidden)):
+        return jsonify(error="Invalid module preferences."), 400
+    normalized_order = list(dict.fromkeys(order))
+    normalized_order.extend(sorted(valid_views - set(normalized_order)))
+    normalized = {"order": normalized_order, "hidden": list(dict.fromkeys(hidden))}
+    username = str(session["profile"].get("username", ""))
+    with db() as conn:
+        conn.execute("INSERT INTO app_state(key,value) VALUES('profile_preferences','{}') ON CONFLICT(key) DO NOTHING")
+        row = conn.execute("SELECT value FROM app_state WHERE key='profile_preferences' FOR UPDATE").fetchone()
+        preferences = row[0] if row and isinstance(row[0], dict) else {}
+        preferences[username] = normalized
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='profile_preferences'", (json.dumps(preferences),))
+    return jsonify(ok=True, preferences=normalized)
+
+
+@app.get("/portal")
+def public_helpdesk_page():
+    return send_from_directory(ROOT, "portal.html")
+
+
+@app.get("/api/public/portal-options")
+def public_portal_options():
+    with db() as conn:
+        rows = {key: (conn.execute("SELECT value FROM app_state WHERE key=%s", (key,)).fetchone() or ([],))[0]
+                for key in ("manual_users", "departments", "settings")}
+    users = rows["manual_users"] if isinstance(rows["manual_users"], list) else []
+    departments = rows["departments"] if isinstance(rows["departments"], list) else []
+    settings = rows["settings"] if isinstance(rows["settings"], dict) else {}
+    factories = [{"code": str(f.get("code", "")).strip(), "name": str(f.get("name", "")).strip()}
+                 for f in settings.get("factories", []) if isinstance(f, dict) and f.get("code")]
+    for code in ("ARG", "ARB", "ARC", "ARF"):
+        if not any(f["code"].casefold() == code.casefold() for f in factories):
+            factories.append({"code": code, "name": code})
+    depts = []
+    for item in departments:
+        if isinstance(item, list) and len(item) > 6:
+            name, factory, kind = item[0], item[6] or item[1], item[8] if len(item) > 8 else "department"
+        elif isinstance(item, dict):
+            name, factory, kind = item.get("name", ""), item.get("factory", ""), item.get("kind", "department")
+        else:
+            continue
+        if name and factory and kind != "subdepartment":
+            depts.append({"name": str(name), "factory": str(factory)})
+    employees = []
+    for u in users:
+        if not isinstance(u, dict) or not u.get("enabled", True) or str(u.get("active", "Active")).lower() == "inactive":
+            continue
+        name = str(u.get("name") or "").strip()
+        dept = str(u.get("dept") or u.get("department") or "").strip()
+        site = str(u.get("site") or "").strip()
+        key = str(u.get("username") or u.get("id") or "").strip()
+        if name and dept and site and key:
+            public_key = hashlib.sha256((APP_SECRET + "|" + key.casefold() + "|" + dept.casefold() + "|" + site.casefold()).encode()).hexdigest()
+            employees.append({"key": public_key, "name": name, "department": dept, "factory": site})
+    return jsonify(factories=factories, departments=depts, employees=employees)
+
+
+@app.get("/api/public/tickets")
+def public_ticket_list():
+    kind = request.args.get("kind", "IT help desk")
+    if kind not in ("IT help desk", "Material request"):
+        return jsonify(error="Choose IT help desk or Material request."), 400
+    with db() as conn:
+        rows = conn.execute("""
+            SELECT t.id,t.kind,t.display_name,t.department,t.factory,t.primary_category,t.sub_category,
+                   t.description,t.attachments,t.assigned_to,t.status,t.eta,t.note,t.created_at,t.updated_at,
+                   COALESCE((SELECT min(e.created_at) FROM ticket_events e WHERE e.ticket_id=t.id
+                             AND e.event_type='updated' AND e.detail ~ '(^|; )status: (Resolved|Closed)(;|$)'), t.updated_at)
+            FROM tickets t WHERE t.kind=%s ORDER BY t.created_at DESC LIMIT 5000
+        """, (kind,)).fetchall()
+    now = datetime.now(timezone.utc)
+    result = []
+    for r in rows:
+        end = r[15] if r[10] in ("Resolved", "Closed") else now
+        duration = max(0, int((end - r[13]).total_seconds() // 60))
+        photos = []
+        for item in (r[8] or []):
+            name = Path(str(item.get("path", ""))).name
+            if name and name == str(item.get("path", "")).split("/")[-1]:
+                photos.append({"name": str(item.get("name") or name)[:160], "url": "/api/public/ticket-attachment?id=" + quote(r[0], safe="") + "&file=" + quote(name, safe="")})
+        result.append({"id":r[0],"kind":r[1],"name":r[2],"department":r[3],"factory":r[4],"primary":r[5],"sub":r[6],
+                       "description":r[7],"photos":photos,"assigned":r[9],"status":r[10],
+                       "eta":r[11].isoformat(timespec="minutes") if r[11] else "","note":r[12],
+                       "created":r[13].isoformat(timespec="minutes"),"durationMinutes":duration})
+    return jsonify(tickets=result)
+
+
+@app.get("/api/public/ticket-attachment")
+def public_ticket_attachment():
+    ticket_id = request.args.get("id", "")
+    filename = request.args.get("file", "")
+    if not ticket_id or Path(filename).name != filename:
+        abort(404)
+    with db() as conn:
+        row = conn.execute("SELECT attachments FROM tickets WHERE id=%s", (ticket_id,)).fetchone()
+    if not row:
+        abort(404)
+    match = next((item for item in (row[0] or []) if Path(str(item.get("path", ""))).name == filename), None)
+    if not match:
+        abort(404)
+    parts = Path(str(match.get("path", ""))).parts
+    if len(parts) != 3 or parts[0] != "tickets" or Path(parts[2]).name != parts[2]:
+        abort(404)
+    return send_from_directory(UPLOAD_DIR / parts[0] / parts[1], parts[2], as_attachment=False)
+
+
+@app.post("/api/public/tickets")
+def create_public_ticket():
+    body = request.get_json(silent=True) or {}
+    factory = str(body.get("factory", "")).strip()[:80]
+    department = str(body.get("department", "")).strip()[:120]
+    employee_key = str(body.get("employee", "")).strip()[:120]
+    primary = str(body.get("primary", "IT help desk")).strip()[:80]
+    sub = str(body.get("sub", "")).strip()[:80]
+    description = str(body.get("description", "")).strip()[:5000]
+    kind = "Material request" if body.get("kind") == "Material request" else "IT help desk"
+    if not all((factory, department, employee_key, description, sub)):
+        return jsonify(error="Select your factory, department, name and issue category, then describe the issue."), 400
+    with db() as conn:
+        recent = conn.execute("SELECT count(*) FROM tickets WHERE client_ip=%s AND username LIKE 'public-%%' AND created_at>now()-interval '10 minutes'", (request.remote_addr or "127.0.0.1",)).fetchone()[0]
+        if recent >= 5:
+            return jsonify(error="Too many requests from this network. Please try again in a few minutes."), 429
+        state = {key: (conn.execute("SELECT value FROM app_state WHERE key=%s", (key,)).fetchone() or ([],))[0]
+                 for key in ("manual_users", "departments", "settings")}
+        users = state["manual_users"] if isinstance(state["manual_users"], list) else []
+        user = next((u for u in users if isinstance(u, dict)
+                     and hashlib.sha256((APP_SECRET + "|" + str(u.get("username") or u.get("id") or "").casefold() + "|" + str(u.get("dept") or u.get("department") or "").casefold() + "|" + str(u.get("site") or "").casefold()).encode()).hexdigest() == employee_key
+                     and str(u.get("dept") or u.get("department") or "").casefold() == department.casefold()
+                     and str(u.get("site") or "").casefold() == factory.casefold()
+                     and u.get("enabled", True) and str(u.get("active", "Active")).lower() != "inactive"), None)
+        if not user:
+            return jsonify(error="That employee is not active in the selected factory and department. Refresh the portal and choose again."), 400
+        depts = state["departments"] if isinstance(state["departments"], list) else []
+        dept_exists = any((str(d[0]).casefold() == department.casefold() and str((d[6] or d[1]) if len(d)>6 else "").casefold() == factory.casefold())
+                          if isinstance(d, list) and len(d)>1 else
+                          isinstance(d, dict) and str(d.get("name", "")).casefold() == department.casefold() and str(d.get("factory", "")).casefold() == factory.casefold()
+                          for d in depts)
+        custom_factories = (state["settings"] or {}).get("factories", []) if isinstance(state["settings"], dict) else []
+        factory_exists = factory.upper() in {"ARG", "ARB", "ARC", "ARF"} or any(isinstance(f, dict) and str(f.get("code", "")).casefold() == factory.casefold() for f in custom_factories)
+        if not dept_exists or not factory_exists:
+            return jsonify(error="The selected factory or department is no longer available. Refresh the portal."), 400
+        remote = request.remote_addr or "127.0.0.1"
+        conn.execute("SELECT pg_advisory_xact_lock(hashtext(CURRENT_DATE::text))")
+        seq = conn.execute("SELECT count(*) FROM tickets WHERE created_at::date=CURRENT_DATE").fetchone()[0] + 1
+        token_date = datetime.now().strftime("%d-%m-%Y")
+        ticket_id = f"IT{seq:02d}/{token_date}"
+        tracking_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(tracking_token.encode()).hexdigest()
+        username = "public-" + token_hash[:24]
+        conn.execute("INSERT INTO tickets(id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,public_token_hash) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                     (ticket_id, kind, username, str(user.get("name") or "")[:120], department, factory, remote, primary, sub, description, token_hash))
+        conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,'Public portal','created',%s)", (ticket_id, description[:500]))
+    return jsonify(id=ticket_id, tracking_token=tracking_token), 201
+
+
+@app.post("/api/public/tickets/status")
+def get_public_ticket_status():
+    tracking_token = str((request.get_json(silent=True) or {}).get("tracking_token", ""))
+    if not re.fullmatch(r"[A-Za-z0-9_-]{40,60}", tracking_token):
+        abort(404)
+    token_hash = hashlib.sha256(tracking_token.encode()).hexdigest()
+    with db() as conn:
+        row = conn.execute("SELECT id,status,eta,note,updated_at FROM tickets WHERE public_token_hash=%s", (token_hash,)).fetchone()
+    if not row:
+        abort(404)
+    return jsonify(id=row[0], status=row[1], eta=row[2].isoformat(timespec="minutes") if row[2] else "",
+                   note=row[3], updated=row[4].isoformat(timespec="minutes") if row[4] else "")
+
+
+@app.post("/api/account/profile-picture")
+@signed_in
+def update_profile_picture():
+    upload = request.files.get("picture")
+    if not upload or not upload.filename:
+        return jsonify(error="Choose a profile picture first."), 400
+    ext = Path(upload.filename).suffix.lower()
+    if ext not in (".png", ".jpg", ".jpeg", ".webp"):
+        return jsonify(error="Use a PNG, JPG, or WebP image."), 400
+    data = upload.stream.read(2 * 1024 * 1024 + 1)
+    valid = (ext == ".png" and data.startswith(b"\x89PNG\r\n\x1a\n")) or (ext in (".jpg", ".jpeg") and data.startswith(b"\xff\xd8\xff")) or (ext == ".webp" and data.startswith(b"RIFF") and data[8:12] == b"WEBP")
+    if not data or len(data) > 2 * 1024 * 1024 or not valid:
+        return jsonify(error="Use a valid image up to 2 MB."), 400
+    username = session["profile"].get("username", "")
+    filename = uuid.uuid4().hex + ext
+    (PROFILE_MEDIA_DIR / filename).write_bytes(data)
+    picture_url = "/profile-media/" + filename
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='manual_users' FOR UPDATE").fetchone()
+        users = row[0] if row else []
+        account = next((u for u in users if str(u.get("username", "")).casefold() == username.casefold()), None)
+        if not account:
+            (PROFILE_MEDIA_DIR / filename).unlink(missing_ok=True)
+            return jsonify(error="Local account was not found."), 404
+        account["profile_picture"] = picture_url
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='manual_users'", (json.dumps(users),))
+    session["profile"]["profile_picture"] = picture_url
+    return jsonify(ok=True, profile_picture=picture_url)
+
+@app.post("/api/account/password")
+@signed_in
+def change_account_password():
+    body = request.get_json(force=True)
+    current_password = str(body.get("current_password", ""))
+    new_password = str(body.get("new_password", ""))
+    confirm_password = str(body.get("confirm_password", ""))
+    if len(new_password) < 10 or len(new_password) > 1024:
+        return jsonify(error="New password must be at least 10 characters long"), 400
+    if new_password != confirm_password:
+        return jsonify(error="New password and confirmation do not match"), 400
+    username = session["profile"].get("username", "")
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='manual_users' FOR UPDATE").fetchone()
+        users = row[0] if row else []
+        account = next((u for u in users if str(u.get("username", "")).casefold() == username.casefold()), None)
+        if not account or not account.get("password_hash"):
+            return jsonify(error="Local account was not found."), 400
+        if not check_password_hash(account["password_hash"], current_password):
+            return jsonify(error="Current password is incorrect"), 400
+        account["password_hash"] = generate_password_hash(new_password)
+        account["auth_version"] = int(account.get("auth_version", 0) or 0) + 1
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='manual_users'", (json.dumps(users),))
+        session["auth_version"] = account["auth_version"]
+    return jsonify(ok=True, message="Password changed successfully")
+
+
+@app.get("/api/data")
+@signed_in
+def get_data():
+    who = session["profile"]
+    with db() as conn:
+        keys = ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "vendors", "manual_users", "settings", "camera_streams", "camera_profiles", "network_ranges", "network_scan", "scanner_heartbeat", "scanner_ip_status", "notifications")
+        out = {k: (conn.execute("SELECT value FROM app_state WHERE key=%s", (k,)).fetchone() or ([],))[0] for k in keys}
+        if session.get("is_admin"):
+            out["users"] = [{k:v for k,v in u.items() if k not in ("password_hash", "recovery_answer_hashes")} | {"source":"manual"} for u in out.pop("manual_users", [])]
+        else:
+            allowed = set()
+            for module, grant in module_permissions_for(who).items():
+                if grant in ("read", "write"):
+                    allowed.update(MODULE_DATA_KEYS.get(module, ()))
+            out = {key: value for key, value in out.items() if key in allowed}
+            manuals = out.pop("manual_users", [])
+            if "manual_users" in allowed:
+                out["users"] = [{k:v for k,v in u.items() if k not in ("password_hash", "recovery_answer_hashes", "module_permissions")} | {"source":"manual"} for u in manuals]
+            elif any(k in allowed for k in ("assets", "departments")):
+                out["users"] = [{k:v for k,v in u.items() if k in ("username", "name", "email", "dept", "department", "site", "role")} | {"source":"manual"} for u in manuals]
+            else:
+                out["users"] = [{k:v for k,v in who.items() if k in ("username", "name", "email", "dept", "department", "site", "role")}]
+            out.pop("settings", None)
+        return jsonify(**out)
+
+
+@app.put("/api/data")
+@signed_in
+def save_data():
+    body = request.get_json(force=True)
+    if not isinstance(body, dict):
+        return jsonify(error="Invalid data payload."), 400
+    if not session.get("is_admin"):
+        who = session["profile"]
+        for key in body:
+            if key in ("manual_users", "settings", "camera_profiles", "network_ranges", "network_scan", "notifications"):
+                return jsonify(error="Administrator access is required for account and system settings."), 403
+            module = data_key_module(key)
+            if not module or not module_access(who, module, write=True):
+                return jsonify(error="You do not have write access to the %s module." % (module or "requested")), 403
+    with db() as conn:
+        for key in ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "vendors", "manual_users", "settings"):
+            if key in body:
+                value = body[key]
+                if key == "assets" and isinstance(value, list):
+                    current = (conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone() or ([],))[0]
+                    prior_by_tag = {str(a.get("tag", "")).casefold(): a for a in current}
+                    reconciled = []
+                    for item in value:
+                        asset = dict(item)
+                        prior = prior_by_tag.get(str(asset.get("tag", "")).casefold(), {})
+                        interfaces = asset.get("networkInterfaces", [])
+                        if not isinstance(interfaces, list) or len(interfaces) > 16:
+                            return jsonify(error="Each asset can have up to 16 network interfaces."), 400
+                        prior_interfaces = prior.get("networkInterfaces", [])
+                        if not isinstance(prior_interfaces, list):
+                            prior_interfaces = []
+                        prior_by_interface = {}
+                        for previous in prior_interfaces:
+                            if isinstance(previous, dict):
+                                identity = (str(previous.get("name", previous.get("interface", ""))).strip().casefold(),
+                                            str(previous.get("ipAddress", previous.get("ip_address", previous.get("ip", "")))).strip())
+                                prior_by_interface[identity] = previous
+                        clean_interfaces = []
+                        for interface in interfaces:
+                            if not isinstance(interface, dict):
+                                return jsonify(error="Network interface entries must be objects."), 400
+                            name = str(interface.get("name", interface.get("interface", ""))).strip()[:80]
+                            ip_value = str(interface.get("ipAddress", interface.get("ip_address", interface.get("ip", "")))).strip()
+                            mac = str(interface.get("macAddress", interface.get("mac_address", ""))).strip()[:64]
+                            if len(ip_value) > 45:
+                                return jsonify(error="Network interface IP addresses are too long."), 400
+                            if ip_value:
+                                try:
+                                    ipaddress.ip_address(ip_value)
+                                except ValueError:
+                                    return jsonify(error="Enter a valid IP address for each network interface."), 400
+                            entry = {"name": name, "ipAddress": ip_value, "macAddress": mac}
+                            previous = prior_by_interface.get((name.casefold(), ip_value))
+                            if previous:
+                                for field in ("status", "ipStatus", "ipCheckedAt", "lastSeen"):
+                                    if field in previous:
+                                        entry[field] = previous[field]
+                            clean_interfaces.append(entry)
+                        asset["networkInterfaces"] = clean_interfaces
+                        old_ip = str(prior.get("ipAddress", prior.get("ip_address", ""))).strip()
+                        new_ip = str(asset.get("ipAddress", asset.get("ip_address", ""))).strip()
+                        old_ips = {old_ip} if old_ip else set()
+                        new_ips = {new_ip} if new_ip else set()
+                        old_ips.update(str(i.get("ipAddress", i.get("ip_address", i.get("ip", "")))).strip() for i in prior_interfaces if isinstance(i, dict))
+                        new_ips.update(i["ipAddress"] for i in clean_interfaces if i["ipAddress"])
+                        old_ips.discard("")
+                        if prior and old_ips == new_ips:
+                            for field in ("status", "ipStatus", "ipCheckedAt", "lastSeen"):
+                                if field in prior:
+                                    asset[field] = prior[field]
+                        else:
+                            asset["status"] = "Not checked"
+                            asset["ipStatus"] = "Not checked"
+                            asset["ipCheckedAt"] = ""
+                        reconciled.append(asset)
+                    value = reconciled
+                if key == "manual_users":
+                    current = (conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone() or ([],))[0]
+                    existing = {str(u.get("username", "")).casefold(): u for u in current}
+                    clean = []
+                    for item in value:
+                        user = dict(item)
+                        username = str(user.get("username", "")).strip()
+                        if not username:
+                            continue
+                        if not re.fullmatch(r"[A-Za-z0-9._@-]{3,80}", username):
+                            return jsonify(error="Usernames must be 3–80 letters, numbers, dots, underscores, @, or hyphens."), 400
+                        prior = existing.get(username.casefold(), {})
+                        old_ip = str(prior.get("ip_address", prior.get("ipAddress", ""))).strip()
+                        new_ip = str(user.get("ip_address", user.get("ipAddress", ""))).strip()
+                        if prior and old_ip == new_ip:
+                            for field in ("ipStatus", "ipCheckedAt", "lastSeen"):
+                                if field in prior:
+                                    user[field] = prior[field]
+                        elif new_ip:
+                            user["ipStatus"] = "Not checked"
+                            user["ipCheckedAt"] = ""
+                        new_password = user.pop("password", "")
+                        user.pop("password_confirm", None)
+                        if new_password:
+                            if len(new_password) < 10 or len(new_password) > 1024:
+                                return jsonify(error="Account passwords must be at least 10 characters long."), 400
+                            user["password_hash"] = generate_password_hash(new_password)
+                            user["auth_version"] = int(prior.get("auth_version", 0) or 0) + 1
+                        elif prior.get("password_hash"):
+                            user["password_hash"] = prior["password_hash"]
+                            user["auth_version"] = int(prior.get("auth_version", 0) or 0)
+                        if prior.get("recovery_answer_hashes"):
+                            user["recovery_answer_hashes"] = prior["recovery_answer_hashes"]
+                        if "password_hash" not in user:
+                            user["password_hash"] = ""
+                        user["username"] = username
+                        user["role"] = user.get("role") if user.get("role") in ("Administrator", "IT Ticketing", "Viewer") else "User"
+                        user["enabled"] = user.get("enabled", True)
+                        clean.append(user)
+                    if not any(u.get("enabled", True) and u.get("role") == "Administrator" and u.get("password_hash") for u in clean):
+                        return jsonify(error="Keep at least one enabled Administrator account with a password."), 400
+                    value = clean
+                conn.execute("INSERT INTO app_state(key,value) VALUES(%s,%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (key, json.dumps(value)))
+    return jsonify(ok=True)
+
+
+def ticket_json(row):
+    return {"id":row[0],"kind":row[1],"username":row[2],"name":row[3],"dept":row[4],"site":row[5],"ip":str(row[6] or ""),"primary":row[7],"sub":row[8],"description":row[9],"material":row[10],"files":row[11],"assigned":row[12],"status":row[13],"eta":row[14].isoformat(timespec="minutes") if row[14] else "","note":row[15],"updated":row[16].isoformat(timespec="minutes") if row[16] else ""}
+
+
+TICKET_COLUMNS = "id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments,assigned_to,status,eta,note,updated_at"
+
+
+INVOICE_UPLOAD_DIR = UPLOAD_DIR / "invoices"
+INVOICE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+INVOICE_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".heic", ".heif", ".avif", ".tif", ".tiff", ".svg", ".doc", ".docx", ".docm", ".xls", ".xlsx", ".xlsm", ".ppt", ".pptx", ".pptm", ".odt", ".ods", ".odp", ".rtf", ".txt", ".csv", ".pages", ".numbers", ".key"}
+
+
+def invoice_rows(conn):
+    row = conn.execute("SELECT value FROM app_state WHERE key='invoices'").fetchone()
+    return row[0] if row and isinstance(row[0], list) else []
+
+
+@app.get("/api/invoices")
+@signed_in
+def list_invoices():
+    with db() as conn:
+        rows = invoice_rows(conn)
+    return jsonify(invoices=rows)
+
+
+def save_invoice_request(invoice_id=None):
+    if not session.get("is_admin"):
+        abort(403)
+    try:
+        payload = json.loads(request.form.get("invoice", "{}"))
+    except (TypeError, ValueError):
+        return jsonify(error="Invoice details are invalid."), 400
+    if not isinstance(payload, dict):
+        return jsonify(error="Invoice details are invalid."), 400
+    number = str(payload.get("number", "")).strip()[:100]
+    if not number:
+        return jsonify(error="Invoice number is required."), 400
+    files = [f for f in request.files.getlist("files") if f and f.filename]
+    if len(files) > 5:
+        return jsonify(error="Attach up to five files per invoice."), 400
+    attachments = []
+    for upload in files:
+        ext = Path(secure_filename(upload.filename)).suffix.lower()
+        if ext not in INVOICE_EXTENSIONS:
+            return jsonify(error="Use PDF, supported image, Office, OpenDocument, Apple iWork, RTF, CSV, or TXT attachments."), 400
+        data = upload.stream.read(10 * 1024 * 1024 + 1)
+        if not data or len(data) > 10 * 1024 * 1024:
+            return jsonify(error="Each invoice file must be 10 MB or smaller."), 400
+        if ext == ".pdf" and not data.startswith(b"%PDF-"):
+            return jsonify(error="The PDF attachment is invalid."), 400
+        if ext in (".jpg", ".jpeg") and not data.startswith(b"\xff\xd8\xff"):
+            return jsonify(error="The JPEG attachment is invalid."), 400
+        if ext == ".png" and not data.startswith(b"\x89PNG\r\n\x1a\n"):
+            return jsonify(error="The PNG attachment is invalid."), 400
+        if ext == ".webp" and not (data.startswith(b"RIFF") and data[8:12] == b"WEBP"):
+            return jsonify(error="The WebP attachment is invalid."), 400
+        safe_name = secure_filename(upload.filename)[:150] or ("attachment" + ext)
+        attachments.append((safe_name, ext, data, upload.mimetype or "application/octet-stream"))
+    with db() as conn:
+        rows = invoice_rows(conn)
+        old = next((r for r in rows if r.get("id") == invoice_id), None) if invoice_id else None
+        if invoice_id and not old:
+            abort(404)
+        if old:
+            old_files = list(old.get("attachments", []))
+            if len(old_files) + len(attachments) > 5:
+                return jsonify(error="An invoice can have up to five attachments in total."), 400
+            record = {**old, **payload, "id": invoice_id, "attachments": old_files, "updatedAt": datetime.now(timezone.utc).isoformat()}
+        else:
+            record = {**payload, "id": "inv-" + uuid.uuid4().hex, "attachments": [], "createdAt": datetime.now(timezone.utc).isoformat()}
+        folder = INVOICE_UPLOAD_DIR / record["id"]
+        folder.mkdir(parents=True, exist_ok=True)
+        for safe_name, ext, data, mime_type in attachments:
+            stored = uuid.uuid4().hex + ext
+            (folder / stored).write_bytes(data)
+            record["attachments"].append({"name": safe_name, "file": stored, "size": len(data), "type": mime_type})
+        if old:
+            rows[rows.index(old)] = record
+        else:
+            rows.insert(0, record)
+        conn.execute("INSERT INTO app_state(key,value) VALUES('invoices',%s) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value", (json.dumps(rows),))
+    return jsonify(invoice=record), 200 if old else 201
+
+
+@app.post("/api/invoices")
+@signed_in
+def create_invoice():
+    return save_invoice_request()
+
+
+@app.put("/api/invoices/<invoice_id>")
+@signed_in
+def update_invoice(invoice_id):
+    return save_invoice_request(invoice_id)
+
+
+@app.get("/api/invoices/<invoice_id>/files/<filename>")
+@signed_in
+def invoice_attachment(invoice_id, filename):
+    with db() as conn:
+        record = next((r for r in invoice_rows(conn) if r.get("id") == invoice_id), None)
+    if not record:
+        abort(404)
+    attachment = next((f for f in record.get("attachments", []) if f.get("file") == filename), None)
+    if not attachment:
+        abort(404)
+    # Inline rendering is limited to formats browsers can safely preview. Keep
+    # office, Apple and other uploaded documents as downloads, regardless of
+    # a client supplied MIME type.
+    inline_types = {
+        ".pdf": "application/pdf",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".avif": "image/avif",
+    }
+    original_name = attachment.get("name", "invoice-attachment")
+    inline_mime = inline_types.get(Path(original_name).suffix.lower())
+    response = send_from_directory(
+        INVOICE_UPLOAD_DIR / invoice_id,
+        filename,
+        as_attachment=inline_mime is None,
+        download_name=original_name,
+        mimetype=inline_mime,
+    )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@app.delete("/api/invoices/<invoice_id>")
+@administrator
+def delete_invoice(invoice_id):
+    with db() as conn:
+        rows = invoice_rows(conn)
+        kept = [r for r in rows if r.get("id") != invoice_id]
+        if len(kept) == len(rows):
+            abort(404)
+        conn.execute("INSERT INTO app_state(key,value) VALUES('invoices',%s) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value", (json.dumps(kept),))
+    shutil.rmtree(INVOICE_UPLOAD_DIR / invoice_id, ignore_errors=True)
+    return jsonify(ok=True)
+
+
+@app.get("/api/tickets")
+@signed_in
+def list_tickets():
+    with db() as conn:
+        if session.get("is_admin") or session.get("profile", {}).get("role") in ("IT Ticketing", "Viewer"):
+            rows = conn.execute(f"SELECT {TICKET_COLUMNS} FROM tickets ORDER BY created_at DESC LIMIT 1000").fetchall()
+        else:
+            rows = conn.execute(f"SELECT {TICKET_COLUMNS} FROM tickets WHERE username=%s ORDER BY created_at DESC LIMIT 250", (session["profile"]["username"],)).fetchall()
+    return jsonify(tickets=[ticket_json(r) for r in rows])
+
+
+@app.get("/api/tickets/<path:ticket_id>/attachments/<path:filename>")
+@signed_in
+def ticket_attachment(ticket_id, filename):
+    with db() as conn:
+        row = conn.execute("SELECT username,attachments FROM tickets WHERE id=%s", (ticket_id,)).fetchone()
+    if not row:
+        abort(404)
+    if not session.get("is_admin") and session.get("profile", {}).get("role") not in ("IT Ticketing", "Viewer") and row[0] != session["profile"]["username"]:
+        abort(403)
+    match = next((item for item in row[1] if Path(item.get("path", "")).name == filename), None)
+    if not match:
+        abort(404)
+    return send_from_directory(UPLOAD_DIR / "tickets" / ticket_id.split("/")[-1], filename, as_attachment=False)
+
+
+@app.post("/api/tickets")
+@signed_in
+def create_ticket():
+    form = request.form
+    description = form.get("description", "").strip()
+    kind = form.get("kind", "IT help desk")
+    primary = form.get("primary", "")
+    sub = form.get("sub", "")
+    if not description or not sub or kind not in ("IT help desk", "Material request"):
+        return jsonify(error="Complete the issue description and category"), 400
+    files = request.files.getlist("files")
+    if len(files) > 5:
+        return jsonify(error="Attach up to five screenshots"), 400
+    token_date = datetime.now().strftime("%d-%m-%Y")
+    ticket_dir = UPLOAD_DIR / "tickets" / token_date
+    ticket_dir.mkdir(parents=True, exist_ok=True)
+    profile = session["profile"]
+    remote = request.remote_addr
+    with db() as conn:
+        conn.execute("SELECT pg_advisory_xact_lock(hashtext(CURRENT_DATE::text))")
+        seq = conn.execute("SELECT count(*) FROM tickets WHERE created_at::date=CURRENT_DATE").fetchone()[0] + 1
+        ticket_id = f"IT{seq:02d}/{token_date}"
+        saved = []
+        for f in files:
+            if not f.filename:
+                continue
+            if f.mimetype not in ("image/png", "image/jpeg", "image/gif", "image/webp"):
+                return jsonify(error="Only image attachments are accepted"), 400
+            ext = Path(secure_filename(f.filename)).suffix[:10]
+            stored = f"{ticket_id.replace('/', '-')}-{uuid.uuid4().hex}{ext}"
+            f.save(ticket_dir / stored)
+            saved.append({"name":secure_filename(f.filename),"path":f"tickets/{token_date}/{stored}"})
+        conn.execute("INSERT INTO tickets(id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb)", (ticket_id,kind,profile["username"],profile["name"],profile.get("department", ""),profile.get("site", ""),remote,primary,sub,description,form.get("material", ""),json.dumps(saved)))
+        conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'created',%s)", (ticket_id,profile["username"],description[:500]))
+    return jsonify(id=ticket_id), 201
+
+
+@app.patch("/api/tickets/<path:ticket_id>")
+@ticket_manager
+def update_ticket(ticket_id):
+    body = request.get_json(force=True)
+    allowed = {"assigned":"assigned_to", "status":"status", "eta":"eta", "note":"note"}
+    fields = [(allowed[k], (None if k == "eta" and v == "" else v)) for k,v in body.items() if k in allowed]
+    if not fields:
+        return jsonify(error="No supported fields to update"), 400
+    if "status" in body and body["status"] not in ("Open", "In progress", "Resolved", "Closed"):
+        return jsonify(error="Invalid status"), 400
+    if "assigned" in body and len(str(body["assigned"])) > 160:
+        return jsonify(error="Assignee name is too long."), 400
+    if "eta" in body and body["eta"] not in (None, "") and len(str(body["eta"])) > 40:
+        return jsonify(error="Invalid ETA."), 400
+    assignments = ", ".join(f"{column}=%s" for column,_ in fields)
+    with db() as conn:
+        cur = conn.execute(f"UPDATE tickets SET {assignments}, updated_at=now() WHERE id=%s RETURNING id", [v for _,v in fields]+[ticket_id])
+        if not cur.fetchone():
+            abort(404)
+        detail = "; ".join(f"{k}: {v}" for k,v in body.items() if k in allowed)[:1000]
+        conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'updated',%s)", (ticket_id,session["profile"]["username"],detail))
+    return jsonify(ok=True)
+
+
+@app.post("/api/tickets/<path:ticket_id>/worklog")
+@ticket_manager
+def add_ticket_worklog(ticket_id):
+    body = request.get_json(silent=True) or {}
+    detail = str(body.get("detail", "")).strip()
+    if not detail or len(detail) > 3000:
+        return jsonify(error="Enter a work update (up to 3000 characters)."), 400
+    actor = str(session.get("profile", {}).get("name") or session["profile"].get("username", "IT"))[:120]
+    with db() as conn:
+        row = conn.execute("UPDATE tickets SET note=%s,updated_at=now() WHERE id=%s RETURNING id", (detail, ticket_id)).fetchone()
+        if not row:
+            abort(404)
+        conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'worklog',%s)", (ticket_id, actor, detail))
+    return jsonify(ok=True)
+
+
+@app.get("/api/tickets/<path:ticket_id>/worklog")
+@ticket_manager
+def list_ticket_worklog(ticket_id):
+    with db() as conn:
+        if not conn.execute("SELECT 1 FROM tickets WHERE id=%s", (ticket_id,)).fetchone():
+            abort(404)
+        rows = conn.execute("SELECT actor,detail,created_at FROM ticket_events WHERE ticket_id=%s AND event_type IN ('created','updated','worklog') ORDER BY created_at DESC LIMIT 100", (ticket_id,)).fetchall()
+    return jsonify(events=[{"actor":r[0],"detail":r[1],"created":r[2].isoformat(timespec="minutes")} for r in rows])
+
+
+@app.get("/api/backups")
+@administrator
+def backup_list():
+    path = Path(os.getenv("BACKUP_DIR", "/backups"))
+    files = sorted(path.glob("northstar-*.tar.gz"), key=lambda x:x.stat().st_mtime, reverse=True) if path.exists() else []
+    return jsonify(backups=[{"name":p.name,"size":p.stat().st_size,"created":datetime.fromtimestamp(p.stat().st_mtime,timezone.utc).isoformat()} for p in files[:100]])
+
+
+@app.get("/api/backups/<path:name>")
+@administrator
+def download_backup(name):
+    if not re.fullmatch(r"northstar-(daily|weekly|monthly|manual)-[0-9T-]+\.tar\.gz", name):
+        abort(404)
+    return send_from_directory(os.getenv("BACKUP_DIR", "/backups"), name, as_attachment=True)
+
+
+@app.post("/api/backups")
+@administrator
+def create_manual_backup():
+    try:
+        result = subprocess.run(["python", str(ROOT / "backup.py"), "manual"], capture_output=True, text=True, check=True, timeout=1800)
+        return jsonify(name=result.stdout.strip())
+    except subprocess.TimeoutExpired:
+        return jsonify(error="Backup is taking longer than expected. Check server logs."), 504
+    except subprocess.CalledProcessError as exc:
+        app.logger.error("Manual backup failed: %s", exc.stderr[-1000:])
+        return jsonify(error="Backup failed. Check server logs."), 500
+
+
+@app.post("/api/backups/restore")
+@administrator
+def restore_uploaded_backup():
+    upload = request.files.get("backup")
+    if not upload or not upload.filename:
+        return jsonify(error="Choose a Northstar .tar.gz backup file."), 400
+    if not upload.filename.lower().endswith((".tar.gz", ".tgz")):
+        return jsonify(error="Only Northstar .tar.gz backup files are supported."), 400
+
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="northstar-restore-") as temp_name:
+        temp = Path(temp_name)
+        archive = temp / "uploaded-backup.tar.gz"
+        extracted = temp / "validated"
+        upload.save(archive)
+
+        try:
+            validation = subprocess.run(
+                ["python", str(ROOT / "restore_archive.py"), str(archive), str(extracted)],
+                capture_output=True, text=True, check=True, timeout=1800,
+            )
+        except subprocess.CalledProcessError as exc:
+            app.logger.warning("Uploaded backup rejected: %s", (exc.stderr or exc.stdout)[-1000:])
+            return jsonify(error="Backup validation failed. Check that this is an intact Northstar backup."), 400
+        except subprocess.TimeoutExpired:
+            return jsonify(error="Backup validation took too long. No data was restored."), 504
+
+        try:
+            lock_fd = os.open(RESTORE_LOCK_PATH, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError:
+            return jsonify(error="Another restore is already in progress."), 409
+
+        safety_name = ""
+        try:
+            os.write(lock_fd, str(os.getpid()).encode("ascii"))
+            os.close(lock_fd)
+            safety = subprocess.run(
+                ["python", str(ROOT / "backup.py"), "manual"],
+                capture_output=True, text=True, check=True, timeout=1800,
+            )
+            safety_name = safety.stdout.strip()
+            db_dump = extracted / "database.dump"
+            subprocess.run(
+                ["pg_restore", "--clean", "--if-exists", "--no-owner", "--single-transaction",
+                 "--dbname", os.environ["DATABASE_URL"], str(db_dump)],
+                capture_output=True, text=True, check=True, timeout=1800,
+            )
+
+            restored_uploads = extracted / "uploads"
+            staging = UPLOAD_DIR.parent / (".uploads-restore-" + uuid.uuid4().hex)
+            previous = UPLOAD_DIR.parent / (".uploads-before-restore-" + uuid.uuid4().hex)
+            shutil.copytree(restored_uploads, staging)
+            moved_previous = False
+            try:
+                if UPLOAD_DIR.exists():
+                    os.replace(UPLOAD_DIR, previous)
+                    moved_previous = True
+                os.replace(staging, UPLOAD_DIR)
+            except Exception:
+                if moved_previous and previous.exists() and not UPLOAD_DIR.exists():
+                    os.replace(previous, UPLOAD_DIR)
+                raise
+            if previous.exists():
+                shutil.rmtree(previous)
+            init_db()
+            return jsonify(ok=True, safety_backup=safety_name,
+                           message="Backup restored. Sign in again if the restored user accounts differ.")
+        except subprocess.CalledProcessError as exc:
+            app.logger.error("Uploaded backup restore failed: %s", (exc.stderr or exc.stdout)[-2000:])
+            return jsonify(error="Restore failed. Check server logs; the pre-restore safety backup is " + (safety_name or "being created") + "."), 500
+        except subprocess.TimeoutExpired:
+            return jsonify(error="Restore took too long. Check server logs and the pre-restore safety backup."), 504
+        except Exception:
+            app.logger.exception("Uploaded backup restore failed unexpectedly")
+            return jsonify(error="Restore failed. Check server logs and the pre-restore safety backup."), 500
+        finally:
+            try:
+                os.close(lock_fd)
+            except OSError:
+                pass
+            RESTORE_LOCK_PATH.unlink(missing_ok=True)
+
+
+@app.errorhandler(413)
+def too_large(_):
+    limit = "1 GB" if request.path == "/api/backups/restore" else "64 MB"
+    return jsonify(error=f"Request too large (maximum {limit})"), 413
+
+
+init_db()
