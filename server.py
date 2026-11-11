@@ -96,28 +96,30 @@ MODULE_IDS = (
 )
 MODULE_DATA_KEYS = {
     "overview": ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "invoices"),
-    "assets": ("assets",),
-    "data_center": ("assets", "camera_streams"),
+    "assets": ("assets", "departments"),
+    "data_center": ("assets", "camera_streams", "camera_profiles"),
     "surveillance": ("assets", "camera_streams", "camera_profiles"),
-    "tickets": (),
+    "tickets": ("departments",),
     "maintenance": ("assets", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "departments"),
     "ageing": ("assets", "maintenance"),
     "parts": ("assets", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "departments"),
     "users": ("manual_users", "departments"),
     "departments": ("departments", "assets", "manual_users", "maintenance", "parts_assignments"),
     "factories": ("departments", "assets", "manual_users"),
-    "software": ("software", "assets", "manual_users"),
+    "software": ("software", "assets", "departments", "manual_users"),
     "network": ("assets", "network_ranges", "network_scan", "scanner_heartbeat", "scanner_ip_status"),
     "snmp": ("assets",),
     "notifications": ("notifications",),
     "reports": ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "invoices", "vendors"),
-    "valuation": ("assets", "software", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "invoices"),
+    "valuation": ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "invoices"),
     "billing": ("invoices", "vendors", "departments", "manual_users"),
 }
 MODULE_API_PATHS = {
     "/api/invoices": "billing", "/api/tickets": "tickets",
     "/api/camera-profiles": "surveillance", "/api/camera-streams": "surveillance",
-    "/api/cctv-media-auth": "surveillance", "/api/network-scans": "network",
+    "/api/cctv-media-auth": "surveillance",
+    "/api/network-scans": "network", "/api/network-scan": "network",
+    "/api/notifications": "notifications",
     "/api/snmp-metrics": "snmp", "/api/snmp-monitors": "snmp", "/api/admin/snmp-monitors": "snmp",
 }
 
@@ -318,6 +320,12 @@ def enforce_module_access():
     if path.startswith("/api/invoices") and not is_write:
         if any(module_access(profile, m) for m in ("billing", "valuation", "departments", "reports")):
             return None
+    if path.startswith(("/api/camera-streams", "/api/camera-profiles", "/api/cctv-media-auth")):
+        if module_access(profile, "surveillance", write=is_write) or module_access(profile, "data_center", write=is_write):
+            return None
+    if path == "/api/snmp-metrics" and not is_write:
+        if any(module_access(profile, m) for m in ("snmp", "overview", "network")):
+            return None
     if module:
         if not module_access(profile, module, write=is_write):
             return jsonify(error=("This module is read-only for your account." if is_write and module_access(profile, module) else "You do not have access to this module.")), 403
@@ -462,8 +470,9 @@ def get_camera_profiles():
     return jsonify(items=stored_camera_profiles())
 
 
+@app.put("/api/camera-profiles")
 @app.put("/api/admin/camera-profiles")
-@administrator
+@signed_in
 def save_camera_profiles():
     body = request.get_json(force=True)
     profiles = body.get("items") if isinstance(body, dict) else None
@@ -531,8 +540,9 @@ def get_camera_streams():
     return jsonify(items=public)
 
 
+@app.post("/api/camera-streams")
 @app.post("/api/admin/camera-streams")
-@administrator
+@signed_in
 def save_camera_stream():
     body = request.get_json(force=True)
     asset_tag = str(body.get("assetTag", "")).strip()[:80]
@@ -659,8 +669,9 @@ def save_camera_stream():
     return jsonify(ok=True, rtspReachable=rtsp_reachable, item={k: item[k] for k in ("assetTag", "room", "hub", "channel", "stream", "streamName", "sourceType", "profile", "profileId", "profileName", "protocol", "ip", "rtspReachable")}), 201
 
 
+@app.delete("/api/camera-streams/<asset_tag>")
 @app.delete("/api/admin/camera-streams/<asset_tag>")
-@administrator
+@signed_in
 def delete_camera_stream(asset_tag):
     asset_tag = str(asset_tag).strip()[:80]
     with db() as conn:
@@ -848,8 +859,9 @@ def network_scans():
     return jsonify(ranges=ranges, scan=state, scannerConnected=scanner_connected)
 
 
+@app.put("/api/network-scan/ranges")
 @app.put("/api/admin/network-scan/ranges")
-@administrator
+@signed_in
 def save_network_scan_ranges():
     body = request.get_json(force=True)
     raw = body.get("ranges", [])
@@ -871,8 +883,9 @@ def save_network_scan_ranges():
     return jsonify(ok=True, ranges=values)
 
 
+@app.post("/api/network-scan")
 @app.post("/api/admin/network-scan")
-@administrator
+@signed_in
 def start_network_scan():
     global NETWORK_SCAN_STATE
     with db() as conn:
@@ -1134,8 +1147,9 @@ def _queue_asset_status_notifications(conn, state, asset, previous, current, che
     state["queue"] = state.get("queue", [])[-500:]
 
 
+@app.get("/api/notifications")
 @app.get("/api/admin/notifications")
-@administrator
+@signed_in
 def get_notification_rules():
     with db() as conn:
         row = conn.execute("SELECT value FROM app_state WHERE key='notifications'").fetchone()
@@ -1150,8 +1164,9 @@ def get_notification_rules():
                    assets=[{"tag": a.get("tag", ""), "name": a.get("name", ""), "type": a.get("type", ""), "site": a.get("site", "")} for a in assets])
 
 
+@app.put("/api/notifications")
 @app.put("/api/admin/notifications")
-@administrator
+@signed_in
 def save_notification_rules():
     body = request.get_json(force=True) or {}
     rules = body.get("rules")
@@ -1991,7 +2006,7 @@ def get_data():
         keys = ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "vendors", "manual_users", "settings", "camera_streams", "camera_profiles", "network_ranges", "network_scan", "scanner_heartbeat", "scanner_ip_status", "notifications")
         out = {k: (conn.execute("SELECT value FROM app_state WHERE key=%s", (k,)).fetchone() or ([],))[0] for k in keys}
         settings_val = out.get("settings") if isinstance(out.get("settings"), dict) else {}
-        safe_factories = {k: settings_val[k] for k in ("factories", "factoryOrder", "removedFactoryCodes", "factoryTerm", "factoryTermPlural", "assetTypes", "assetSubcategories", "companyName") if k in settings_val}
+        safe_factories = {k: settings_val[k] for k in ("factories", "factoryOrder", "removedFactoryCodes", "factoryTerm", "factoryTermPlural", "assetTypes", "assetSubcategories", "categoryTileHidden", "companyName") if k in settings_val}
         if session.get("is_admin"):
             out["users"] = [
                 {k: v for k, v in u.items() if k not in ("password_hash", "recovery_answer_hashes")}
@@ -2012,8 +2027,8 @@ def get_data():
                     | {"source": "manual", "hasRecoveryQuestions": bool(u.get("recovery_answer_hashes"))}
                     for u in manuals
                 ]
-            elif any(k in allowed for k in ("assets", "departments")):
-                out["users"] = [{k: v for k, v in u.items() if k in ("username", "name", "email", "dept", "department", "site", "role", "enabled", "active", "employment")} | {"source": "manual"} for u in manuals]
+            elif any(k in allowed for k in ("assets", "departments", "maintenance", "parts_inventory", "invoices", "software")) or module_access(who, "tickets") or module_access(who, "notifications"):
+                out["users"] = [{k: v for k, v in u.items() if k in ("username", "name", "email", "dept", "department", "subdept", "site", "role", "enabled", "active", "employment")} | {"source": "manual"} for u in manuals]
             else:
                 out["users"] = [{k: v for k, v in who.items() if k in ("username", "name", "email", "dept", "department", "site", "role")}]
             out.pop("settings", None)
@@ -2030,8 +2045,8 @@ def save_data():
     if not session.get("is_admin"):
         who = session["profile"]
         for key in body:
-            if key in ("manual_users", "settings"):
-                return jsonify(error="Administrator access is required for account and system settings."), 403
+            if key == "settings":
+                return jsonify(error="Administrator access is required for system settings."), 403
             module = data_key_module(key)
             if not module or not module_access(who, module, write=True):
                 return jsonify(error="You do not have write access to the %s module." % (module or "requested")), 403
@@ -2100,6 +2115,7 @@ def save_data():
                 if key == "manual_users":
                     current = (conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone() or ([],))[0]
                     existing = {str(u.get("username", "")).casefold(): u for u in current}
+                    is_admin_actor = bool(session.get("is_admin"))
                     clean = []
                     for item in value:
                         user = dict(item)
@@ -2109,6 +2125,20 @@ def save_data():
                         if not re.fullmatch(r"[A-Za-z0-9._@-]{3,80}", username):
                             return jsonify(error="Usernames must be 3–80 letters, numbers, dots, underscores, @, or hyphens."), 400
                         prior = existing.get(username.casefold(), {})
+                        if not is_admin_actor:
+                            if prior.get("role") == "Administrator" or user.get("role") == "Administrator":
+                                if prior.get("role") == "Administrator":
+                                    clean.append(prior)
+                                    continue
+                                return jsonify(error="Only an administrator can create or promote Administrator accounts."), 403
+                            user.pop("password", None)
+                            user.pop("recovery_answers", None)
+                            if "module_permissions" in prior:
+                                user["module_permissions"] = prior["module_permissions"]
+                            else:
+                                user.pop("module_permissions", None)
+                            user["role"] = prior.get("role", "User") if prior else "User"
+                            user["enabled"] = prior.get("enabled", True) if prior else True
                         old_ip = str(prior.get("ip_address", prior.get("ipAddress", ""))).strip()
                         new_ip = str(user.get("ip_address", user.get("ipAddress", ""))).strip()
                         if prior and old_ip == new_ip:
@@ -2118,10 +2148,10 @@ def save_data():
                         elif new_ip:
                             user["ipStatus"] = "Not checked"
                             user["ipCheckedAt"] = ""
-                        new_password = user.pop("password", "")
+                        new_password = user.pop("password", "") if is_admin_actor else ""
                         user.pop("password_confirm", None)
                         user.pop("hasRecoveryQuestions", None)
-                        rec_answers = user.pop("recovery_answers", None)
+                        rec_answers = user.pop("recovery_answers", None) if is_admin_actor else None
                         if rec_answers is not None and any(str(a or "").strip() for a in (rec_answers if isinstance(rec_answers, list) else [])):
                             rec_hashes = recovery_answer_hashes(rec_answers)
                             if not rec_hashes:
