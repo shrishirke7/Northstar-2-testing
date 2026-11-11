@@ -55,7 +55,7 @@
 <div class="panel"><div class="panel-head"><div><div class="panel-title">Asset health</div><div class="panel-sub">Across all four factories</div></div><button class="link-btn" data-go="monitoring">View details ↗</button></div><div class="health-wrap"><div class="health-score"><div class="ring"><svg width="85" height="85" viewBox="0 0 85 85"><circle cx="42.5" cy="42.5" r="34" fill="none" stroke="#edf1ed" stroke-width="8"/><circle cx="42.5" cy="42.5" r="34" fill="none" stroke="#4b9c69" stroke-width="8" stroke-dasharray="194 214" stroke-linecap="round"/></svg><strong>91%</strong></div><div class="health-desc"><b>Looking good</b><p>342 of 368 assets are online and healthy.</p></div></div><div class="health-list"><div class="health-row"><span>Online devices</span><b>342 <span style="color:#29905b">92.9%</span></b><div class="mini-bar"><i style="width:93%"></i></div></div><div class="health-row"><span>Offline devices</span><b>18 <span style="color:#b98a37">4.9%</span></b><div class="mini-bar"><i class="amber-fill" style="width:22%"></i></div></div><div class="health-row"><span>Unassigned</span><b>8 <span style="color:#cf6658">2.2%</span></b><div class="mini-bar"><i class="red-fill" style="width:12%"></i></div></div></div></div></div></div>
 <div class="panel" style="margin:0 0 14px"><div class="panel-head"><div><div class="panel-title">Asset lifecycle & age</div><div class="panel-sub">Age is calculated from purchase / in-service date. Amber assets are nearing refresh.</div></div><button class="link-btn" data-go="assets">View lifecycle register →</button></div><div class="table-wrap"><table><thead><tr><th>ASSET</th><th>CATEGORY</th><th>FACTORY</th><th>DEVICE AGE</th><th>WARRANTY UNTIL</th><th>LAST MAINTENANCE</th></tr></thead><tbody id="lifecycleTable"></tbody></table></div></div><div class="bottom-grid"><div class="panel"><div class="panel-head"><div><div class="panel-title">Recently updated assets</div><div class="panel-sub">Latest activity across your inventory</div></div><button class="link-btn" data-go="assets">View all assets →</button></div><div class="table-wrap"><table><thead><tr><th>ASSET</th><th>TYPE</th><th>ASSIGNED TO</th><th>FACTORY</th><th>STATUS</th><th>LAST SEEN</th></tr></thead><tbody id="recentTable"></tbody></table></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">Recent alerts <span class="status critical" style="margin-left:5px">3 new</span></div><div class="panel-sub">Things that need your attention</div></div><button class="link-btn" data-go="monitoring">All alerts →</button></div><div class="alert-list"><div class="alert-item"><div class="alert-mark">!</div><div class="alert-text"><b>Device went offline</b><br>ARG-LT-024 · Rahul Patil<div class="alert-time">8 minutes ago</div></div></div><div class="alert-item"><div class="alert-mark">◷</div><div class="alert-text"><b>Windows license expiring soon</b><br>Microsoft 365 · 12 seats<div class="alert-time">42 minutes ago</div></div></div><div class="alert-item"><div class="alert-mark">↻</div><div class="alert-text"><b>New device discovered</b><br>192.168.1.148 · ARG Factory<div class="alert-time">1 hour ago</div></div></div></div></div></div></section>
 
-<section class="view" id="view-assets"><div class="page-head"><div><div class="eyebrow">Your entire IT estate</div><h1>Asset inventory</h1><p>Every device, its specs, owner and location — all in one place.</p></div><div class="head-actions"><button class="btn" onclick="exportCsv('asset-register',assets)">↓ &nbsp;Export</button><button class="btn primary" onclick="openModal()">＋ &nbsp;Add asset</button></div></div><div class="kpis"><div class="kpi-pill">All assets <b id="assetCount">368</b></div><div class="kpi-pill">Online <b style="color:#1687d9">342</b></div><div class="kpi-pill">Offline <b style="color:#cd6559">18</b></div><div class="kpi-pill">Unassigned <b style="color:#b88633">8</b></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="assetSearch" placeholder="⌕  Search name, tag, user or serial..."><select class="filter-select" id="assetFactoryFilter"><option value="">All factories</option></select><select class="filter-select" id="typeFilter"><option value="">All device types</option><option>Laptop</option><option>Desktop</option><option>Server</option><option>Printer</option><option>Network</option><option>Mobile</option><option>Tablet</option><option>CCTV</option><option>NVR</option><option>DVR</option></select><select class="filter-select" id="deptFilter"><option value="">All departments</option><option>IT</option><option>Finance</option><option>Design</option><option>HR</option><option>Operations</option><option>Engineering</option></select><select class="filter-select" id="statusFilter"><option value="">Any status</option><option>Online</option><option>Offline</option><option>Stale</option><option>Not checked</option><option>No IP</option><option>Maintenance</option></select><select class="filter-select" id="networkSubtypeFilter"><option value="">All network sub-categories</option><option>Switch</option><option>Router</option><option>Access point</option><option>Firewall</option><option>Other network device</option></select><div class="toolbar-spacer"></div><button class="btn" onclick="document.getElementById('assetImportFile').click()">↑ &nbsp;Import</button></div><div class="table-wrap"><table><thead><tr><th>ASSET / TAG</th><th>DEVICE TYPE</th><th>SPECIFICATIONS</th><th>ASSIGNED TO</th><th>DEPARTMENT</th><th>FACTORY</th><th>AGE</th><th>LAST MAINTENANCE</th><th>STATUS</th><th>LAST SEEN</th></tr></thead><tbody id="assetTable"></tbody></table></div></div></section>
+<section class="view" id="view-assets"><div class="page-head"><div><div class="eyebrow">Your entire IT estate</div><h1>Asset inventory</h1><p>Every device, its specs, owner and location — all in one place.</p></div><div class="head-actions"><button type="button" class="btn" onclick="openAssetImportModal()">↑ &nbsp;Import Excel / CSV</button><button class="btn" onclick="exportCsv('asset-register',assets)">↓ &nbsp;Export</button><button class="btn primary" onclick="openModal()">＋ &nbsp;Add asset</button></div></div><div class="kpis"><div class="kpi-pill">All assets <b id="assetCount">368</b></div><div class="kpi-pill">Online <b style="color:#1687d9">342</b></div><div class="kpi-pill">Offline <b style="color:#cd6559">18</b></div><div class="kpi-pill">Unassigned <b style="color:#b88633">8</b></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="assetSearch" placeholder="⌕  Search name, tag, user or serial..."><select class="filter-select" id="assetFactoryFilter"><option value="">All factories</option></select><select class="filter-select" id="typeFilter"><option value="">All device types</option><option>Laptop</option><option>Desktop</option><option>Server</option><option>Printer</option><option>Network</option><option>Mobile</option><option>Tablet</option><option>CCTV</option><option>NVR</option><option>DVR</option></select><select class="filter-select" id="deptFilter"><option value="">All departments</option><option>IT</option><option>Finance</option><option>Design</option><option>HR</option><option>Operations</option><option>Engineering</option></select><select class="filter-select" id="statusFilter"><option value="">Any status</option><option>Online</option><option>Offline</option><option>Stale</option><option>Not checked</option><option>No IP</option><option>Maintenance</option></select><select class="filter-select" id="networkSubtypeFilter"><option value="">All network sub-categories</option><option>Switch</option><option>Router</option><option>Access point</option><option>Firewall</option><option>Other network device</option></select><div class="toolbar-spacer"></div><button type="button" class="btn" onclick="openAssetImportModal()">↑ &nbsp;Import</button></div><div class="table-wrap"><table><thead><tr><th>ASSET / TAG</th><th>DEVICE TYPE</th><th>SPECIFICATIONS</th><th>ASSIGNED TO</th><th>DEPARTMENT</th><th>FACTORY</th><th>AGE</th><th>LAST MAINTENANCE</th><th>STATUS</th><th>LAST SEEN</th></tr></thead><tbody id="assetTable"></tbody></table></div></div></section>
 
 <section class="view" id="view-ageing"><div class="page-head"><div><div class="eyebrow">Lifecycle · Service history</div><h1>Asset ageing & risk</h1><p>Age uses the purchase / in-service date. Risk uses saved maintenance records.</p></div><div class="head-actions"><button class="btn" onclick="exportAssetAgeing()">↓ Export list</button></div></div><div class="grid-4"><div class="card metric"><div class="metric-top">Healthy · no service history</div><div class="metric-value" id="ageHealthyCount">0</div><div class="metric-foot">Risk 0 · no maintenance recorded</div></div><div class="card metric"><div class="metric-top">Low risk</div><div class="metric-value" id="ageLowCount">0</div><div class="metric-foot">1–3 records</div></div><div class="card metric"><div class="metric-top">Medium risk</div><div class="metric-value" id="ageMediumCount">0</div><div class="metric-foot">4–5 records</div></div><div class="card metric"><div class="metric-top">High risk</div><div class="metric-value" id="ageHighCount">0</div><div class="metric-foot">6 or more records</div></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="ageSearch" placeholder="Search asset, tag or owner"><select class="filter-select" id="ageSort"><option value="oldest">Oldest to newest</option><option value="newest">Newest to oldest</option></select><select class="filter-select" id="ageYear"><option value="">All years</option></select><input class="filter-input" id="ageFrom" type="date" aria-label="Purchased from"><input class="filter-input" id="ageTo" type="date" aria-label="Purchased to"><select class="filter-select" id="ageRisk"><option value="">All risk levels</option><option>Healthy</option><option>Low</option><option>Medium</option><option>High</option></select></div><div class="table-wrap"><table><thead><tr><th>ASSET</th><th>FACTORY</th><th>PURCHASE DATE</th><th>AGE</th><th>MAINTENANCE COUNT</th><th>RISK</th></tr></thead><tbody id="assetAgeingTable"></tbody></table></div></div></section><section class="view" id="view-tickets"><div class="page-head"><div><div class="eyebrow">Help desk · Request tracking</div><h1>IT help desk & tickets</h1><p>Raise requests, see the live queue and follow every update through resolution.</p></div><div class="head-actions"><button class="btn" onclick="openIpManager()">⌖ &nbsp;Device / IP mapping</button><button class="btn primary" onclick="document.getElementById('ticketFormCard').scrollIntoView({behavior:'smooth'})">＋ &nbsp;Raise a ticket</button><button class="btn" id="ticketingBackendButton" style="display:none" onclick="go('ticketing')">⚙ &nbsp;Ticketing backend</button></div></div><div class="grid-4"><div class="card metric"><div class="metric-top"><span>Open tickets</span><span class="metric-icon">✉</span></div><div class="metric-value" id="openTicketCount">0</div><div class="metric-foot">Waiting to be assigned or started</div></div><div class="card metric"><div class="metric-top"><span>In progress</span><span class="metric-icon">↻</span></div><div class="metric-value" id="progressTicketCount">0</div><div class="metric-foot">Being worked on by IT</div></div><div class="card metric"><div class="metric-top"><span>Resolved tickets</span><span class="metric-icon">✓</span></div><div class="metric-value" id="resolvedTicketCount">0</div><div class="metric-foot">Completed and awaiting closure</div></div><div class="card metric"><div class="metric-top"><span>Avg. resolution time</span><span class="metric-icon">◷</span></div><div class="metric-value">4.2h</div><div class="metric-foot">Across the last 30 days</div></div></div><div class="panel" id="ticketFormCard" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">✎ &nbsp;Submit a new IT ticket / issue</div><div class="panel-sub">Your mapped employee, department and factory details are filled in automatically.</div></div><span class="status warning" id="identityStatus">Signed in</span></div><div style="padding:16px 18px 18px"><div style="font-size:10px;font-weight:700;color:#707d74;margin-bottom:8px">REQUEST TYPE</div><label class="ticket-choice"><input type="radio" name="requestKind" value="IT help desk" checked> 🧰 IT issue / help desk</label><label class="ticket-choice"><input type="radio" name="requestKind" value="Material request"> 📦 IT material request</label><div style="font-size:10px;font-weight:700;color:#707d74;margin:12px 0 7px">PRIMARY CATEGORY</div><div id="primaryCategories"><label class="ticket-choice"><input type="radio" name="primaryCategory" value="ERP / Software / Manufacturing" checked> 📊 ERP / Software / Manufacturing</label><label class="ticket-choice"><input type="radio" name="primaryCategory" value="Network / Hardware"> 🖥️ Network / Hardware</label></div><div class="ticket-subcats"><div class="ticket-subcats-title">Select sub-category</div><div id="ticketSubcats" style="display:flex;flex-wrap:wrap;gap:7px"></div></div><div class="ticket-identity"><div><span>YOUR NAME</span><b id="ticketIdentityName">Suneel Maurya</b></div><div><span>DEPARTMENT</span><b id="ticketIdentityDept">INDO OFFICE</b></div><div><span>FACTORY / LOCATION</span><b id="ticketIdentitySite">ARG</b></div><div><span>DEVICE IP · MAPPED</span><b id="ticketIdentityIp">192.168.130.3</b></div></div><form id="ticketForm"><div class="ticket-form-grid"><div class="field full" id="materialFields" style="display:none"><label>Requested item / quantity / justification</label><input name="material" placeholder="e.g. USB-C dock · qty 2 · required for new workstations"></div><div class="field full"><label>Describe your issue in detail *</label><textarea class="filter-input ticket-description" name="description" required placeholder="Describe the problem, what you were trying to do, and any error message..."></textarea></div><div class="field full"><label>Attach screenshots (up to 3)</label><input id="ticketFiles" type="file" accept="image/*" multiple class="filter-input"><div id="ticketFileNames" class="ticket-meta"></div></div></div><div style="display:flex;gap:8px;align-items:center;margin-top:12px"><span class="ticket-meta">A ticket number will be generated automatically.</span><button class="btn primary" style="margin-left:auto;min-width:210px">↥ &nbsp;Submit IT ticket</button></div></form></div></div><div class="panel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">🌐 &nbsp;Live tickets & material request status</div><div class="panel-sub">See every request, owner, current status, ETA and latest note.</div></div><button class="btn" onclick="renderTickets();showToast('Ticket list refreshed')">↻ &nbsp;Refresh</button></div><div style="padding:0 15px 14px"><div class="ticket-filter-strip"><span class="ticket-meta" style="font-weight:700">FILTER VIEW</span><select class="filter-select" id="ticketKindFilter"><option value="">All tickets & requests</option><option>IT help desk</option><option>Material request</option></select><select class="filter-select" id="ticketStatusFilter"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select><select class="filter-select" id="ticketCategoryFilter"><option value="">All categories</option><option>ERP / Software / Manufacturing</option><option>Network / Hardware</option></select><select class="filter-select" id="ticketSiteFilter"><option value="">All factories</option><option>ARG</option><option>ARB</option><option>ARC</option><option>ARF</option></select><input class="filter-input" id="ticketSearch" placeholder="Search ticket, user or issue..." style="min-width:180px"></div><div class="table-wrap"><table class="ticket-table"><thead><tr><th>TICKET</th><th>USER · DEPT · FACTORY</th><th>CATEGORY / SUB</th><th>ISSUE</th><th>ASSIGNED TO</th><th>STATUS</th><th>ETA</th><th>NOTE / REMARK</th><th>UPDATED</th></tr></thead><tbody id="ticketTable"></tbody></table></div></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">How auto-identification works</div><div class="panel-sub">Manual IP mapping previews the flow; secure login and user accounts are managed by your administrator.</div></div><button class="link-btn" onclick="openIpManager()">Manage mappings →</button></div><div class="health-wrap"><div class="site-overview"><div class="site-tile"><div class="site-tile-head">1 · Map workstation IP</div><p>Admin registers a trusted device IP against a user, department and factory.</p></div><div class="site-tile"><div class="site-tile-head">2 · Verify identity</div><p>Users sign in with their local application account.</p></div><div class="site-tile"><div class="site-tile-head">3 · Open request link</div><p>Signed-in users get their mapped name, department and site prefilled in the issue form.</p></div><div class="site-tile"><div class="site-tile-head">4 · Track to closure</div><p>IT updates assignee, status, work notes and expected completion time in the live queue.</p></div></div></div></div></section><section class="view" id="view-ticketing"><div class="page-head"><div><div class="eyebrow">IT operations · Ticket work queue</div><h1>Ticketing backend</h1><p>Assign tickets, update status and ETA, and record work performed. Updates appear in the live portal.</p></div><div class="head-actions"><button class="btn" onclick="refreshServerTickets().then(renderTicketingBackend)">↻ &nbsp;Refresh</button></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="ticketingSearch" placeholder="Search ticket, user or issue"><select class="filter-select" id="ticketingKind"><option value="">All tickets and requests</option><option>IT help desk</option><option>Material request</option></select><select class="filter-select" id="ticketingStatus"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select></div><div class="table-wrap"><table><thead><tr><th>TICKET / CREATED</th><th>REQUESTER / FACTORY / DEPT</th><th>ISSUE</th><th>ASSIGN TO</th><th>STATUS</th><th>ETA</th><th>WORK UPDATE</th><th></th></tr></thead><tbody id="ticketingTable"></tbody></table></div></div></section><section class="view" id="view-users"><div class="page-head"><div><div class="eyebrow">People · Access · Security</div><h1>People, users &amp; access</h1><p>Manage employees, sign-in accounts, module permissions, and account recovery.</p></div><div class="head-actions"><button class="btn" type="button" onclick="exportEmployeeRegister()">↓ &nbsp;Export employee register</button><button class="btn primary" onclick="addUser()">＋ &nbsp;Add user / administrator</button></div></div><div class="kpis"><div class="kpi-pill">Active users <b>0</b></div><div class="kpi-pill">With assigned assets <b>0</b></div><div class="kpi-pill">No assigned devices <b>0</b></div><div class="kpi-pill">Login accounts <b>0</b></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="userSearch" placeholder="⌕  Search name, email or employee ID..."><select class="filter-select" id="userDeptFilter"><option value="">All departments</option></select><select class="filter-select" id="userSiteFilter"><option value="">All factories</option></select><select class="filter-select" id="userEmploymentFilter"><option value="">All employment statuses</option><option>Active</option><option>On leave</option><option>Inactive</option></select></div><div class="table-wrap"><table><thead><tr><th>EMPLOYEE</th><th>EMPLOYEE ID / LOGIN</th><th>DATE OF BIRTH</th><th>DEPARTMENT</th><th>FACTORY</th><th>IP / NETWORK STATUS</th><th>ASSETS</th><th>SOFTWARE</th><th>LAST ACTIVE</th><th>ROLE &amp; ACCESS</th></tr></thead><tbody id="userTable"></tbody></table></div></div>
 <div class="settings-columns" style="margin-top:14px">
@@ -142,7 +142,7 @@ function applyModuleAccess(profile=serverProfile){
 function applyReadOnlyControls(){
  if(!serverMode||serverAdmin)return;
  const mutating=/^(add|new|save|edit|delete|remove|issue|assign|return|upload|restore|complete|mark|log|create|update|cancel|resolve|close|reopen|submit|import|scan|reset)\b/i;
- const mutatingOnclick=/\b(add|edit|delete|remove|openModal|openUserForm|openDepartmentForm|openSoftwareForm|openMaintenance|openRepair|openPart|openFaulty|openInvoice|openVendor|save|create|movePart|returnPart|renameFactory|promptCreatePartGroup)\w*/i;
+ const mutatingOnclick=/\b(add|edit|delete|remove|openModal|openAssetImportModal|openUserForm|openDepartmentForm|openSoftwareForm|openMaintenance|openRepair|openPart|openFaulty|openInvoice|openVendor|save|create|movePart|returnPart|renameFactory|promptCreatePartGroup)\w*/i;
  for(const [view,module] of Object.entries(permissionViewMap)){
   if(effectiveModuleGrant(serverProfile,module)!=='read')continue;
   let root=document.getElementById('view-'+view);if(!root)continue;
@@ -2881,5 +2881,1086 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
   bindCategoryDelegation();
   ensureIssueMaterialModal();
 
+})();
+</script>
+
+<script>
+(()=>{
+ const IMPORT_FIELDS=[
+  {key:'name',label:'Asset Name *',req:true,aliases:['asset name','name','device name','device','hostname','asset']},
+  {key:'type',label:'Device Type / Category *',req:true,aliases:['device type / category','device type','category','asset category','asset type','type','devicetype']},
+  {key:'subtype',label:'Sub-Category',aliases:['sub-category','subcategory','sub category','subtype','device sub-category','network subtype','surveillance device','sub type']},
+  {key:'tag',label:'Asset Tag (Auto if blank)',aliases:['asset tag','tag','asset tag (auto if blank)','asset id','asset code','code','barcode']},
+  {key:'site',label:'Factory *',req:true,aliases:['factory','site','location','plant','branch','factory code']},
+  {key:'dept',label:'Department',aliases:['department','dept','division','team']},
+  {key:'owner',label:'Assigned User',aliases:['assigned user','assigned to','owner','user','employee','employee name','person']},
+  {key:'serial',label:'Serial Number',aliases:['serial number','serial no','serial','s/n','sn','service tag']},
+  {key:'manufacturer',label:'Manufacturer / Brand',aliases:['manufacturer / brand','manufacturer','brand','make','oem']},
+  {key:'model',label:'Model',aliases:['model','model name','model number','part model']},
+  {key:'ipAddress',label:'IP Address',aliases:['ip address','ip','ipv4','ip4','lan ip','ipaddress']},
+  {key:'macAddress',label:'MAC Address',aliases:['mac address','mac','hw address','physical address','macaddress']},
+  {key:'interfaceName',label:'Interface Name',aliases:['interface name','interface','nic','adapter']},
+  {key:'managementUrl',label:'Management URL',aliases:['management url','device management url','admin url','web url','url']},
+  {key:'purchaseDate',label:'Purchase Date',aliases:['purchase date','purchase / in-service date','in-service date','buy date','invoice date','purchasedate']},
+  {key:'warranty',label:'Warranty Until',aliases:['warranty until','warranty','warranty expiry','warranty end','warranty date']},
+  {key:'assetValue',label:'Asset Value (INR)',aliases:['asset value (inr)','asset value','current asset value','current asset value (inr)','value','cost','price','purchase cost','purchase value','amount','assetvalue']},
+  {key:'osType',label:'OS Type',aliases:['os type','operating system type','operating system','ostype']},
+  {key:'osVersion',label:'OS Name / Version',aliases:['os name / version','os version','os name','edition','osversion']},
+  {key:'storageCapacity',label:'Storage Capacity',aliases:['storage capacity','storage','disk size','storagecapacity']},
+  {key:'storageUnit',label:'Storage Unit (GB/TB)',aliases:['storage unit','storage unit (gb/tb)','storageunit']},
+  {key:'ramGb',label:'RAM (GB)',spec:true,aliases:['ram (gb)','ram gb','ram','memory']},
+  {key:'ramSpec',label:'RAM Specs / Frequency',spec:true,aliases:['ram specs','ram (specs / frequency)','ram speed','ram frequency','ram type']},
+  {key:'ssdCapacity',label:'SSD Capacity',spec:true,aliases:['ssd capacity','ssd capacity (gb/tb)','ssd (gb)','ssd','ssd size']},
+  {key:'ssdUnit',label:'SSD Unit (GB/TB)',spec:true,aliases:['ssd unit']},
+  {key:'ssdType',label:'SSD Type',spec:true,aliases:['ssd type','nvme']},
+  {key:'hddCapacity',label:'HDD Capacity',spec:true,aliases:['hdd capacity','hdd capacity (gb/tb)','hdd (gb)','hdd','hdd size']},
+  {key:'hddUnit',label:'HDD Unit (GB/TB)',spec:true,aliases:['hdd unit']},
+  {key:'cpu',label:'CPU / Processor',spec:true,aliases:['cpu','processor','cpu / processor']},
+  {key:'cpuGeneration',label:'CPU Generation',spec:true,aliases:['cpu generation','generation','cpu gen']},
+  {key:'graphics',label:'GPU / Graphics',spec:true,aliases:['gpu / graphics','gpu','graphics','graphics card']},
+  {key:'wifiAdapter',label:'Wi-Fi Adapter',spec:true,aliases:['wi-fi adapter','wifi adapter','wifi']},
+  {key:'osActivation',label:'OS Activation Status',spec:true,aliases:['os activation','os activation status','windows activation']},
+  {key:'switchMake',label:'Switch Make',spec:true,aliases:['switch make','network switch make']},
+  {key:'switchModel',label:'Switch Model',spec:true,aliases:['switch model','network switch model']},
+  {key:'usablePorts',label:'Usable Ports',spec:true,aliases:['usable ports','ports']},
+  {key:'switchManageability',label:'Switch Manageability',spec:true,aliases:['switch manageability','switch type','managed']},
+  {key:'routerSpecs',label:'Router / AP Specs',spec:true,aliases:['router / ap specs','router specs','ap specs']},
+  {key:'firewallModel',label:'Firewall Model',spec:true,aliases:['firewall make / model','firewall model']},
+  {key:'printerCategory',label:'Printer Category',spec:true,aliases:['printer category','printer type']},
+  {key:'printerMakeModel',label:'Printer Make / Model',spec:true,aliases:['printer make / model','printer model']},
+  {key:'cameraTechnology',label:'Camera Technology (IP/Analog)',spec:true,aliases:['camera technology','camera technology (ip/analog)','cam tech']},
+  {key:'cameraResolution',label:'Camera Resolution (MP)',spec:true,aliases:['camera resolution','camera resolution (mp)','camera resolution / megapixel','resolution (mp)','resolution','megapixel']},
+  {key:'cameraLocation',label:'Camera Mounting Location',spec:true,aliases:['camera location','mounting location','camera mounting location']},
+  {key:'linkedRecorder',label:'Linked NVR / DVR',spec:true,aliases:['linked nvr / dvr','linked recorder']},
+  {key:'cameraChannel',label:'Recorder Channel',spec:true,aliases:['recorder channel','camera channel']},
+  {key:'channelCapacity',label:'NVR/DVR Channels',spec:true,aliases:['channel capacity','nvr/dvr channels','channels / bays','channels']},
+  {key:'installedDisks',label:'NVR/DVR Installed Disks',spec:true,aliases:['installed hdd capacity','installed disks','nvr/dvr installed disks']},
+  {key:'retentionDays',label:'Recording Retention (Days)',spec:true,aliases:['recording retention (days)','retention days','retention']},
+  {key:'otherSpecs',label:'Other Device Specs / Notes',spec:true,aliases:['other device specs / notes','other device specs','other specs','device specs','specs','notes','remarks']}
+ ];
+
+ const escH=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const escXml=s=>String(s??'').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const normKey=s=>String(s||'').replace(/\*/g,'').replace(/\s+/g,' ').trim().toLowerCase();
+
+ // --- Pure-JS CRC32 & Uncompressed ZIP Builder -> Genuine Multi-Sheet .xlsx Generator ---
+ const CRC_TABLE=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c>>>0}return t})();
+ function crc32(bytes){let c=0xFFFFFFFF;for(let i=0;i<bytes.length;i++)c=CRC_TABLE[(c^bytes[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0}
+
+ function buildZipBytes(files){
+  const enc=new TextEncoder();
+  const localParts=[],centralParts=[];
+  let offset=0;
+  for(const f of files){
+   const nameB=enc.encode(f.name),dataB=typeof f.data==='string'?enc.encode(f.data):f.data;
+   const crc=crc32(dataB),size=dataB.length;
+   const lh=new Uint8Array(30+nameB.length);
+   const ldv=new DataView(lh.buffer);
+   ldv.setUint32(0,0x04034B50,true);ldv.setUint16(4,20,true);ldv.setUint16(6,0x0800,true);
+   ldv.setUint16(8,0,true);ldv.setUint16(10,0,true);ldv.setUint16(12,0x5421,true);
+   ldv.setUint32(14,crc,true);ldv.setUint32(18,size,true);ldv.setUint32(22,size,true);
+   ldv.setUint16(26,nameB.length,true);ldv.setUint16(28,0,true);
+   lh.set(nameB,30);
+   localParts.push(lh,dataB);
+
+   const ch=new Uint8Array(46+nameB.length);
+   const cdv=new DataView(ch.buffer);
+   cdv.setUint32(0,0x02014B50,true);cdv.setUint16(4,20,true);cdv.setUint16(6,20,true);
+   cdv.setUint16(8,0x0800,true);cdv.setUint16(10,0,true);cdv.setUint16(12,0,true);cdv.setUint16(14,0x5421,true);
+   cdv.setUint32(16,crc,true);cdv.setUint32(20,size,true);cdv.setUint32(24,size,true);
+   cdv.setUint16(28,nameB.length,true);cdv.setUint16(30,0,true);cdv.setUint16(32,0,true);
+   cdv.setUint16(34,0,true);cdv.setUint16(36,0,true);cdv.setUint32(38,0,true);
+   cdv.setUint32(42,offset,true);
+   ch.set(nameB,46);
+   centralParts.push(ch);
+   offset+=lh.length+dataB.length;
+  }
+  const cdSize=centralParts.reduce((n,a)=>n+a.length,0);
+  const eocd=new Uint8Array(22);
+  const edv=new DataView(eocd.buffer);
+  edv.setUint32(0,0x06054B50,true);edv.setUint16(4,0,true);edv.setUint16(6,0,true);
+  edv.setUint16(8,files.length,true);edv.setUint16(10,files.length,true);
+  edv.setUint32(12,cdSize,true);edv.setUint32(16,offset,true);edv.setUint16(20,0,true);
+  const total=offset+cdSize+22;
+  const out=new Uint8Array(total);
+  let pos=0;
+  for(const p of [...localParts,...centralParts,eocd]){out.set(p,pos);pos+=p.length}
+  return out;
+ }
+
+ function colLetter(idx){
+  let n=idx+1,s='';
+  while(n>0){const r=(n-1)%26;s=String.fromCharCode(65+r)+s;n=Math.floor((n-1)/26)}
+  return s;
+ }
+
+ function buildXlsxBytes(sheets){
+  const stylesXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+   +'<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+   +'<fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FF157A54"/><name val="Calibri"/></font></fonts>'
+   +'<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF157A54"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE7F4ED"/><bgColor indexed="64"/></patternFill></fill></fills>'
+   +'<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFD5E0DA"/></left><right style="thin"><color rgb="FFD5E0DA"/></right><top style="thin"><color rgb="FFD5E0DA"/></top><bottom style="thin"><color rgb="FFD5E0DA"/></bottom></border></borders>'
+   +'<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+   +'<cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="1" applyBorder="1" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1" xfId="0"/><xf numFmtId="0" fontId="2" fillId="3" borderId="1" applyFont="1" applyFill="1" applyBorder="1" xfId="0"/></cellXfs>'
+   +'</styleSheet>';
+
+  const contentOverrides=sheets.map((_,i)=>'<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join('');
+  const contentTypesXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+   +'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+   +'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+   +'<Default Extension="xml" ContentType="application/xml"/>'
+   +'<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+   +'<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+   +contentOverrides+'</Types>';
+
+  const rootRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+   +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+   +'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+   +'</Relationships>';
+
+  const safeSheetName=n=>String(n||'Sheet').replace(/[\\/?*[\]:]/g,' ').trim().slice(0,31)||'Sheet';
+  const wbXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+   +'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'
+   +sheets.map((s,i)=>'<sheet name="'+escXml(safeSheetName(s.name))+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join('')
+   +'</sheets></workbook>';
+
+  const wbRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+   +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+   +sheets.map((_,i)=>'<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>').join('')
+   +'<Relationship Id="rId'+(sheets.length+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+   +'</Relationships>';
+
+  const files=[
+   {name:'[Content_Types].xml',data:contentTypesXml},
+   {name:'_rels/.rels',data:rootRels},
+   {name:'xl/workbook.xml',data:wbXml},
+   {name:'xl/_rels/workbook.xml.rels',data:wbRels},
+   {name:'xl/styles.xml',data:stylesXml}
+  ];
+
+  sheets.forEach((s,idx)=>{
+   const maxCols=Math.max(1,...s.rows.map(r=>r.length));
+   const colsXml='<cols>'+Array.from({length:maxCols},(_,c)=>{
+    const w=Math.min(44,Math.max(14,...s.rows.slice(0,25).map(r=>String(r[c]??'').length+4)));
+    return '<col min="'+(c+1)+'" max="'+(c+1)+'" width="'+w+'" customWidth="1"/>';
+   }).join('')+'</cols>';
+   const rowsXml=s.rows.map((row,rIdx)=>{
+    const rNum=rIdx+1;
+    const styleId=(s.sectionRows&&s.sectionRows.has(rIdx))?2:(rIdx===0&&s.headerRow!==false?1:0);
+    const cells=row.map((val,cIdx)=>{
+     const ref=colLetter(cIdx)+rNum;
+     if(typeof val==='number'&&Number.isFinite(val))return '<c r="'+ref+'" t="n" s="'+styleId+'"><v>'+val+'</v></c>';
+     const text=String(val??'');
+     return '<c r="'+ref+'" t="inlineStr" s="'+styleId+'"><is><t xml:space="preserve">'+escXml(text)+'</t></is></c>';
+    }).join('');
+    return '<row r="'+rNum+'">'+cells+'</row>';
+   }).join('');
+   const paneXml=s.freezeTop?'<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>':'';
+   const sheetXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    +'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    +paneXml+colsXml+'<sheetData>'+rowsXml+'</sheetData></worksheet>';
+   files.push({name:'xl/worksheets/sheet'+(idx+1)+'.xml',data:sheetXml});
+  });
+
+  return buildZipBytes(files);
+ }
+
+ // --- Template Builders (Multi-Category Dummy Rows + Dynamic Workspace Reference Guide) ---
+ function templateColumns(){
+  return [
+   {field:'name',header:'Asset Name *'},
+   {field:'type',header:'Device Type / Category *'},
+   {field:'subtype',header:'Sub-Category'},
+   {field:'tag',header:'Asset Tag (Auto if blank)'},
+   {field:'site',header:'Factory *'},
+   {field:'dept',header:'Department'},
+   {field:'owner',header:'Assigned User'},
+   {field:'serial',header:'Serial Number'},
+   {field:'manufacturer',header:'Manufacturer / Brand'},
+   {field:'model',header:'Model'},
+   {field:'ipAddress',header:'IP Address'},
+   {field:'macAddress',header:'MAC Address'},
+   {field:'interfaceName',header:'Interface Name'},
+   {field:'managementUrl',header:'Management URL'},
+   {field:'purchaseDate',header:'Purchase Date'},
+   {field:'warranty',header:'Warranty Until'},
+   {field:'assetValue',header:'Asset Value (INR)'},
+   {field:'osType',header:'OS Type'},
+   {field:'osVersion',header:'OS Name / Version'},
+   {field:'storageCapacity',header:'Storage Capacity'},
+   {field:'storageUnit',header:'Storage Unit (GB/TB)'},
+   {field:'ramGb',header:'RAM (GB)'},
+   {field:'ramSpec',header:'RAM Specs / Frequency'},
+   {field:'ssdCapacity',header:'SSD Capacity'},
+   {field:'ssdUnit',header:'SSD Unit (GB/TB)'},
+   {field:'ssdType',header:'SSD Type'},
+   {field:'hddCapacity',header:'HDD Capacity'},
+   {field:'hddUnit',header:'HDD Unit (GB/TB)'},
+   {field:'cpu',header:'CPU'},
+   {field:'cpuGeneration',header:'CPU Generation'},
+   {field:'graphics',header:'GPU / Graphics'},
+   {field:'osActivation',header:'OS Activation Status'},
+   {field:'printerCategory',header:'Printer Category'},
+   {field:'printerMakeModel',header:'Printer Make / Model'},
+   {field:'switchMake',header:'Switch Make'},
+   {field:'switchModel',header:'Switch Model'},
+   {field:'usablePorts',header:'Usable Ports'},
+   {field:'switchManageability',header:'Switch Manageability'},
+   {field:'routerSpecs',header:'Router / AP Specs'},
+   {field:'firewallModel',header:'Firewall Make / Model'},
+   {field:'cameraTechnology',header:'Camera Technology'},
+   {field:'cameraResolution',header:'Camera Resolution (MP)'},
+   {field:'cameraLocation',header:'Camera Location'},
+   {field:'linkedRecorder',header:'Linked NVR / DVR'},
+   {field:'cameraChannel',header:'Recorder Channel'},
+   {field:'channelCapacity',header:'NVR/DVR Channels'},
+   {field:'installedDisks',header:'NVR/DVR Installed Disks'},
+   {field:'retentionDays',header:'Retention (Days)'},
+   {field:'otherSpecs',header:'Other Device Specs / Notes'}
+  ];
+ }
+
+ function buildTemplateData(){
+  const cols=templateColumns();
+  const fCodes=(typeof factoryCodes==='function'?factoryCodes():[]).filter(Boolean);
+  const f1=fCodes[0]||'ARG',f2=fCodes[1]||f1;
+  const deptName=(site)=>{const list=typeof window.deptsForFactory==='function'?window.deptsForFactory(site):[];return list[0]||'IT'};
+  const d1=deptName(f1),d2=deptName(f2);
+  const {types,map}=typeof window.categoryData==='function'?window.categoryData():{types:['Laptop','Desktop','Network','Surveillance','Printer','Server'],map:{}};
+  const hasComputers=types.includes('Computers');
+  const compSubs=map.Computers||[];
+
+  const makeRow=(obj)=>cols.map(c=>obj[c.field]??'');
+  const samples=[
+   {name:'Sample Eng Laptop 01',type:hasComputers&&compSubs.includes('LP')?'Computers':'Laptop',subtype:hasComputers&&compSubs.includes('LP')?'LP':'',tag:'',site:f1,dept:d1,owner:'Rahul Patil',serial:'SN-LT-5440-001',manufacturer:'Dell',model:'Latitude 5440',ipAddress:'192.168.1.51',macAddress:'AA:BB:CC:11:22:01',interfaceName:'Wi-Fi',purchaseDate:'2025-04-15',warranty:'2028-04-14',assetValue:74500,osType:'Windows',osVersion:'Windows 11 Pro',storageCapacity:512,storageUnit:'GB',ramGb:16,ramSpec:'DDR4 3200MHz',ssdCapacity:512,ssdUnit:'GB',ssdType:'NVMe Gen 4',cpu:'Intel Core i5',cpuGeneration:'13th Gen',osActivation:'Activated',otherSpecs:'Standard engineering laptop'},
+   {name:'Sample Accounts PC 01',type:hasComputers&&compSubs.includes('DP')?'Computers':'Desktop',subtype:hasComputers&&compSubs.includes('DP')?'DP':'',tag:'',site:f1,dept:d1,owner:'Priya Shah',serial:'SN-DP-7010-002',manufacturer:'HP',model:'ProDesk 400 G9',ipAddress:'192.168.1.52',macAddress:'AA:BB:CC:11:22:02',interfaceName:'LAN',purchaseDate:'2024-11-10',warranty:'2027-11-09',assetValue:48000,osType:'Windows',osVersion:'Windows 11 Pro',storageCapacity:512,storageUnit:'GB',ramGb:16,ssdCapacity:512,ssdUnit:'GB',ssdType:'NVMe Gen 4',cpu:'Intel Core i5',cpuGeneration:'12th Gen',otherSpecs:'Dual monitor setup'},
+   {name:'Main Gate IP Camera 01',type:'Surveillance',subtype:'CCTV',tag:'',site:f2,dept:d2,owner:'Unassigned',serial:'CAM-HIK-8801',manufacturer:'Hikvision',model:'DS-2CD2143G2-I',ipAddress:'192.168.2.101',macAddress:'B4:A3:82:10:01:01',interfaceName:'PoE LAN',managementUrl:'http://192.168.2.101',purchaseDate:'2025-01-20',warranty:'2028-01-19',assetValue:9500,cameraTechnology:'IP',cameraResolution:'4 MP',cameraLocation:'Main Security Gate',linkedRecorder:'Main Gate NVR 01',cameraChannel:'Ch-1',otherSpecs:'Outdoor dome PoE camera'},
+   {name:'Main Gate NVR 01',type:'Surveillance',subtype:'NVR',tag:'',site:f2,dept:d2,owner:'Unassigned',serial:'NVR-HIK-9901',manufacturer:'Hikvision',model:'DS-7616NXI-K2',ipAddress:'192.168.2.100',macAddress:'B4:A3:82:10:00:01',interfaceName:'LAN',managementUrl:'http://192.168.2.100',purchaseDate:'2025-01-20',warranty:'2028-01-19',assetValue:24000,channelCapacity:16,installedDisks:'8 TB Surveillance HDD',retentionDays:30,otherSpecs:'16-channel PoE NVR'},
+   {name:'Core Floor Switch 01',type:'Network',subtype:'Switch',tag:'',site:f1,dept:d1,owner:'Unassigned',serial:'SW-CISCO-2201',manufacturer:'Cisco',model:'Catalyst 2960-X',ipAddress:'192.168.1.10',macAddress:'00:1A:2B:3C:4D:10',interfaceName:'Mgmt VLAN',managementUrl:'https://192.168.1.10',purchaseDate:'2024-06-05',warranty:'2029-06-04',assetValue:65000,switchMake:'Cisco',switchModel:'WS-C2960X-24TD-L',usablePorts:24,switchManageability:'Managed',otherSpecs:'Server rack U4'},
+   {name:'Office Laser Printer 01',type:'Printer',subtype:'',tag:'',site:f1,dept:d1,owner:'Unassigned',serial:'PR-HP-3011',manufacturer:'HP',model:'LaserJet Pro M404dn',ipAddress:'192.168.1.80',macAddress:'00:1A:2B:99:88:80',interfaceName:'Ethernet',purchaseDate:'2024-08-12',warranty:'2027-08-11',assetValue:28500,printerCategory:'Laser',printerMakeModel:'HP LaserJet Pro M404dn',otherSpecs:'Duplex network printer'},
+   {name:'ERP Application Server',type:'Server',subtype:'',tag:'',site:f1,dept:d1,owner:'Unassigned',serial:'SV-DELL-R750',manufacturer:'Dell',model:'PowerEdge R750',ipAddress:'192.168.1.20',macAddress:'D4:AE:52:00:01:20',interfaceName:'eth0',managementUrl:'https://192.168.1.21',purchaseDate:'2024-03-01',warranty:'2029-02-28',assetValue:425000,osType:'Linux',osVersion:'Ubuntu 24.04 LTS',storageCapacity:2,storageUnit:'TB',ramGb:64,ssdCapacity:2,ssdUnit:'TB',ssdType:'NVMe Gen 4',cpu:'Intel Xeon Silver',otherSpecs:'Primary production server'}
+  ];
+
+  // Build Sheet 2 instructions & live workspace reference values
+  const catListText=types.map(t=>(map[t]?.length?t+' (Sub-categories: '+map[t].join(', ')+')':t));
+  const deptPairs=(depts||[]).slice(0,40).map(d=>Array.isArray(d)?d[0]+' ('+(d[6]||d[1]||'')+')':d.name+' ('+(d.factory||d.site||'')+')');
+  const guideRows=[
+   ['Northstar IT - Asset Import Guide','Field / Rule','Allowed Values / Notes','Example'],
+   ['HOW TO USE THIS TEMPLATE','Step 1','Fill your devices on the "Asset Import" sheet. Delete or overwrite the 7 sample rows before uploading (or keep unique tags).','Multiple categories (Laptop, Desktop, CCTV, Switch, Printer, Server) work in ONE sheet!'],
+   ['','Step 2','Asset Name *, Device Type / Category *, and Factory * are required. Leave Asset Tag blank to auto-generate SS-XX-XXXXXX.','SS-LP-123456'],
+   ['','Step 3','Dates accept YYYY-MM-DD, DD/MM/YYYY, or normal Excel dates. Leave IP Address blank if a device has no IP.','2025-04-15 or 192.168.1.51'],
+   ['','Step 4','Save as .xlsx or .csv and click "Import Excel / CSV" in Asset Inventory to preview & import.',''],
+   ['WORKSPACE FACTORIES','','Available factory codes in your workspace:',fCodes.join(', ')||'ARG, ARB, ARC, ARF'],
+   ['CATEGORIES & SUB-CATEGORIES','','Configured categories (you can also auto-add new ones on import):',catListText.join(' | ')],
+   ['DEPARTMENTS','','Existing departments in your workspace:',deptPairs.join(', ')||'IT, Engineering, Finance, Design'],
+   ['COLUMN REFERENCE','Asset Name *','Required text (device hostname or label)','ENG-LT-014'],
+   ['COLUMN REFERENCE','Device Type / Category *','Required category name (e.g. Laptop, Desktop, Computers, Surveillance, Network, Printer, Server)','Surveillance'],
+   ['COLUMN REFERENCE','Sub-Category','Optional or category-specific (e.g. DP, LP, CCTV, NVR, DVR, Switch, Router, Access point, Firewall)','CCTV'],
+   ['COLUMN REFERENCE','Asset Tag (Auto if blank)','Optional unique tag. Leave empty to auto-generate matching your device category prefix.','SS-CCTV-004512'],
+   ['COLUMN REFERENCE','Factory *','Required factory code from your workspace','ARG'],
+   ['COLUMN REFERENCE','IP Address / MAC Address','Optional valid IPv4/IPv6 & MAC. Multiple interfaces can be separated with semicolons ( ; )','192.168.1.51 ; 10.0.0.51'],
+   ['COLUMN REFERENCE','Asset Value (INR)','Numeric purchase or current asset valuation in INR (numbers only or commas allowed)','74500']
+  ];
+  const sectionRows=new Set([0,5,6,7,8]);
+  return {
+   headers:cols.map(c=>c.header),
+   sampleRows:samples.map(makeRow),
+   guideRows,
+   sectionRows
+  };
+ }
+
+ window.downloadAssetImportXlsxTemplate=function(){
+  const d=buildTemplateData();
+  const bytes=buildXlsxBytes([
+   {name:'Asset Import',rows:[d.headers,...d.sampleRows],freezeTop:true},
+   {name:'Instructions & Options',rows:d.guideRows,headerRow:false,sectionRows:d.sectionRows}
+  ]);
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  a.download='Northstar-Asset-Import-Template.xlsx';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+  showToast('Excel template downloaded (.xlsx with sample categories & field guide)');
+ };
+
+ window.downloadAssetImportCsvTemplate=function(){
+  const d=buildTemplateData();
+  const csvRow=r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',');
+  const csv=[d.headers,...d.sampleRows].map(csvRow).join('\r\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download='Northstar-Asset-Import-Template.csv';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+  showToast('CSV template downloaded');
+ };
+
+ // Expose template builders for tests
+ window.__buildAssetImportXlsxBytes=()=>buildXlsxBytes([
+  {name:'Asset Import',rows:[buildTemplateData().headers,...buildTemplateData().sampleRows],freezeTop:true},
+  {name:'Instructions & Options',rows:buildTemplateData().guideRows,headerRow:false,sectionRows:buildTemplateData().sectionRows}
+ ]);
+
+ // --- Pure-JS Multi-Format Parser (.xlsx / .xls XML & HTML / .csv & .tsv) ---
+ function detectCsvDelim(line){
+  let q=false,counts={',':0,';':0,'\t':0};
+  for(const ch of line){if(ch==='"'){q=!q;continue}if(!q&&counts[ch]!==undefined)counts[ch]++}
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0]||',';
+ }
+ function parseCsvText(raw){
+  const text=String(raw||'').replace(/^\uFEFF/,'');
+  const firstLine=text.split(/\r?\n/).find(l=>l.trim().length>0)||'';
+  const delim=detectCsvDelim(firstLine);
+  const rows=[];
+  let row=[],cur='',inQuotes=false;
+  for(let i=0;i<text.length;i++){
+   const ch=text[i],next=text[i+1];
+   if(inQuotes){
+    if(ch==='"'&&next==='"'){cur+='"';i++}
+    else if(ch==='"'){inQuotes=false}
+    else cur+=ch;
+   }else{
+    if(ch==='"')inQuotes=true;
+    else if(ch===delim){row.push(cur.trim());cur=''}
+    else if(ch==='\r'&&next==='\n'){row.push(cur.trim());if(row.some(x=>x!==''))rows.push(row);row=[];cur='';i++}
+    else if(ch==='\n'||ch==='\r'){row.push(cur.trim());if(row.some(x=>x!==''))rows.push(row);row=[];cur=''}
+    else cur+=ch;
+   }
+  }
+  row.push(cur.trim());
+  if(row.some(x=>x!==''))rows.push(row);
+  return [{name:'CSV Sheet',rows}];
+ }
+
+ function excelSerialToIso(serial,date1904=false){
+  const n=Number(serial);
+  if(!Number.isFinite(n)||n<1||n>2958465)return '';
+  const base=date1904?24107:25569;
+  const ms=Math.round((Math.floor(n)-base)*86400000);
+  const d=new Date(ms);
+  return Number.isNaN(d.getTime())?'':d.toISOString().slice(0,10);
+ }
+
+ async function unzipEntries(arrayBuffer){
+  const bytes=new Uint8Array(arrayBuffer),dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+  let eocd=-1;
+  const minPos=Math.max(0,bytes.length-65558);
+  for(let i=bytes.length-22;i>=minPos;i--){
+   if(bytes[i]===0x50&&bytes[i+1]===0x4B&&bytes[i+2]===0x05&&bytes[i+3]===0x06){eocd=i;break}
+  }
+  if(eocd<0)throw new Error('Invalid or corrupted .xlsx archive (missing ZIP directory).');
+  const cdSize=dv.getUint32(eocd+12,true),cdOffset=dv.getUint32(eocd+16,true);
+  const map=new Map();
+  let pos=cdOffset,end=cdOffset+cdSize;
+  const utf8=new TextDecoder('utf-8'),latin1=new TextDecoder('latin1');
+  while(pos+46<=end&&dv.getUint32(pos,true)===0x02014B50){
+   const flags=dv.getUint16(pos+8,true),method=dv.getUint16(pos+10,true);
+   const compSize=dv.getUint32(pos+20,true),fnLen=dv.getUint16(pos+28,true),exLen=dv.getUint16(pos+30,true),cmLen=dv.getUint16(pos+32,true);
+   const localOffset=dv.getUint32(pos+42,true);
+   const name=(flags&0x0800?utf8:latin1).decode(bytes.subarray(pos+46,pos+46+fnLen));
+   map.set(name.toLowerCase(),{name,method,compSize,localOffset});
+   pos+=46+fnLen+exLen+cmLen;
+  }
+  const readBytes=async(path)=>{
+   const e=map.get(String(path||'').toLowerCase());if(!e)return null;
+   if(dv.getUint32(e.localOffset,true)!==0x04034B50)throw new Error('Corrupted ZIP entry: '+e.name);
+   const lFn=dv.getUint16(e.localOffset+26,true),lEx=dv.getUint16(e.localOffset+28,true);
+   const start=e.localOffset+30+lFn+lEx;
+   const slice=bytes.subarray(start,start+e.compSize);
+   if(e.method===0)return slice;
+   if(e.method===8){
+    if(typeof DecompressionStream==='undefined')throw new Error('This browser cannot decompress deflate .xlsx files. Save as .csv instead.');
+    const ds=new DecompressionStream('deflate-raw');
+    const ab=await new Response(new Blob([slice]).stream().pipeThrough(ds)).arrayBuffer();
+    return new Uint8Array(ab);
+   }
+   throw new Error('Unsupported ZIP compression method '+e.method);
+  };
+  const readText=async(path)=>{const b=await readBytes(path);return b?utf8.decode(b):null};
+  return {map,readText};
+ }
+
+ function colLettersToIdx(ref){
+  const m=String(ref||'').match(/^([A-Za-z]+)/);if(!m)return -1;
+  let idx=0;const s=m[1].toUpperCase();
+  for(let i=0;i<s.length;i++)idx=idx*26+(s.charCodeAt(i)-64);
+  return idx-1;
+ }
+
+ function normalizeZipTarget(t){
+  let p=String(t||'').trim().replace(/\\/g,'/');
+  if(p.startsWith('/'))return p.slice(1);
+  if(p.startsWith('../'))return p.replace(/^(\.\.\/)+/,'');
+  return p.startsWith('xl/')?p:('xl/'+p);
+ }
+
+ const xmlTags=(el,n)=>el?(el.getElementsByTagNameNS?[...el.getElementsByTagNameNS('*',n)]:[...el.getElementsByTagName(n)]):[];
+
+ async function parseXlsxBuffer(arrayBuffer){
+  const {map,readText}=await unzipEntries(arrayBuffer);
+  const parser=new DOMParser();
+  const parseXml=s=>s?parser.parseFromString(s,'text/xml'):null;
+
+  // Shared strings
+  const sharedStrings=[];
+  const ssXml=parseXml(await readText('xl/sharedStrings.xml'));
+  if(ssXml){
+   for(const si of xmlTags(ssXml,'si')){
+    const rNodes=xmlTags(si,'r');
+    if(rNodes.length){
+     let txt='';
+     for(const r of rNodes)for(const t of xmlTags(r,'t'))txt+=t.textContent||'';
+     sharedStrings.push(txt);
+    }else{
+     let txt='';for(const t of xmlTags(si,'t'))txt+=t.textContent||'';
+     sharedStrings.push(txt);
+    }
+   }
+  }
+
+  // Date styles detection
+  const dateStyleSet=new Set();
+  const stylesXml=parseXml(await readText('xl/styles.xml'));
+  if(stylesXml){
+   const customDateFmts=new Set();
+   for(const nf of xmlTags(stylesXml,'numFmt')){
+    const id=nf.getAttribute('numFmtId'),code=String(nf.getAttribute('formatCode')||'').replace(/"[^"]*"|\[[^\]]*\]/g,'');
+    if(/[ymdh]/i.test(code)&&!/[0#]{3,}/.test(code))customDateFmts.add(id);
+   }
+   const cellXfs=xmlTags(stylesXml,'cellXfs')[0];
+   if(cellXfs){
+    const builtInDates=new Set(['14','15','16','17','18','19','20','21','22','27','28','29','30','31','32','33','34','35','36','45','46','47','50','51','52','53','54','55','56','57','58']);
+    xmlTags(cellXfs,'xf').forEach((xf,i)=>{
+     const fid=String(xf.getAttribute('numFmtId')||'');
+     if(builtInDates.has(fid)||customDateFmts.has(fid))dateStyleSet.add(String(i));
+    });
+   }
+  }
+
+  // Workbook + relationships -> ordered worksheets
+  const wbXml=parseXml(await readText('xl/workbook.xml'));
+  const relXml=parseXml(await readText('xl/_rels/workbook.xml.rels'));
+  const date1904=xmlTags(wbXml,'workbookPr')[0]?.getAttribute('date1904')==='1';
+  const relMap=new Map();
+  if(relXml){
+   for(const rel of xmlTags(relXml,'Relationship'))relMap.set(rel.getAttribute('Id'),normalizeZipTarget(rel.getAttribute('Target')));
+  }
+  let sheetDefs=[];
+  if(wbXml){
+   xmlTags(wbXml,'sheet').forEach((sh,i)=>{
+    const name=sh.getAttribute('name')||('Sheet '+(i+1));
+    const rid=sh.getAttribute('r:id')||sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id')||sh.getAttributeNS('*','id');
+    const target=relMap.get(rid)||('xl/worksheets/sheet'+(i+1)+'.xml');
+    sheetDefs.push({name,target});
+   });
+  }
+  if(!sheetDefs.length){
+   sheetDefs=[...map.values()].filter(e=>/^xl\/worksheets\/sheet\d+\.xml$/i.test(e.name)).map((e,i)=>({name:'Sheet '+(i+1),target:e.name}));
+  }
+
+  const parsedSheets=[];
+  for(const def of sheetDefs){
+   const sText=await readText(def.target);if(!sText)continue;
+   const sXml=parseXml(sText);if(!sXml)continue;
+   const rows=[];
+   for(const rowEl of xmlTags(sXml,'row')){
+    const arr=[];
+    let cursor=0;
+    for(const c of xmlTags(rowEl,'c')){
+     const ref=c.getAttribute('r'),t=c.getAttribute('t')||'',s=c.getAttribute('s')||'';
+     const colIdx=ref?colLettersToIdx(ref):cursor;
+     cursor=colIdx+1;
+     let val='';
+     if(t==='inlineStr'){
+      for(const tn of xmlTags(c,'t'))val+=tn.textContent||'';
+     }else{
+      const v=xmlTags(c,'v')[0]?.textContent;
+      if(v!=null){
+       if(t==='s')val=sharedStrings[Number(v)]??'';
+       else if(t==='b')val=v==='1'?'TRUE':'FALSE';
+       else if((t===''||t==='n')&&s&&dateStyleSet.has(s)){const iso=excelSerialToIso(v,date1904);val=iso||String(v)}
+       else val=v;
+      }
+     }
+     if(colIdx>=0)arr[colIdx]=String(val??'').trim();
+    }
+    const max=arr.length;for(let k=0;k<max;k++)if(arr[k]===undefined)arr[k]='';
+    if(arr.some(x=>x!==''))rows.push(arr);
+   }
+   parsedSheets.push({name:def.name,rows,date1904});
+  }
+  return parsedSheets;
+ }
+
+ function parseXlsTextOrHtml(raw){
+  const txt=String(raw||'').replace(/^\uFEFF/,'');
+  const parser=new DOMParser();
+  if(/<(?:[a-z]+:)?Workbook\b/i.test(txt)&&/<(?:[a-z]+:)?Worksheet\b/i.test(txt)){
+   const doc=parser.parseFromString(txt,'text/xml');
+   const sheets=xmlTags(doc,'Worksheet').map((ws,idx)=>{
+    const rows=xmlTags(ws,'Row').map(tr=>{
+     const arr=[];let cur=0;
+     for(const cell of xmlTags(tr,'Cell')){
+      const idxAttr=cell.getAttribute('ss:Index')||cell.getAttributeNS('*','Index')||cell.getAttribute('Index');
+      if(idxAttr)cur=Math.max(0,Number(idxAttr)-1);
+      const data=xmlTags(cell,'Data')[0];
+      arr[cur]=String((data?data.textContent:cell.textContent)||'').trim();
+      cur++;
+     }
+     for(let i=0;i<arr.length;i++)if(arr[i]===undefined)arr[i]='';
+     return arr;
+    }).filter(r=>r.some(x=>x!==''));
+    return {name:ws.getAttribute('ss:Name')||ws.getAttributeNS('*','Name')||ws.getAttribute('Name')||('Sheet '+(idx+1)),rows};
+   });
+   return sheets;
+  }
+  if(/<table\b/i.test(txt)){
+   const doc=parser.parseFromString(txt,'text/html');
+   const tables=[...doc.querySelectorAll('table')];
+   return tables.map((tbl,idx)=>({
+    name:'Table '+(idx+1),
+    rows:[...tbl.querySelectorAll('tr')].map(tr=>[...tr.querySelectorAll('th,td')].map(td=>td.textContent.replace(/\s+/g,' ').trim())).filter(r=>r.some(x=>x!==''))
+   }));
+  }
+  return parseCsvText(txt);
+ }
+
+ async function parseUploadedSpreadsheet(file){
+  const ab=await file.arrayBuffer();
+  const u8=new Uint8Array(ab);
+  // ZIP signature PK\x03\x04 -> real .xlsx
+  if(u8.length>=4&&u8[0]===0x50&&u8[1]===0x4B&&u8[2]===0x03&&u8[3]===0x04){
+   const sheets=await parseXlsxBuffer(ab);
+   if(!sheets.length)throw new Error('No worksheets with data found inside .xlsx file.');
+   return sheets;
+  }
+  const dec=u8[0]===0xFF&&u8[1]===0xFE?new TextDecoder('utf-16le'):new TextDecoder('utf-8');
+  const txt=dec.decode(u8);
+  const name=(file.name||'').toLowerCase();
+  if(name.endsWith('.xls')||/<Workbook\b|<table\b/i.test(txt))return parseXlsTextOrHtml(txt);
+  return parseCsvText(txt);
+ }
+
+ // --- Header Synonym Matching & Data Normalization ---
+ function guessFieldForHeader(hdr){
+  const nk=normKey(hdr);
+  if(!nk)return '';
+  for(const f of IMPORT_FIELDS){if(f.aliases.includes(nk))return f.key}
+  for(const f of IMPORT_FIELDS){if(f.aliases.some(a=>nk===a||nk.startsWith(a+' (')))return f.key}
+  for(const f of IMPORT_FIELDS){if(aMatch(nk,f.aliases))return f.key}
+  return '';
+ }
+ function aMatch(nk,aliases){return aliases.some(a=>a.length>=4&&nk.includes(a))}
+
+ function normalizeImportDate(raw,date1904=false){
+  const s=String(raw||'').trim();
+  if(!s)return '';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  if(/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(s)){const[y,m,d]=s.split('/');return y+'-'+m.padStart(2,'0')+'-'+d.padStart(2,'0')}
+  // Excel numeric date serial
+  if(/^\d{5}(\.\d+)?$/.test(s)){const iso=excelSerialToIso(s,date1904);if(iso)return iso}
+  // DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
+  const dmy=s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+  if(dmy){
+   let p1=Number(dmy[1]),p2=Number(dmy[2]),yr=dmy[3];
+   let day=p1,mon=p2;
+   if(p2>12&&p1<=12){mon=p1;day=p2} // MM/DD/YYYY fallback if month > 12
+   if(mon>=1&&mon<=12&&day>=1&&day<=31)return yr+'-'+String(mon).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+  }
+  const ts=Date.parse(s);
+  if(Number.isFinite(ts)){const d=new Date(ts);if(d.getFullYear()>=1970&&d.getFullYear()<=2100)return d.toISOString().slice(0,10)}
+  return '';
+ }
+
+ function isValidIp(ip){
+  const s=String(ip||'').trim();
+  if(!s)return true;
+  if(/^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/.test(s))return true;
+  if(s.includes(':')){try{new URL('http://['+s+']');return true}catch(e){return false}}
+  return false;
+ }
+
+ function splitMulti(v){
+  return String(v||'').split(/[;\n|]+/).map(x=>x.trim()).filter(Boolean);
+ }
+
+ function resolveCategoryPair(rawType,rawSub,knownTypes){
+  const rt=String(rawType||'').trim(),rs=String(rawSub||'').trim();
+  const findExact=(list,val)=>list.find(x=>x.toLowerCase()===val.toLowerCase());
+  let type=findExact(knownTypes,rt)||rt;
+  let subtype=rs;
+  const low=type.toLowerCase();
+  // Smart map common standalone subtype strings if entered in Device Type column
+  if(!findExact(knownTypes,rt)){
+   if(['cctv','ip camera','camera'].includes(low)&&findExact(knownTypes,'Surveillance')){type='Surveillance';subtype=subtype||'CCTV'}
+   else if(['nvr','dvr'].includes(low)&&findExact(knownTypes,'Surveillance')){type='Surveillance';subtype=subtype||low.toUpperCase()}
+   else if(['switch','router','firewall','access point','ap'].includes(low)&&findExact(knownTypes,'Network')){
+    type='Network';
+    const can={switch:'Switch',router:'Router',firewall:'Firewall','access point':'Access point',ap:'Access point'};
+    subtype=subtype||can[low];
+   }else if(['pc','desktop pc','workstation'].includes(low)&&findExact(knownTypes,'Desktop'))type='Desktop';
+   else if(['notebook','ultrabook'].includes(low)&&findExact(knownTypes,'Laptop'))type='Laptop';
+  }
+  return {type,subtype};
+ }
+
+ function computeCategoryPrefix(type,subtype){
+  const t=String(type||'').trim(),s=String(subtype||'').trim();
+  const map={desktop:'DP',dp:'DP',laptop:'LP',lp:'LP',printer:'PR',server:'SV',mobile:'MO',tablet:'TB',switch:'NS',router:'NR','access point':'AP',firewall:'FW',cctv:'CCTV',nvr:'NVR',dvr:'DVR',network:'NS',surveillance:'CCTV'};
+  const sl=s.toLowerCase(),tl=t.toLowerCase();
+  if(sl&&map[sl])return map[sl];
+  if(s){const al=s.replace(/[^A-Za-z0-9]/g,'').toUpperCase();if(al.length>=2)return al.slice(0,5)}
+  if(tl&&map[tl])return map[tl];
+  if(t){const al=t.replace(/[^A-Za-z0-9]/g,'').toUpperCase();if(al.length>=2)return al.slice(0,3)}
+  return 'AST';
+ }
+
+ function genUniqueTag(type,subtype,usedSet){
+  const code=computeCategoryPrefix(type,subtype);
+  for(let tries=0;tries<1500;tries++){
+   const n=crypto.getRandomValues(new Uint32Array(1))[0]%1000000;
+   const tag='SS-'+code+'-'+String(n).padStart(6,'0');
+   if(!usedSet.has(tag)){usedSet.add(tag);return tag}
+  }
+  const fallback='SS-'+code+'-'+String(Date.now()).slice(-6);
+  usedSet.add(fallback);
+  return fallback;
+ }
+
+ // --- Import Modal State & UI ---
+ const impState={sheets:[],sheetIdx:0,colMap:[],rows:[],fileName:'',prepared:[]};
+
+ function ensureImportModal(){
+  if(document.getElementById('assetImportModal'))return;
+  if(!document.getElementById('assetImportStyles')){
+   const st=document.createElement('style');
+   st.id='assetImportStyles';
+   st.textContent=`
+    .imp-box{padding:18px 22px;display:grid;gap:14px}
+    .imp-banner{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;background:#f4faf6;border:1px solid #cce7d6;border-radius:12px;padding:12px 15px}
+    .imp-drop{border:2px dashed #b9cec2;border-radius:12px;padding:20px;text-align:center;background:#fafcfb;cursor:pointer;transition:.15s}
+    .imp-drop.drag{border-color:#157a54;background:#eef8f2}
+    .imp-stats{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .imp-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-size:11.5px;font-weight:700;background:#f1f5f9;color:#334155;border:1px solid #e2e8f0}
+    .imp-pill.ok{background:#ecfdf5;color:#065f46;border-color:#a7f3d0}
+    .imp-pill.warn{background:#fffbeb;color:#92400e;border-color:#fde68a}
+    .imp-pill.err{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+    .imp-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;background:#f8faf9;border:1px solid var(--line);border-radius:10px;padding:12px}
+    .imp-map-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;margin-top:8px}
+    .imp-map-item{display:flex;flex-direction:column;gap:4px;background:#fff;border:1px solid var(--line);padding:7px 9px;border-radius:8px;font-size:11px}
+    .imp-preview-wrap{max-height:310px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+    .imp-preview-wrap thead th{position:sticky;top:0;background:#f6faf7;z-index:2}
+   `;
+   document.head.appendChild(st);
+  }
+  document.body.insertAdjacentHTML('beforeend',`
+  <div class="modal-backdrop" id="assetImportModal" role="dialog" aria-modal="true">
+   <div class="modal" style="width:min(1060px,calc(100vw - 24px));max-width:1060px;padding:0">
+    <div class="modal-head" style="padding:18px 22px;border-bottom:1px solid var(--line);margin:0">
+     <div>
+      <h2 style="margin:0">Bulk Import Assets (Excel / CSV)</h2>
+      <div class="form-note">Upload one Excel (.xlsx / .xls) or CSV file containing mixed categories (Laptop, Desktop, Computers, Surveillance, Network, Printer, Server).</div>
+     </div>
+     <button type="button" class="close" onclick="closeAssetImportModal()">×</button>
+    </div>
+    <div class="imp-box">
+     <div class="imp-banner">
+      <div style="min-width:240px;flex:1">
+       <b style="font-size:13px;color:#0f172a">Need a sample format? Download Dummy Template &amp; Field Guide</b>
+       <div class="form-note">Includes multiple device categories in one sheet plus your workspace's Factory, Category &amp; Department guide on Sheet 2. Leave Asset Tag blank to auto-generate!</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+       <button type="button" class="btn primary" id="impDlXlsxBtn" onclick="downloadAssetImportXlsxTemplate()">↓ &nbsp;Download Excel Template (.xlsx)</button>
+       <button type="button" class="btn" id="impDlCsvBtn" onclick="downloadAssetImportCsvTemplate()">↓ &nbsp;Download CSV Template (.csv)</button>
+      </div>
+     </div>
+
+     <div id="impDropZone" class="imp-drop" onclick="document.getElementById('assetImportModalFile').click()">
+      <div style="font-size:24px;margin-bottom:4px">📊</div>
+      <div style="font-weight:700;font-size:13px;color:#0f172a">Click to choose or drag &amp; drop an Excel (.xlsx / .xls) or CSV (.csv) file</div>
+      <div class="form-note" id="impFileStatus">Supports multi-sheet Excel workbooks and mixed asset categories in one file.</div>
+      <input id="assetImportModalFile" type="file" accept=".xlsx,.xls,.csv,.tsv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" hidden>
+     </div>
+
+     <div id="impPreviewSection" style="display:none;gap:12px">
+      <div class="imp-opts">
+       <label class="field" id="impSheetSelectWrap" style="margin:0;display:none"><span>Worksheet tab</span><select id="impSheetSelect"></select></label>
+       <label class="field" style="margin:0"><span>Duplicate asset tag action</span>
+        <select id="impDupMode">
+         <option value="skip">Skip existing tags (safe)</option>
+         <option value="update">Update existing assets by tag</option>
+         <option value="newtag">Generate new tag for duplicates</option>
+        </select>
+       </label>
+       <label class="field" style="margin:0"><span>Default factory (if cell blank)</span><select id="impDefaultFactory"></select></label>
+       <label class="check-row" style="align-self:end;font-size:12px;margin:0;padding:8px 0"><input type="checkbox" id="impAutoCategories" checked> Auto-add new categories &amp; sub-categories to Settings</label>
+      </div>
+
+      <details id="impMappingDetails" style="background:#fafbfa;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+       <summary style="cursor:pointer;font-weight:700;font-size:12px;color:#157a54">Column Mapping (auto-detected · click to adjust)</summary>
+       <div id="impMapGrid" class="imp-map-grid"></div>
+      </details>
+
+      <div id="impSummaryStrip" class="imp-stats"></div>
+
+      <div class="imp-preview-wrap">
+       <table class="imp-preview-table" style="width:100%;font-size:11.5px">
+        <thead><tr><th>#</th><th>STATUS</th><th>ASSET TAG</th><th>ASSET NAME</th><th>CATEGORY · SUB</th><th>FACTORY · DEPT</th><th>ASSIGNED USER</th><th>IP / MAC</th><th>VALUE (₹)</th><th>SPECS PREVIEW</th></tr></thead>
+        <tbody id="impPreviewBody"></tbody>
+       </table>
+      </div>
+     </div>
+    </div>
+    <div class="modal-foot" style="padding:14px 22px;border-top:1px solid var(--line);margin:0;display:flex;justify-content:space-between;align-items:center">
+     <span class="form-note" id="impFooterNote">Review the preview rows before importing into inventory.</span>
+     <div style="display:flex;gap:8px">
+      <button type="button" class="btn" onclick="closeAssetImportModal()">Cancel</button>
+      <button type="button" class="btn primary" id="impCommitBtn" disabled onclick="commitAssetImport()">✓ &nbsp;Import Assets</button>
+     </div>
+    </div>
+   </div>
+  </div>`);
+
+  const fileIn=document.getElementById('assetImportModalFile'),drop=document.getElementById('impDropZone');
+  fileIn.addEventListener('change',e=>{const f=e.target.files?.[0];if(f)handleImportFile(f);e.target.value=''});
+  drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag')});
+  drop.addEventListener('dragleave',()=>drop.classList.remove('drag'));
+  drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag');const f=e.dataTransfer?.files?.[0];if(f)handleImportFile(f)});
+  ['impDupMode','impDefaultFactory','impAutoCategories'].forEach(id=>document.getElementById(id).addEventListener('change',recomputeImportPreview));
+  document.getElementById('impSheetSelect').addEventListener('change',e=>{impState.sheetIdx=Number(e.target.value)||0;setupSheetMapping()});
+  document.getElementById('assetImportModal').addEventListener('click',e=>{if(e.target.id==='assetImportModal')closeAssetImportModal()});
+ }
+
+ window.openAssetImportModal=function(){
+  if(document.body.classList.contains('viewer-mode')||!canAccessMod('assets',true))return showToast('Read & write access on Assets is required');
+  ensureImportModal();
+  const facSel=document.getElementById('impDefaultFactory');
+  const fCodes=(typeof factoryCodes==='function'?factoryCodes():['ARG']);
+  facSel.innerHTML=fCodes.map(c=>'<option value="'+escH(c)+'">'+escH(c)+'</option>').join('');
+  const gSite=document.getElementById('globalSite')?.value;
+  if(gSite&&gSite!=='All sites'&&fCodes.includes(gSite))facSel.value=gSite;
+  const autoBox=document.getElementById('impAutoCategories');
+  const canCfg=!serverMode||serverAdmin;
+  autoBox.checked=canCfg;autoBox.disabled=!canCfg;
+  document.getElementById('impPreviewSection').style.display=impState.sheets.length?'grid':'none';
+  document.getElementById('assetImportModal').classList.add('open');
+ };
+
+ window.closeAssetImportModal=()=>document.getElementById('assetImportModal')?.classList.remove('open');
+
+ async function handleImportFile(file){
+  try{
+   document.getElementById('impFileStatus').textContent='Reading '+file.name+' ...';
+   const sheets=await parseUploadedSpreadsheet(file);
+   const nonEmpty=sheets.filter(s=>s.rows&&s.rows.length>=2);
+   if(!nonEmpty.length)throw new Error('File must contain a header row and at least one data row.');
+   impState.sheets=nonEmpty;
+   impState.fileName=file.name;
+   // Auto-pick data sheet (skip instructions sheet if present)
+   const defIdx=nonEmpty.findIndex(s=>!/instruct|guide|option|help/i.test(s.name));
+   impState.sheetIdx=defIdx>=0?defIdx:0;
+   const shSel=document.getElementById('impSheetSelect'),shWrap=document.getElementById('impSheetSelectWrap');
+   shSel.innerHTML=nonEmpty.map((s,i)=>'<option value="'+i+'">'+escH(s.name+' ('+(s.rows.length-1)+' rows)')+'</option>').join('');
+   shSel.value=String(impState.sheetIdx);
+   shWrap.style.display=nonEmpty.length>1?'':'none';
+   document.getElementById('impFileStatus').textContent='Loaded: '+file.name+' ('+nonEmpty[impState.sheetIdx].rows.length+' rows incl. header)';
+   document.getElementById('impPreviewSection').style.display='grid';
+   setupSheetMapping();
+  }catch(err){
+   document.getElementById('impFileStatus').textContent='Error: '+(err.message||err);
+   showToast('Could not read file: '+(err.message||err));
+  }
+ }
+
+ function setupSheetMapping(){
+  const sheet=impState.sheets[impState.sheetIdx];if(!sheet||!sheet.rows.length)return;
+  const headers=sheet.rows[0].map(h=>String(h||'').trim());
+  const usedTargets=new Set();
+  impState.colMap=headers.map(h=>{
+   const g=guessFieldForHeader(h);
+   if(g&&!usedTargets.has(g)){usedTargets.add(g);return g}
+   return '';
+  });
+  const grid=document.getElementById('impMapGrid');
+  const optsHtml='<option value="">-- Ignore column --</option>'+IMPORT_FIELDS.map(f=>'<option value="'+f.key+'">'+escH(f.label)+'</option>').join('');
+  grid.innerHTML=headers.map((h,i)=>'<label class="imp-map-item"><b>'+escH(h||('Column '+(i+1)))+'</b><select data-map-col="'+i+'">'+optsHtml+'</select></label>').join('');
+  grid.querySelectorAll('select').forEach((sel,i)=>{
+   sel.value=impState.colMap[i]||'';
+   sel.addEventListener('change',e=>{impState.colMap[i]=e.target.value;recomputeImportPreview()});
+  });
+  recomputeImportPreview();
+ }
+
+ function buildPreparedRows(sheet,colMap,dupMode,defaultFactory,autoAddCats){
+  const headers=sheet.rows[0]||[];
+  const dataRows=sheet.rows.slice(1);
+  const {types:cfgTypes,map:cfgSubMap}=typeof window.categoryData==='function'?window.categoryData():{types:defaultAssetTypes||[],map:{}};
+  const knownTypes=[...cfgTypes];
+  const existingTagMap=new Map(assets.map((a,idx)=>[String(a.tag||'').toUpperCase(),idx]));
+  const workingTags=new Set(existingTagMap.keys());
+  const date1904=!!sheet.date1904;
+  const specKeys=new Set(IMPORT_FIELDS.filter(f=>f.spec).map(f=>f.key));
+
+  return dataRows.map((cells,rowIdx)=>{
+   if(!cells.some(c=>String(c||'').trim()!==''))return null;
+   const raw={};
+   cells.forEach((val,cIdx)=>{
+    const target=colMap[cIdx];if(!target)return;
+    const v=String(val??'').trim();if(!v)return;
+    if(raw[target]&&(target==='ipAddress'||target==='macAddress'||target==='interfaceName'||target==='otherSpecs'))raw[target]+='; '+v;
+    else if(!raw[target])raw[target]=v;
+   });
+
+   const errors=[];
+   const warnings=[];
+   const name=String(raw.name||'').trim();
+   if(!name)errors.push('Missing Asset Name');
+
+   const rawType=String(raw.type||'').trim();
+   if(!rawType)errors.push('Missing Device Type / Category');
+   const {type,subtype}=resolveCategoryPair(rawType,raw.subtype||'',knownTypes);
+
+   const isNewCat=type&&!knownTypes.some(t=>t.toLowerCase()===type.toLowerCase());
+   const isNewSub=type&&subtype&&!((cfgSubMap[type]||[]).some(s=>s.toLowerCase()===subtype.toLowerCase()));
+   if(isNewCat&&!autoAddCats)warnings.push('New category "'+type+'"');
+
+   const site=String(raw.site||defaultFactory||'ARG').trim().toUpperCase();
+   if(!site)errors.push('Missing Factory');
+
+   // Network interface parsing & server-matching IP validation
+   const ips=splitMulti(raw.ipAddress),macs=splitMulti(raw.macAddress),ifNames=splitMulti(raw.interfaceName);
+   const ifaceCount=Math.max(ips.length,macs.length);
+   const networkInterfaces=[];
+   for(let i=0;i<ifaceCount;i++){
+    const ipVal=ips[i]||'';
+    if(ipVal&&!isValidIp(ipVal))errors.push('Invalid IP: '+ipVal);
+    networkInterfaces.push({name:ifNames[i]||(ips[i]?'LAN':''),ipAddress:ipVal,macAddress:macs[i]||''});
+   }
+   if(networkInterfaces.length>16)errors.push('Max 16 network interfaces allowed');
+
+   const valNum=Number(String(raw.assetValue||'0').replace(/[^\d.-]/g,''));
+   const assetValue=Number.isFinite(valNum)&&valNum>=0?valNum:0;
+   const purchaseDate=raw.purchaseDate?normalizeImportDate(raw.purchaseDate,date1904):'';
+   if(raw.purchaseDate&&!purchaseDate)warnings.push('Unrecognized Purchase Date: '+raw.purchaseDate);
+   const warranty=raw.warranty?normalizeImportDate(raw.warranty,date1904):'';
+   if(raw.warranty&&!warranty)warnings.push('Unrecognized Warranty Date: '+raw.warranty);
+
+   // Specs object matching asset modal schema
+   const specsObj={};
+   for(const sk of specKeys){
+    if(raw[sk]){
+     // If user passed JSON string directly in specs/otherSpecs
+     if(sk==='otherSpecs'&&raw[sk].startsWith('{')&&raw[sk].endsWith('}')){
+      try{const parsed=JSON.parse(raw[sk]);if(parsed&&typeof parsed==='object'){Object.assign(specsObj,parsed);continue}}catch(e){}
+     }
+     specsObj[sk]=raw[sk];
+    }
+   }
+   if(specsObj.hddCapacity&&!specsObj.hddUnit)specsObj.hddUnit='GB';
+   if(specsObj.ssdCapacity&&!specsObj.ssdUnit)specsObj.ssdUnit='GB';
+   const specsJson=Object.keys(specsObj).length?JSON.stringify(specsObj):'';
+
+   // Tag handling & duplicate check
+   let tag=String(raw.tag||'').trim();
+   let autoTagged=false;
+   let action='add'; // 'add' | 'update' | 'skip' | 'error'
+   let matchIdx=-1;
+
+   if(tag){
+    const upTag=tag.toUpperCase();
+    if(existingTagMap.has(upTag)){
+     matchIdx=existingTagMap.get(upTag);
+     if(dupMode==='update')action='update';
+     else if(dupMode==='newtag'){tag=genUniqueTag(type,subtype,workingTags);autoTagged=true;warnings.push('Duplicate replaced with new tag')}
+     else action='skip';
+    }else if(workingTags.has(upTag)){
+     if(dupMode==='newtag'){tag=genUniqueTag(type,subtype,workingTags);autoTagged=true;warnings.push('Duplicate row tag regenerated')}
+     else action='skip';
+    }else{
+     workingTags.add(upTag);
+    }
+   }else{
+    tag=genUniqueTag(type||'Other',subtype,workingTags);
+    autoTagged=true;
+   }
+
+   if(errors.length)action='error';
+
+   const asset={
+    name,
+    tag,
+    type:type||'Other',
+    subtype:subtype||'',
+    specs:specsJson,
+    owner:String(raw.owner||'').trim()||'Unassigned',
+    dept:String(raw.dept||'').trim(),
+    site,
+    status:'Not checked',
+    ipStatus:'Not checked',
+    seen:'Imported',
+    serial:String(raw.serial||'').trim()||'Not recorded',
+    ipAddress:ips[0]||'',
+    macAddress:macs[0]||'',
+    managementUrl:String(raw.managementUrl||'').trim(),
+    networkInterfaces,
+    manufacturer:String(raw.manufacturer||'').trim(),
+    model:String(raw.model||'').trim(),
+    osType:String(raw.osType||'').trim(),
+    osVersion:String(raw.osVersion||'').trim(),
+    storageCapacity:String(raw.storageCapacity||'').trim(),
+    storageUnit:String(raw.storageUnit||'').trim()||'GB',
+    assetValue,
+    purchaseDate:purchaseDate||new Date().toISOString().slice(0,10),
+    warranty,
+    lastMaintenance:'Not recorded'
+   };
+
+   return {rowNum:rowIdx+2,action,matchIdx,autoTagged,isNewCat,isNewSub,errors,warnings,asset,specsObj};
+  }).filter(Boolean);
+ }
+
+ function recomputeImportPreview(){
+  const sheet=impState.sheets[impState.sheetIdx];if(!sheet)return;
+  const dupMode=document.getElementById('impDupMode').value;
+  const defFac=document.getElementById('impDefaultFactory').value||'ARG';
+  const autoCats=document.getElementById('impAutoCategories').checked;
+  const prepared=buildPreparedRows(sheet,impState.colMap,dupMode,defFac,autoCats);
+  impState.prepared=prepared;
+
+  const readyAdd=prepared.filter(r=>r.action==='add').length;
+  const readyUpd=prepared.filter(r=>r.action==='update').length;
+  const skipped=prepared.filter(r=>r.action==='skip').length;
+  const errs=prepared.filter(r=>r.action==='error').length;
+  const readyTotal=readyAdd+readyUpd;
+
+  const catCounts=new Map();
+  prepared.filter(r=>r.action==='add'||r.action==='update').forEach(r=>{
+   const k=r.asset.type+(r.asset.subtype?' ('+r.asset.subtype+')':'');
+   catCounts.set(k,(catCounts.get(k)||0)+1);
+  });
+
+  document.getElementById('impSummaryStrip').innerHTML=[
+   '<span class="imp-pill">Total rows: '+prepared.length+'</span>',
+   '<span class="imp-pill ok">Ready to add: '+readyAdd+'</span>',
+   readyUpd?'<span class="imp-pill warn">Update existing: '+readyUpd+'</span>':'',
+   skipped?'<span class="imp-pill warn">Skipped duplicates: '+skipped+'</span>':'',
+   errs?'<span class="imp-pill err">Invalid rows: '+errs+'</span>':'',
+   ...[...catCounts].map(([k,n])=>'<span class="imp-pill">'+escH(k)+': '+n+'</span>')
+  ].filter(Boolean).join('');
+
+  const shown=prepared.slice(0,120);
+  document.getElementById('impPreviewBody').innerHTML=shown.map(r=>{
+   const stBadge=r.action==='add'?'<span class="status healthy">Add</span>':r.action==='update'?'<span class="status warning">Update</span>':r.action==='skip'?'<span class="status closed">Skip dup</span>':'<span class="status critical" title="'+escH(r.errors.join('; '))+'">Error</span>';
+   const note=r.errors.length?('<div style="color:#dc2626;font-size:10px">'+escH(r.errors.join(' · '))+'</div>'):(r.warnings.length?('<div style="color:#b45309;font-size:10px">'+escH(r.warnings.join(' · '))+'</div>'):'');
+   const specCount=Object.keys(r.specsObj).length;
+   const ipText=[r.asset.ipAddress,r.asset.macAddress].filter(Boolean).join(' · ')||'—';
+   return '<tr>'
+    +'<td>'+r.rowNum+'</td>'
+    +'<td>'+stBadge+note+'</td>'
+    +'<td><b>'+escH(r.asset.tag)+'</b>'+(r.autoTagged?'<div class="asset-id">Auto-tag</div>':'')+'</td>'
+    +'<td><b>'+escH(r.asset.name||'—')+'</b><div class="asset-id">'+escH([r.asset.manufacturer,r.asset.model,r.asset.serial!=='Not recorded'?r.asset.serial:''].filter(Boolean).join(' · '))+'</div></td>'
+    +'<td>'+escH(r.asset.type)+(r.asset.subtype?' · <b>'+escH(r.asset.subtype)+'</b>':'')+'</td>'
+    +'<td>'+escH(r.asset.site)+(r.asset.dept?' · '+escH(r.asset.dept):'')+'</td>'
+    +'<td>'+escH(r.asset.owner)+'</td>'
+    +'<td>'+escH(ipText)+'</td>'
+    +'<td>₹'+Number(r.asset.assetValue||0).toLocaleString('en-IN')+'</td>'
+    +'<td>'+(specCount?specCount+' spec field(s)':'—')+'</td>'
+   +'</tr>';
+  }).join('')+(prepared.length>120?'<tr><td colspan="10" class="empty-state">Showing first 120 of '+prepared.length+' rows. All valid rows will be imported.</td></tr>':'')||'<tr><td colspan="10" class="empty-state">No data rows detected.</td></tr>';
+
+  const btn=document.getElementById('impCommitBtn');
+  btn.disabled=readyTotal===0;
+  btn.textContent='✓  Import '+readyTotal+' Asset'+(readyTotal===1?'':'s');
+  document.getElementById('impFooterNote').textContent=errs?'Rows marked Error will not be imported; valid rows are ready.':'Everything looks clean and ready to import.';
+ }
+
+ window.commitAssetImport=async function(){
+  if(document.body.classList.contains('viewer-mode')||!canAccessMod('assets',true))return showToast('Read & write access on Assets is required');
+  const prepared=impState.prepared||[];
+  const toApply=prepared.filter(r=>r.action==='add'||r.action==='update');
+  if(!toApply.length)return showToast('No valid rows to import');
+
+  const btn=document.getElementById('impCommitBtn');
+  btn.disabled=true;btn.textContent='Importing...';
+
+  try{
+   const autoCats=document.getElementById('impAutoCategories')?.checked&&(!serverMode||serverAdmin);
+   let settingsChanged=false;
+   if(autoCats&&typeof window.categoryData==='function'){
+    const {x,types,map}=window.categoryData();
+    toApply.forEach(r=>{
+     const t=r.asset.type,sub=r.asset.subtype;
+     if(t&&!types.some(v=>v.toLowerCase()===t.toLowerCase())){types.push(t);map[t]=map[t]||[];settingsChanged=true}
+     if(t&&sub){
+      const canon=types.find(v=>v.toLowerCase()===t.toLowerCase())||t;
+      map[canon]=map[canon]||[];
+      if(!map[canon].some(v=>v.toLowerCase()===sub.toLowerCase())){map[canon].push(sub);settingsChanged=true}
+     }
+    });
+    if(settingsChanged){
+     x.assetTypes=types;x.assetSubcategories=map;
+     localStorage.setItem('northstar-settings',JSON.stringify(x));
+     if(serverMode&&serverAdmin){
+      await apiFetch('/api/data',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({settings:x})});
+     }
+    }
+   }
+
+   let added=0,updated=0;
+   const newAssets=[];
+   for(const r of toApply){
+    if(r.action==='update'&&r.matchIdx>=0&&assets[r.matchIdx]){
+     const old=assets[r.matchIdx];
+     assets[r.matchIdx]={...old,...r.asset,lastMaintenance:old.lastMaintenance||r.asset.lastMaintenance};
+     updated++;
+    }else{
+     newAssets.push(r.asset);
+     added++;
+    }
+   }
+   if(newAssets.length)assets.unshift(...newAssets);
+
+   persistLocal();
+   await saveAdminData(['assets']);
+
+   if(settingsChanged)renderSettings?.();
+   renderAssets();
+   renderRecent();
+   renderDashboard();
+   renderLifecycle();
+   renderMonitoring();
+   renderReports();
+   renderUsers();
+   renderDepts();
+   renderDatacenter?.();
+   window.renderSurveillance?.();
+   window.renderValuation?.();
+   window.renderFactoryRows?.();
+   applyReadOnlyControls?.();
+
+   closeAssetImportModal();
+   impState.sheets=[];impState.prepared=[];
+   document.getElementById('impPreviewSection').style.display='none';
+   document.getElementById('impFileStatus').textContent='Supports multi-sheet Excel workbooks and mixed asset categories in one file.';
+   showToast('Imported '+added+' new asset(s)'+(updated?', updated '+updated:'')+' across inventory!');
+  }catch(err){
+   showToast('Import failed: '+(err.message||err));
+  }finally{
+   btn.disabled=false;
+   btn.textContent='✓  Import Assets';
+  }
+ };
+
+ // Expose parser/normalizer helpers for automated testing
+ window.__assetImportTestHooks={parseUploadedSpreadsheet,buildPreparedRows,guessFieldForHeader,normalizeImportDate};
+
+ // Redirect legacy file input if anything still invokes importAssetsFile
+ window.importAssetsFile=async function(input){
+  const f=input?.files?.[0];if(!f)return;
+  openAssetImportModal();
+  await handleImportFile(f);
+  input.value='';
+ };
 })();
 </script>
