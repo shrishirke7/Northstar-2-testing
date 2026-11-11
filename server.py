@@ -1613,8 +1613,8 @@ def get_profile_preferences():
 def save_profile_preferences():
     payload = request.get_json(silent=True) or {}
     valid_views = {"dashboard", "assets", "datacenter", "tickets", "maintenance", "ageing",
-                   "users", "departments", "software", "monitoring", "notifications",
-                   "surveillance", "parts", "reports"}
+                   "users", "departments", "valuation", "billing", "software", "monitoring",
+                   "notifications", "surveillance", "parts", "reports"}
     order = payload.get("order")
     hidden = payload.get("hidden", [])
     if (not isinstance(order, list) or not isinstance(hidden, list)
@@ -1676,19 +1676,49 @@ def public_portal_options():
     return jsonify(factories=factories, departments=depts, employees=employees)
 
 
+def repair_map_from_conn(conn):
+    maint_row = conn.execute("SELECT value FROM app_state WHERE key='maintenance'").fetchone()
+    maint_list = maint_row[0] if maint_row and isinstance(maint_row[0], list) else []
+    repair_by_ticket = {}
+    for m in maint_list:
+        if isinstance(m, dict) and m.get("repairCase"):
+            tid = str(m.get("ticketId") or m.get("ticket") or "").strip()
+            if tid and tid not in repair_by_ticket:
+                repair_by_ticket[tid] = {
+                    "caseNo": str(m.get("caseNo") or m.get("id") or ""),
+                    "stage": str(m.get("stage") or "Device in"),
+                    "stageIndex": int(m.get("stageIndex") or 1),
+                    "completedAt": str(m.get("completedAt") or ""),
+                    "followUp": str(m.get("followUp") or ""),
+                }
+    return repair_by_ticket
+
+
 @app.get("/api/public/tickets")
 def public_ticket_list():
     kind = request.args.get("kind", "IT help desk")
-    if kind not in ("IT help desk", "Material request"):
+    if kind not in ("IT help desk", "Material request", "all"):
         return jsonify(error="Choose IT help desk or Material request."), 400
     with db() as conn:
-        rows = conn.execute("""
-            SELECT t.id,t.kind,t.display_name,t.department,t.factory,t.primary_category,t.sub_category,
-                   t.description,t.attachments,t.assigned_to,t.status,t.eta,t.note,t.created_at,t.updated_at,
-                   COALESCE((SELECT min(e.created_at) FROM ticket_events e WHERE e.ticket_id=t.id
-                             AND e.event_type='updated' AND e.detail ~ '(^|; )status: (Resolved|Closed)(;|$)'), t.updated_at)
-            FROM tickets t WHERE t.kind=%s ORDER BY t.created_at DESC LIMIT 5000
-        """, (kind,)).fetchall()
+        if kind == "all":
+            rows = conn.execute("""
+                SELECT t.id,t.kind,t.display_name,t.department,t.factory,t.primary_category,t.sub_category,
+                       t.description,t.attachments,t.assigned_to,t.status,t.eta,t.note,t.created_at,t.updated_at,
+                       COALESCE((SELECT min(e.created_at) FROM ticket_events e WHERE e.ticket_id=t.id
+                                 AND e.event_type='updated' AND e.detail ~ '(^|; )status: (Resolved|Closed)(;|$)'), t.updated_at),
+                       t.material
+                FROM tickets t ORDER BY t.created_at DESC LIMIT 5000
+            """).fetchall()
+        else:
+            rows = conn.execute("""
+                SELECT t.id,t.kind,t.display_name,t.department,t.factory,t.primary_category,t.sub_category,
+                       t.description,t.attachments,t.assigned_to,t.status,t.eta,t.note,t.created_at,t.updated_at,
+                       COALESCE((SELECT min(e.created_at) FROM ticket_events e WHERE e.ticket_id=t.id
+                                 AND e.event_type='updated' AND e.detail ~ '(^|; )status: (Resolved|Closed)(;|$)'), t.updated_at),
+                       t.material
+                FROM tickets t WHERE t.kind=%s ORDER BY t.created_at DESC LIMIT 5000
+            """, (kind,)).fetchall()
+        repair_map = repair_map_from_conn(conn)
     now = datetime.now(timezone.utc)
     result = []
     for r in rows:
@@ -1700,9 +1730,10 @@ def public_ticket_list():
             if name and name == str(item.get("path", "")).split("/")[-1]:
                 photos.append({"name": str(item.get("name") or name)[:160], "url": "/api/public/ticket-attachment?id=" + quote(r[0], safe="") + "&file=" + quote(name, safe="")})
         result.append({"id":r[0],"kind":r[1],"name":r[2],"department":r[3],"factory":r[4],"primary":r[5],"sub":r[6],
-                       "description":r[7],"photos":photos,"assigned":r[9],"status":r[10],
+                       "description":r[7],"material":r[16] or "","photos":photos,"assigned":r[9],"status":r[10],
                        "eta":r[11].isoformat(timespec="minutes") if r[11] else "","note":r[12],
-                       "created":r[13].isoformat(timespec="minutes"),"durationMinutes":duration})
+                       "created":r[13].isoformat(timespec="minutes"),"durationMinutes":duration,
+                       "repair":repair_map.get(r[0])})
     return jsonify(tickets=result)
 
 
@@ -1727,16 +1758,24 @@ def public_ticket_attachment():
 
 @app.post("/api/public/tickets")
 def create_public_ticket():
-    body = request.get_json(silent=True) or {}
+    is_multipart = bool(request.content_type and "multipart/form-data" in request.content_type)
+    body = request.form if is_multipart else (request.get_json(silent=True) or {})
     factory = str(body.get("factory", "")).strip()[:80]
     department = str(body.get("department", "")).strip()[:120]
     employee_key = str(body.get("employee", "")).strip()[:120]
     primary = str(body.get("primary", "IT help desk")).strip()[:80]
     sub = str(body.get("sub", "")).strip()[:80]
     description = str(body.get("description", "")).strip()[:5000]
+    material = str(body.get("material", "")).strip()[:500]
     kind = "Material request" if body.get("kind") == "Material request" else "IT help desk"
     if not all((factory, department, employee_key, description, sub)):
         return jsonify(error="Select your factory, department, name and issue category, then describe the issue."), 400
+    files = [f for f in request.files.getlist("files") if f and f.filename] if is_multipart else []
+    if len(files) > 5:
+        return jsonify(error="Attach up to five screenshots."), 400
+    for f in files:
+        if f.mimetype not in ("image/png", "image/jpeg", "image/gif", "image/webp"):
+            return jsonify(error="Only PNG, JPEG, GIF, or WebP image screenshots are accepted."), 400
     with db() as conn:
         recent = conn.execute("SELECT count(*) FROM tickets WHERE client_ip=%s AND username LIKE 'public-%%' AND created_at>now()-interval '10 minutes'", (request.remote_addr or "127.0.0.1",)).fetchone()[0]
         if recent >= 5:
@@ -1768,8 +1807,17 @@ def create_public_ticket():
         tracking_token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(tracking_token.encode()).hexdigest()
         username = "public-" + token_hash[:24]
-        conn.execute("INSERT INTO tickets(id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,public_token_hash) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                     (ticket_id, kind, username, str(user.get("name") or "")[:120], department, factory, remote, primary, sub, description, token_hash))
+        saved = []
+        if files:
+            ticket_dir = UPLOAD_DIR / "tickets" / token_date
+            ticket_dir.mkdir(parents=True, exist_ok=True)
+            for f in files:
+                ext = Path(secure_filename(f.filename)).suffix[:10]
+                stored = f"{ticket_id.replace('/', '-')}-{uuid.uuid4().hex}{ext}"
+                f.save(ticket_dir / stored)
+                saved.append({"name": secure_filename(f.filename), "path": f"tickets/{token_date}/{stored}"})
+        conn.execute("INSERT INTO tickets(id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments,public_token_hash) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s)",
+                     (ticket_id, kind, username, str(user.get("name") or "")[:120], department, factory, remote, primary, sub, description, material, json.dumps(saved), token_hash))
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,'Public portal','created',%s)", (ticket_id, description[:500]))
     return jsonify(id=ticket_id, tracking_token=tracking_token), 201
 
@@ -1782,10 +1830,12 @@ def get_public_ticket_status():
     token_hash = hashlib.sha256(tracking_token.encode()).hexdigest()
     with db() as conn:
         row = conn.execute("SELECT id,status,eta,note,updated_at FROM tickets WHERE public_token_hash=%s", (token_hash,)).fetchone()
+        repair = repair_map_from_conn(conn).get(row[0]) if row else None
     if not row:
         abort(404)
     return jsonify(id=row[0], status=row[1], eta=row[2].isoformat(timespec="minutes") if row[2] else "",
-                   note=row[3], updated=row[4].isoformat(timespec="minutes") if row[4] else "")
+                   note=row[3], updated=row[4].isoformat(timespec="minutes") if row[4] else "",
+                   repair=repair)
 
 
 @app.post("/api/account/profile-picture")
@@ -2141,11 +2191,9 @@ def delete_invoice(invoice_id):
 @signed_in
 def list_tickets():
     with db() as conn:
-        if session.get("is_admin") or session.get("profile", {}).get("role") in ("IT Ticketing", "Viewer"):
-            rows = conn.execute(f"SELECT {TICKET_COLUMNS} FROM tickets ORDER BY created_at DESC LIMIT 1000").fetchall()
-        else:
-            rows = conn.execute(f"SELECT {TICKET_COLUMNS} FROM tickets WHERE username=%s ORDER BY created_at DESC LIMIT 250", (session["profile"]["username"],)).fetchall()
-    return jsonify(tickets=[ticket_json(r) for r in rows])
+        rows = conn.execute(f"SELECT {TICKET_COLUMNS} FROM tickets ORDER BY created_at DESC LIMIT 1000").fetchall()
+        repair_map = repair_map_from_conn(conn)
+    return jsonify(tickets=[{**ticket_json(r), "repair": repair_map.get(r[0])} for r in rows])
 
 
 @app.get("/api/tickets/<path:ticket_id>/attachments/<path:filename>")
@@ -2155,8 +2203,6 @@ def ticket_attachment(ticket_id, filename):
         row = conn.execute("SELECT username,attachments FROM tickets WHERE id=%s", (ticket_id,)).fetchone()
     if not row:
         abort(404)
-    if not session.get("is_admin") and session.get("profile", {}).get("role") not in ("IT Ticketing", "Viewer") and row[0] != session["profile"]["username"]:
-        abort(403)
     match = next((item for item in row[1] if Path(item.get("path", "")).name == filename), None)
     if not match:
         abort(404)
