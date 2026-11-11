@@ -47,3 +47,12 @@ CREATE TABLE IF NOT EXISTS recovery_attempts (
   blocked_until timestamptz,
   PRIMARY KEY (client_ip, username_hash)
 );
+CREATE TABLE IF NOT EXISTS user_sessions (
+  sid text PRIMARY KEY,
+  username text NOT NULL,
+  auth_version integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_seen_at timestamptz NOT NULL DEFAULT now(),
+  client_ip text NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS user_sessions_user_idx ON user_sessions(username);

@@ -23,7 +23,7 @@ fi
 echo "==> [1/6] Updating system packages & installing prerequisites..."
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y ca-certificates curl openssl python3 tar
+apt-get install -y ca-certificates curl git openssl python3 tar
 
 echo "==> [2/6] Installing Docker Engine & Docker Compose..."
 if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
@@ -48,6 +48,11 @@ if [[ "$SOURCE_DIR" != "$INSTALL_DIR" ]]; then
     --exclude='./*.bak*' \
     -cf - . | tar -C "$INSTALL_DIR" -xf -
 fi
+if [[ -d "$SOURCE_DIR/.git" ]]; then
+  echo "$SOURCE_DIR" > "$INSTALL_DIR/.source-repo"
+  git config --system --add safe.directory "$SOURCE_DIR" 2>/dev/null || git config --global --add safe.directory "$SOURCE_DIR" 2>/dev/null || true
+fi
+mkdir -p /run/northstar-updater
 
 SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
 SERVER_IP="${SERVER_IP:-127.0.0.1}"
@@ -87,7 +92,7 @@ if [[ ! -s "$INSTALL_DIR/secrets/nginx.crt" || ! -s "$INSTALL_DIR/secrets/nginx.
 fi
 chmod 600 "$INSTALL_DIR/secrets/nginx.key"
 chmod 644 "$INSTALL_DIR/secrets/nginx.crt"
-chmod +x "$INSTALL_DIR/backup.sh" "$INSTALL_DIR/restore.sh" "$INSTALL_DIR/update.sh" "$INSTALL_DIR/install.sh" || true
+chmod +x "$INSTALL_DIR/backup.sh" "$INSTALL_DIR/restore.sh" "$INSTALL_DIR/update.sh" "$INSTALL_DIR/install.sh" "$INSTALL_DIR/northstar-updater.py" || true
 
 echo "==> [5/6] Configuring firewall ports (if UFW is active) & building containers..."
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
@@ -102,14 +107,20 @@ cd "$INSTALL_DIR"
 docker compose build app scanner
 docker compose up -d
 
-echo "==> [6/6] Installing automatic daily/weekly/monthly backup schedule..."
+echo "==> [6/6] Installing automatic daily/weekly/monthly backup & updater services..."
 if [[ -d "$INSTALL_DIR/systemd" ]]; then
   install -m 0644 "$INSTALL_DIR/systemd/northstar-backup@.service" /etc/systemd/system/northstar-backup@.service
   for kind in daily weekly monthly; do
     install -m 0644 "$INSTALL_DIR/systemd/northstar-backup-$kind.timer" "/etc/systemd/system/northstar-backup-$kind.timer"
   done
+  if [[ -f "$INSTALL_DIR/systemd/northstar-updater.service" ]]; then
+    install -m 0644 "$INSTALL_DIR/systemd/northstar-updater.service" /etc/systemd/system/northstar-updater.service
+  fi
   systemctl daemon-reload
   systemctl enable --now northstar-backup-daily.timer northstar-backup-weekly.timer northstar-backup-monthly.timer
+  if [[ -f /etc/systemd/system/northstar-updater.service ]]; then
+    systemctl enable --now northstar-updater.service
+  fi
 fi
 
 echo

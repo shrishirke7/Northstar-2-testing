@@ -1,0 +1,15 @@
+[Unit]
+Description=Northstar IT Host Software Auto-Updater
+After=network-online.target docker.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=simple
+ExecStartPre=/bin/mkdir -p /run/northstar-updater
+ExecStart=/usr/bin/python3 /opt/northstar-it/northstar-updater.py
+Restart=always
+RestartSec=3
+WorkingDirectory=/opt/northstar-it
+
+[Install]
+WantedBy=multi-user.target

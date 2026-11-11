@@ -62,13 +62,16 @@ if len(APP_SECRET) < 40:
 
 app = Flask(__name__, static_folder=None)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+SESSION_IDLE_MINUTES = max(5, int(os.getenv("SESSION_IDLE_MINUTES", "30")))
+SESSION_MAX_HOURS = max(1, int(os.getenv("SESSION_MAX_HOURS", "8")))
 app.secret_key = APP_SECRET
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SECURE=os.getenv("COOKIE_SECURE", "true").lower() == "true",
     SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_REFRESH_EACH_REQUEST=False,
     MAX_CONTENT_LENGTH=64 * 1024 * 1024,
-    PERMANENT_SESSION_LIFETIME=60 * 60 * 8,
+    PERMANENT_SESSION_LIFETIME=60 * 60 * SESSION_MAX_HOURS,
 )
 
 
@@ -88,8 +91,8 @@ LOGIN_DUMMY_HASH = generate_password_hash("not-a-real-login-password")
 # means that a newly configured account has no module access.
 MODULE_IDS = (
     "overview", "assets", "data_center", "surveillance", "tickets",
-    "maintenance", "ageing", "parts", "users", "departments", "software",
-    "network", "notifications", "reports", "valuation", "billing",
+    "maintenance", "ageing", "parts", "users", "departments", "factories",
+    "software", "network", "snmp", "notifications", "reports", "valuation", "billing",
 )
 MODULE_DATA_KEYS = {
     "overview": ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "invoices"),
@@ -101,19 +104,21 @@ MODULE_DATA_KEYS = {
     "ageing": ("assets", "maintenance"),
     "parts": ("assets", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "departments"),
     "users": ("manual_users", "departments"),
-    "departments": ("departments", "assets", "manual_users"),
+    "departments": ("departments", "assets", "manual_users", "maintenance", "parts_assignments"),
+    "factories": ("departments", "assets", "manual_users"),
     "software": ("software", "assets", "manual_users"),
     "network": ("assets", "network_ranges", "network_scan", "scanner_heartbeat", "scanner_ip_status"),
+    "snmp": ("assets",),
     "notifications": ("notifications",),
     "reports": ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "invoices", "vendors"),
-    "valuation": ("assets", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "invoices"),
+    "valuation": ("assets", "software", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "invoices"),
     "billing": ("invoices", "vendors", "departments", "manual_users"),
 }
 MODULE_API_PATHS = {
     "/api/invoices": "billing", "/api/tickets": "tickets",
     "/api/camera-profiles": "surveillance", "/api/camera-streams": "surveillance",
     "/api/cctv-media-auth": "surveillance", "/api/network-scans": "network",
-    "/api/snmp-metrics": "network", "/api/admin/snmp-monitors": "network",
+    "/api/snmp-metrics": "snmp", "/api/snmp-monitors": "snmp", "/api/admin/snmp-monitors": "snmp",
 }
 
 
@@ -138,19 +143,20 @@ def module_access(profile, module, write=False):
 
 
 def data_key_module(key):
+    if key == "assets": return "assets"
+    if key == "departments": return "departments"
+    if key == "manual_users": return "users"
+    if key in ("factories_config",): return "factories"
+    if key == "software": return "software"
+    if key.startswith("parts_"): return "parts"
+    if key == "maintenance": return "maintenance"
+    if key in ("invoices", "vendors"): return "billing"
+    if key.startswith("camera_"): return "surveillance"
+    if key.startswith("network_") or key.startswith("scanner_"): return "network"
+    if key == "notifications": return "notifications"
     for module, keys in MODULE_DATA_KEYS.items():
         if key in keys:
-            # Shared data is writable only through its owning module.
-            if key == "assets": return "assets"
-            if key == "departments": return "departments"
-            if key == "manual_users": return "users"
-            if key in ("software",): return "software"
-            if key.startswith("parts_"): return "parts"
-            if key == "maintenance": return "maintenance"
-            if key in ("invoices", "vendors"): return "billing"
-            if key.startswith("camera_"): return "surveillance"
-            if key.startswith("network_") or key.startswith("scanner_"): return "network"
-            if key == "notifications": return "notifications"
+            return module
     return None
 
 
@@ -210,21 +216,41 @@ def signed_in(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         profile = session.get("profile")
-        if not profile:
+        sid = str(session.get("sid") or "").strip()
+        if not profile or not sid:
+            session.clear()
             return jsonify(error="sign_in_required"), 401
         username = str(profile.get("username", "")).casefold()
         with db() as conn:
+            sess_row = conn.execute(
+                "SELECT username, auth_version, last_seen_at, created_at FROM user_sessions WHERE sid=%s",
+                (sid,),
+            ).fetchone()
+            if not sess_row or str(sess_row[0]).casefold() != username:
+                session.clear()
+                return jsonify(error="session_expired_sign_in_again"), 401
+            now_utc = datetime.now(timezone.utc)
+            last_seen = sess_row[2]
+            created_at = sess_row[3]
+            if ((now_utc - last_seen).total_seconds() > SESSION_IDLE_MINUTES * 60
+                    or (now_utc - created_at).total_seconds() > SESSION_MAX_HOURS * 3600):
+                conn.execute("DELETE FROM user_sessions WHERE sid=%s", (sid,))
+                session.clear()
+                return jsonify(error="session_expired_sign_in_again"), 401
             row = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
-        users = row[0] if row else []
-        account = next((u for u in users if str(u.get("username", "")).casefold() == username), None)
-        try:
-            current_version = int(account.get("auth_version", 0)) if account else -1
-            session_version = int(session.get("auth_version", 0))
-        except (TypeError, ValueError):
-            current_version, session_version = -1, 0
-        if not account or not account.get("enabled", True) or current_version != session_version:
-            session.clear()
-            return jsonify(error="session_expired_sign_in_again"), 401
+            users = row[0] if row else []
+            account = next((u for u in users if str(u.get("username", "")).casefold() == username), None)
+            try:
+                current_version = int(account.get("auth_version", 0)) if account else -1
+                session_version = int(session.get("auth_version", 0))
+            except (TypeError, ValueError):
+                current_version, session_version = -1, 0
+            if not account or not account.get("enabled", True) or current_version != session_version or int(sess_row[1]) != current_version:
+                conn.execute("DELETE FROM user_sessions WHERE sid=%s", (sid,))
+                session.clear()
+                return jsonify(error="session_expired_sign_in_again"), 401
+            if (now_utc - last_seen).total_seconds() >= 45:
+                conn.execute("UPDATE user_sessions SET last_seen_at=now() WHERE sid=%s", (sid,))
         # Refresh grants from the current server-side account on every request,
         # so permission changes take effect immediately without stale sessions.
         if isinstance(account.get("module_permissions"), dict):
@@ -278,6 +304,7 @@ def enforce_module_access():
     if path.startswith(("/api/internal/", "/api/public/")) or path in (
         "/api/login", "/api/logout", "/api/profile", "/api/profile/preferences",
         "/api/account/password", "/api/account/profile-picture", "/api/account/recovery-answers",
+        "/api/account/logout-all", "/api/data",
     ) or path.startswith("/api/recovery/"):
         return None
     method = request.method
@@ -288,6 +315,9 @@ def enforce_module_access():
         return jsonify(error="Administrator access is required."), 403
     if path == "/api/backups" or path.startswith("/api/backups/"):
         return jsonify(error="Administrator access is required."), 403
+    if path.startswith("/api/invoices") and not is_write:
+        if any(module_access(profile, m) for m in ("billing", "valuation", "departments", "reports")):
+            return None
     if module:
         if not module_access(profile, module, write=is_write):
             return jsonify(error=("This module is read-only for your account." if is_write and module_access(profile, module) else "You do not have access to this module.")), 403
@@ -299,8 +329,9 @@ def add_security_headers(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
     response.headers.setdefault("X-Frame-Options", "DENY")
-    if request.path in ("/", "/setup", "/api/login", "/api/recovery/reset", "/api/account/recovery-answers"):
-        response.headers["Cache-Control"] = "no-store"
+    if request.path in ("/", "/setup", "/portal") or request.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
     return response
 
 
@@ -881,8 +912,11 @@ def _snmp_rows(conn):
 
 
 @app.get("/api/admin/snmp-monitors")
-@administrator
+@app.get("/api/snmp-monitors")
+@signed_in
 def get_snmp_monitors():
+    if not session.get("is_admin") and not module_access(session.get("profile", {}), "snmp"):
+        abort(403)
     with db() as conn:
         monitors = _snmp_rows(conn)
         samples_row = conn.execute("SELECT value FROM app_state WHERE key='snmp_samples'").fetchone()
@@ -894,8 +928,11 @@ def get_snmp_monitors():
 
 
 @app.put("/api/admin/snmp-monitors")
-@administrator
+@app.put("/api/snmp-monitors")
+@signed_in
 def save_snmp_monitors():
+    if not session.get("is_admin") and not module_access(session.get("profile", {}), "snmp", write=True):
+        abort(403)
     body = request.get_json(force=True)
     items = body.get("items") if isinstance(body, dict) else None
     if not isinstance(items, list) or len(items) > 100:
@@ -1503,13 +1540,25 @@ def login():
         if valid_local:
             profile = {"username": str(local_user["username"]).lower(), "name": local_user.get("name") or local_user["username"], "email": local_user.get("email", ""), "dept": local_user.get("dept", ""), "site": local_user.get("site", ""), "role": local_user.get("role", "User"), "profile_picture": local_user.get("profile_picture", ""), "groups": []}
             profile["module_permissions"] = local_user.get("module_permissions") if isinstance(local_user.get("module_permissions"), dict) else module_permissions_for(profile)
+            sid = secrets.token_urlsafe(32)
+            auth_ver = int(local_user.get("auth_version", 0) or 0)
             with db() as conn:
                 conn.execute("DELETE FROM login_attempts WHERE client_ip=%s", (remote_ip,))
+                conn.execute(
+                    "DELETE FROM user_sessions WHERE last_seen_at < now() - make_interval(mins => %s) "
+                    "OR created_at < now() - make_interval(hours => %s)",
+                    (SESSION_IDLE_MINUTES, SESSION_MAX_HOURS),
+                )
+                conn.execute(
+                    "INSERT INTO user_sessions(sid, username, auth_version, client_ip) VALUES(%s, %s, %s, %s)",
+                    (sid, profile["username"], auth_ver, remote_ip),
+                )
             session.clear()
-            session.permanent = True
-            session["auth_version"] = int(local_user.get("auth_version", 0) or 0)
+            session.permanent = False
+            session["sid"] = sid
+            session["auth_version"] = auth_ver
             session["is_admin"] = profile["role"] == "Administrator"
-            session["profile"] = {key:value for key,value in profile.items() if key != "groups"}
+            session["profile"] = {key: value for key, value in profile.items() if key != "groups"}
             return jsonify(profile=session["profile"], isAdmin=session["is_admin"])
     else:
         try:
@@ -1554,6 +1603,7 @@ def recover_account_password():
             account["password_hash"] = generate_password_hash(new_password)
             account["auth_version"] = int(account.get("auth_version", 0) or 0) + 1
             conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='manual_users'", (json.dumps(users),))
+            conn.execute("DELETE FROM user_sessions WHERE lower(username)=lower(%s)", (username,))
             conn.execute("DELETE FROM recovery_attempts WHERE client_ip=%s AND username_hash=%s", (remote_ip, username_key))
             conn.execute("DELETE FROM login_attempts WHERE client_ip=%s", (remote_ip,))
         else:
@@ -1588,8 +1638,43 @@ def update_recovery_answers():
 
 @app.post("/api/logout")
 def logout():
+    sid = str(session.get("sid") or "").strip()
+    if sid:
+        try:
+            with db() as conn:
+                conn.execute("DELETE FROM user_sessions WHERE sid=%s", (sid,))
+        except Exception:
+            pass
     session.clear()
-    return jsonify(ok=True)
+    resp = jsonify(ok=True)
+    resp.delete_cookie(
+        app.config.get("SESSION_COOKIE_NAME", "session"),
+        path="/",
+        httponly=True,
+        samesite=app.config.get("SESSION_COOKIE_SAMESITE", "Lax"),
+        secure=app.config.get("SESSION_COOKIE_SECURE", True),
+    )
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return resp
+
+
+@app.post("/api/account/logout-all")
+@signed_in
+def logout_all_devices():
+    username = str(session["profile"].get("username", ""))
+    sid = str(session.get("sid") or "").strip()
+    with db() as conn:
+        conn.execute("DELETE FROM user_sessions WHERE lower(username)=lower(%s)", (username,))
+    session.clear()
+    resp = jsonify(ok=True, message="Signed out from all devices.")
+    resp.delete_cookie(
+        app.config.get("SESSION_COOKIE_NAME", "session"),
+        path="/",
+        httponly=True,
+        samesite=app.config.get("SESSION_COOKIE_SAMESITE", "Lax"),
+        secure=app.config.get("SESSION_COOKIE_SECURE", True),
+    )
+    return resp
 
 
 @app.get("/api/profile")
@@ -1613,8 +1698,8 @@ def get_profile_preferences():
 def save_profile_preferences():
     payload = request.get_json(silent=True) or {}
     valid_views = {"dashboard", "assets", "datacenter", "tickets", "maintenance", "ageing",
-                   "users", "departments", "valuation", "billing", "software", "monitoring",
-                   "notifications", "surveillance", "parts", "reports"}
+                   "users", "departments", "factories", "valuation", "billing", "software",
+                   "monitoring", "snmp", "notifications", "surveillance", "parts", "reports"}
     order = payload.get("order")
     hidden = payload.get("hidden", [])
     if (not isinstance(order, list) or not isinstance(hidden, list)
@@ -1890,6 +1975,10 @@ def change_account_password():
         account["password_hash"] = generate_password_hash(new_password)
         account["auth_version"] = int(account.get("auth_version", 0) or 0) + 1
         conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='manual_users'", (json.dumps(users),))
+        cur_sid = str(session.get("sid") or "")
+        if cur_sid:
+            conn.execute("DELETE FROM user_sessions WHERE lower(username)=lower(%s) AND sid<>%s", (username, cur_sid))
+            conn.execute("UPDATE user_sessions SET auth_version=%s, last_seen_at=now() WHERE sid=%s", (account["auth_version"], cur_sid))
         session["auth_version"] = account["auth_version"]
     return jsonify(ok=True, message="Password changed successfully")
 
@@ -1901,8 +1990,15 @@ def get_data():
     with db() as conn:
         keys = ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "vendors", "manual_users", "settings", "camera_streams", "camera_profiles", "network_ranges", "network_scan", "scanner_heartbeat", "scanner_ip_status", "notifications")
         out = {k: (conn.execute("SELECT value FROM app_state WHERE key=%s", (k,)).fetchone() or ([],))[0] for k in keys}
+        settings_val = out.get("settings") if isinstance(out.get("settings"), dict) else {}
+        safe_factories = {k: settings_val[k] for k in ("factories", "factoryOrder", "removedFactoryCodes", "factoryTerm", "factoryTermPlural", "assetTypes", "assetSubcategories", "companyName") if k in settings_val}
         if session.get("is_admin"):
-            out["users"] = [{k:v for k,v in u.items() if k not in ("password_hash", "recovery_answer_hashes")} | {"source":"manual"} for u in out.pop("manual_users", [])]
+            out["users"] = [
+                {k: v for k, v in u.items() if k not in ("password_hash", "recovery_answer_hashes")}
+                | {"source": "manual", "hasRecoveryQuestions": bool(u.get("recovery_answer_hashes"))}
+                for u in out.pop("manual_users", [])
+            ]
+            out["factories_config"] = safe_factories
         else:
             allowed = set()
             for module, grant in module_permissions_for(who).items():
@@ -1911,12 +2007,17 @@ def get_data():
             out = {key: value for key, value in out.items() if key in allowed}
             manuals = out.pop("manual_users", [])
             if "manual_users" in allowed:
-                out["users"] = [{k:v for k,v in u.items() if k not in ("password_hash", "recovery_answer_hashes", "module_permissions")} | {"source":"manual"} for u in manuals]
+                out["users"] = [
+                    {k: v for k, v in u.items() if k not in ("password_hash", "recovery_answer_hashes", "module_permissions")}
+                    | {"source": "manual", "hasRecoveryQuestions": bool(u.get("recovery_answer_hashes"))}
+                    for u in manuals
+                ]
             elif any(k in allowed for k in ("assets", "departments")):
-                out["users"] = [{k:v for k,v in u.items() if k in ("username", "name", "email", "dept", "department", "site", "role")} | {"source":"manual"} for u in manuals]
+                out["users"] = [{k: v for k, v in u.items() if k in ("username", "name", "email", "dept", "department", "site", "role", "enabled", "active", "employment")} | {"source": "manual"} for u in manuals]
             else:
-                out["users"] = [{k:v for k,v in who.items() if k in ("username", "name", "email", "dept", "department", "site", "role")}]
+                out["users"] = [{k: v for k, v in who.items() if k in ("username", "name", "email", "dept", "department", "site", "role")}]
             out.pop("settings", None)
+            out["factories_config"] = safe_factories
         return jsonify(**out)
 
 
@@ -1929,7 +2030,7 @@ def save_data():
     if not session.get("is_admin"):
         who = session["profile"]
         for key in body:
-            if key in ("manual_users", "settings", "camera_profiles", "network_ranges", "network_scan", "notifications"):
+            if key in ("manual_users", "settings"):
                 return jsonify(error="Administrator access is required for account and system settings."), 403
             module = data_key_module(key)
             if not module or not module_access(who, module, write=True):
@@ -2019,26 +2120,48 @@ def save_data():
                             user["ipCheckedAt"] = ""
                         new_password = user.pop("password", "")
                         user.pop("password_confirm", None)
+                        user.pop("hasRecoveryQuestions", None)
+                        rec_answers = user.pop("recovery_answers", None)
+                        if rec_answers is not None and any(str(a or "").strip() for a in (rec_answers if isinstance(rec_answers, list) else [])):
+                            rec_hashes = recovery_answer_hashes(rec_answers)
+                            if not rec_hashes:
+                                return jsonify(error="Answer all three recovery questions (3–200 characters each)."), 400
+                            user["recovery_answer_hashes"] = rec_hashes
+                        elif prior.get("recovery_answer_hashes"):
+                            user["recovery_answer_hashes"] = prior["recovery_answer_hashes"]
+                        pw_changed = False
                         if new_password:
                             if len(new_password) < 10 or len(new_password) > 1024:
                                 return jsonify(error="Account passwords must be at least 10 characters long."), 400
                             user["password_hash"] = generate_password_hash(new_password)
                             user["auth_version"] = int(prior.get("auth_version", 0) or 0) + 1
+                            pw_changed = True
                         elif prior.get("password_hash"):
                             user["password_hash"] = prior["password_hash"]
                             user["auth_version"] = int(prior.get("auth_version", 0) or 0)
-                        if prior.get("recovery_answer_hashes"):
-                            user["recovery_answer_hashes"] = prior["recovery_answer_hashes"]
                         if "password_hash" not in user:
                             user["password_hash"] = ""
                         user["username"] = username
                         user["role"] = user.get("role") if user.get("role") in ("Administrator", "IT Ticketing", "Viewer") else "User"
                         user["enabled"] = user.get("enabled", True)
+                        if pw_changed or not user["enabled"]:
+                            conn.execute("DELETE FROM user_sessions WHERE lower(username)=lower(%s)", (username,))
                         clean.append(user)
                     if not any(u.get("enabled", True) and u.get("role") == "Administrator" and u.get("password_hash") for u in clean):
                         return jsonify(error="Keep at least one enabled Administrator account with a password."), 400
+                    kept_names = {u["username"].casefold() for u in clean}
+                    for old_uname in existing:
+                        if old_uname not in kept_names:
+                            conn.execute("DELETE FROM user_sessions WHERE lower(username)=lower(%s)", (old_uname,))
                     value = clean
                 conn.execute("INSERT INTO app_state(key,value) VALUES(%s,%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (key, json.dumps(value)))
+        if "factories_config" in body and isinstance(body["factories_config"], dict):
+            s_row = conn.execute("SELECT value FROM app_state WHERE key='settings' FOR UPDATE").fetchone()
+            settings_cur = dict(s_row[0]) if s_row and isinstance(s_row[0], dict) else {}
+            for fk in ("factories", "factoryOrder", "removedFactoryCodes", "factoryTerm", "factoryTermPlural"):
+                if fk in body["factories_config"]:
+                    settings_cur[fk] = body["factories_config"][fk]
+            conn.execute("INSERT INTO app_state(key,value) VALUES('settings',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(settings_cur),))
     return jsonify(ok=True)
 
 
@@ -2068,7 +2191,7 @@ def list_invoices():
 
 
 def save_invoice_request(invoice_id=None):
-    if not session.get("is_admin"):
+    if not session.get("is_admin") and not module_access(session.get("profile", {}), "billing", write=True):
         abort(403)
     try:
         payload = json.loads(request.form.get("invoice", "{}"))
@@ -2175,8 +2298,10 @@ def invoice_attachment(invoice_id, filename):
 
 
 @app.delete("/api/invoices/<invoice_id>")
-@administrator
+@signed_in
 def delete_invoice(invoice_id):
+    if not session.get("is_admin") and not module_access(session.get("profile", {}), "billing", write=True):
+        abort(403)
     with db() as conn:
         rows = invoice_rows(conn)
         kept = [r for r in rows if r.get("id") != invoice_id]
@@ -2406,6 +2531,122 @@ def restore_uploaded_backup():
             except OSError:
                 pass
             RESTORE_LOCK_PATH.unlink(missing_ok=True)
+
+
+UPDATER_RUN_DIR = Path(os.getenv("NORTHSTAR_UPDATER_RUN", "/run/northstar-updater"))
+UPDATER_SOCK_PATH = UPDATER_RUN_DIR / "updater.sock"
+UPDATER_STATUS_PATH = UPDATER_RUN_DIR / "status.json"
+
+
+def _updater_settings(conn):
+    row = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
+    cfg = row[0] if row and isinstance(row[0], dict) else {}
+    repo_url = str(cfg.get("gitUpdateRepo") or "").strip()[:300]
+    branch = str(cfg.get("gitUpdateBranch") or "main").strip()[:80] or "main"
+    return repo_url, branch
+
+
+def _updater_ipc(payload, timeout=180):
+    if UPDATER_SOCK_PATH.exists():
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        try:
+            sock.connect(str(UPDATER_SOCK_PATH))
+            sock.sendall((json.dumps(payload) + "\n").encode("utf-8"))
+            sock.shutdown(socket.SHUT_WR)
+            raw = b""
+            while True:
+                chunk = sock.recv(4096)
+                if not chunk:
+                    break
+                raw += chunk
+            return json.loads(raw.decode("utf-8").strip() or "{}")
+        finally:
+            sock.close()
+    if payload.get("action") == "status" and UPDATER_STATUS_PATH.exists():
+        try:
+            return json.loads(UPDATER_STATUS_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {
+        "ok": False,
+        "available": False,
+        "state": "unavailable",
+        "progress": 0,
+        "step": "Host updater not connected",
+        "error": "Run sudo bash update.sh once on the Ubuntu host to enable 1-click Git auto-updates.",
+    }
+
+
+@app.get("/api/admin/software-update/status")
+@administrator
+def software_update_status():
+    with db() as conn:
+        repo_url, branch = _updater_settings(conn)
+    res = _updater_ipc({"action": "status"}, timeout=10)
+    res.setdefault("available", bool(UPDATER_SOCK_PATH.exists() or res.get("state") in ("running", "completed")))
+    res.setdefault("configRepoUrl", repo_url)
+    res.setdefault("configBranch", branch)
+    return jsonify(res)
+
+
+@app.post("/api/admin/software-update/config")
+@administrator
+def software_update_config():
+    body = request.get_json(silent=True) or {}
+    repo_url = str(body.get("repoUrl") or "").strip()[:300]
+    branch = str(body.get("branch") or "main").strip()[:80] or "main"
+    if repo_url and not re.match(r"^https?://[^\s'\"]+$", repo_url):
+        return jsonify(error="Use an HTTPS Git repository URL (for example https://github.com/user/repo.git)."), 400
+    if not re.fullmatch(r"[A-Za-z0-9._/-]{1,80}", branch):
+        return jsonify(error="Branch name may contain only letters, numbers, dots, underscores, slashes, or hyphens."), 400
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='settings' FOR UPDATE").fetchone()
+        cfg = dict(row[0]) if row and isinstance(row[0], dict) else {}
+        cfg["gitUpdateRepo"] = repo_url
+        cfg["gitUpdateBranch"] = branch
+        conn.execute("INSERT INTO app_state(key,value) VALUES('settings',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(cfg),))
+    return jsonify(ok=True, repoUrl=repo_url, branch=branch)
+
+
+@app.post("/api/admin/software-update/check")
+@administrator
+def software_update_check():
+    body = request.get_json(silent=True) or {}
+    with db() as conn:
+        saved_repo, saved_branch = _updater_settings(conn)
+    repo_url = str(body.get("repoUrl") if body.get("repoUrl") is not None else saved_repo).strip()[:300]
+    branch = str(body.get("branch") or saved_branch or "main").strip()[:80]
+    if repo_url and not re.match(r"^https?://[^\s'\"]+$", repo_url):
+        return jsonify(error="Use a valid HTTPS Git repository URL."), 400
+    if not re.fullmatch(r"[A-Za-z0-9._/-]{1,80}", branch):
+        return jsonify(error="Enter a valid branch name."), 400
+    if not UPDATER_SOCK_PATH.exists():
+        return jsonify(error="Host auto-updater service is not running yet. Run sudo bash update.sh once on the Ubuntu server to install northstar-updater.service."), 503
+    res = _updater_ipc({"action": "check", "repoUrl": repo_url, "branch": branch}, timeout=120)
+    if res.get("error"):
+        return jsonify(error=res["error"]), 400
+    return jsonify(res)
+
+
+@app.post("/api/admin/software-update/start")
+@administrator
+def software_update_start():
+    body = request.get_json(silent=True) or {}
+    with db() as conn:
+        saved_repo, saved_branch = _updater_settings(conn)
+    repo_url = str(body.get("repoUrl") if body.get("repoUrl") is not None else saved_repo).strip()[:300]
+    branch = str(body.get("branch") or saved_branch or "main").strip()[:80]
+    if repo_url and not re.match(r"^https?://[^\s'\"]+$", repo_url):
+        return jsonify(error="Use a valid HTTPS Git repository URL."), 400
+    if not re.fullmatch(r"[A-Za-z0-9._/-]{1,80}", branch):
+        return jsonify(error="Enter a valid branch name."), 400
+    if not UPDATER_SOCK_PATH.exists():
+        return jsonify(error="Host auto-updater service is not active yet. Run sudo bash update.sh once on the Ubuntu host to enable 1-click Git updates."), 503
+    res = _updater_ipc({"action": "start", "repoUrl": repo_url, "branch": branch}, timeout=30)
+    if res.get("error"):
+        return jsonify(error=res["error"]), 400
+    return jsonify(res)
 
 
 @app.errorhandler(413)

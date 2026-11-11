@@ -7,6 +7,17 @@ INSTALL_DIR="/opt/northstar-it"
 if [[ "$SOURCE_DIR" != "$INSTALL_DIR" ]]; then
   tar -C "$SOURCE_DIR" --exclude='./.git' --exclude='./.env' --exclude='./secrets' --exclude='./uploads' --exclude='./backups' --exclude='./__pycache__' -cf - . | tar -C "$INSTALL_DIR" -xf -
 fi
+if [[ -d "$SOURCE_DIR/.git" ]]; then
+  echo "$SOURCE_DIR" > "$INSTALL_DIR/.source-repo"
+  git config --system --add safe.directory "$SOURCE_DIR" 2>/dev/null || git config --global --add safe.directory "$SOURCE_DIR" 2>/dev/null || true
+fi
+mkdir -p /run/northstar-updater
+chmod +x "$INSTALL_DIR"/*.sh "$INSTALL_DIR/northstar-updater.py" 2>/dev/null || true
+if [[ -f "$INSTALL_DIR/systemd/northstar-updater.service" ]]; then
+  install -m 0644 "$INSTALL_DIR/systemd/northstar-updater.service" /etc/systemd/system/northstar-updater.service
+  systemctl daemon-reload
+  systemctl enable --now northstar-updater.service || systemctl restart northstar-updater.service || true
+fi
 cd "$INSTALL_DIR"
 set -a
 . "$INSTALL_DIR/.env"
