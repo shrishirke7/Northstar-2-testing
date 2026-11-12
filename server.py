@@ -5,6 +5,7 @@ import secrets
 import hashlib
 import hmac
 import subprocess
+import time
 import uuid
 import ipaddress
 import threading
@@ -22,7 +23,7 @@ from urllib.error import URLError, HTTPError
 from cryptography.fernet import Fernet, InvalidToken
 
 import psycopg
-from flask import Flask, abort, jsonify, redirect, request, send_from_directory, session
+from flask import Flask, Response, abort, jsonify, redirect, request, send_from_directory, session
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -308,6 +309,9 @@ def enforce_module_access():
         "/api/login", "/api/logout", "/api/profile", "/api/profile/preferences",
         "/api/account/password", "/api/account/profile-picture", "/api/account/recovery-answers",
         "/api/account/logout-all", "/api/data", "/api/live-alerts-feed", "/api/live-pulse",
+        "/api/notifications/silent", "/api/notifications/history", "/api/notifications/history/read",
+        "/api/speedtest/ping", "/api/speedtest/download", "/api/speedtest/upload",
+        "/api/network/speedtest", "/api/network/speedtest/run", "/api/network/speedtest/settings",
     ) or (path == "/api/notifications/sounds" and method == "GET") or path.startswith("/api/recovery/"):
         return None
     is_write = method in ("POST", "PUT", "PATCH", "DELETE")
@@ -1284,7 +1288,8 @@ def _pulse_versions(conn, include_internal=False):
           COALESCE((SELECT max(id) FROM ticket_events), 0),
           COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='settings'), '0'),
           COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='assets'), '0'),
-          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='notifications'), '0')
+          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='notifications'), '0'),
+          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='notification_history'), '0')
     """).fetchone()
     ticket_rev = f"{row[0]}:{row[1]}:{row[2]}"
     out = {
@@ -1295,7 +1300,104 @@ def _pulse_versions(conn, include_internal=False):
     if include_internal:
         out["assetsRev"] = str(row[4] or "0")
         out["notificationsRev"] = str(row[5] or "0")
+        out["historyRev"] = str(row[6] or "0")
     return out
+
+
+def _normalize_notif_history_doc(raw):
+    doc = dict(raw) if isinstance(raw, dict) else {}
+    events = [e for e in (doc.get("events") if isinstance(doc.get("events"), list) else []) if isinstance(e, dict)][:400]
+    reads = doc.get("reads") if isinstance(doc.get("reads"), dict) else {}
+    silent = doc.get("silent") if isinstance(doc.get("silent"), dict) else {}
+    return {"events": events, "reads": reads, "silent": silent, "rev": int(doc.get("rev") or 0)}
+
+
+def _record_notification_event(conn, item):
+    if not isinstance(item, dict):
+        return None
+    row = conn.execute("SELECT value FROM app_state WHERE key='notification_history' FOR UPDATE").fetchone()
+    doc = _normalize_notif_history_doc(row[0] if row else {})
+    ev_key = str(item.get("eventKey") or "").strip()[:160]
+    if ev_key and any(str(x.get("eventKey") or "") == ev_key for x in doc["events"][:100]):
+        return None
+    now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    ev = {
+        "id": str(item.get("id") or ("nh-" + uuid.uuid4().hex[:12]))[:80],
+        "eventKey": ev_key,
+        "kind": str(item.get("kind") or "info")[:40],
+        "level": str(item.get("level") or "info")[:20],
+        "title": str(item.get("title") or "Notification")[:180],
+        "body": str(item.get("body") or "")[:400],
+        "factory": str(item.get("factory") or "")[:60],
+        "targetView": str(item.get("targetView") or "")[:40],
+        "targetTab": str(item.get("targetTab") or "")[:40],
+        "targetId": str(item.get("targetId") or "")[:120],
+        "targetTag": str(item.get("targetTag") or "")[:120],
+        "targetIp": str(item.get("targetIp") or "")[:64],
+        "createdAt": str(item.get("createdAt") or now_iso)[:40],
+    }
+    doc["events"] = [ev] + doc["events"]
+    doc["events"] = doc["events"][:400]
+    doc["rev"] = doc["rev"] + 1
+    conn.execute(
+        "INSERT INTO app_state(key,value) VALUES('notification_history',%s::jsonb) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+        (json.dumps(doc),),
+    )
+    return ev
+
+
+def _is_critical_device_server(asset, notif_state):
+    if not isinstance(asset, dict):
+        return False
+    sound_alerts, _ = normalize_sound_state(notif_state or {})
+    crit = sound_alerts.get("criticalCriteria") or {}
+    tag = str(asset.get("tag") or "").strip().lower()
+    if tag and any(str(t or "").strip().lower() == tag for t in (crit.get("deviceTags") or [])):
+        return True
+    dev_type = str(asset.get("type") or "").strip().lower()
+    dev_sub = str(asset.get("subtype") or "").strip().lower()
+    if any(str(s or "").strip().lower() in dev_sub for s in (crit.get("subtypes") or []) if str(s or "").strip()):
+        return True
+    for t in (crit.get("types") or []):
+        tv = str(t or "").strip().lower()
+        if not tv:
+            continue
+        if dev_sub and tv in dev_sub:
+            return True
+        if tv == "network" and dev_type == "network" and dev_sub and not any(k in dev_sub for k in ("firewall", "router", "core switch")):
+            continue
+        if tv == dev_type or tv in dev_type:
+            return True
+    hay = " ".join(str(asset.get(k) or "") for k in ("name", "tag", "specs", "notes", "role", "subtype")).lower()
+    return any(str(kw or "").strip().lower() in hay for kw in (crit.get("keywords") or []) if str(kw or "").strip())
+
+
+def _record_asset_transition_notification(conn, notif_state, asset, new_status, checked_at):
+    tag = str(asset.get("tag") or "").strip()
+    name = str(asset.get("name") or tag or "Device").strip()
+    ip = str(asset.get("ipAddress") or asset.get("ip_address") or "").strip()
+    site = str(asset.get("site") or "").strip()
+    dev_type = str(asset.get("type") or "Device").strip()
+    sub = str(asset.get("subtype") or "").strip()
+    st_low = str(new_status or "").strip().lower()
+    is_crit = _is_critical_device_server(asset, notif_state)
+    kind = "critical" if is_crit else ("offline" if st_low == "offline" else "online")
+    level = ("critical" if st_low == "offline" else "ok") if is_crit else ("warn" if st_low == "offline" else "ok")
+    title = f"CRITICAL DEVICE {st_low.upper()}: {name}" if is_crit else (f"Device Offline: {name}" if st_low == "offline" else f"Device Online: {name}")
+    body = " · ".join(p for p in [dev_type + (f" ({sub})" if sub else ""), f"IP {ip}" if ip else "", site] if p)
+    _record_notification_event(conn, {
+        "eventKey": f"dev:{tag}:{st_low}:{checked_at}",
+        "kind": kind,
+        "level": level,
+        "title": title,
+        "body": body,
+        "factory": site,
+        "targetView": "assets",
+        "targetTag": tag,
+        "targetIp": ip,
+        "createdAt": checked_at,
+    })
 
 
 @app.get("/api/live-pulse")
@@ -1303,6 +1405,114 @@ def _pulse_versions(conn, include_internal=False):
 def live_pulse():
     with db() as conn:
         return jsonify(**_pulse_versions(conn, include_internal=True))
+
+
+@app.get("/api/notifications/history")
+@signed_in
+def get_notification_history():
+    username = str((session.get("profile") or {}).get("username") or "").strip().casefold() or "_default"
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='notification_history'").fetchone()
+    doc = _normalize_notif_history_doc(row[0] if row else {})
+    user_reads = doc["reads"].get(username) if isinstance(doc["reads"].get(username), dict) else {}
+    read_ids = set(str(x) for x in (user_reads.get("readIds") or []))
+    cleared_ids = set(str(x) for x in (user_reads.get("clearedIds") or []))
+    read_all_before = str(user_reads.get("readAllBefore") or "")
+    cleared_before = str(user_reads.get("clearedBefore") or "")
+    silent_mode = bool(doc["silent"].get(username, False))
+
+    visible = []
+    unread_count = 0
+    for ev in doc["events"]:
+        eid = str(ev.get("id") or "")
+        created = str(ev.get("createdAt") or "")
+        if eid in cleared_ids or (cleared_before and created and created <= cleared_before):
+            continue
+        is_read = (eid in read_ids) or bool(read_all_before and created and created <= read_all_before)
+        item = {**ev, "read": is_read}
+        visible.append(item)
+        if not is_read:
+            unread_count += 1
+    return jsonify(events=visible, unreadCount=unread_count, silentMode=silent_mode, rev=doc["rev"])
+
+
+@app.post("/api/notifications/history/read")
+@signed_in
+def mark_notification_history_read():
+    username = str((session.get("profile") or {}).get("username") or "").strip().casefold() or "_default"
+    body = request.get_json(silent=True) or {}
+    mark_all = bool(body.get("all"))
+    raw_ids = body.get("ids") if isinstance(body.get("ids"), list) else ([body.get("id")] if body.get("id") else [])
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='notification_history' FOR UPDATE").fetchone()
+        doc = _normalize_notif_history_doc(row[0] if row else {})
+        ur = dict(doc["reads"].get(username) or {})
+        if mark_all:
+            ur["readAllBefore"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            ur["readIds"] = []
+        else:
+            existing = list(dict.fromkeys([str(x) for x in (ur.get("readIds") or [])] + [str(x) for x in raw_ids if x]))
+            ur["readIds"] = existing[-400:]
+        doc["reads"][username] = ur
+        conn.execute(
+            "INSERT INTO app_state(key,value) VALUES('notification_history',%s::jsonb) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+            (json.dumps(doc),),
+        )
+    return jsonify(ok=True)
+
+
+@app.delete("/api/notifications/history")
+@signed_in
+def clear_notification_history():
+    username = str((session.get("profile") or {}).get("username") or "").strip().casefold() or "_default"
+    body = request.get_json(silent=True) or {}
+    mode = str(body.get("mode") or "all").lower()
+    raw_ids = body.get("ids") if isinstance(body.get("ids"), list) else ([body.get("id")] if body.get("id") else [])
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='notification_history' FOR UPDATE").fetchone()
+        doc = _normalize_notif_history_doc(row[0] if row else {})
+        ur = dict(doc["reads"].get(username) or {})
+        if raw_ids:
+            cleared = list(dict.fromkeys([str(x) for x in (ur.get("clearedIds") or [])] + [str(x) for x in raw_ids if x]))
+            ur["clearedIds"] = cleared[-400:]
+        elif mode == "read":
+            read_ids = set(str(x) for x in (ur.get("readIds") or []))
+            read_all_before = str(ur.get("readAllBefore") or "")
+            newly_cleared = [
+                str(ev.get("id")) for ev in doc["events"]
+                if str(ev.get("id")) in read_ids or (read_all_before and str(ev.get("createdAt") or "") <= read_all_before)
+            ]
+            cleared = list(dict.fromkeys([str(x) for x in (ur.get("clearedIds") or [])] + newly_cleared))
+            ur["clearedIds"] = cleared[-400:]
+        else:
+            ur["clearedBefore"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            ur["clearedIds"] = []
+        doc["reads"][username] = ur
+        conn.execute(
+            "INSERT INTO app_state(key,value) VALUES('notification_history',%s::jsonb) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+            (json.dumps(doc),),
+        )
+    return jsonify(ok=True)
+
+
+@app.put("/api/notifications/silent")
+@signed_in
+def save_notification_silent_mode():
+    username = str((session.get("profile") or {}).get("username") or "").strip().casefold() or "_default"
+    body = request.get_json(silent=True) or {}
+    silent = bool(body.get("silent"))
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='notification_history' FOR UPDATE").fetchone()
+        doc = _normalize_notif_history_doc(row[0] if row else {})
+        doc["silent"][username] = silent
+        conn.execute(
+            "INSERT INTO app_state(key,value) VALUES('notification_history',%s::jsonb) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+            (json.dumps(doc),),
+        )
+    return jsonify(ok=True, silentMode=silent)
 
 
 @app.get("/api/public/live-pulse")
@@ -1582,6 +1792,8 @@ def scanner_ip_status_results():
             if is_online:
                 asset["lastSeen"] = checked_at
             _queue_asset_status_notifications(conn, notifications, asset, previous_status, asset["status"], checked_at, users)
+            if previous_status in ("Online", "Offline") and previous_status != asset["status"]:
+                _record_asset_transition_notification(conn, notifications, asset, asset["status"], checked_at)
             assets_changed = True
         for user in users:
             raw_ip = str(user.get("ip_address", user.get("ipAddress", ""))).strip()
@@ -2236,6 +2448,18 @@ def create_public_ticket():
         conn.execute("INSERT INTO tickets(id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments,public_token_hash) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s)",
                      (ticket_id, kind, username, str(user.get("name") or "")[:120], department, factory, remote, primary, sub, description, material, json.dumps(saved), token_hash))
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,'Public portal','created',%s)", (ticket_id, description[:500]))
+        is_mr = (kind == "Material request")
+        _record_notification_event(conn, {
+            "eventKey": f"ticket:{ticket_id}",
+            "kind": "material_request" if is_mr else "ticket",
+            "level": "info",
+            "title": f"{'New Material Request' if is_mr else 'New IT Ticket'}: {ticket_id}",
+            "body": f"{str(user.get('name') or username)} · {sub or primary} ({factory or '-'})",
+            "factory": factory,
+            "targetView": "ticketing",
+            "targetTab": "materials" if is_mr else "tickets",
+            "targetId": ticket_id,
+        })
     return jsonify(id=ticket_id, tracking_token=tracking_token), 201
 
 
@@ -2864,6 +3088,18 @@ def create_ticket():
             saved.append({"name":secure_filename(f.filename),"path":f"tickets/{token_date}/{stored}"})
         conn.execute("INSERT INTO tickets(id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb)", (ticket_id,kind,profile["username"],profile["name"],profile.get("department", ""),profile.get("site", ""),remote,primary,sub,description,form.get("material", ""),json.dumps(saved)))
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'created',%s)", (ticket_id,profile["username"],description[:500]))
+        is_mr = (kind == "Material request")
+        _record_notification_event(conn, {
+            "eventKey": f"ticket:{ticket_id}",
+            "kind": "material_request" if is_mr else "ticket",
+            "level": "info",
+            "title": f"{'New Material Request' if is_mr else 'New IT Ticket'}: {ticket_id}",
+            "body": f"{profile.get('name') or profile['username']} · {sub or primary} ({profile.get('site', '-')})",
+            "factory": profile.get("site", ""),
+            "targetView": "ticketing",
+            "targetTab": "materials" if is_mr else "tickets",
+            "targetId": ticket_id,
+        })
     return jsonify(id=ticket_id), 201
 
 
@@ -3214,6 +3450,348 @@ def software_update_start():
     if res.get("error"):
         return jsonify(error=res["error"]), 400
     return jsonify(res)
+
+
+SPEEDTEST_LIVE_PATH = Path(os.getenv("TMPDIR", "/tmp")) / "northstar-speedtest-live.json"
+_SPEEDTEST_LOCK = threading.Lock()
+_SPEEDTEST_SAMPLE_CHUNK = secrets.token_bytes(65536)
+DEFAULT_SPEEDTEST_SETTINGS = {"unitMode": "auto", "testMode": "internet", "intervalSec": 0}
+
+
+def _normalize_speedtest_doc(raw):
+    doc = dict(raw) if isinstance(raw, dict) else {}
+    s = dict(DEFAULT_SPEEDTEST_SETTINGS)
+    raw_s = doc.get("settings") if isinstance(doc.get("settings"), dict) else {}
+    if raw_s.get("unitMode") in ("auto", "kbps", "mbps", "gbps"):
+        s["unitMode"] = raw_s["unitMode"]
+    if raw_s.get("testMode") in ("internet", "lan"):
+        s["testMode"] = raw_s["testMode"]
+    try:
+        iv = int(raw_s.get("intervalSec", 0))
+        if iv in (0, 15, 30, 60, 300):
+            s["intervalSec"] = iv
+    except (TypeError, ValueError):
+        pass
+    hist = [h for h in (doc.get("history") if isinstance(doc.get("history"), list) else []) if isinstance(h, dict)][:50]
+    return {"settings": s, "history": hist}
+
+
+def _read_speedtest_live():
+    try:
+        if SPEEDTEST_LIVE_PATH.exists():
+            return json.loads(SPEEDTEST_LIVE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {"running": False, "phase": "idle", "downloadMbps": 0.0, "uploadMbps": 0.0, "pingMs": 0.0, "jitterMs": 0.0}
+
+
+def _write_speedtest_live(payload):
+    try:
+        tmp = SPEEDTEST_LIVE_PATH.with_suffix(".tmp")
+        tmp.write_text(json.dumps(payload), encoding="utf-8")
+        os.replace(tmp, SPEEDTEST_LIVE_PATH)
+    except Exception:
+        pass
+
+
+def _run_internet_speedtest_worker(run_id):
+    import http.client
+    state = {
+        "runId": run_id,
+        "running": True,
+        "phase": "ping",
+        "mode": "internet",
+        "pingMs": 0.0,
+        "jitterMs": 0.0,
+        "downloadMbps": 0.0,
+        "uploadMbps": 0.0,
+        "serverLabel": "Google / Cloudflare Edge",
+        "startedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "error": "",
+    }
+    _write_speedtest_live(state)
+    try:
+        # 1. Latency & Jitter probe
+        rtts = []
+        probe_urls = ["https://www.google.com/generate_204", "https://speed.cloudflare.com/__down?bytes=0"]
+        for i in range(5):
+            for p_url in probe_urls:
+                t0 = time.perf_counter()
+                try:
+                    req = URLRequest(p_url, headers={"User-Agent": "Northstar-SpeedMonitor/1.0", "Cache-Control": "no-store"})
+                    with urlopen(req, timeout=3.5) as resp:
+                        resp.read(64)
+                    rtts.append((time.perf_counter() - t0) * 1000.0)
+                    break
+                except Exception:
+                    continue
+        if not rtts:
+            raise RuntimeError("Internet WAN unreachable from server container. Switch Test Mode to Server Link (LAN).")
+        sorted_rtts = sorted(rtts)
+        state["pingMs"] = round(sorted_rtts[len(sorted_rtts) // 2], 1)
+        if len(rtts) > 1:
+            deltas = [abs(rtts[i] - rtts[i - 1]) for i in range(1, len(rtts))]
+            state["jitterMs"] = round(sum(deltas) / len(deltas), 1)
+
+        # 2. Multi-stream Download probe (up to 4.2s)
+        state["phase"] = "download"
+        _write_speedtest_live(state)
+        dl_bytes = 0
+        dl_lock = threading.Lock()
+        dl_stop = threading.Event()
+        dl_t0 = time.perf_counter()
+
+        def dl_worker():
+            nonlocal dl_bytes
+            try:
+                req = URLRequest(
+                    "https://speed.cloudflare.com/__down?bytes=25000000",
+                    headers={"User-Agent": "Northstar-SpeedMonitor/1.0", "Cache-Control": "no-store"},
+                )
+                with urlopen(req, timeout=6.0) as resp:
+                    while not dl_stop.is_set():
+                        chunk = resp.read(65536)
+                        if not chunk:
+                            break
+                        with dl_lock:
+                            dl_bytes += len(chunk)
+                        if time.perf_counter() - dl_t0 >= 4.2:
+                            break
+            except Exception:
+                pass
+
+        dl_threads = [threading.Thread(target=dl_worker, daemon=True) for _ in range(2)]
+        for t in dl_threads:
+            t.start()
+        while any(t.is_alive() for t in dl_threads):
+            elapsed = max(0.08, time.perf_counter() - dl_t0)
+            with dl_lock:
+                cur_bytes = dl_bytes
+            state["downloadMbps"] = round((cur_bytes * 8.0) / (elapsed * 1_000_000.0), 2)
+            _write_speedtest_live(state)
+            if elapsed >= 4.2 or (elapsed >= 2.5 and cur_bytes >= 32_000_000):
+                dl_stop.set()
+                break
+            time.sleep(0.14)
+        for t in dl_threads:
+            t.join(timeout=1.0)
+        dl_elapsed = max(0.1, time.perf_counter() - dl_t0)
+        final_dl_mbps = round((dl_bytes * 8.0) / (dl_elapsed * 1_000_000.0), 2)
+        state["downloadMbps"] = final_dl_mbps
+
+        # 3. Multi-stream Streaming Upload probe via http.client chunk writes (up to 4.0s)
+        state["phase"] = "upload"
+        _write_speedtest_live(state)
+        ul_bytes = 0
+        ul_lock = threading.Lock()
+        ul_stop = threading.Event()
+        ul_t0 = time.perf_counter()
+        payload_chunk = _SPEEDTEST_SAMPLE_CHUNK[:32768]
+        total_per_req = 4 * 1024 * 1024
+
+        def ul_worker():
+            nonlocal ul_bytes
+            try:
+                while not ul_stop.is_set() and (time.perf_counter() - ul_t0) < 3.8:
+                    conn_http = http.client.HTTPSConnection("speed.cloudflare.com", timeout=5.0)
+                    try:
+                        conn_http.putrequest("POST", "/__up")
+                        conn_http.putheader("User-Agent", "Northstar-SpeedMonitor/1.0")
+                        conn_http.putheader("Content-Type", "application/octet-stream")
+                        conn_http.putheader("Content-Length", str(total_per_req))
+                        conn_http.endheaders()
+                        sent = 0
+                        while sent < total_per_req and not ul_stop.is_set() and (time.perf_counter() - ul_t0) < 4.0:
+                            step = min(len(payload_chunk), total_per_req - sent)
+                            conn_http.send(payload_chunk[:step])
+                            sent += step
+                            with ul_lock:
+                                ul_bytes += step
+                        try:
+                            if sent == total_per_req:
+                                conn_http.getresponse().read(64)
+                        except Exception:
+                            pass
+                    finally:
+                        try:
+                            conn_http.close()
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+        ul_threads = [threading.Thread(target=ul_worker, daemon=True) for _ in range(2)]
+        for t in ul_threads:
+            t.start()
+        while any(t.is_alive() for t in ul_threads):
+            elapsed = max(0.08, time.perf_counter() - ul_t0)
+            with ul_lock:
+                cur_bytes = ul_bytes
+            state["uploadMbps"] = round((cur_bytes * 8.0) / (elapsed * 1_000_000.0), 2)
+            _write_speedtest_live(state)
+            if elapsed >= 4.0:
+                ul_stop.set()
+                break
+            time.sleep(0.14)
+        for t in ul_threads:
+            t.join(timeout=1.0)
+        ul_elapsed = max(0.1, time.perf_counter() - ul_t0)
+        final_ul_mbps = round((ul_bytes * 8.0) / (ul_elapsed * 1_000_000.0), 2)
+        state["uploadMbps"] = final_ul_mbps
+
+        completed = {
+            "id": run_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "mode": "internet",
+            "pingMs": state["pingMs"],
+            "jitterMs": state["jitterMs"],
+            "downloadMbps": final_dl_mbps,
+            "uploadMbps": final_ul_mbps,
+            "serverLabel": "Google / Cloudflare Edge",
+            "status": "ok",
+        }
+        with db() as conn:
+            row = conn.execute("SELECT value FROM app_state WHERE key='network_speedtest' FOR UPDATE").fetchone()
+            doc = _normalize_speedtest_doc(row[0] if row else {})
+            doc["history"] = ([completed] + doc["history"])[:50]
+            conn.execute(
+                "INSERT INTO app_state(key,value) VALUES('network_speedtest',%s::jsonb) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+                (json.dumps(doc),),
+            )
+        state["running"] = False
+        state["phase"] = "done"
+        state["finishedAt"] = completed["timestamp"]
+        _write_speedtest_live(state)
+    except Exception as exc:
+        state["running"] = False
+        state["phase"] = "error"
+        state["error"] = str(exc)[:240]
+        _write_speedtest_live(state)
+
+
+@app.get("/api/speedtest/ping")
+@signed_in
+def speedtest_ping():
+    resp = jsonify(ok=True, serverTime=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.get("/api/speedtest/download")
+@signed_in
+def speedtest_download():
+    try:
+        total = max(65536, min(32 * 1024 * 1024, int(request.args.get("bytes", 8 * 1024 * 1024))))
+    except (TypeError, ValueError):
+        total = 8 * 1024 * 1024
+
+    def generate():
+        sent = 0
+        chunk_len = len(_SPEEDTEST_SAMPLE_CHUNK)
+        while sent < total:
+            n = min(chunk_len, total - sent)
+            sent += n
+            yield _SPEEDTEST_SAMPLE_CHUNK[:n]
+
+    resp = Response(generate(), mimetype="application/octet-stream")
+    resp.headers["Content-Length"] = str(total)
+    resp.headers["Cache-Control"] = "no-store, no-transform"
+    resp.headers["Content-Encoding"] = "identity"
+    return resp
+
+
+@app.post("/api/speedtest/upload")
+@signed_in
+def speedtest_upload():
+    total = 0
+    stream = request.stream
+    while total < 40 * 1024 * 1024:
+        chunk = stream.read(65536)
+        if not chunk:
+            break
+        total += len(chunk)
+    resp = jsonify(ok=True, bytes=total)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.get("/api/network/speedtest")
+@signed_in
+def get_network_speedtest():
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='network_speedtest'").fetchone()
+    doc = _normalize_speedtest_doc(row[0] if row else {})
+    live = _read_speedtest_live()
+    latest = doc["history"][0] if doc["history"] else None
+    return jsonify(settings=doc["settings"], live=live, latest=latest, history=doc["history"])
+
+
+@app.put("/api/network/speedtest/settings")
+@signed_in
+def update_network_speedtest_settings():
+    body = request.get_json(silent=True) or {}
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='network_speedtest' FOR UPDATE").fetchone()
+        doc = _normalize_speedtest_doc(row[0] if row else {})
+        merged = {**doc, "settings": {**doc["settings"], **body}}
+        normalized = _normalize_speedtest_doc(merged)
+        conn.execute(
+            "INSERT INTO app_state(key,value) VALUES('network_speedtest',%s::jsonb) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+            (json.dumps(normalized),),
+        )
+    return jsonify(ok=True, settings=normalized["settings"])
+
+
+@app.post("/api/network/speedtest/run")
+@signed_in
+def run_network_speedtest():
+    body = request.get_json(silent=True) or {}
+    client_result = body.get("clientResult") if isinstance(body.get("clientResult"), dict) else None
+    if client_result:
+        entry = {
+            "id": "st-" + uuid.uuid4().hex[:10],
+            "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "mode": "lan" if client_result.get("mode") == "lan" else "internet",
+            "pingMs": round(max(0.0, float(client_result.get("pingMs") or 0)), 1),
+            "jitterMs": round(max(0.0, float(client_result.get("jitterMs") or 0)), 1),
+            "downloadMbps": round(max(0.0, float(client_result.get("downloadMbps") or 0)), 2),
+            "uploadMbps": round(max(0.0, float(client_result.get("uploadMbps") or 0)), 2),
+            "serverLabel": str(client_result.get("serverLabel") or "Northstar LAN Link")[:100],
+            "status": "ok",
+        }
+        with db() as conn:
+            row = conn.execute("SELECT value FROM app_state WHERE key='network_speedtest' FOR UPDATE").fetchone()
+            doc = _normalize_speedtest_doc(row[0] if row else {})
+            doc["history"] = ([entry] + doc["history"])[:50]
+            conn.execute(
+                "INSERT INTO app_state(key,value) VALUES('network_speedtest',%s::jsonb) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+                (json.dumps(doc),),
+            )
+        return jsonify(ok=True, entry=entry, history=doc["history"])
+
+    with _SPEEDTEST_LOCK:
+        cur = _read_speedtest_live()
+        if cur.get("running"):
+            started = cur.get("startedAt") or ""
+            stale = False
+            try:
+                stale = (datetime.now(timezone.utc) - datetime.fromisoformat(started)).total_seconds() > 25
+            except Exception:
+                stale = True
+            if not stale:
+                return jsonify(ok=True, started=False, live=cur)
+        run_id = "st-" + uuid.uuid4().hex[:10]
+        _write_speedtest_live({
+            "runId": run_id, "running": True, "phase": "ping", "mode": "internet",
+            "pingMs": 0.0, "jitterMs": 0.0, "downloadMbps": 0.0, "uploadMbps": 0.0,
+            "startedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"), "error": "",
+        })
+        t = threading.Thread(target=_run_internet_speedtest_worker, args=(run_id,), daemon=True)
+        t.start()
+    return jsonify(ok=True, started=True, runId=run_id)
 
 
 @app.errorhandler(413)

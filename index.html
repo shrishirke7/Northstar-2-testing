@@ -75,14 +75,59 @@
 .ns-alert-popup.crit{background:#7f1d1d;border-left-color:#fca5a5}
 .ns-alert-popup.off{border-left-color:#f87171}
 .ns-alert-popup.tick{border-left-color:#c6ed58}
-@media(max-width:850px){.ns-sound-grid{grid-template-columns:1fr}}
+.ns-alert-popup{cursor:pointer;transition:transform .14s ease,box-shadow .14s ease}
+.ns-alert-popup:hover{transform:translateY(-2px);box-shadow:0 20px 44px rgba(0,0,0,.34)}
+.ns-top-notif-wrap{position:relative;display:inline-flex;align-items:center;gap:6px}
+.ns-top-notif-btn{height:35px;border:1px solid var(--line);background:#fff;color:#223229;border-radius:9px;padding:0 11px;display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;box-shadow:0 1px 3px rgba(15,23,42,.05);transition:.15s;white-space:nowrap}
+.ns-top-notif-btn:hover{border-color:#93c5ab;background:#f4fbf7}
+.ns-top-notif-badge{background:#dc2626;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:99px;line-height:1.1;display:none}
+.ns-top-notif-badge.show{display:inline-block}
+.ns-top-silent-btn{height:35px;border:1px solid var(--line);background:#fff;color:#475569;border-radius:9px;padding:0 10px;display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;transition:.15s;white-space:nowrap}
+.ns-top-silent-btn:hover{border-color:#94a3b8;background:#f8fafc}
+.ns-top-silent-btn.is-silent{background:#fff1f2;border-color:#fda4af;color:#be123c}
+.ns-notif-shade{position:absolute;top:44px;right:0;width:min(410px,calc(100vw - 24px));background:#fff;border:1px solid #dbe5df;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.22);z-index:80;display:none;overflow:hidden}
+.ns-notif-shade.open{display:block;animation:nsShadeIn .16s ease}
+@keyframes nsShadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.ns-shade-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;background:linear-gradient(135deg,#17251e,#21382c);color:#fff}
+.ns-shade-subbar{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:8px 12px;background:#f4f8f5;border-bottom:1px solid #e6eee9;flex-wrap:wrap}
+.ns-shade-chips{display:flex;gap:5px;flex-wrap:wrap}
+.ns-shade-chip{border:1px solid #d5e2db;background:#fff;color:#3d5044;border-radius:99px;padding:4px 9px;font-size:10px;font-weight:700;cursor:pointer}
+.ns-shade-chip.active{background:#157a54;border-color:#157a54;color:#fff}
+.ns-shade-list{max-height:360px;overflow-y:auto;padding:8px;display:grid;gap:7px;background:#f8faf9}
+.ns-notif-card{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:12px;background:#fff;border:1px solid #e5ebe7;cursor:pointer;transition:.14s;position:relative}
+.ns-notif-card:hover{border-color:#8ec7a8;background:#f4fbf7;transform:translateY(-1px)}
+.ns-notif-card.unread{background:#f0faf4;border-color:#a7dcc0;box-shadow:0 2px 8px rgba(21,122,84,.08)}
+.ns-notif-ico{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-size:15px;flex:none}
+.ns-notif-ico.info{background:#e0f2fe;color:#0369a1}
+.ns-notif-ico.ok{background:#dcfce7;color:#15803d}
+.ns-notif-ico.warn{background:#fef3c7;color:#b45309}
+.ns-notif-ico.critical{background:#fee2e2;color:#b91c1c}
+.ns-notif-unread-dot{width:8px;height:8px;border-radius:50%;background:#157a54;flex:none;margin-top:5px}
+.ns-shade-foot{padding:10px 14px;background:#fff;border-top:1px solid #e5ebe7;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ns-row-highlight td{animation:nsRowFlash 3.6s ease forwards}
+@keyframes nsRowFlash{0%{background:#fef08a!important}35%{background:#dcfce7!important}100%{background:transparent}}
+.ns-speed-panel{margin-bottom:14px;overflow:hidden}
+.ns-speed-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ns-speed-cluster-grid{display:grid;grid-template-columns:repeat(2,minmax(270px,1fr));gap:18px;padding:18px 20px;align-items:center}
+.ns-cb350-card{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 14px 14px;border-radius:16px;background:linear-gradient(180deg,#f8faf9 0%,#eef3f0 100%);border:1px solid #dce6e0}
+.ns-cb350-svg{width:min(285px,100%);height:auto;display:block;filter:drop-shadow(0 14px 24px rgba(15,23,42,.22))}
+.ns-cb350-caption{display:flex;align-items:center;justify-content:center;gap:10px;font-size:12px;font-weight:800;letter-spacing:.4px;color:#1f2f27}
+.ns-speed-meta-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:0 20px 16px}
+.ns-speed-stat{padding:10px 12px;border-radius:10px;background:#f8faf9;border:1px solid #e4ece7}
+.ns-speed-stat span{display:block;font-size:10px;color:#6f7d75;font-weight:600}
+.ns-speed-stat b{display:block;font:800 16px 'Manrope',sans-serif;color:#19231f;margin-top:3px}
+.ns-speed-live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-right:4px}
+.ns-speed-live-dot.running{background:#0ea5e9;box-shadow:0 0 0 4px rgba(14,165,233,.25);animation:nsPulseDot 1s infinite}
+@keyframes nsPulseDot{0%,100%{opacity:1}50%{opacity:.45}}
+@media(max-width:850px){.ns-sound-grid,.ns-speed-cluster-grid{grid-template-columns:1fr}.ns-speed-meta-strip{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:680px){.ns-top-notif-btn span.ns-notif-lbl,.ns-top-silent-btn span.ns-silent-lbl{display:none}.ns-top-notif-wrap{gap:4px}}
 @media(max-width:700px){.module-permission-grid{grid-template-columns:1fr}}</style></head>
 <body>
 <div class="auth-gate" id="authGate"><div class="login-shell"><section class="login-visual"><div class="login-visual-brand"><span class="login-diamond">◇</span><img id="loginBrandLogo" class="login-brand-logo" alt="" hidden><span id="loginVisualName">IT Asset Management</span></div><div class="jewel-art" aria-hidden="true"><svg viewBox="0 0 420 340" role="presentation"><path d="M100 80 Q210 300 320 80" fill="none" stroke="#c58b35" stroke-width="5"/><path d="M121 121 Q210 272 299 121" fill="none" stroke="#f1d38d" stroke-width="3"/><g fill="#fff9e9" stroke="#c58b35" stroke-width="3"><circle cx="132" cy="140" r="11"/><circle cx="160" cy="178" r="11"/><circle cx="190" cy="208" r="11"/><circle cx="210" cy="230" r="17"/><circle cx="230" cy="208" r="11"/><circle cx="260" cy="178" r="11"/><circle cx="288" cy="140" r="11"/><path d="M210 247l-18 31 18 29 18-29z"/></g><g fill="none" stroke="#f9f3df" stroke-width="4" stroke-linecap="round"><path d="M73 230q-20-45 5-86m-4 49q-33-15-37-43m41 24q28-35 56-31M347 230q20-45-5-86m4 49q33-15 37-43m-41 24q-28-35-56-31"/></g><g fill="#fff9e9"><circle cx="75" cy="139" r="7"/><circle cx="37" cy="150" r="6"/><circle cx="133" cy="162" r="6"/><circle cx="345" cy="139" r="7"/><circle cx="383" cy="150" r="6"/><circle cx="287" cy="162" r="6"/></g></svg></div><div class="login-dots" id="loginSlideDots"><i></i><i></i><i></i><i></i></div></section><section class="login-side"><div class="login-wordmark"><img id="loginWordmarkLogo" class="login-brand-logo" alt="" hidden><span id="loginBrandName">IT Asset Management</span><span>◇</span></div><div class="login-form-wrap"><div class="login-kicker">IT ASSET INTELLIGENCE</div><h1 id="loginWelcome">Welcome to IT Asset Management</h1><p>Sign in with your account to continue.</p><a class="link-btn" href="/portal" style="display:block;text-align:center;margin:-22px auto 24px">Raise an IT ticket without signing in</a><form id="loginForm" method="post" action="/api/login"><label class="login-field"><span>Username</span><input name="username" required autocomplete="username" placeholder="Enter your username"></label><label class="login-field"><span>Password</span><input name="password" required type="password" autocomplete="current-password" placeholder="Enter your password"></label><div class="auth-error" id="loginError" role="alert" aria-live="polite"></div><button class="login-submit" type="submit">Sign in <span>→</span></button></form><button type="button" id="recoveryToggle" class="link-btn" aria-expanded="false" style="display:block;margin:15px auto 0">Forgot password?</button><section id="recoveryPanel" hidden class="panel" style="text-align:left;margin-top:14px;padding:16px"><h2 style="margin:0 0 8px;font-size:16px">Reset your password</h2><p style="font-size:12px;color:#758179;line-height:1.5">Answer all three questions exactly as you saved them. Use private answers that other people cannot easily guess.</p><form id="recoveryForm" method="post" action="/api/recovery/reset"><label class="login-field"><span>Username</span><input name="username" required maxlength="120" autocomplete="username"></label><label class="login-field"><span>Favourite animal</span><input name="animal" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>Favourite colour</span><input name="colour" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>Favourite food</span><input name="food" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>New password</span><input name="new_password" required type="password" minlength="10" maxlength="1024" autocomplete="new-password"></label><label class="login-field"><span>Confirm new password</span><input name="confirm_password" required type="password" minlength="10" maxlength="1024" autocomplete="new-password"></label><div id="recoveryStatus" class="auth-error" role="status" aria-live="polite"></div><button class="login-submit" type="submit">Reset password</button><button class="link-btn" id="recoveryCancel" type="button" style="display:block;margin:10px auto">Back to sign in</button></form></section><div class="login-security"><span>▣</span> Secure sign-in · Your account is protected</div></div><div class="login-footer" id="loginFooter">IT Asset Management</div></section></div></div><script>
 (()=>{const form=document.getElementById('loginForm');if(!form)return;if(location.search)history.replaceState(null,'',location.pathname+location.hash);form.method='post';form.action='/api/login';if(location.protocol!=='file:'){form.addEventListener('submit',async e=>{e.preventDefault();const btn=form.querySelector('button[type="submit"]'),error=document.getElementById('loginError'),data=Object.fromEntries(new FormData(form));btn.disabled=true;error.textContent='';try{const r=await fetch('/api/login',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'NorthstarIT'},body:JSON.stringify(data)}),body=await r.json().catch(()=>({}));if(!r.ok)throw new Error(body.error||'Sign-in could not be completed.');location.reload()}catch(err){error.textContent=err.message||'Unable to reach the sign-in service. Try again.'}finally{btn.disabled=false}})}const toggle=document.getElementById('recoveryToggle'),panel=document.getElementById('recoveryPanel'),recovery=document.getElementById('recoveryForm'),cancel=document.getElementById('recoveryCancel');toggle?.addEventListener('click',()=>{panel.hidden=!panel.hidden;toggle.setAttribute('aria-expanded',String(!panel.hidden))});cancel?.addEventListener('click',()=>{panel.hidden=true;toggle?.setAttribute('aria-expanded','false')});recovery?.addEventListener('submit',async e=>{e.preventDefault();const status=document.getElementById('recoveryStatus'),button=recovery.querySelector('button[type="submit"]'),d=Object.fromEntries(new FormData(recovery));status.textContent='';if(d.new_password!==d.confirm_password){status.textContent='Passwords do not match.';return}if(d.new_password.length<10){status.textContent='Use at least 10 characters for the new password.';return}button.disabled=true;try{const r=await fetch('/api/recovery/reset',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'NorthstarIT'},body:JSON.stringify({username:d.username,answers:[d.animal,d.colour,d.food],new_password:d.new_password,confirm_password:d.confirm_password})}),body=await r.json().catch(()=>({}));status.textContent=r.status===429?(body.message||'Too many attempts. Wait 15 minutes and try again.'):body.message||'If the account and answers match, the password was reset. Try signing in.';if(r.ok&&r.status!==429)recovery.reset()}catch(err){status.textContent='Unable to reach the recovery service. Try again.'}finally{button.disabled=false}})})();
 </script><div class="layout" id="appShell" style="display:none">
 <aside class="sidebar"><div class="brand"><div class="brand-mark">N</div><div><div class="brand-name">northstar<span style="color:var(--lime)">.</span></div><div class="brand-sub">IT ASSET INTELLIGENCE</div></div></div><div class="org-label">Workspace</div><nav class="nav" id="mainNav"><button class="active" data-view="dashboard"><span class="ico">▦</span><span class="nav-label">Overview</span></button><button data-view="assets"><span class="ico">▤</span><span class="nav-label">Asset inventory</span></button><button data-view="datacenter"><span class="ico">▦</span><span class="nav-label">Data Center</span></button><button data-view="tickets"><span class="ico">✉</span><span class="nav-label">IT help desk</span><span class="nav-badge" id="ticketBadge">3</span></button><button data-view="maintenance"><span class="ico">⚒</span><span class="nav-label">Maintenance & repairs</span><span class="nav-badge" style="background:#b78738">4</span></button><button data-view="ageing"><span class="ico">◷</span><span class="nav-label">Asset ageing & risk</span></button><button data-view="users"><span class="ico">♙</span><span class="nav-label">Users</span></button><button data-view="departments"><span class="ico">⌂</span><span class="nav-label">Departments</span></button><button data-view="factories"><span class="ico">🏭</span><span class="nav-label">Factories</span></button><button data-view="software"><span class="ico">▧</span><span class="nav-label">Software & licenses</span></button><button data-view="monitoring"><span class="ico">⌁</span><span class="nav-label">Network monitoring</span><span class="nav-badge">3</span></button><button data-view="snmp"><span class="ico">📊</span><span class="nav-label">SNMP bandwidth</span></button><button data-view="surveillance"><span class="ico">◉</span><span class="nav-label">Surveillance</span></button><button data-view="parts"><span class="ico">▣</span><span class="nav-label">Parts inventory</span></button><button data-view="reports"><span class="ico">▥</span><span class="nav-label">Reports</span></button></nav><button class="nav-customize" id="customizeModulesButton" type="button"><span class="ico">☷</span><span class="nav-label">Customize modules</span></button><div class="sidebar-bottom"><div class="org-label">System</div><nav class="nav"><button data-view="backups"><span class="ico">▣</span><span class="nav-label">Backup & restore</span></button><button data-view="settings"><span class="ico">⚙</span><span class="nav-label">Settings</span></button></nav><div class="help-card"><b>Need a hand?</b><p>Make asset management work the way your team does.</p><button onclick="showHelp()">Visit help center ↗</button></div><div class="profile sidebar-account"><div class="avatar">IT</div><div><div class="profile-name">Signed in</div><div class="profile-role">Account menu in top bar</div></div></div></div></aside>
-<main class="main"><header class="topbar"><div class="crumb"><span id="companyCrumb">IT Asset Management</span>&nbsp; / &nbsp;<b id="crumb">Overview</b></div><select class="site-select" id="globalSite" aria-label="Select factory"><option value="All sites">All factories</option><option>ARG</option><option>ARB</option><option>ARC</option><option>ARF</option></select><div class="top-spacer"></div><label class="search"><span>⌕</span><input id="globalSearch" placeholder="Search assets, users..." aria-label="Search assets and users"><span style="font-size:9px">⌘ K</span></label><button class="top-btn" aria-label="Notifications" onclick="showNotifications()">♧<span class="notification-dot"></span></button><button class="top-btn" aria-label="Help" onclick="showHelp()">?</button><div class="profile-menu-wrap"><button class="top-profile" id="profileMenuButton" aria-label="Profile menu" aria-expanded="false" onclick="toggleProfileMenu()"><span class="top-avatar" id="topAvatar">U</span><span id="topProfileName">Account</span><span aria-hidden="true">⌄</span></button><div class="profile-menu" id="profileMenu" hidden><div class="profile-menu-heading"><b id="menuProfileName">Account</b><small id="menuProfileRole">User</small></div><button type="button" onclick="document.getElementById('profilePictureInput').click()">Change profile picture</button><button type="button" onclick="openPasswordSettings()">Change password</button><button type="button" class="profile-menu-logout" onclick="signOut()">Log out</button></div><input id="profilePictureInput" type="file" accept="image/png,image/jpeg,image/webp" hidden></div></header>
+<main class="main"><header class="topbar"><div class="crumb"><span id="companyCrumb">IT Asset Management</span>&nbsp; / &nbsp;<b id="crumb">Overview</b></div><select class="site-select" id="globalSite" aria-label="Select factory"><option value="All sites">All factories</option><option>ARG</option><option>ARB</option><option>ARC</option><option>ARF</option></select><div class="top-spacer"></div><div class="ns-top-notif-wrap" id="nsTopNotifWrap"><button type="button" class="ns-top-silent-btn" id="nsTopSilentBtn" title="Silent mode: mute ringtones &amp; screen popups while keeping notification dropdown &amp; history"><span id="nsTopSilentIcon">🔊</span><span class="ns-silent-lbl" id="nsTopSilentLabel">Alerts Live</span></button><button type="button" class="ns-top-notif-btn" id="nsTopNotifBtn" aria-expanded="false" aria-haspopup="true"><span>🔔</span><span class="ns-notif-lbl">Notifications</span><span class="ns-top-notif-badge" id="nsTopNotifBadge">0</span></button><div class="ns-notif-shade" id="nsTopNotifDropdown" role="region" aria-label="Notification dropdown"></div></div><label class="search"><span>⌕</span><input id="globalSearch" placeholder="Search assets, users..." aria-label="Search assets and users"><span style="font-size:9px">⌘ K</span></label><button class="top-btn" aria-label="Notifications" onclick="showNotifications()">♧<span class="notification-dot"></span></button><button class="top-btn" aria-label="Help" onclick="showHelp()">?</button><div class="profile-menu-wrap"><button class="top-profile" id="profileMenuButton" aria-label="Profile menu" aria-expanded="false" onclick="toggleProfileMenu()"><span class="top-avatar" id="topAvatar">U</span><span id="topProfileName">Account</span><span aria-hidden="true">⌄</span></button><div class="profile-menu" id="profileMenu" hidden><div class="profile-menu-heading"><b id="menuProfileName">Account</b><small id="menuProfileRole">User</small></div><button type="button" onclick="document.getElementById('profilePictureInput').click()">Change profile picture</button><button type="button" onclick="openPasswordSettings()">Change password</button><button type="button" class="profile-menu-logout" onclick="signOut()">Log out</button></div><input id="profilePictureInput" type="file" accept="image/png,image/jpeg,image/webp" hidden></div></header>
 <div class="content">
 <section class="view active" id="view-dashboard"><div class="page-head"><div><div class="eyebrow">IT overview · Live inventory</div><h1>IT overview <span style="font-size:20px">✳</span></h1><p>Here’s what’s happening across your IT estate today.</p></div><div class="head-actions"><button class="btn" onclick="exportCsv('IT-overview',assets)">↓ &nbsp;Export report</button><button class="btn primary" onclick="openModal()">＋ &nbsp;Add asset</button></div></div>
 <div class="site-strip" id="siteChips"><button class="site-chip selected" data-site="All sites">All factories <b>4</b></button><button class="site-chip" data-site="ARG">ARG <b>112</b></button><button class="site-chip" data-site="ARB">ARB <b>86</b></button><button class="site-chip" data-site="ARC">ARC <b>74</b></button><button class="site-chip" data-site="ARF">ARF <b>96</b></button></div>
@@ -5569,6 +5614,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
   let lastPulseAssetsRev = '';
   let lastPulseNotifRev = '';
   let lastPulseSettingsRev = '';
+  let lastPulseHistoryRev = '';
   const nsLiveChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('northstar-live-sync') : null;
 
   const EVENT_KEY_ALIASES = {
@@ -5868,25 +5914,49 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     return (crit.keywords || []).some(kw => kw && hay.includes(String(kw).toLowerCase()));
   }
 
-  function pushAlertToast(title, body, level){
+  function pushAlertToast(title, body, level, meta){
     const stack = document.getElementById('nsAlertToastStack');
     if(stack){
       const card = document.createElement('div');
       card.className = 'ns-alert-popup ' + (level || 'info');
+      card.style.cursor = 'pointer';
+      card.title = 'Click to open item';
       card.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
         <div><strong>${safeEsc(title)}</strong><div style="font-size:12px;margin-top:3px;opacity:.92">${safeEsc(body)}</div></div>
-        <button type="button" style="border:0;background:transparent;cursor:pointer;font-size:15px;line-height:1" onclick="this.closest('.ns-alert-popup')?.remove()">×</button>
+        <button type="button" class="ns-toast-close" style="border:0;background:transparent;cursor:pointer;font-size:15px;line-height:1" onclick="event.stopPropagation();this.closest('.ns-alert-popup')?.remove()">×</button>
       </div>`;
+      if(meta && typeof window.openNotificationTarget === 'function'){
+        card.addEventListener('click', (ev) => {
+          if(ev.target && ev.target.closest && ev.target.closest('.ns-toast-close')) return;
+          try{ window.openNotificationTarget(meta); }catch(_){}
+          card.remove();
+        });
+      }
       stack.appendChild(card);
       setTimeout(() => card.remove(), 9000);
     }
     const cfg = loadSoundConfig();
     if(cfg.desktopNotifications && typeof Notification !== 'undefined' && Notification.permission === 'granted'){
-      try{ new Notification(title, { body }); }catch(_){}
+      try{
+        const n = new Notification(title, { body });
+        if(meta && typeof window.openNotificationTarget === 'function'){
+          n.onclick = () => { try{ window.focus(); window.openNotificationTarget(meta); }catch(_){} n.close(); };
+        }
+      }catch(_){}
     }
   }
 
-  function triggerEventAlert(eventKey, title, body, level){
+  function triggerEventAlert(eventKey, title, body, level, meta){
+    try{
+      window.nsNotifCenter?.recordEvent?.({
+        eventKey,
+        title,
+        body,
+        level: level || 'info',
+        ...(meta || {}),
+      });
+    }catch(_){}
+    if(window.nsNotifCenter?.isSilent?.()) return;
     const cfg = loadSoundConfig();
     const ck = resolveEventKey(eventKey);
     if(cfg.masterEnabled){
@@ -5895,7 +5965,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
         playRingtone(ev.soundId, cfg.volume);
       }
     }
-    pushAlertToast(title, body, level);
+    pushAlertToast(title, body, level, meta);
   }
 
   function processLiveFeedPayload(feed, isInitialSeed){
@@ -5918,8 +5988,16 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
           const isMr = window.isMaterialRequestTicket(t);
           const evTitle = isMr ? ('New Material Request: ' + id) : ('New IT Ticket: ' + id);
           const evBody = (t.name || t.requester || 'User') + ' · ' + (t.sub || t.primary || '') + ' (' + (t.site || t.factory || '-') + ')';
+          const meta = {
+            id: (isMr ? 'mr-' : 'ticket-') + id,
+            kind: isMr ? 'material_request' : 'ticket',
+            targetView: 'ticketing',
+            targetTab: isMr ? 'materials' : 'tickets',
+            targetId: id,
+            factory: t.site || t.factory || ''
+          };
           triggered.push({ type: 'ticket', id, isMaterialRequest: isMr });
-          triggerEventAlert('ticket', evTitle, evBody, 'info');
+          triggerEventAlert('ticket', evTitle, evBody, 'info', meta);
         }
       }
     });
@@ -5938,15 +6016,23 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
         deviceStatusMap.set(tag, status);
         if(!isInitialSeed && prev && prev !== status){
           const critical = isCriticalDevice(d);
+          const meta = {
+            id: 'dev-' + tag + '-' + status,
+            kind: critical ? 'critical' : status,
+            targetView: 'assets',
+            targetTag: tag,
+            targetIp: d.ipAddress || d.ip || '',
+            factory: d.site || d.factory || ''
+          };
           if(critical && ((status === 'offline' && cfg.criticalCriteria?.alertOnOffline !== false) || (status === 'online' && cfg.criticalCriteria?.alertOnOnline !== false))){
             triggered.push({ type: 'critical', tag, status, name: d.name });
-            triggerEventAlert('critical', 'CRITICAL DEVICE ' + status.toUpperCase() + ': ' + (d.name || tag), (d.type || 'Device') + (d.subtype ? ' · ' + d.subtype : '') + ' · IP ' + (d.ipAddress || d.ip || '-') + ' · ' + (d.site || d.factory || '-'), status === 'offline' ? 'critical' : 'ok');
+            triggerEventAlert('critical', 'CRITICAL DEVICE ' + status.toUpperCase() + ': ' + (d.name || tag), (d.type || 'Device') + (d.subtype ? ' · ' + d.subtype : '') + ' · IP ' + (d.ipAddress || d.ip || '-') + ' · ' + (d.site || d.factory || '-'), status === 'offline' ? 'critical' : 'ok', meta);
           } else if(status === 'offline'){
             triggered.push({ type: 'offline', tag, name: d.name });
-            triggerEventAlert('offline', 'Device Offline: ' + (d.name || tag), (d.type || '') + ' · IP ' + (d.ipAddress || d.ip || '-'), 'warn');
+            triggerEventAlert('offline', 'Device Offline: ' + (d.name || tag), (d.type || '') + ' · IP ' + (d.ipAddress || d.ip || '-'), 'warn', meta);
           } else if(status === 'online'){
             triggered.push({ type: 'online', tag, name: d.name });
-            triggerEventAlert('online', 'Device Online: ' + (d.name || tag), (d.type || '') + ' · IP ' + (d.ipAddress || d.ip || '-'), 'ok');
+            triggerEventAlert('online', 'Device Online: ' + (d.name || tag), (d.type || '') + ' · IP ' + (d.ipAddress || d.ip || '-'), 'ok', meta);
           }
         }
       }
@@ -6313,6 +6399,12 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
         } else if(p.settingsRev){
           lastPulseSettingsRev = p.settingsRev;
         }
+        if(lastPulseHistoryRev && p.historyRev && p.historyRev !== lastPulseHistoryRev){
+          lastPulseHistoryRev = p.historyRev;
+          window.nsNotifCenter?.refreshFromServer?.();
+        } else if(p.historyRev){
+          lastPulseHistoryRev = p.historyRev;
+        }
       }
     }catch(_){
     }finally{
@@ -6347,6 +6439,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
             lastPulseAssetsRev = feed.pulse.assetsRev || lastPulseAssetsRev;
             lastPulseNotifRev = feed.pulse.notificationsRev || lastPulseNotifRev;
             lastPulseSettingsRev = feed.pulse.settingsRev || lastPulseSettingsRev;
+            lastPulseHistoryRev = feed.pulse.historyRev || lastPulseHistoryRev;
           }
           liveFeedInitialized = true;
         }
@@ -6376,6 +6469,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       lastPulseAssetsRev = '';
       lastPulseNotifRev = '';
       lastPulseSettingsRev = '';
+      lastPulseHistoryRev = '';
     }
   };
 
@@ -6407,6 +6501,1221 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       window.renderTickets();
       window.initLiveBrowserAlerts();
     }, 30);
+  });
+})();
+</script>
+<script id="northstar-v4-speed-notif">
+(()=>{
+  const esc = (s) => (typeof window.safeEsc === 'function' ? window.safeEsc(s) : String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])));
+  const isSrv = () => { try{ return typeof serverMode !== 'undefined' && !!serverMode; }catch(_){ return false; } };
+  const apiCall = (url, opts) => (typeof apiFetch === 'function'
+    ? apiFetch(url, opts)
+    : fetch(url, { credentials:'same-origin', headers:{'X-Requested-With':'NorthstarIT', ...(opts?.headers||{})}, ...(opts||{}) }).then(r=>r.json()));
+
+  /* ======================================================================
+   * 1. NOTIFICATION CENTER: TOPBAR SHADE + SILENT MODE + HISTORY + OPEN TARGET
+   * ====================================================================== */
+  const LS_HISTORY_KEY = 'ns-notification-history-v1';
+  const LS_SILENT_KEY = 'ns-silent-mode-v1';
+
+  let notifItems = [];
+  let silentMode = false;
+  let shadeOpen = false;
+  let shadeFilter = 'all';
+  let historyFilterType = '';
+  let historySearch = '';
+  let historyUnreadOnly = false;
+  let activeNotifViewTab = 'history';
+
+  try{ silentMode = localStorage.getItem(LS_SILENT_KEY) === '1'; }catch(_){}
+  try{
+    const cached = JSON.parse(localStorage.getItem(LS_HISTORY_KEY) || '[]');
+    if(Array.isArray(cached)) notifItems = cached;
+  }catch(_){}
+
+  function persistNotifCache(){
+    try{ localStorage.setItem(LS_HISTORY_KEY, JSON.stringify(notifItems.slice(0, 250))); }catch(_){}
+  }
+
+  function normNotifItem(n){
+    if(!n || typeof n !== 'object') return null;
+    const id = String(n.id || ('n-' + Date.now() + '-' + Math.random().toString(36).slice(2,7))).slice(0,120);
+    return {
+      id,
+      eventKey: String(n.eventKey || n.kind || 'info'),
+      kind: String(n.kind || n.eventKey || 'info'),
+      title: String(n.title || 'Notification'),
+      body: String(n.body || ''),
+      level: String(n.level || 'info'),
+      targetView: String(n.targetView || ''),
+      targetTab: String(n.targetTab || ''),
+      targetId: String(n.targetId || ''),
+      targetTag: String(n.targetTag || ''),
+      targetIp: String(n.targetIp || ''),
+      factory: String(n.factory || ''),
+      read: !!n.read,
+      createdAt: String(n.createdAt || new Date().toISOString())
+    };
+  }
+
+  function mergeNotifItems(incoming){
+    const map = new Map();
+    const put = (raw) => {
+      const item = normNotifItem(raw);
+      if(!item) return;
+      const prev = map.get(item.id);
+      if(prev){
+        map.set(item.id, { ...prev, ...item, read: prev.read || item.read });
+      } else {
+        map.set(item.id, item);
+      }
+    };
+    notifItems.forEach(put);
+    (Array.isArray(incoming) ? incoming : []).forEach(put);
+    notifItems = Array.from(map.values())
+      .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 250);
+    persistNotifCache();
+  }
+
+  function timeAgo(iso){
+    const ts = new Date(iso).getTime();
+    if(!Number.isFinite(ts)) return '-';
+    const diff = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+    if(diff < 5) return 'Just now';
+    if(diff < 60) return diff + 's ago';
+    if(diff < 3600) return Math.floor(diff/60) + 'm ago';
+    if(diff < 86400) return Math.floor(diff/3600) + 'h ago';
+    return new Date(ts).toLocaleString();
+  }
+
+  function notifIcon(item){
+    const k = String(item.kind || item.eventKey || '').toLowerCase();
+    if(k === 'material_request') return { ico:'📦', cls:'info', label:'Material Request' };
+    if(k === 'ticket') return { ico:'🎫', cls:'info', label:'IT Ticket' };
+    if(k === 'critical') return { ico:'🚨', cls:item.level === 'ok' ? 'ok' : 'critical', label:'Critical Device' };
+    if(k === 'offline') return { ico:'⚠', cls:'warn', label:'Device Offline' };
+    if(k === 'online') return { ico:'✓', cls:'ok', label:'Device Online' };
+    return { ico:'🔔', cls:'info', label:'Alert' };
+  }
+
+  function syncSilentUI(){
+    const btn = document.getElementById('nsTopSilentBtn');
+    const ico = document.getElementById('nsTopSilentIcon');
+    const lbl = document.getElementById('nsTopSilentLabel');
+    if(btn){
+      btn.classList.toggle('is-silent', !!silentMode);
+      btn.setAttribute('aria-pressed', silentMode ? 'true' : 'false');
+    }
+    if(ico) ico.textContent = silentMode ? '🔕' : '🔊';
+    if(lbl) lbl.textContent = silentMode ? 'Silent ON' : 'Alerts Live';
+    const histSilent = document.getElementById('nsHistSilentToggle');
+    if(histSilent){
+      histSilent.classList.toggle('danger', !!silentMode);
+      histSilent.innerHTML = silentMode ? '🔕 &nbsp;Silent mode: ON (click to unmute)' : '🔊 &nbsp;Silent mode: OFF';
+    }
+    const banner = document.getElementById('nsSoundSilentBanner');
+    if(banner) banner.style.display = silentMode ? 'flex' : 'none';
+  }
+
+  function renderTopShade(){
+    const unread = notifItems.filter(x => !x.read).length;
+    const badge = document.getElementById('nsTopNotifBadge');
+    if(badge){
+      badge.textContent = unread > 99 ? '99+' : String(unread);
+      badge.classList.toggle('show', unread > 0);
+    }
+    const topDot = document.querySelector('.top-btn[aria-label="Notifications"] .notification-dot');
+    if(topDot) topDot.style.display = unread > 0 ? 'block' : 'none';
+
+    const drop = document.getElementById('nsTopNotifDropdown');
+    if(!drop) return;
+
+    const list = notifItems.filter(item => {
+      if(shadeFilter === 'unread') return !item.read;
+      if(shadeFilter === 'tickets') return item.kind === 'ticket' || item.kind === 'material_request';
+      if(shadeFilter === 'devices') return item.kind === 'online' || item.kind === 'offline' || item.kind === 'critical';
+      return true;
+    }).slice(0, 35);
+
+    drop.innerHTML = `
+      <div class="ns-shade-head">
+        <div>
+          <div style="font:800 13px 'Manrope',sans-serif">Notifications <span style="opacity:.8;font-weight:600">(${unread} unread)</span></div>
+          <div style="font-size:10px;opacity:.8">${silentMode ? '🔕 Silent mode active · popups & ringtones muted' : '🔔 Live alerts & sound active · Click any item to open'}</div>
+        </div>
+        <button type="button" class="btn" style="padding:4px 8px;font-size:10px;background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.22)" onclick="nsNotifCenter.toggleSilent()">${silentMode ? 'Unmute' : 'Silent'}</button>
+      </div>
+      <div class="ns-shade-subbar">
+        <div class="ns-shade-chips">
+          ${[['all','All'],['unread','Unread ('+unread+')'],['tickets','Tickets & MR'],['devices','Devices']].map(([k,lbl]) =>
+            `<button type="button" class="ns-shade-chip ${shadeFilter===k?'active':''}" data-shade-filter="${k}">${lbl}</button>`
+          ).join('')}
+        </div>
+        <div style="display:flex;gap:6px">
+          <button type="button" class="link-btn" style="font-size:10px" onclick="nsNotifCenter.markAllRead()">Mark all read</button>
+          <button type="button" class="link-btn" style="font-size:10px;color:#b53d38" onclick="nsNotifCenter.clearHistory('read')">Clear read</button>
+        </div>
+      </div>
+      <div class="ns-shade-list">
+        ${list.length ? list.map(n => {
+          const meta = notifIcon(n);
+          return `<div class="ns-notif-card ${n.read ? '' : 'unread'}" data-notif-id="${esc(n.id)}" role="button" tabindex="0">
+            <div class="ns-notif-ico ${meta.cls}">${meta.ico}</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+                <b style="font-size:11.5px;color:#17241d;line-height:1.3">${esc(n.title)}</b>
+                <span style="font-size:9.5px;color:#738079;white-space:nowrap">${esc(timeAgo(n.createdAt))}</span>
+              </div>
+              <div style="font-size:11px;color:#4f5f56;margin-top:2px;line-height:1.35">${esc(n.body)}</div>
+              <div style="display:flex;gap:6px;align-items:center;margin-top:5px">
+                <span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:99px;background:#eef3f0;color:#2c4336">${esc(meta.label)}</span>
+                ${n.factory ? `<span style="font-size:9px;color:#6c7a72">${esc(n.factory)}</span>` : ''}
+                <span style="margin-left:auto;font-size:9.5px;color:#157a54;font-weight:700">Open →</span>
+              </div>
+            </div>
+            ${n.read ? '' : '<span class="ns-notif-unread-dot" title="Unread"></span>'}
+          </div>`;
+        }).join('') : `<div style="padding:26px 14px;text-align:center;color:#728078;font-size:11px">No notifications in this filter yet.</div>`}
+      </div>
+      <div class="ns-shade-foot">
+        <button type="button" class="btn" style="font-size:10px;padding:6px 10px" onclick="nsNotifCenter.openHistoryModule()">📜 View Notification History (${notifItems.length})</button>
+        <button type="button" class="link-btn" style="font-size:10px;color:#b53d38" onclick="nsNotifCenter.clearHistory('all')">Clear all</button>
+      </div>
+    `;
+  }
+
+  function ensureNotificationsTabs(){
+    const view = document.getElementById('view-notifications');
+    if(!view || document.getElementById('nsNotifViewTabs')) return;
+
+    const pageHead = view.querySelector('.page-head');
+    if(!pageHead) return;
+
+    const soundHost = document.getElementById('nsNotifSoundSection');
+    if(soundHost && soundHost.parentNode) soundHost.parentNode.removeChild(soundHost);
+
+    const rulesWrap = document.createElement('div');
+    rulesWrap.id = 'nsNotifTabRules';
+    while(pageHead.nextSibling){
+      rulesWrap.appendChild(pageHead.nextSibling);
+    }
+
+    const tabs = document.createElement('div');
+    tabs.className = 'ns-section-tabs';
+    tabs.id = 'nsNotifViewTabs';
+    tabs.innerHTML = `
+      <button type="button" class="ns-sec-tab active" data-notif-tab="history">📜 Notification History <span class="ns-tab-badge" id="nsHistTabCount">0</span></button>
+      <button type="button" class="ns-sec-tab" data-notif-tab="sounds">🔔 Live Sound &amp; Ringtone Settings</button>
+      <button type="button" class="ns-sec-tab" data-notif-tab="rules">📧 Email &amp; WhatsApp Alert Rules</button>
+    `;
+
+    const histPane = document.createElement('div');
+    histPane.id = 'nsNotifTabHistory';
+    histPane.innerHTML = `
+      <div class="kpis" id="nsHistKpis"></div>
+      <div class="panel">
+        <div class="section-toolbar">
+          <input class="filter-input" id="nsHistSearch" placeholder="⌕  Search notifications, device, ticket ID, factory..." style="min-width:220px">
+          <select class="filter-select" id="nsHistType">
+            <option value="">All types</option>
+            <option value="ticket">IT Tickets</option>
+            <option value="material_request">Material Requests</option>
+            <option value="critical">Critical Devices</option>
+            <option value="offline">Offline Devices</option>
+            <option value="online">Online Devices</option>
+          </select>
+          <label class="ticket-choice" style="margin:0"><input type="checkbox" id="nsHistUnreadOnly"> Unread only</label>
+          <div class="toolbar-spacer"></div>
+          <button type="button" class="btn" id="nsHistSilentToggle" onclick="nsNotifCenter.toggleSilent()">🔊 &nbsp;Silent mode: OFF</button>
+          <button type="button" class="btn" onclick="nsNotifCenter.markAllRead()">✓ &nbsp;Mark all read</button>
+          <button type="button" class="btn" onclick="nsNotifCenter.clearHistory('read')">🧹 &nbsp;Clear read</button>
+          <button type="button" class="btn danger" onclick="nsNotifCenter.clearHistory('all')">🗑 &nbsp;Clear all</button>
+        </div>
+        <div id="nsHistListBody" style="padding:12px 16px;display:grid;gap:8px"></div>
+      </div>
+    `;
+
+    const soundPane = document.createElement('div');
+    soundPane.id = 'nsNotifTabSounds';
+    soundPane.style.display = 'none';
+    soundPane.innerHTML = `<div id="nsSoundSilentBanner" class="panel" style="display:none;padding:12px 16px;margin-bottom:12px;border-color:#fda4af;background:#fff1f2;color:#9f1239;align-items:center;justify-content:space-between;gap:10px">
+      <div><b>🔕 Silent mode is currently ON</b><div style="font-size:11px;margin-top:2px">Ringtones and screen popups are muted while you focus. Notifications are still recorded in the topbar dropdown &amp; history.</div></div>
+      <button type="button" class="btn" onclick="nsNotifCenter.toggleSilent()">Turn off Silent mode</button>
+    </div>`;
+    if(soundHost){
+      soundPane.appendChild(soundHost);
+    } else {
+      const sh = document.createElement('div');
+      sh.id = 'nsNotifSoundSection';
+      sh.className = 'panel';
+      sh.style.marginBottom = '14px';
+      soundPane.appendChild(sh);
+    }
+
+    rulesWrap.style.display = 'none';
+    view.appendChild(tabs);
+    view.appendChild(histPane);
+    view.appendChild(soundPane);
+    view.appendChild(rulesWrap);
+
+    tabs.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-notif-tab]');
+      if(!btn) return;
+      window.switchNotificationsTab(btn.dataset.notifTab);
+    });
+    document.getElementById('nsHistSearch')?.addEventListener('input', (e) => { historySearch = e.target.value; renderHistoryModule(); });
+    document.getElementById('nsHistType')?.addEventListener('change', (e) => { historyFilterType = e.target.value; renderHistoryModule(); });
+    document.getElementById('nsHistUnreadOnly')?.addEventListener('change', (e) => { historyUnreadOnly = !!e.target.checked; renderHistoryModule(); });
+    histPane.addEventListener('click', (e) => {
+      const card = e.target.closest('[data-notif-id]');
+      if(!card) return;
+      const found = notifItems.find(x => x.id === card.dataset.notifId);
+      if(found) window.openNotificationTarget(found);
+    });
+    window.renderNotificationSoundSettings?.({ background: true });
+    syncSilentUI();
+  }
+
+  window.switchNotificationsTab = function(tabName){
+    ensureNotificationsTabs();
+    activeNotifViewTab = tabName || 'history';
+    document.querySelectorAll('#nsNotifViewTabs [data-notif-tab]').forEach(b => {
+      b.classList.toggle('active', b.dataset.notifTab === activeNotifViewTab);
+    });
+    const h = document.getElementById('nsNotifTabHistory');
+    const s = document.getElementById('nsNotifTabSounds');
+    const r = document.getElementById('nsNotifTabRules');
+    if(h) h.style.display = activeNotifViewTab === 'history' ? '' : 'none';
+    if(s) s.style.display = activeNotifViewTab === 'sounds' ? '' : 'none';
+    if(r) r.style.display = activeNotifViewTab === 'rules' ? '' : 'none';
+    if(activeNotifViewTab === 'history') renderHistoryModule();
+    if(activeNotifViewTab === 'sounds') window.renderNotificationSoundSettings?.({ background: true });
+  };
+
+  function renderHistoryModule(){
+    ensureNotificationsTabs();
+    const unread = notifItems.filter(x => !x.read).length;
+    const badge = document.getElementById('nsHistTabCount');
+    if(badge) badge.textContent = String(notifItems.length);
+
+    const kpis = document.getElementById('nsHistKpis');
+    if(kpis){
+      const tkt = notifItems.filter(x => x.kind === 'ticket' || x.kind === 'material_request').length;
+      const crit = notifItems.filter(x => x.kind === 'critical').length;
+      const dev = notifItems.filter(x => x.kind === 'offline' || x.kind === 'online').length;
+      kpis.innerHTML = `
+        <div class="kpi-pill">Total alerts <b>${notifItems.length}</b></div>
+        <div class="kpi-pill">Unread <b style="color:#dc2626">${unread}</b></div>
+        <div class="kpi-pill">Tickets &amp; requests <b style="color:#157a54">${tkt}</b></div>
+        <div class="kpi-pill">Critical events <b style="color:#b91c1c">${crit}</b></div>
+        <div class="kpi-pill">Online / Offline <b>${dev}</b></div>
+      `;
+    }
+
+    const body = document.getElementById('nsHistListBody');
+    if(!body) return;
+    const q = historySearch.trim().toLowerCase();
+    const rows = notifItems.filter(item => {
+      if(historyUnreadOnly && item.read) return false;
+      if(historyFilterType && item.kind !== historyFilterType) return false;
+      if(q){
+        const hay = [item.title, item.body, item.targetId, item.targetTag, item.targetIp, item.factory, item.kind].join(' ').toLowerCase();
+        if(!hay.includes(q)) return false;
+      }
+      return true;
+    });
+
+    if(!rows.length){
+      body.innerHTML = '<div class="empty-state" style="padding:26px">No matching notifications in history.</div>';
+      return;
+    }
+
+    body.innerHTML = rows.map(n => {
+      const meta = notifIcon(n);
+      return `<div class="ns-notif-card ${n.read ? '' : 'unread'}" data-notif-id="${esc(n.id)}" role="button" tabindex="0">
+        <div class="ns-notif-ico ${meta.cls}">${meta.ico}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <b style="font-size:12.5px;color:#15241c">${esc(n.title)}</b>
+            <span style="font-size:10.5px;color:#6c7b73">${esc(new Date(n.createdAt).toLocaleString())} (${esc(timeAgo(n.createdAt))})</span>
+          </div>
+          <div style="font-size:11.5px;color:#44544b;margin-top:3px">${esc(n.body)}</div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
+            <span style="font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:#eef3f0;color:#263f31">${esc(meta.label)}</span>
+            ${n.targetId ? `<span style="font-size:10px;color:#526158">ID: <b>${esc(n.targetId)}</b></span>` : ''}
+            ${n.targetTag ? `<span style="font-size:10px;color:#526158">Asset: <b>${esc(n.targetTag)}</b></span>` : ''}
+            ${n.factory ? `<span style="font-size:10px;color:#526158">Factory: <b>${esc(n.factory)}</b></span>` : ''}
+            <span style="margin-left:auto;font-size:10.5px;font-weight:700;color:#157a54">Click to open →</span>
+          </div>
+        </div>
+        ${n.read ? '' : '<span class="ns-notif-unread-dot" title="Unread"></span>'}
+      </div>`;
+    }).join('');
+  }
+
+  function closeTopShade(){
+    shadeOpen = false;
+    const drop = document.getElementById('nsTopNotifDropdown');
+    const btn = document.getElementById('nsTopNotifBtn');
+    if(drop) drop.classList.remove('open');
+    if(btn) btn.setAttribute('aria-expanded', 'false');
+  }
+
+  function highlightRowSelector(selector){
+    setTimeout(() => {
+      const el = document.querySelector(selector);
+      if(el){
+        el.scrollIntoView({ behavior:'smooth', block:'center' });
+        el.classList.remove('ns-row-highlight');
+        void el.offsetWidth;
+        el.classList.add('ns-row-highlight');
+      }
+    }, 90);
+  }
+
+  window.openNotificationTarget = async function(notif){
+    const item = typeof notif === 'string' ? notifItems.find(x => x.id === notif) : normNotifItem(notif);
+    if(!item) return;
+    closeTopShade();
+
+    // Mark as read locally and on server
+    const existing = notifItems.find(x => x.id === item.id);
+    if(existing && !existing.read){
+      existing.read = true;
+      persistNotifCache();
+      renderTopShade();
+      renderHistoryModule();
+      if(isSrv()){
+        apiCall('/api/notifications/history/read', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ ids: [item.id] })
+        }).catch(()=>{});
+      }
+    }
+
+    const kind = item.kind;
+    if(kind === 'ticket' || kind === 'material_request' || item.targetView === 'ticketing' || item.targetView === 'tickets'){
+      const isMr = kind === 'material_request' || item.targetTab === 'materials';
+      const canBackend = (() => {
+        try{ return typeof canAccessMod === 'function' ? canAccessMod('ticketing') : !!document.querySelector('[data-view="ticketing"]'); }catch(_){ return false; }
+      })();
+      if(canBackend && typeof window.go === 'function'){
+        window.go('ticketing');
+        if(typeof window.switchTicketingBackendTab === 'function'){
+          window.switchTicketingBackendTab(isMr ? 'materials' : 'tickets');
+        }
+        // Clear search filter if present so item is visible
+        const srch = document.getElementById(isMr ? 'beMrSearch' : 'ticketingSearch');
+        if(srch && srch.value){ srch.value = ''; }
+        window.renderTicketingBackend?.();
+        if(item.targetId){
+          highlightRowSelector(
+            isMr
+              ? `#ticketingMaterialTable tr[data-ticket-id="${CSS.escape(item.targetId)}"]`
+              : `#ticketingTable tr[data-ticketing-id="${CSS.escape(item.targetId)}"], #ticketingTable tr[data-ticket-id="${CSS.escape(item.targetId)}"]`
+          );
+        }
+      } else if(typeof window.go === 'function'){
+        window.go('tickets');
+        if(typeof window.switchTicketsTab === 'function'){
+          window.switchTicketsTab(isMr ? 'Material request' : 'IT help desk');
+        }
+        window.renderTickets?.();
+        if(item.targetId){
+          highlightRowSelector(`${isMr ? '#materialUserTable' : '#ticketTable'} tr[data-ticket-id="${CSS.escape(item.targetId)}"]`);
+        }
+      }
+      return;
+    }
+
+    if(item.targetTag || item.targetView === 'assets'){
+      if(typeof window.go === 'function') window.go('assets');
+      window.renderAssets?.();
+      if(item.targetTag && typeof window.openAssetDetails === 'function'){
+        setTimeout(() => {
+          try{ window.openAssetDetails(item.targetTag); }catch(_){}
+        }, 60);
+      }
+      return;
+    }
+
+    window.nsNotifCenter?.openHistoryModule?.();
+  };
+
+  window.nsNotifCenter = {
+    isSilent: () => !!silentMode,
+    getItems: () => notifItems.slice(),
+    recordEvent(ev){
+      const item = normNotifItem(ev);
+      if(!item) return;
+      mergeNotifItems([item]);
+      renderTopShade();
+      if(document.getElementById('view-notifications')?.classList.contains('active')){
+        renderHistoryModule();
+      }
+    },
+    async toggleSilent(next){
+      silentMode = typeof next === 'boolean' ? next : !silentMode;
+      try{ localStorage.setItem(LS_SILENT_KEY, silentMode ? '1' : '0'); }catch(_){}
+      syncSilentUI();
+      renderTopShade();
+      if(isSrv()){
+        try{
+          await apiCall('/api/notifications/silent', {
+            method:'PUT',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ silent: silentMode })
+          });
+        }catch(_){}
+      }
+      if(typeof window.showToast === 'function'){
+        window.showToast(silentMode ? '🔕 Silent mode ON — alerts saved in dropdown & history' : '🔔 Live ringtones & popups restored');
+      }
+    },
+    async refreshFromServer(){
+      if(!isSrv()) return;
+      try{
+        const res = await apiCall('/api/notifications/history?limit=150');
+        const list = Array.isArray(res?.events) ? res.events : (Array.isArray(res?.items) ? res.items : null);
+        if(list){
+          mergeNotifItems(list);
+          const srvSilent = typeof res.silentMode === 'boolean' ? res.silentMode : res.silent;
+          if(typeof srvSilent === 'boolean' && localStorage.getItem(LS_SILENT_KEY) === null){
+            silentMode = srvSilent;
+            syncSilentUI();
+          }
+          renderTopShade();
+          if(document.getElementById('view-notifications')?.classList.contains('active')){
+            renderHistoryModule();
+          }
+        }
+      }catch(_){}
+    },
+    async markAllRead(){
+      notifItems = notifItems.map(x => ({ ...x, read: true }));
+      persistNotifCache();
+      renderTopShade();
+      renderHistoryModule();
+      if(isSrv()){
+        try{
+          await apiCall('/api/notifications/history/read', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ all: true })
+          });
+        }catch(_){}
+      }
+    },
+    async clearHistory(mode){
+      const m = mode === 'read' ? 'read' : 'all';
+      if(m === 'read'){
+        notifItems = notifItems.filter(x => !x.read);
+      } else {
+        notifItems = [];
+      }
+      persistNotifCache();
+      renderTopShade();
+      renderHistoryModule();
+      if(isSrv()){
+        try{
+          await apiCall('/api/notifications/history?mode=' + encodeURIComponent(m), {
+            method:'DELETE',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ mode: m })
+          });
+        }catch(_){}
+      }
+    },
+    openHistoryModule(){
+      closeTopShade();
+      if(typeof window.go === 'function') window.go('notifications');
+      window.switchNotificationsTab('history');
+    }
+  };
+
+  window.openNotificationHistoryTab = function(){
+    window.nsNotifCenter.openHistoryModule();
+  };
+
+  function bindTopNotifControls(){
+    const wrap = document.getElementById('nsTopNotifWrap');
+    const btn = document.getElementById('nsTopNotifBtn');
+    const silentBtn = document.getElementById('nsTopSilentBtn');
+    const drop = document.getElementById('nsTopNotifDropdown');
+    if(silentBtn && !silentBtn.dataset.bound){
+      silentBtn.dataset.bound = '1';
+      silentBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.nsNotifCenter.toggleSilent();
+      });
+    }
+    if(btn && drop && !btn.dataset.bound){
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        shadeOpen = !shadeOpen;
+        drop.classList.toggle('open', shadeOpen);
+        btn.setAttribute('aria-expanded', shadeOpen ? 'true' : 'false');
+        if(shadeOpen) renderTopShade();
+      });
+      drop.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const chip = e.target.closest('[data-shade-filter]');
+        if(chip){
+          shadeFilter = chip.dataset.shadeFilter || 'all';
+          renderTopShade();
+          return;
+        }
+        const card = e.target.closest('[data-notif-id]');
+        if(card){
+          const item = notifItems.find(x => x.id === card.dataset.notifId);
+          if(item) window.openNotificationTarget(item);
+        }
+      });
+    }
+    document.addEventListener('click', (e) => {
+      if(shadeOpen && wrap && !wrap.contains(e.target)) closeTopShade();
+    });
+    document.addEventListener('keydown', (e) => {
+      if(e.key === 'Escape' && shadeOpen) closeTopShade();
+    });
+    syncSilentUI();
+    renderTopShade();
+  }
+
+  /* ======================================================================
+   * 2. HONDA CB350 H'NESS LIVE SPEEDTEST CLUSTER (DOWNLOAD BLUE LED / UPLOAD RED LED)
+   * ====================================================================== */
+  const LS_SPEED_SETTINGS = 'ns-speedtest-settings-v1';
+  let speedSettings = { unitMode: 'auto', sourceMode: 'auto', intervalSec: 0 };
+  try{
+    const raw = JSON.parse(localStorage.getItem(LS_SPEED_SETTINGS) || 'null');
+    if(raw && typeof raw === 'object'){
+      speedSettings = {
+        unitMode: ['auto','kbps','mbps','gbps'].includes(raw.unitMode) ? raw.unitMode : 'auto',
+        sourceMode: ['auto','internet','lan'].includes(raw.sourceMode) ? raw.sourceMode : 'auto',
+        intervalSec: Number(raw.intervalSec || 0) || 0
+      };
+    }
+  }catch(_){}
+
+  let liveSpeedState = {
+    running: false,
+    phase: 'idle',
+    source: 'ready',
+    target: 'Google / Cloudflare Edge + Server Link',
+    downloadMbps: 0,
+    uploadMbps: 0,
+    pingMs: 0,
+    jitterMs: 0,
+    peakDownloadMbps: 0,
+    peakUploadMbps: 0,
+    testedAt: '',
+    error: ''
+  };
+  let speedAutoTimer = null;
+  let speedPollTimer = null;
+
+  function pickDisplayMetric(mbpsVal){
+    const rawMbps = Math.max(0, Number(mbpsVal || 0));
+    let unit = 'Mbps';
+    let value = rawMbps;
+    if(speedSettings.unitMode === 'kbps'){
+      unit = 'Kbps';
+      value = rawMbps * 1000;
+    } else if(speedSettings.unitMode === 'gbps'){
+      unit = 'Gbps';
+      value = rawMbps / 1000;
+    } else if(speedSettings.unitMode === 'auto'){
+      if(rawMbps > 0 && rawMbps < 1){
+        unit = 'Kbps';
+        value = rawMbps * 1000;
+      } else if(rawMbps >= 1000){
+        unit = 'Gbps';
+        value = rawMbps / 1000;
+      }
+    }
+    const maxChoices = unit === 'Gbps' ? [1.6, 4, 8, 16, 40, 80, 160]
+      : unit === 'Kbps' ? [160, 400, 800, 1600]
+      : [16, 40, 80, 160, 320, 800, 1600, 3200, 8000, 16000];
+    let scaleMax = unit === 'Mbps' ? 160 : (unit === 'Gbps' ? 16 : 1600);
+    for(const candidate of maxChoices){
+      if(value <= candidate * 0.96){
+        scaleMax = candidate;
+        break;
+      }
+      scaleMax = candidate;
+    }
+    const decimals = unit === 'Gbps' ? 2 : (value < 10 && value > 0 ? 2 : 1);
+    const formatted = value === 0 ? '0.0' : value.toFixed(decimals);
+    return { value, unit, scaleMax, formatted };
+  }
+
+  function buildCb350GaugeSvg(kind, metric){
+    const isDown = kind === 'download';
+    const uid = isDown ? 'dl' : 'ul';
+    const cx = 140, cy = 140;
+    const startDeg = -132;
+    const sweepDeg = 264;
+    const maxVal = metric.scaleMax || 160;
+    const clamped = Math.max(0, Math.min(metric.value, maxVal));
+    const angleDeg = startDeg + (clamped / maxVal) * sweepDeg;
+    const accent = isDown ? '#38bdf8' : '#ff3b1f';
+    const glowColor = isDown ? '#0ea5e9' : '#ef4444';
+    const capHalo = isDown ? 'rgba(56,189,248,0.28)' : 'rgba(255,59,31,0.28)';
+
+    // Generate major slotted double-prong ticks & minor ticks matching Honda CB350 H'ness
+    const steps = 8;
+    let ticksSvg = '';
+    for(let i = 0; i <= steps * 2; i++){
+      const frac = i / (steps * 2);
+      const deg = startDeg + frac * sweepDeg;
+      const rad = (deg - 90) * Math.PI / 180;
+      const isMajor = (i % 2 === 0);
+      if(isMajor){
+        // Slotted double-prong white tick mark like CB350 H'ness
+        const perp = rad + Math.PI / 2;
+        const rOut = 109, rIn = 96;
+        const offset = 1.8;
+        [-offset, offset].forEach(off => {
+          const x1 = (cx + Math.cos(rad)*rIn + Math.cos(perp)*off).toFixed(2);
+          const y1 = (cy + Math.sin(rad)*rIn + Math.sin(perp)*off).toFixed(2);
+          const x2 = (cx + Math.cos(rad)*rOut + Math.cos(perp)*off).toFixed(2);
+          const y2 = (cy + Math.sin(rad)*rOut + Math.sin(perp)*off).toFixed(2);
+          ticksSvg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#f8fafc" stroke-width="1.9" stroke-linecap="round"/>`;
+        });
+        const labelValRaw = (maxVal * (i / (steps * 2)));
+        const labelStr = labelValRaw % 1 === 0 ? String(Math.round(labelValRaw)) : labelValRaw.toFixed(1);
+        const rTxt = 78;
+        const tx = (cx + Math.cos(rad)*rTxt).toFixed(2);
+        const ty = (cy + Math.sin(rad)*rTxt + 4).toFixed(2);
+        ticksSvg += `<text x="${tx}" y="${ty}" text-anchor="middle" fill="#f1f5f9" font-size="14" font-weight="800" font-style="italic" font-family="'Manrope',sans-serif" letter-spacing="-0.4">${labelStr}</text>`;
+      } else {
+        const rOut = 109, rIn = 100;
+        const x1 = (cx + Math.cos(rad)*rIn).toFixed(2);
+        const y1 = (cy + Math.sin(rad)*rIn).toFixed(2);
+        const x2 = (cx + Math.cos(rad)*rOut).toFixed(2);
+        const y2 = (cy + Math.sin(rad)*rOut).toFixed(2);
+        ticksSvg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgba(241,245,249,0.82)" stroke-width="1.8" stroke-linecap="round"/>`;
+      }
+    }
+
+    // Subtle colored speed arc track under ticks
+    const arcPath = (degEnd) => {
+      const r = 114;
+      const a0 = (startDeg - 90) * Math.PI / 180;
+      const a1 = (degEnd - 90) * Math.PI / 180;
+      const x0 = cx + Math.cos(a0)*r, y0 = cy + Math.sin(a0)*r;
+      const x1 = cx + Math.cos(a1)*r, y1 = cy + Math.sin(a1)*r;
+      const large = (degEnd - startDeg) > 180 ? 1 : 0;
+      return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+    };
+
+    return `<svg class="ns-cb350-svg" viewBox="0 0 280 280" role="img" aria-label="${isDown ? 'Download speed gauge' : 'Upload speed gauge'}">
+      <defs>
+        <linearGradient id="nsBezel_${uid}" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#4b5563"/>
+          <stop offset="35%" stop-color="#1f2937"/>
+          <stop offset="70%" stop-color="#0f172a"/>
+          <stop offset="100%" stop-color="#64748b"/>
+        </linearGradient>
+        <linearGradient id="nsChromeRing_${uid}" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0%" stop-color="#94a3b8"/>
+          <stop offset="50%" stop-color="#334155"/>
+          <stop offset="100%" stop-color="#e2e8f0"/>
+        </linearGradient>
+        <radialGradient id="nsDialFace_${uid}" cx="48%" cy="42%" r="60%">
+          <stop offset="0%" stop-color="#22252a"/>
+          <stop offset="55%" stop-color="#111317"/>
+          <stop offset="100%" stop-color="#07080a"/>
+        </radialGradient>
+        <filter id="nsLedGlow_${uid}" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3.8" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <!-- Outer gunmetal & chrome circular bezel -->
+      <circle cx="${cx}" cy="${cy}" r="136" fill="url(#nsBezel_${uid})"/>
+      <circle cx="${cx}" cy="${cy}" r="127" fill="none" stroke="url(#nsChromeRing_${uid})" stroke-width="2.4" opacity="0.85"/>
+      <circle cx="${cx}" cy="${cy}" r="124" fill="url(#nsDialFace_${uid})"/>
+      <circle cx="${cx}" cy="${cy}" r="118" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+      <!-- Live progress halo arc -->
+      <path d="${arcPath(startDeg + sweepDeg)}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="3.5" stroke-linecap="round"/>
+      ${clamped > 0 ? `<path d="${arcPath(angleDeg)}" fill="none" stroke="${accent}" stroke-width="3.5" stroke-linecap="round" opacity="0.72"/>` : ''}
+      ${ticksSvg}
+      <!-- Signature CB350 top unit label -->
+      <text x="${cx}" y="102" text-anchor="middle" fill="#e2e8f0" font-size="14" font-weight="800" font-style="italic" font-family="'Manrope',sans-serif">${esc(metric.unit)}</text>
+      <!-- Subtle glass digital speed readout (no neutral N, fuel, or odometer) -->
+      <rect x="92" y="196" width="96" height="29" rx="9" fill="rgba(15,23,42,0.88)" stroke="${capHalo}" stroke-width="1.2"/>
+      <text x="${cx}" y="215" text-anchor="middle" fill="#f8fafc" font-size="14.5" font-weight="800" font-family="'Manrope',monospace">${esc(metric.formatted)} <tspan font-size="10" fill="${accent}">${esc(metric.unit)}</tspan></text>
+      <!-- Glowing CB350 LED Pointer Needle (Blue for Download, Red for Upload) -->
+      <g transform="rotate(${angleDeg.toFixed(2)} ${cx} ${cy})" style="transition:transform 0.24s cubic-bezier(.22,.9,.32,1)">
+        <polygon points="${cx-2.4},${cy+34} ${cx+2.4},${cy+34} ${cx+1.6},${cy-107} ${cx-1.6},${cy-107}" fill="${glowColor}" opacity="0.6" filter="url(#nsLedGlow_${uid})"/>
+        <polygon points="${cx-1.9},${cy+32} ${cx+1.9},${cy+32} ${cx+1.1},${cy-107} ${cx-1.1},${cy-107}" fill="${accent}" filter="url(#nsLedGlow_${uid})"/>
+      </g>
+      <!-- Matte center cap covering needle pivot like CB350 H'ness -->
+      <circle cx="${cx}" cy="${cy}" r="18" fill="#0d0f12" stroke="#272c35" stroke-width="2"/>
+      <circle cx="${cx}" cy="${cy}" r="12" fill="#171a20"/>
+    </svg>`;
+  }
+
+  function speedMonitorMarkup(suffix){
+    const dl = pickDisplayMetric(liveSpeedState.downloadMbps);
+    const ul = pickDisplayMetric(liveSpeedState.uploadMbps);
+    const peakDl = pickDisplayMetric(liveSpeedState.peakDownloadMbps || liveSpeedState.downloadMbps);
+    const peakUl = pickDisplayMetric(liveSpeedState.peakUploadMbps || liveSpeedState.uploadMbps);
+    const phaseText = liveSpeedState.running
+      ? ('Live testing ' + (liveSpeedState.phase || 'link') + '…')
+      : (liveSpeedState.testedAt ? ('Last measured ' + timeAgo(liveSpeedState.testedAt)) : 'Ready for live Google / Cloudflare & LAN speedtest');
+
+    return `
+      <div class="panel-head">
+        <div>
+          <div class="panel-title"><span class="ns-speed-live-dot ${liveSpeedState.running ? 'running' : ''}"></span>Live Network Speedtest · CB350 H'ness Dual Cluster</div>
+          <div class="panel-sub">${esc(phaseText)} · Mode: <b>${esc(liveSpeedState.source)}</b></div>
+        </div>
+        <div class="ns-speed-controls">
+          <select class="filter-select ns-speed-unit-sel" title="Speed Display Unit">
+            <option value="auto" ${speedSettings.unitMode==='auto'?'selected':''}>Unit: Auto (Kbps/Mbps/Gbps)</option>
+            <option value="kbps" ${speedSettings.unitMode==='kbps'?'selected':''}>Unit: Kbps</option>
+            <option value="mbps" ${speedSettings.unitMode==='mbps'?'selected':''}>Unit: Mbps</option>
+            <option value="gbps" ${speedSettings.unitMode==='gbps'?'selected':''}>Unit: Gbps</option>
+          </select>
+          <select class="filter-select ns-speed-source-sel" title="Speedtest Target">
+            <option value="auto" ${speedSettings.sourceMode==='auto'?'selected':''}>Target: Google / Auto</option>
+            <option value="internet" ${speedSettings.sourceMode==='internet'?'selected':''}>Target: Internet WAN</option>
+            <option value="lan" ${speedSettings.sourceMode==='lan'?'selected':''}>Target: LAN Server</option>
+          </select>
+          <select class="filter-select ns-speed-interval-sel" title="Live Auto-Refresh Interval">
+            <option value="0" ${speedSettings.intervalSec===0?'selected':''}>Auto-test: Manual</option>
+            <option value="15" ${speedSettings.intervalSec===15?'selected':''}>Auto-test: 15s</option>
+            <option value="30" ${speedSettings.intervalSec===30?'selected':''}>Auto-test: 30s</option>
+            <option value="60" ${speedSettings.intervalSec===60?'selected':''}>Auto-test: 1 min</option>
+            <option value="300" ${speedSettings.intervalSec===300?'selected':''}>Auto-test: 5 min</option>
+          </select>
+          <button type="button" class="btn primary ns-speed-run-btn" ${liveSpeedState.running ? 'disabled' : ''}>${liveSpeedState.running ? 'Testing…' : '▶ Run Live Speedtest'}</button>
+        </div>
+      </div>
+      <div class="ns-speed-cluster-grid">
+        <div class="ns-cb350-card" data-gauge="download">
+          ${buildCb350GaugeSvg('download_' + suffix, dl)}
+          <div class="ns-cb350-caption">
+            <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#38bdf8;box-shadow:0 0 8px #0ea5e9"></span>
+            <span>DOWNLOAD SPEED</span>
+            <span style="color:#0284c7">${esc(dl.formatted)} ${esc(dl.unit)}</span>
+          </div>
+        </div>
+        <div class="ns-cb350-card" data-gauge="upload">
+          ${buildCb350GaugeSvg('upload_' + suffix, ul)}
+          <div class="ns-cb350-caption">
+            <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#ff3b1f;box-shadow:0 0 8px #ef4444"></span>
+            <span>UPLOAD SPEED</span>
+            <span style="color:#dc2626">${esc(ul.formatted)} ${esc(ul.unit)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="ns-speed-meta-strip">
+        <div class="ns-speed-stat"><span>Latency / Ping (Google Edge)</span><b>${liveSpeedState.pingMs ? Number(liveSpeedState.pingMs).toFixed(1) + ' ms' : '— ms'}</b></div>
+        <div class="ns-speed-stat"><span>Network Jitter</span><b>${liveSpeedState.jitterMs ? Number(liveSpeedState.jitterMs).toFixed(1) + ' ms' : '— ms'}</b></div>
+        <div class="ns-speed-stat"><span>Peak Download</span><b style="color:#0284c7">${esc(peakDl.formatted)} ${esc(peakDl.unit)}</b></div>
+        <div class="ns-speed-stat"><span>Peak Upload</span><b style="color:#dc2626">${esc(peakUl.formatted)} ${esc(peakUl.unit)}</b></div>
+      </div>
+      ${liveSpeedState.error ? `<div style="padding:0 20px 14px;font-size:11px;color:#b53d38">⚠ ${esc(liveSpeedState.error)}</div>` : ''}
+    `;
+  }
+
+  function renderSpeedPanels(){
+    ['nsDashboardSpeedPanel', 'nsMonitoringSpeedPanel'].forEach(id => {
+      const host = document.getElementById(id);
+      if(host) host.innerHTML = speedMonitorMarkup(id);
+    });
+    // Sync Settings unit box if mounted
+    const sUnit = document.getElementById('nsSettingsSpeedUnit');
+    const sSrc = document.getElementById('nsSettingsSpeedSource');
+    const sInt = document.getElementById('nsSettingsSpeedInterval');
+    if(sUnit) sUnit.value = speedSettings.unitMode;
+    if(sSrc) sSrc.value = speedSettings.sourceMode;
+    if(sInt) sInt.value = String(speedSettings.intervalSec);
+  }
+
+  function saveSpeedSettings(patch){
+    speedSettings = { ...speedSettings, ...(patch || {}) };
+    try{ localStorage.setItem(LS_SPEED_SETTINGS, JSON.stringify(speedSettings)); }catch(_){}
+    setupAutoSpeedTimer();
+    renderSpeedPanels();
+    if(isSrv()){
+      apiCall('/api/network/speedtest/settings', {
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          unitMode: speedSettings.unitMode,
+          testMode: speedSettings.sourceMode === 'lan' ? 'lan' : 'internet',
+          sourceMode: speedSettings.sourceMode,
+          intervalSec: speedSettings.intervalSec
+        })
+      }).catch(()=>{});
+    }
+  }
+
+  function setupAutoSpeedTimer(){
+    clearInterval(speedAutoTimer);
+    if(speedSettings.intervalSec > 0){
+      speedAutoTimer = setInterval(() => {
+        const dAct = document.getElementById('view-dashboard')?.classList.contains('active');
+        const mAct = document.getElementById('view-monitoring')?.classList.contains('active');
+        if((dAct || mAct) && !liveSpeedState.running){
+          window.nsSpeedMonitor.runSpeedtest();
+        }
+      }, speedSettings.intervalSec * 1000);
+    }
+  }
+
+  function handleSpeedPanelEvents(host){
+    if(!host || host.dataset.nsBound) return;
+    host.dataset.nsBound = '1';
+    host.addEventListener('change', (e) => {
+      if(e.target.classList.contains('ns-speed-unit-sel')) saveSpeedSettings({ unitMode: e.target.value });
+      if(e.target.classList.contains('ns-speed-source-sel')) saveSpeedSettings({ sourceMode: e.target.value });
+      if(e.target.classList.contains('ns-speed-interval-sel')) saveSpeedSettings({ intervalSec: Number(e.target.value || 0) });
+    });
+    host.addEventListener('click', (e) => {
+      if(e.target.closest('.ns-speed-run-btn')){
+        window.nsSpeedMonitor.runSpeedtest();
+      }
+    });
+  }
+
+  function ensureSpeedtestMounts(){
+    const dash = document.getElementById('view-dashboard');
+    if(dash && !document.getElementById('nsDashboardSpeedPanel')){
+      const grid4 = dash.querySelector('.grid-4');
+      const panel = document.createElement('div');
+      panel.className = 'panel ns-speed-panel';
+      panel.id = 'nsDashboardSpeedPanel';
+      if(grid4) grid4.after(panel); else dash.appendChild(panel);
+      handleSpeedPanelEvents(panel);
+    }
+
+    const mon = document.getElementById('view-monitoring');
+    if(mon && !document.getElementById('nsMonitoringSpeedPanel')){
+      const head = mon.querySelector('.page-head');
+      const panel = document.createElement('div');
+      panel.className = 'panel ns-speed-panel';
+      panel.id = 'nsMonitoringSpeedPanel';
+      if(head) head.after(panel); else mon.prepend(panel);
+      handleSpeedPanelEvents(panel);
+    }
+
+    const settings = document.getElementById('view-settings');
+    if(settings && !document.getElementById('nsSpeedSettingsPanel')){
+      const box = document.createElement('div');
+      box.className = 'panel settings-panel';
+      box.id = 'nsSpeedSettingsPanel';
+      box.style.marginTop = '14px';
+      box.innerHTML = `
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Speedometer Unit &amp; Live Network Speedtest Settings</div>
+            <div class="panel-sub">Choose how the Honda CB350 H'ness dual speed gauges scale speeds (auto Kbps / Mbps / Gbps or fixed unit).</div>
+          </div>
+          <button type="button" class="btn primary" onclick="nsSpeedMonitor.runSpeedtest()">▶ Test speed now</button>
+        </div>
+        <div class="form-grid" style="padding:16px 18px">
+          <label class="field"><span>Speed display unit</span>
+            <select id="nsSettingsSpeedUnit">
+              <option value="auto">Auto-scale (Kbps &lt; 1M · Mbps · Gbps ≥ 1000M)</option>
+              <option value="kbps">Fixed Kbps</option>
+              <option value="mbps">Fixed Mbps</option>
+              <option value="gbps">Fixed Gbps</option>
+            </select>
+          </label>
+          <label class="field"><span>Speedtest mode</span>
+            <select id="nsSettingsSpeedSource">
+              <option value="auto">Auto (Google / Cloudflare WAN → LAN fallback)</option>
+              <option value="internet">Internet WAN (Google / Cloudflare Edge)</option>
+              <option value="lan">Server LAN Link (Browser ↔ Server)</option>
+            </select>
+          </label>
+          <label class="field"><span>Background live check interval</span>
+            <select id="nsSettingsSpeedInterval">
+              <option value="0">Manual only</option>
+              <option value="15">Every 15 seconds</option>
+              <option value="30">Every 30 seconds</option>
+              <option value="60">Every 1 minute</option>
+              <option value="300">Every 5 minutes</option>
+            </select>
+          </label>
+        </div>
+      `;
+      settings.appendChild(box);
+      box.querySelector('#nsSettingsSpeedUnit')?.addEventListener('change', e => saveSpeedSettings({ unitMode: e.target.value }));
+      box.querySelector('#nsSettingsSpeedSource')?.addEventListener('change', e => saveSpeedSettings({ sourceMode: e.target.value }));
+      box.querySelector('#nsSettingsSpeedInterval')?.addEventListener('change', e => saveSpeedSettings({ intervalSec: Number(e.target.value || 0) }));
+    }
+    renderSpeedPanels();
+  }
+
+  async function measureLanSpeedtest(){
+    liveSpeedState.running = true;
+    liveSpeedState.phase = 'ping';
+    liveSpeedState.source = 'LAN Server Link';
+    liveSpeedState.error = '';
+    renderSpeedPanels();
+
+    // 1. Ping & jitter
+    const pings = [];
+    for(let i = 0; i < 6; i++){
+      const t0 = performance.now();
+      try{
+        await fetch('/api/speedtest/ping?i=' + i + '&t=' + Date.now(), { cache:'no-store', credentials:'same-origin' });
+        pings.push(performance.now() - t0);
+      }catch(_){}
+    }
+    if(pings.length){
+      liveSpeedState.pingMs = pings.reduce((a,b)=>a+b,0) / pings.length;
+      if(pings.length > 1){
+        let jd = 0;
+        for(let i=1;i<pings.length;i++) jd += Math.abs(pings[i]-pings[i-1]);
+        liveSpeedState.jitterMs = jd / (pings.length - 1);
+      }
+    }
+
+    // 2. Download stream
+    liveSpeedState.phase = 'download';
+    liveSpeedState.downloadMbps = 0;
+    liveSpeedState.peakDownloadMbps = 0;
+    renderSpeedPanels();
+    try{
+      const dResp = await fetch('/api/speedtest/download?bytes=4194304&t=' + Date.now(), { cache:'no-store', credentials:'same-origin' });
+      if(dResp.ok && dResp.body && typeof dResp.body.getReader === 'function'){
+        const reader = dResp.body.getReader();
+        let total = 0;
+        const start = performance.now();
+        let lastUi = 0;
+        while(true){
+          const { done, value } = await reader.read();
+          if(done) break;
+          total += value ? value.byteLength : 0;
+          const elapsed = Math.max(0.05, (performance.now() - start) / 1000);
+          const mbps = (total * 8) / (elapsed * 1000000);
+          liveSpeedState.downloadMbps = mbps;
+          if(mbps > liveSpeedState.peakDownloadMbps) liveSpeedState.peakDownloadMbps = mbps;
+          if(performance.now() - lastUi > 90){ lastUi = performance.now(); renderSpeedPanels(); }
+        }
+        const elapsed = Math.max(0.05, (performance.now() - start) / 1000);
+        liveSpeedState.downloadMbps = (total * 8) / (elapsed * 1000000);
+        if(liveSpeedState.downloadMbps > liveSpeedState.peakDownloadMbps) liveSpeedState.peakDownloadMbps = liveSpeedState.downloadMbps;
+      }
+    }catch(_){}
+
+    // 3. Upload stream via XHR progress
+    liveSpeedState.phase = 'upload';
+    liveSpeedState.uploadMbps = 0;
+    liveSpeedState.peakUploadMbps = 0;
+    renderSpeedPanels();
+    await new Promise(resolve => {
+      try{
+        const payload = new Uint8Array(2 * 1024 * 1024);
+        const xhr = new XMLHttpRequest();
+        const start = performance.now();
+        let lastUi = 0;
+        xhr.open('POST', '/api/speedtest/upload?t=' + Date.now(), true);
+        xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+        xhr.setRequestHeader('X-Requested-With', 'NorthstarIT');
+        xhr.upload.onprogress = (ev) => {
+          const loaded = ev.loaded || 0;
+          const elapsed = Math.max(0.05, (performance.now() - start) / 1000);
+          const mbps = (loaded * 8) / (elapsed * 1000000);
+          liveSpeedState.uploadMbps = mbps;
+          if(mbps > liveSpeedState.peakUploadMbps) liveSpeedState.peakUploadMbps = mbps;
+          if(performance.now() - lastUi > 90){ lastUi = performance.now(); renderSpeedPanels(); }
+        };
+        xhr.onloadend = () => resolve();
+        xhr.onerror = () => resolve();
+        xhr.send(payload);
+      }catch(_){ resolve(); }
+    });
+
+    liveSpeedState.running = false;
+    liveSpeedState.phase = 'complete';
+    liveSpeedState.testedAt = new Date().toISOString();
+    renderSpeedPanels();
+  }
+
+  window.nsSpeedMonitor = {
+    getState: () => ({ ...liveSpeedState, settings: { ...speedSettings } }),
+    setMetricPreview(downMbps, upMbps, pingMs, jitterMs){
+      liveSpeedState.downloadMbps = Number(downMbps || 0);
+      liveSpeedState.uploadMbps = Number(upMbps || 0);
+      if(pingMs != null) liveSpeedState.pingMs = Number(pingMs);
+      if(jitterMs != null) liveSpeedState.jitterMs = Number(jitterMs);
+      liveSpeedState.peakDownloadMbps = Math.max(liveSpeedState.peakDownloadMbps || 0, liveSpeedState.downloadMbps);
+      liveSpeedState.peakUploadMbps = Math.max(liveSpeedState.peakUploadMbps || 0, liveSpeedState.uploadMbps);
+      liveSpeedState.testedAt = new Date().toISOString();
+      ensureSpeedtestMounts();
+      renderSpeedPanels();
+    },
+    async loadState(){
+      ensureSpeedtestMounts();
+      if(!isSrv()) return;
+      try{
+        const res = await apiCall('/api/network/speedtest');
+        if(res?.settings){
+          const srvMode = res.settings.sourceMode || res.settings.testMode;
+          speedSettings = {
+            ...speedSettings,
+            ...res.settings,
+            sourceMode: ['auto','internet','lan'].includes(srvMode) ? srvMode : speedSettings.sourceMode
+          };
+          try{ localStorage.setItem(LS_SPEED_SETTINGS, JSON.stringify(speedSettings)); }catch(_){}
+        }
+        const latestRes = res?.latest || res?.lastResult;
+        if(res?.live && res.live.running){
+          Object.assign(liveSpeedState, res.live);
+        } else if(latestRes){
+          Object.assign(liveSpeedState, {
+            pingMs: latestRes.pingMs || 0,
+            jitterMs: latestRes.jitterMs || 0,
+            downloadMbps: latestRes.downloadMbps || 0,
+            uploadMbps: latestRes.uploadMbps || 0,
+            peakDownloadMbps: Math.max(liveSpeedState.peakDownloadMbps || 0, latestRes.downloadMbps || 0),
+            peakUploadMbps: Math.max(liveSpeedState.peakUploadMbps || 0, latestRes.uploadMbps || 0),
+            source: latestRes.serverLabel || latestRes.mode || liveSpeedState.source,
+            testedAt: latestRes.timestamp || latestRes.testedAt || '',
+            running: false
+          });
+        }
+        setupAutoSpeedTimer();
+        renderSpeedPanels();
+      }catch(_){}
+    },
+    async runSpeedtest(forceSource){
+      if(liveSpeedState.running) return;
+      ensureSpeedtestMounts();
+      const mode = forceSource || speedSettings.sourceMode || 'auto';
+      if(!isSrv()){
+        // Offline / local HTML demo sweep animation
+        liveSpeedState.running = true;
+        liveSpeedState.phase = 'download';
+        liveSpeedState.source = 'Local Preview';
+        liveSpeedState.error = '';
+        renderSpeedPanels();
+        setTimeout(() => { liveSpeedState.pingMs = 14.2; liveSpeedState.jitterMs = 2.1; liveSpeedState.downloadMbps = 94.8; liveSpeedState.peakDownloadMbps = 98.4; renderSpeedPanels(); }, 180);
+        setTimeout(() => { liveSpeedState.phase = 'upload'; liveSpeedState.uploadMbps = 46.5; liveSpeedState.peakUploadMbps = 49.2; renderSpeedPanels(); }, 420);
+        setTimeout(() => { liveSpeedState.running = false; liveSpeedState.phase = 'complete'; liveSpeedState.testedAt = new Date().toISOString(); renderSpeedPanels(); }, 700);
+        return;
+      }
+
+      if(mode === 'lan'){
+        await measureLanSpeedtest();
+        apiCall('/api/network/speedtest/run', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            mode:'lan',
+            clientResult: {
+              mode:'lan',
+              pingMs: liveSpeedState.pingMs,
+              jitterMs: liveSpeedState.jitterMs,
+              downloadMbps: liveSpeedState.downloadMbps,
+              uploadMbps: liveSpeedState.uploadMbps,
+              serverLabel: 'Northstar LAN Link'
+            }
+          })
+        }).catch(()=>{});
+        return;
+      }
+
+      liveSpeedState.running = true;
+      liveSpeedState.phase = 'starting';
+      liveSpeedState.source = 'Google / Cloudflare Edge';
+      liveSpeedState.peakDownloadMbps = 0;
+      liveSpeedState.peakUploadMbps = 0;
+      liveSpeedState.error = '';
+      renderSpeedPanels();
+
+      try{
+        const startRes = await apiCall('/api/network/speedtest/run', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ mode })
+        });
+        if(startRes?.live){
+          Object.assign(liveSpeedState, startRes.live);
+          liveSpeedState.peakDownloadMbps = Math.max(liveSpeedState.peakDownloadMbps || 0, Number(liveSpeedState.downloadMbps || 0));
+          liveSpeedState.peakUploadMbps = Math.max(liveSpeedState.peakUploadMbps || 0, Number(liveSpeedState.uploadMbps || 0));
+          if(startRes.live.serverLabel) liveSpeedState.source = startRes.live.serverLabel;
+          if(startRes.live.running === false){
+            liveSpeedState.testedAt = startRes.live.startedAt || new Date().toISOString();
+            renderSpeedPanels();
+            return;
+          }
+        }
+        renderSpeedPanels();
+
+        clearInterval(speedPollTimer);
+        speedPollTimer = setInterval(async () => {
+          try{
+            const poll = await apiCall('/api/network/speedtest');
+            if(poll?.live){
+              Object.assign(liveSpeedState, poll.live);
+              liveSpeedState.peakDownloadMbps = Math.max(liveSpeedState.peakDownloadMbps || 0, Number(liveSpeedState.downloadMbps || 0));
+              liveSpeedState.peakUploadMbps = Math.max(liveSpeedState.peakUploadMbps || 0, Number(liveSpeedState.uploadMbps || 0));
+              if(poll.live.serverLabel) liveSpeedState.source = poll.live.serverLabel;
+              if(!poll.live.running && !liveSpeedState.error){
+                liveSpeedState.testedAt = poll.latest?.timestamp || poll.live.startedAt || new Date().toISOString();
+              }
+              renderSpeedPanels();
+              if(!poll.live.running){
+                clearInterval(speedPollTimer);
+                if((!liveSpeedState.downloadMbps && !liveSpeedState.uploadMbps) && mode === 'auto'){
+                  await measureLanSpeedtest();
+                }
+              }
+            }
+          }catch(_){
+            clearInterval(speedPollTimer);
+            liveSpeedState.running = false;
+            renderSpeedPanels();
+          }
+        }, 200);
+      }catch(err){
+        if(mode === 'auto'){
+          await measureLanSpeedtest();
+        } else {
+          liveSpeedState.running = false;
+          liveSpeedState.error = err?.message || 'Speedtest could not start.';
+          renderSpeedPanels();
+        }
+      }
+    }
+  };
+
+  if(typeof window.go === 'function'){
+    const prevGo = window.go;
+    window.go = function(viewName){
+      const res = prevGo.apply(this, arguments);
+      if(viewName === 'notifications'){
+        ensureNotificationsTabs();
+        renderHistoryModule();
+      }
+      if(viewName === 'dashboard' || viewName === 'monitoring' || viewName === 'settings'){
+        ensureSpeedtestMounts();
+      }
+      return res;
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      bindTopNotifControls();
+      ensureNotificationsTabs();
+      ensureSpeedtestMounts();
+      window.nsNotifCenter.refreshFromServer();
+      window.nsSpeedMonitor.loadState();
+    }, 55);
   });
 })();
 </script>
