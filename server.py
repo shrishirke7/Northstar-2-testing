@@ -120,6 +120,7 @@ MODULE_API_PATHS = {
     "/api/camera-profiles": "surveillance", "/api/camera-streams": "surveillance",
     "/api/cctv-media-auth": "surveillance",
     "/api/network-scans": "network", "/api/network-scan": "network",
+    "/api/network-map": "network",
     "/api/notifications": "notifications",
     "/api/snmp-metrics": "snmp", "/api/snmp-monitors": "snmp", "/api/admin/snmp-monitors": "snmp",
 }
@@ -1289,7 +1290,8 @@ def _pulse_versions(conn, include_internal=False):
           COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='settings'), '0'),
           COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='assets'), '0'),
           COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='notifications'), '0'),
-          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='notification_history'), '0')
+          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='notification_history'), '0'),
+          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='network_map'), '0')
     """).fetchone()
     ticket_rev = f"{row[0]}:{row[1]}:{row[2]}"
     out = {
@@ -1301,6 +1303,7 @@ def _pulse_versions(conn, include_internal=False):
         out["assetsRev"] = str(row[4] or "0")
         out["notificationsRev"] = str(row[5] or "0")
         out["historyRev"] = str(row[6] or "0")
+        out["mapRev"] = str(row[7] or "0")
     return out
 
 
@@ -2116,7 +2119,7 @@ def save_profile_preferences():
     payload = request.get_json(silent=True) or {}
     valid_views = {"dashboard", "assets", "datacenter", "tickets", "maintenance", "ageing",
                    "users", "departments", "factories", "valuation", "billing", "software",
-                   "monitoring", "snmp", "notifications", "surveillance", "parts", "reports"}
+                   "monitoring", "networkmap", "snmp", "notifications", "surveillance", "parts", "reports"}
     order = payload.get("order")
     hidden = payload.get("hidden", [])
     if (not isinstance(order, list) or not isinstance(hidden, list)
@@ -3792,6 +3795,81 @@ def run_network_speedtest():
         t = threading.Thread(target=_run_internet_speedtest_worker, args=(run_id,), daemon=True)
         t.start()
     return jsonify(ok=True, started=True, runId=run_id)
+
+
+def _normalize_network_map_doc(raw):
+    doc = dict(raw) if isinstance(raw, dict) else {}
+    diagrams = doc.get("diagrams") if isinstance(doc.get("diagrams"), dict) else {}
+    clean_diagrams = {}
+    for fk, fd in list(diagrams.items())[:60]:
+        fcode = str(fk or "").strip()[:60]
+        if not fcode or not isinstance(fd, dict):
+            continue
+        floors = fd.get("floors") if isinstance(fd.get("floors"), list) else []
+        clean_floors = []
+        for idx, fl in enumerate(floors[:25]):
+            if not isinstance(fl, dict):
+                continue
+            fid = str(fl.get("id") or f"fl-{idx + 1}")[:60]
+            clean_floors.append({
+                "id": fid,
+                "name": str(fl.get("name") or f"Floor {idx + 1}")[:80],
+                "level": int(fl.get("level") if isinstance(fl.get("level"), (int, float)) else idx),
+                "visible": fl.get("visible", True) is not False,
+                "width": max(600, min(4000, int(fl.get("width") or 1400))),
+                "height": max(400, min(3000, int(fl.get("height") or 860))),
+                "bgColor": str(fl.get("bgColor") or "#ffffff")[:40],
+                "bgImage": str(fl.get("bgImage") or "")[:3_500_000],
+                "bgOpacity": max(0.05, min(1.0, float(fl.get("bgOpacity") or 0.45))),
+                "nodes": [n for n in (fl.get("nodes") if isinstance(fl.get("nodes"), list) else []) if isinstance(n, dict)][:500],
+                "links": [l for l in (fl.get("links") if isinstance(fl.get("links"), list) else []) if isinstance(l, dict)][:1000],
+                "shapes": [s for s in (fl.get("shapes") if isinstance(fl.get("shapes"), list) else []) if isinstance(s, dict)][:500],
+                "strokes": [st for st in (fl.get("strokes") if isinstance(fl.get("strokes"), list) else []) if isinstance(st, dict)][:400],
+            })
+        clean_diagrams[fcode] = {
+            "factory": fcode,
+            "activeFloorId": str(fd.get("activeFloorId") or (clean_floors[0]["id"] if clean_floors else ""))[:60],
+            "floors": clean_floors,
+            "interFloorLinks": [l for l in (fd.get("interFloorLinks") if isinstance(fd.get("interFloorLinks"), list) else []) if isinstance(l, dict)][:400],
+            "updatedAt": str(fd.get("updatedAt") or "")[:40],
+        }
+    return {
+        "diagrams": clean_diagrams,
+        "rev": int(doc.get("rev") or 1),
+        "updatedAt": str(doc.get("updatedAt") or "")[:40],
+    }
+
+
+@app.get("/api/network-map")
+@signed_in
+def get_network_map():
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='network_map'").fetchone()
+    doc = _normalize_network_map_doc(row[0] if row else {})
+    return jsonify(doc)
+
+
+@app.put("/api/network-map")
+@signed_in
+def save_network_map():
+    body = request.get_json(silent=True) or {}
+    if not isinstance(body, dict):
+        return jsonify(error="Invalid network map payload."), 400
+    raw_len = len(json.dumps(body))
+    if raw_len > 24 * 1024 * 1024:
+        return jsonify(error="Network map payload exceeds 24 MB limit."), 400
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='network_map' FOR UPDATE").fetchone()
+        existing = _normalize_network_map_doc(row[0] if row else {})
+        doc = _normalize_network_map_doc(body)
+        doc["rev"] = existing["rev"] + 1
+        doc["updatedAt"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        conn.execute(
+            "INSERT INTO app_state(key,value) VALUES('network_map',%s::jsonb) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+            (json.dumps(doc),),
+        )
+    return jsonify(ok=True, rev=doc["rev"], updatedAt=doc["updatedAt"], diagrams=doc["diagrams"])
 
 
 @app.errorhandler(413)

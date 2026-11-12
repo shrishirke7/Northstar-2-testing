@@ -106,27 +106,74 @@
 .ns-shade-foot{padding:10px 14px;background:#fff;border-top:1px solid #e5ebe7;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .ns-row-highlight td{animation:nsRowFlash 3.6s ease forwards}
 @keyframes nsRowFlash{0%{background:#fef08a!important}35%{background:#dcfce7!important}100%{background:transparent}}
-.ns-speed-panel{margin-bottom:14px;overflow:hidden}
-.ns-speed-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.ns-speed-cluster-grid{display:grid;grid-template-columns:repeat(2,minmax(270px,1fr));gap:18px;padding:18px 20px;align-items:center}
-.ns-cb350-card{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 14px 14px;border-radius:16px;background:linear-gradient(180deg,#f8faf9 0%,#eef3f0 100%);border:1px solid #dce6e0}
-.ns-cb350-svg{width:min(285px,100%);height:auto;display:block;filter:drop-shadow(0 14px 24px rgba(15,23,42,.22))}
-.ns-cb350-caption{display:flex;align-items:center;justify-content:center;gap:10px;font-size:12px;font-weight:800;letter-spacing:.4px;color:#1f2f27}
-.ns-speed-meta-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:0 20px 16px}
-.ns-speed-stat{padding:10px 12px;border-radius:10px;background:#f8faf9;border:1px solid #e4ece7}
-.ns-speed-stat span{display:block;font-size:10px;color:#6f7d75;font-weight:600}
-.ns-speed-stat b{display:block;font:800 16px 'Manrope',sans-serif;color:#19231f;margin-top:3px}
+.ns-ov-net-row{display:grid;grid-template-columns:minmax(340px,465px) minmax(0,1fr);gap:14px;margin-bottom:14px;align-items:stretch}
+.ns-speed-panel{margin-bottom:14px;overflow:hidden;display:flex;flex-direction:column}
+.ns-ov-net-row .ns-speed-panel{margin-bottom:0}
+.ns-speed-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ns-speed-cluster-grid{display:grid;grid-template-columns:repeat(2,minmax(140px,1fr));gap:10px;padding:12px 14px;align-items:center}
+.ns-speed-panel.compact .panel-head{padding:12px 14px 10px;gap:8px;flex-wrap:wrap}
+.ns-speed-panel.compact .ns-speed-controls{width:100%}
+.ns-speed-panel.compact .ns-speed-controls select{font-size:10px;padding:5px 7px;flex:1;min-width:86px}
+.ns-speed-panel.compact .ns-speed-controls .ns-speed-run-btn{padding:6px 10px;font-size:10.5px;white-space:nowrap}
+.ns-gauge-card{display:flex;flex-direction:column;align-items:center;gap:7px;padding:10px 8px 9px;border-radius:14px;background:linear-gradient(180deg,#f8faf9 0%,#eef3f0 100%);border:1px solid #dce6e0}
+.ns-gauge-svg{width:min(176px,100%);height:auto;display:block;filter:drop-shadow(0 10px 18px rgba(15,23,42,.20))}
+#nsMonitoringSpeedPanel .ns-gauge-svg{width:min(230px,100%)}
+.ns-gauge-caption{display:flex;align-items:center;justify-content:center;gap:6px;font-size:10.5px;font-weight:800;letter-spacing:.3px;color:#1f2f27;flex-wrap:wrap}
+.ns-speed-meta-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:0 14px 12px}
+.ns-speed-panel.compact .ns-speed-meta-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ns-speed-stat{padding:7px 9px;border-radius:9px;background:#f8faf9;border:1px solid #e4ece7}
+.ns-speed-stat span{display:block;font-size:9.5px;color:#6f7d75;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ns-speed-stat b{display:block;font:800 13.5px 'Manrope',sans-serif;color:#19231f;margin-top:2px}
 .ns-speed-live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-right:4px}
 .ns-speed-live-dot.running{background:#0ea5e9;box-shadow:0 0 0 4px rgba(14,165,233,.25);animation:nsPulseDot 1s infinite}
 @keyframes nsPulseDot{0%,100%{opacity:1}50%{opacity:.45}}
-@media(max-width:850px){.ns-sound-grid,.ns-speed-cluster-grid{grid-template-columns:1fr}.ns-speed-meta-strip{grid-template-columns:repeat(2,1fr)}}
+.ns-ov-map-card{display:flex;flex-direction:column;overflow:hidden;min-height:360px}
+.ns-ov-map-stage{position:relative;flex:1;min-height:260px;background:radial-gradient(circle at 50% 35%,#f8fcfa,#e9f1ec);border-top:1px solid #e5ece7;overflow:hidden;cursor:grab;user-select:none}
+.ns-ov-map-stage:active{cursor:grabbing}
+.ns-ov-map-hud{position:absolute;left:10px;bottom:10px;display:flex;gap:5px;z-index:5;flex-wrap:wrap}
+.ns-ov-map-hud button{border:1px solid #cddad2;background:rgba(255,255,255,.92);color:#1d2e25;border-radius:8px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;backdrop-filter:blur(6px)}
+.ns-ov-map-hud button:hover{background:#effaf3;border-color:#74be97}
+.nm-shell{display:grid;grid-template-columns:265px minmax(0,1fr) 265px;gap:12px;min-height:660px;height:calc(100vh - 165px)}
+.nm-panel{background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow:hidden}
+.nm-panel-head{padding:10px 12px;border-bottom:1px solid #edf2ee;font:800 12px 'Manrope',sans-serif;color:#17251e;display:flex;align-items:center;justify-content:space-between;gap:6px;background:#fafdfb}
+.nm-scroll{flex:1;overflow-y:auto;padding:10px;display:grid;gap:10px;align-content:start}
+.nm-center{background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.nm-toolbar{display:flex;align-items:center;gap:5px;padding:8px 10px;border-bottom:1px solid #e6eee8;background:#f8fbf9;flex-wrap:wrap}
+.nm-tool-btn{border:1px solid #d7e2db;background:#fff;color:#22332a;border-radius:8px;padding:5px 8px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap}
+.nm-tool-btn:hover{background:#eef7f1;border-color:#8ac6a4}
+.nm-tool-btn.active{background:#157a54;border-color:#157a54;color:#fff;box-shadow:0 2px 8px rgba(21,122,84,.25)}
+.nm-sep{width:1px;height:22px;background:#dce6df;margin:0 2px}
+.nm-viewport{position:relative;flex:1;overflow:hidden;background:radial-gradient(circle at 50% 45%,#f4f8f5 0%,#e5ece7 100%);perspective:1400px;user-select:none}
+.nm-viewport.mode-grid::before{content:'';position:absolute;inset:0;background-image:linear-gradient(to right,rgba(21,122,84,.07) 1px,transparent 1px),linear-gradient(to bottom,rgba(21,122,84,.07) 1px,transparent 1px);background-size:28px 28px;pointer-events:none}
+.nm-camera-hud{position:absolute;right:12px;bottom:12px;z-index:20;background:rgba(255,255,255,.94);border:1px solid #d5e2db;border-radius:12px;padding:8px 10px;display:flex;align-items:center;gap:7px;box-shadow:0 10px 26px rgba(15,23,42,.12);backdrop-filter:blur(8px);flex-wrap:wrap;max-width:calc(100% - 24px)}
+.nm-camera-hud label{font-size:9.5px;font-weight:700;color:#4f6056;display:flex;align-items:center;gap:4px}
+.nm-camera-hud input[type="range"]{width:66px;accent-color:#157a54}
+.nm-floor-badge{position:absolute;left:12px;top:12px;z-index:20;display:flex;gap:5px;flex-wrap:wrap;max-width:75%}
+.nm-floor-pill{border:1px solid #cddbd3;background:rgba(255,255,255,.94);border-radius:99px;padding:4px 10px;font-size:10.5px;font-weight:700;color:#1f3228;cursor:pointer;box-shadow:0 4px 12px rgba(15,23,42,.08)}
+.nm-floor-pill.active{background:#157a54;border-color:#157a54;color:#fff}
+.nm-world-stage{position:absolute;left:50%;top:50%;transform-style:preserve-3d;transform-origin:center center}
+.nm-floor-slab{position:absolute;left:0;top:0;transform-style:preserve-3d;border-radius:14px;border:2px solid #9db8a8;background:rgba(255,255,255,.94);box-shadow:0 22px 46px rgba(15,23,42,.18);transition:box-shadow .2s,border-color .2s}
+.nm-floor-slab.is-active{border-color:#157a54;box-shadow:0 26px 56px rgba(21,122,84,.24)}
+.nm-slab-label{position:absolute;left:10px;top:-24px;background:#17251e;color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:7px;letter-spacing:.3px;white-space:nowrap;pointer-events:none;box-shadow:0 4px 10px rgba(0,0,0,.2)}
+.nm-floor-item{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 9px;border:1px solid #e2ebe5;border-radius:10px;background:#fff;cursor:pointer;font-size:11px}
+.nm-floor-item.active{background:#ecf9f1;border-color:#157a54;color:#0f583c;font-weight:700}
+.nm-palette-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.nm-palette-btn{border:1px solid #dce6e0;background:#f9fcfa;border-radius:9px;padding:7px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#22332a;cursor:pointer;text-align:center}
+.nm-palette-btn:hover{background:#ebf7f0;border-color:#82c3a0}
+.nm-asset-row{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 8px;border:1px solid #e6eee9;border-radius:9px;background:#fff;font-size:10.5px}
+.nm-prop-row{display:grid;gap:4px;font-size:10.5px;color:#415248;font-weight:700}
+.nm-prop-row input,.nm-prop-row select,.nm-prop-row textarea{width:100%;font-size:11px;padding:5px 7px;border:1px solid #d5e0d9;border-radius:7px;background:#fff}
+.nm-link-pulse{stroke-dasharray:8 6;animation:nmFlowDash 1.4s linear infinite}
+@keyframes nmFlowDash{to{stroke-dashoffset:-28}}
+@media(max-width:1180px){.ns-ov-net-row{grid-template-columns:1fr}.nm-shell{grid-template-columns:230px minmax(0,1fr);height:auto}.nm-inspector-panel{grid-column:1/-1}}
+@media(max-width:850px){.ns-sound-grid,.ns-speed-cluster-grid{grid-template-columns:1fr}.ns-speed-meta-strip{grid-template-columns:repeat(2,1fr)}.nm-shell{grid-template-columns:1fr}}
 @media(max-width:680px){.ns-top-notif-btn span.ns-notif-lbl,.ns-top-silent-btn span.ns-silent-lbl{display:none}.ns-top-notif-wrap{gap:4px}}
 @media(max-width:700px){.module-permission-grid{grid-template-columns:1fr}}</style></head>
 <body>
 <div class="auth-gate" id="authGate"><div class="login-shell"><section class="login-visual"><div class="login-visual-brand"><span class="login-diamond">◇</span><img id="loginBrandLogo" class="login-brand-logo" alt="" hidden><span id="loginVisualName">IT Asset Management</span></div><div class="jewel-art" aria-hidden="true"><svg viewBox="0 0 420 340" role="presentation"><path d="M100 80 Q210 300 320 80" fill="none" stroke="#c58b35" stroke-width="5"/><path d="M121 121 Q210 272 299 121" fill="none" stroke="#f1d38d" stroke-width="3"/><g fill="#fff9e9" stroke="#c58b35" stroke-width="3"><circle cx="132" cy="140" r="11"/><circle cx="160" cy="178" r="11"/><circle cx="190" cy="208" r="11"/><circle cx="210" cy="230" r="17"/><circle cx="230" cy="208" r="11"/><circle cx="260" cy="178" r="11"/><circle cx="288" cy="140" r="11"/><path d="M210 247l-18 31 18 29 18-29z"/></g><g fill="none" stroke="#f9f3df" stroke-width="4" stroke-linecap="round"><path d="M73 230q-20-45 5-86m-4 49q-33-15-37-43m41 24q28-35 56-31M347 230q20-45-5-86m4 49q33-15 37-43m-41 24q-28-35-56-31"/></g><g fill="#fff9e9"><circle cx="75" cy="139" r="7"/><circle cx="37" cy="150" r="6"/><circle cx="133" cy="162" r="6"/><circle cx="345" cy="139" r="7"/><circle cx="383" cy="150" r="6"/><circle cx="287" cy="162" r="6"/></g></svg></div><div class="login-dots" id="loginSlideDots"><i></i><i></i><i></i><i></i></div></section><section class="login-side"><div class="login-wordmark"><img id="loginWordmarkLogo" class="login-brand-logo" alt="" hidden><span id="loginBrandName">IT Asset Management</span><span>◇</span></div><div class="login-form-wrap"><div class="login-kicker">IT ASSET INTELLIGENCE</div><h1 id="loginWelcome">Welcome to IT Asset Management</h1><p>Sign in with your account to continue.</p><a class="link-btn" href="/portal" style="display:block;text-align:center;margin:-22px auto 24px">Raise an IT ticket without signing in</a><form id="loginForm" method="post" action="/api/login"><label class="login-field"><span>Username</span><input name="username" required autocomplete="username" placeholder="Enter your username"></label><label class="login-field"><span>Password</span><input name="password" required type="password" autocomplete="current-password" placeholder="Enter your password"></label><div class="auth-error" id="loginError" role="alert" aria-live="polite"></div><button class="login-submit" type="submit">Sign in <span>→</span></button></form><button type="button" id="recoveryToggle" class="link-btn" aria-expanded="false" style="display:block;margin:15px auto 0">Forgot password?</button><section id="recoveryPanel" hidden class="panel" style="text-align:left;margin-top:14px;padding:16px"><h2 style="margin:0 0 8px;font-size:16px">Reset your password</h2><p style="font-size:12px;color:#758179;line-height:1.5">Answer all three questions exactly as you saved them. Use private answers that other people cannot easily guess.</p><form id="recoveryForm" method="post" action="/api/recovery/reset"><label class="login-field"><span>Username</span><input name="username" required maxlength="120" autocomplete="username"></label><label class="login-field"><span>Favourite animal</span><input name="animal" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>Favourite colour</span><input name="colour" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>Favourite food</span><input name="food" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>New password</span><input name="new_password" required type="password" minlength="10" maxlength="1024" autocomplete="new-password"></label><label class="login-field"><span>Confirm new password</span><input name="confirm_password" required type="password" minlength="10" maxlength="1024" autocomplete="new-password"></label><div id="recoveryStatus" class="auth-error" role="status" aria-live="polite"></div><button class="login-submit" type="submit">Reset password</button><button class="link-btn" id="recoveryCancel" type="button" style="display:block;margin:10px auto">Back to sign in</button></form></section><div class="login-security"><span>▣</span> Secure sign-in · Your account is protected</div></div><div class="login-footer" id="loginFooter">IT Asset Management</div></section></div></div><script>
 (()=>{const form=document.getElementById('loginForm');if(!form)return;if(location.search)history.replaceState(null,'',location.pathname+location.hash);form.method='post';form.action='/api/login';if(location.protocol!=='file:'){form.addEventListener('submit',async e=>{e.preventDefault();const btn=form.querySelector('button[type="submit"]'),error=document.getElementById('loginError'),data=Object.fromEntries(new FormData(form));btn.disabled=true;error.textContent='';try{const r=await fetch('/api/login',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'NorthstarIT'},body:JSON.stringify(data)}),body=await r.json().catch(()=>({}));if(!r.ok)throw new Error(body.error||'Sign-in could not be completed.');location.reload()}catch(err){error.textContent=err.message||'Unable to reach the sign-in service. Try again.'}finally{btn.disabled=false}})}const toggle=document.getElementById('recoveryToggle'),panel=document.getElementById('recoveryPanel'),recovery=document.getElementById('recoveryForm'),cancel=document.getElementById('recoveryCancel');toggle?.addEventListener('click',()=>{panel.hidden=!panel.hidden;toggle.setAttribute('aria-expanded',String(!panel.hidden))});cancel?.addEventListener('click',()=>{panel.hidden=true;toggle?.setAttribute('aria-expanded','false')});recovery?.addEventListener('submit',async e=>{e.preventDefault();const status=document.getElementById('recoveryStatus'),button=recovery.querySelector('button[type="submit"]'),d=Object.fromEntries(new FormData(recovery));status.textContent='';if(d.new_password!==d.confirm_password){status.textContent='Passwords do not match.';return}if(d.new_password.length<10){status.textContent='Use at least 10 characters for the new password.';return}button.disabled=true;try{const r=await fetch('/api/recovery/reset',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'NorthstarIT'},body:JSON.stringify({username:d.username,answers:[d.animal,d.colour,d.food],new_password:d.new_password,confirm_password:d.confirm_password})}),body=await r.json().catch(()=>({}));status.textContent=r.status===429?(body.message||'Too many attempts. Wait 15 minutes and try again.'):body.message||'If the account and answers match, the password was reset. Try signing in.';if(r.ok&&r.status!==429)recovery.reset()}catch(err){status.textContent='Unable to reach the recovery service. Try again.'}finally{button.disabled=false}})})();
 </script><div class="layout" id="appShell" style="display:none">
-<aside class="sidebar"><div class="brand"><div class="brand-mark">N</div><div><div class="brand-name">northstar<span style="color:var(--lime)">.</span></div><div class="brand-sub">IT ASSET INTELLIGENCE</div></div></div><div class="org-label">Workspace</div><nav class="nav" id="mainNav"><button class="active" data-view="dashboard"><span class="ico">▦</span><span class="nav-label">Overview</span></button><button data-view="assets"><span class="ico">▤</span><span class="nav-label">Asset inventory</span></button><button data-view="datacenter"><span class="ico">▦</span><span class="nav-label">Data Center</span></button><button data-view="tickets"><span class="ico">✉</span><span class="nav-label">IT help desk</span><span class="nav-badge" id="ticketBadge">3</span></button><button data-view="maintenance"><span class="ico">⚒</span><span class="nav-label">Maintenance & repairs</span><span class="nav-badge" style="background:#b78738">4</span></button><button data-view="ageing"><span class="ico">◷</span><span class="nav-label">Asset ageing & risk</span></button><button data-view="users"><span class="ico">♙</span><span class="nav-label">Users</span></button><button data-view="departments"><span class="ico">⌂</span><span class="nav-label">Departments</span></button><button data-view="factories"><span class="ico">🏭</span><span class="nav-label">Factories</span></button><button data-view="software"><span class="ico">▧</span><span class="nav-label">Software & licenses</span></button><button data-view="monitoring"><span class="ico">⌁</span><span class="nav-label">Network monitoring</span><span class="nav-badge">3</span></button><button data-view="snmp"><span class="ico">📊</span><span class="nav-label">SNMP bandwidth</span></button><button data-view="surveillance"><span class="ico">◉</span><span class="nav-label">Surveillance</span></button><button data-view="parts"><span class="ico">▣</span><span class="nav-label">Parts inventory</span></button><button data-view="reports"><span class="ico">▥</span><span class="nav-label">Reports</span></button></nav><button class="nav-customize" id="customizeModulesButton" type="button"><span class="ico">☷</span><span class="nav-label">Customize modules</span></button><div class="sidebar-bottom"><div class="org-label">System</div><nav class="nav"><button data-view="backups"><span class="ico">▣</span><span class="nav-label">Backup & restore</span></button><button data-view="settings"><span class="ico">⚙</span><span class="nav-label">Settings</span></button></nav><div class="help-card"><b>Need a hand?</b><p>Make asset management work the way your team does.</p><button onclick="showHelp()">Visit help center ↗</button></div><div class="profile sidebar-account"><div class="avatar">IT</div><div><div class="profile-name">Signed in</div><div class="profile-role">Account menu in top bar</div></div></div></div></aside>
+<aside class="sidebar"><div class="brand"><div class="brand-mark">N</div><div><div class="brand-name">northstar<span style="color:var(--lime)">.</span></div><div class="brand-sub">IT ASSET INTELLIGENCE</div></div></div><div class="org-label">Workspace</div><nav class="nav" id="mainNav"><button class="active" data-view="dashboard"><span class="ico">▦</span><span class="nav-label">Overview</span></button><button data-view="assets"><span class="ico">▤</span><span class="nav-label">Asset inventory</span></button><button data-view="datacenter"><span class="ico">▦</span><span class="nav-label">Data Center</span></button><button data-view="tickets"><span class="ico">✉</span><span class="nav-label">IT help desk</span><span class="nav-badge" id="ticketBadge">3</span></button><button data-view="maintenance"><span class="ico">⚒</span><span class="nav-label">Maintenance & repairs</span><span class="nav-badge" style="background:#b78738">4</span></button><button data-view="ageing"><span class="ico">◷</span><span class="nav-label">Asset ageing & risk</span></button><button data-view="users"><span class="ico">♙</span><span class="nav-label">Users</span></button><button data-view="departments"><span class="ico">⌂</span><span class="nav-label">Departments</span></button><button data-view="factories"><span class="ico">🏭</span><span class="nav-label">Factories</span></button><button data-view="software"><span class="ico">▧</span><span class="nav-label">Software & licenses</span></button><button data-view="monitoring"><span class="ico">⌁</span><span class="nav-label">Network monitoring</span><span class="nav-badge">3</span></button><button data-view="networkmap"><span class="ico">🗺</span><span class="nav-label">Network Map</span></button><button data-view="snmp"><span class="ico">📊</span><span class="nav-label">SNMP bandwidth</span></button><button data-view="surveillance"><span class="ico">◉</span><span class="nav-label">Surveillance</span></button><button data-view="parts"><span class="ico">▣</span><span class="nav-label">Parts inventory</span></button><button data-view="reports"><span class="ico">▥</span><span class="nav-label">Reports</span></button></nav><button class="nav-customize" id="customizeModulesButton" type="button"><span class="ico">☷</span><span class="nav-label">Customize modules</span></button><div class="sidebar-bottom"><div class="org-label">System</div><nav class="nav"><button data-view="backups"><span class="ico">▣</span><span class="nav-label">Backup & restore</span></button><button data-view="settings"><span class="ico">⚙</span><span class="nav-label">Settings</span></button></nav><div class="help-card"><b>Need a hand?</b><p>Make asset management work the way your team does.</p><button onclick="showHelp()">Visit help center ↗</button></div><div class="profile sidebar-account"><div class="avatar">IT</div><div><div class="profile-name">Signed in</div><div class="profile-role">Account menu in top bar</div></div></div></div></aside>
 <main class="main"><header class="topbar"><div class="crumb"><span id="companyCrumb">IT Asset Management</span>&nbsp; / &nbsp;<b id="crumb">Overview</b></div><select class="site-select" id="globalSite" aria-label="Select factory"><option value="All sites">All factories</option><option>ARG</option><option>ARB</option><option>ARC</option><option>ARF</option></select><div class="top-spacer"></div><div class="ns-top-notif-wrap" id="nsTopNotifWrap"><button type="button" class="ns-top-silent-btn" id="nsTopSilentBtn" title="Silent mode: mute ringtones &amp; screen popups while keeping notification dropdown &amp; history"><span id="nsTopSilentIcon">🔊</span><span class="ns-silent-lbl" id="nsTopSilentLabel">Alerts Live</span></button><button type="button" class="ns-top-notif-btn" id="nsTopNotifBtn" aria-expanded="false" aria-haspopup="true"><span>🔔</span><span class="ns-notif-lbl">Notifications</span><span class="ns-top-notif-badge" id="nsTopNotifBadge">0</span></button><div class="ns-notif-shade" id="nsTopNotifDropdown" role="region" aria-label="Notification dropdown"></div></div><label class="search"><span>⌕</span><input id="globalSearch" placeholder="Search assets, users..." aria-label="Search assets and users"><span style="font-size:9px">⌘ K</span></label><button class="top-btn" aria-label="Notifications" onclick="showNotifications()">♧<span class="notification-dot"></span></button><button class="top-btn" aria-label="Help" onclick="showHelp()">?</button><div class="profile-menu-wrap"><button class="top-profile" id="profileMenuButton" aria-label="Profile menu" aria-expanded="false" onclick="toggleProfileMenu()"><span class="top-avatar" id="topAvatar">U</span><span id="topProfileName">Account</span><span aria-hidden="true">⌄</span></button><div class="profile-menu" id="profileMenu" hidden><div class="profile-menu-heading"><b id="menuProfileName">Account</b><small id="menuProfileRole">User</small></div><button type="button" onclick="document.getElementById('profilePictureInput').click()">Change profile picture</button><button type="button" onclick="openPasswordSettings()">Change password</button><button type="button" class="profile-menu-logout" onclick="signOut()">Log out</button></div><input id="profilePictureInput" type="file" accept="image/png,image/jpeg,image/webp" hidden></div></header>
 <div class="content">
 <section class="view active" id="view-dashboard"><div class="page-head"><div><div class="eyebrow">IT overview · Live inventory</div><h1>IT overview <span style="font-size:20px">✳</span></h1><p>Here’s what’s happening across your IT estate today.</p></div><div class="head-actions"><button class="btn" onclick="exportCsv('IT-overview',assets)">↓ &nbsp;Export report</button><button class="btn primary" onclick="openModal()">＋ &nbsp;Add asset</button></div></div>
@@ -149,6 +196,7 @@
 <section class="view" id="view-software"><div class="page-head"><div><div class="eyebrow">Applications &amp; entitlements</div><h1>Software &amp; licenses</h1><p>Track installed software, assigned seats, license valuation (₹) and renewal dates.</p></div><div class="head-actions"><button class="btn" onclick="exportCsv('software-register',software)">↓ &nbsp;Export</button><button class="btn primary" onclick="addSoftware()">＋ &nbsp;Add software</button></div></div><div class="kpis"><div class="kpi-pill">Managed applications <b>0</b></div><div class="kpi-pill">License seats <b>0</b></div><div class="kpi-pill">Assigned seats <b>0</b></div><div class="kpi-pill">Renewing in 30 days <b style="color:#c28c30">0</b></div><div class="kpi-pill">License portfolio value <b id="softwareTotalCostKpi" style="color:#157a54">₹0</b></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="softwareSearch" placeholder="⌕  Search product or vendor..."><select class="filter-select" id="softwareTypeFilter"><option value="">All license types</option><option>Subscription</option><option>Perpetual</option><option>OEM</option><option>Named user</option><option>Concurrent</option><option>Manual</option></select><select class="filter-select" id="softwareStatusFilter"><option value="">Any status</option><option>Active</option><option>Expiring</option><option>Expired</option></select></div><div class="table-wrap"><table><thead><tr><th>APPLICATION</th><th>VENDOR</th><th>CATEGORY</th><th>LICENSE TYPE</th><th>SEATS ASSIGNED</th><th>VALUE (₹)</th><th>EXPIRY</th><th>STATUS</th></tr></thead><tbody id="softwareTable"></tbody></table></div></div><p style="color:#929b95;font-size:10px;padding:4px 2px">License keys are intentionally masked. Store full keys in your secure vault.</p></section>
 
 <section class="view" id="view-monitoring"><div class="page-head"><div><div class="eyebrow">Network health · Inventory-derived status</div><h1>Network monitoring</h1><p>Shows recorded inventory status and devices found by the installed host scanner.</p></div><div class="head-actions"><span class="status warning" id="scannerConnectionBadge">Checking scanner…</span><button class="btn" onclick="showScannerSetup()">⚙ &nbsp;Scanner setup</button></div></div><div class="monitor-cards"><div class="panel monitor-tile"><div class="monitor-tile-top"><span>Marked online</span></div><div class="monitor-big" id="monitorOnline">0</div><div class="monitor-small">Based on inventory status</div></div><div class="panel monitor-tile"><div class="monitor-tile-top"><span>Recorded devices</span></div><div class="monitor-big" id="monitorTotal">0</div><div class="monitor-small">Live discovery from authorized network ranges</div></div><div class="panel monitor-tile"><div class="monitor-tile-top"><span>Offline / attention</span></div><div class="monitor-big" id="monitorOffline">0</div><div class="monitor-small">Manually recorded asset status</div></div></div><div class="panel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">Factory connectivity</div><div class="panel-sub">Counts are calculated from saved inventory records.</div></div><button class="link-btn" data-go="assets">Browse assets →</button></div><div class="table-wrap"><table><thead><tr><th>FACTORY</th><th>ASSETS</th><th>MARKED ONLINE</th><th>OFFLINE</th><th>STATUS</th></tr></thead><tbody id="monitorFactoryTable"></tbody></table></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">Attention list</div><div class="panel-sub">Assets recorded as offline or in maintenance.</div></div></div><div class="table-wrap"><table><thead><tr><th>ASSET</th><th>FACTORY</th><th>OWNER</th><th>STATUS</th></tr></thead><tbody id="monitorAlertsTable"></tbody></table></div></div></section>
+<section class="view" id="view-networkmap"></section>
 
 <section class="view" id="view-maintenance"><div class="page-head"><div><div class="eyebrow">Service history & lifecycle care</div><h1>Maintenance & repairs</h1><p>Record what was serviced, what parts changed and cost — each service is added to the asset timeline.</p></div><div class="head-actions"><button class="btn" onclick="exportCsv('maintenance-history',maintenanceRecords)">↓ &nbsp;Export history</button></div></div><div class="grid-4"><div class="card metric"><div class="metric-top"><span>Service records</span><span class="metric-icon">⚒</span></div><div class="metric-value" id="serviceTotal">126</div><div class="metric-foot">All-time maintenance & repairs</div></div><div class="card metric"><div class="metric-top"><span>Due this month</span><span class="metric-icon">◷</span></div><div class="metric-value">9</div><div class="metric-foot"><span class="warn">3 overdue</span> · 6 upcoming</div></div><div class="card metric"><div class="metric-top"><span>Parts replaced</span><span class="metric-icon">⚙</span></div><div class="metric-value">38</div><div class="metric-foot">Parts tracked across service logs</div></div><div class="card metric"><div class="metric-top"><span>Repair spend · FY</span><span class="metric-icon">₹</span></div><div class="metric-value">₹1.84L</div><div class="metric-foot">Parts and labor recorded</div></div></div><div class="panel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">Maintenance due & aging assets</div><div class="panel-sub">Prioritize upcoming service and devices nearing replacement.</div></div><select class="filter-select"><option>All factories</option><option>ARG</option><option>ARB</option><option>ARC</option><option>ARF</option></select></div><div class="table-wrap"><table><thead><tr><th>ASSET</th><th>FACTORY</th><th>AGE</th><th>LAST MAINTENANCE</th><th>NEXT DUE</th><th>AGE / CONDITION</th></tr></thead><tbody id="maintenanceDue"></tbody></table></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">Service & repair history</div><div class="panel-sub">Every log is linked back to its asset record.</div></div><input class="filter-input" id="maintSearch" placeholder="Search asset, repair or technician..."></div><div class="table-wrap"><table><thead><tr><th>DATE</th><th>ASSET</th><th>SERVICE TYPE</th><th>WORK PERFORMED</th><th>PARTS REPLACED</th><th>COST</th><th>TECHNICIAN</th></tr></thead><tbody id="maintenanceTable"></tbody></table></div></div></section><section class="view" id="view-parts"><div class="page-head"><div><div class="eyebrow">Stores & component lifecycle</div><h1>Parts inventory</h1><p>Track new, repaired, refurbished and damaged parts, assignments and costs.</p></div><div class="head-actions"><button class="btn" onclick="exportPartsReport()">↓ &nbsp;Export</button><button class="btn" onclick="openPartAssignForm()">↗ &nbsp;Assign part</button><button class="btn primary" onclick="openPartForm()">＋ &nbsp;Add part / stock</button></div></div><div class="grid-4"><div class="card metric"><div class="metric-top"><span>Part types</span></div><div class="metric-value" id="partsSkuCount">0</div><div class="metric-foot">Distinct part records</div></div><div class="card metric"><div class="metric-top"><span>Good stock</span></div><div class="metric-value" id="partsGoodTotal">0</div><div class="metric-foot">New + repaired + refurbished</div></div><div class="card metric"><div class="metric-top"><span>Damaged stock</span></div><div class="metric-value" id="partsDamagedTotal">0</div><div class="metric-foot">Awaiting repair or disposal</div></div><div class="card metric"><div class="metric-top"><span>Assigned value</span></div><div class="metric-value" id="partsAssignedValue">₹0</div><div class="metric-foot" id="partsAssignedTotal">0 parts assigned</div></div><div class="card metric"><div class="metric-top"><span>Current stock value</span></div><div class="metric-value" id="partsStockValueMetric">₹0</div><div class="metric-foot">Available + damaged stock at unit cost</div></div></div><div class="panel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">Stock by part & factory</div><div class="panel-sub">Each row tracks quantities by condition and current factory.</div></div></div><div class="section-toolbar"><input class="filter-input" id="partsSearch" placeholder="Search part, SKU or category..."><select class="filter-select" id="partsFactoryFilter"><option value="">All factories</option></select><select class="filter-select" id="partsConditionFilter"><option value="">All conditions</option><option>New</option><option>Repaired</option><option>Refurbished</option><option>Damaged</option></select></div><div class="table-wrap"><table><thead><tr><th>PART / SKU</th><th>CATEGORY</th><th>FACTORY</th><th>NEW</th><th>REPAIRED</th><th>REFURBISHED</th><th>DAMAGED</th><th>ASSIGNED</th><th>UNIT COST</th><th>ACTIONS</th></tr></thead><tbody id="partsStockTable"></tbody></table></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">Assigned parts</div><div class="panel-sub">Factory, department and user-wise part assignment history. Assign from the maintenance form to automatically deduct good stock.</div></div></div><div class="section-toolbar"><select class="filter-select" id="partsAssignFactory"><option value="">All factories</option></select><select class="filter-select" id="partsAssignDept"><option value="">All departments</option></select><select class="filter-select" id="partsAssignUser"><option value="">All users</option></select></div><div class="table-wrap"><table><thead><tr><th>DATE</th><th>PART</th><th>QTY / CONDITION</th><th>FACTORY</th><th>DEPARTMENT</th><th>ASSIGNED TO</th><th>ASSET / WORK</th><th>COST</th><th></th></tr></thead><tbody id="partsAssignmentTable"></tbody></table></div></div></section><section class="view" id="view-reports"><div class="page-head"><div><div class="eyebrow">Reports from saved records</div><h1>Reports</h1><p>Export current hardware, people, software and maintenance records.</p></div><div class="head-actions"><button class="btn primary" onclick="exportCsv('IT-report',assets)">↓ &nbsp;Export asset report</button></div></div><div class="grid-4"><div class="card metric"><div class="metric-top"><span>Recorded assets</span></div><div class="metric-value" id="reportAssetCount">0</div><div class="metric-foot">Current inventory records</div></div><div class="card metric"><div class="metric-top"><span>Assigned hardware</span></div><div class="metric-value" id="reportAssignedCount">0</div><div class="metric-foot">Assets with an owner</div></div><div class="card metric"><div class="metric-top"><span>Software records</span></div><div class="metric-value" id="reportSoftwareCount">0</div><div class="metric-foot">Current software register</div></div><div class="card metric"><div class="metric-top"><span>Maintenance records</span></div><div class="metric-value" id="reportMaintenanceCount">0</div><div class="metric-foot">Saved repair and service entries</div></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">Available exports</div><div class="panel-sub">CSV files contain current stored records only.</div></div></div><div class="section-toolbar"><button class="btn" onclick="exportCsv('asset-register',assets)">Asset register CSV</button><button class="btn" onclick="exportCsv('users',users)">User list CSV</button><button class="btn" onclick="exportCsv('software-register',software)">Software CSV</button><button class="btn" onclick="exportCsv('maintenance-history',maintenanceRecords)">Maintenance CSV</button><button class="btn" onclick="exportCsv('tickets',tickets)">Ticket CSV</button></div></div></section>
 
@@ -174,7 +222,7 @@ function dcStatus(a){const interfaces=Array.isArray(a.networkInterfaces)?a.netwo
 </script>
 <script>
 let serverMode=false,serverAdmin=false,serverProfile=null;const permissionModules=[['overview','Overview'],['assets','Asset inventory'],['data_center','Data Center'],['surveillance','Surveillance'],['tickets','IT help desk'],['maintenance','Maintenance & repairs'],['ageing','Asset ageing & risk'],['parts','Parts inventory'],['users','Users'],['departments','Departments'],['factories','Factories'],['software','Software & licenses'],['network','Network monitoring'],['snmp','SNMP bandwidth'],['notifications','Notifications'],['reports','Reports'],['valuation','Valuation'],['billing','Billing / Invoices']];
-const permissionViewMap={dashboard:'overview',assets:'assets',datacenter:'data_center',surveillance:'surveillance',tickets:'tickets',ticketing:'tickets',maintenance:'maintenance',ageing:'ageing',parts:'parts',users:'users',departments:'departments',factories:'factories',software:'software',monitoring:'network',snmp:'snmp',notifications:'notifications',reports:'reports',valuation:'valuation',billing:'billing'};
+const permissionViewMap={dashboard:'overview',assets:'assets',datacenter:'data_center',surveillance:'surveillance',tickets:'tickets',ticketing:'tickets',maintenance:'maintenance',ageing:'ageing',parts:'parts',users:'users',departments:'departments',factories:'factories',software:'software',monitoring:'network',networkmap:'network',snmp:'snmp',notifications:'notifications',reports:'reports',valuation:'valuation',billing:'billing'};
 function effectiveModuleGrant(user,module,isNew=false){if(user?.role==='Administrator')return 'write';let p=user?.module_permissions;if(p&&typeof p==='object')return ['none','read','write'].includes(p[module])?p[module]:'none';if(user?.role==='Viewer')return 'read';if(user?.role==='IT Ticketing')return module==='tickets'?'write':'none';return isNew?'none':'write'}
 function setAllModulePerms(level){document.querySelectorAll('#recordForm select[name^="module_perm_"]').forEach(s=>{s.value=level})}
 function modulePermissionFields(user={},isNew=false){return '<div class="form-section full" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><span>Module permissions</span><span style="display:inline-flex;gap:6px"><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'none\')">All No access</button><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'read\')">All Read only</button><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'write\')">All Read &amp; write</button></span></div><div class="field full form-note">Choose what this account can see and change in each module. No access hides the module; Read only blocks changes; Read &amp; write allows changes. Administrator accounts always have full access.</div><div class="module-permission-grid field full">'+permissionModules.map(([id,label])=>'<label class="module-permission-item"><span>'+esc(label)+'</span><select name="module_perm_'+id+'"><option value="none"'+(effectiveModuleGrant(user,id,isNew)==='none'?' selected':'')+'>No access</option><option value="read"'+(effectiveModuleGrant(user,id,isNew)==='read'?' selected':'')+'>Read only</option><option value="write"'+(effectiveModuleGrant(user,id,isNew)==='write'?' selected':'')+'>Read &amp; write</option></select></label>').join('')+'</div>'}
@@ -612,7 +660,7 @@ window.showNotifications=function(){go('notifications');window.loadNotificationM
  window.renderSurveillance=renderSurveillance;window.exportSurveillance=()=>exportCsv('surveillance-assets',selectedRows());window.openSurveillanceAsset=()=>{openModal();typeSelect.value='Surveillance';typeSelect.dispatchEvent(new Event('change',{bubbles:true}));subtype.value='CCTV';subtype.dispatchEvent(new Event('change',{bubbles:true}))};
  window.openCameraList=()=>{const list=assets.map(a=>({...a,__kind:assetKind(a)})).filter(a=>isSurveillance(a)&&a.__kind==='CCTV'),body=document.getElementById('surveillanceCameraList');body.innerHTML=list.map(a=>{const h=historyFor(a),s=savedSpecs(a.specs);let spec=Object.entries(s).map(([k,v])=>k==='otherSpecs'?v:(k.replace(/[A-Z]/g,' $&')+': '+v)).join(' · ');return '<tr><td><b>'+esc(a.name||'')+'</b><div class="asset-id">'+esc(a.tag||'')+'</div></td><td>'+esc(a.site||'-')+' / '+esc(a.dept||'No department')+'</td><td>'+esc(a.ipAddress||'-')+' / '+esc(a.macAddress||'-')+'</td><td>'+esc(a.serial||'-')+' / '+esc(a.warranty||'-')+'</td><td style="white-space:normal;min-width:220px">'+esc(spec||a.specs||'-')+'</td><td>'+h.length+' entries'+(h[0]?' · last '+esc(h[0].date||''):'')+'</td></tr>'}).join('')||'<tr><td colspan="6" class="empty-state">No CCTV cameras have been added. Use “Add surveillance device” to register one.</td></tr>';document.getElementById('surveillanceCameraModal').classList.add('open')};window.closeCameraList=()=>document.getElementById('surveillanceCameraModal').classList.remove('open');
  for(const id of ['svSearch','svType','svFactory','svDepartment','svStatus'])document.getElementById(id)?.addEventListener(id==='svSearch'?'input':'change',renderSurveillance);
- const nav=document.getElementById('mainNav'),customBtn=document.getElementById('customizeModulesButton'),layoutList=document.getElementById('moduleCustomizeList');const moduleDefaultOrder=["dashboard","assets","datacenter","tickets","maintenance","ageing","users","departments","factories","valuation","billing","software","monitoring","snmp","notifications","surveillance","parts","reports"];let dragging=null;
+ const nav=document.getElementById('mainNav'),customBtn=document.getElementById('customizeModulesButton'),layoutList=document.getElementById('moduleCustomizeList');const moduleDefaultOrder=["dashboard","assets","datacenter","tickets","maintenance","ageing","users","departments","factories","valuation","billing","software","monitoring","networkmap","snmp","notifications","surveillance","parts","reports"];let dragging=null;
  function moduleUserKey(){return String(serverProfile?.username||document.getElementById('profileMenuButton')?.innerText?.trim()||currentProfile?.name||'default').toLowerCase().replace(/\s+/g,'-')}
  function prefKey(){return 'northstar-module-layout-v1:'+moduleUserKey()}
  async function loadServerModulePrefs(){if(!serverMode)return;const owner=moduleUserKey();try{const data=await apiFetch('/api/profile/preferences');if(owner!==moduleUserKey())return;localStorage.setItem(prefKey(),JSON.stringify(data.preferences||{}));applyModulePrefs()}catch(e){}}
@@ -5615,6 +5663,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
   let lastPulseNotifRev = '';
   let lastPulseSettingsRev = '';
   let lastPulseHistoryRev = '';
+  let lastPulseMapRev = '';
   const nsLiveChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('northstar-live-sync') : null;
 
   const EVENT_KEY_ALIASES = {
@@ -6405,6 +6454,12 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
         } else if(p.historyRev){
           lastPulseHistoryRev = p.historyRev;
         }
+        if(lastPulseMapRev && p.mapRev && p.mapRev !== lastPulseMapRev){
+          lastPulseMapRev = p.mapRev;
+          window.nsNetworkMap?.refreshFromServer?.();
+        } else if(p.mapRev){
+          lastPulseMapRev = p.mapRev;
+        }
       }
     }catch(_){
     }finally{
@@ -6440,6 +6495,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
             lastPulseNotifRev = feed.pulse.notificationsRev || lastPulseNotifRev;
             lastPulseSettingsRev = feed.pulse.settingsRev || lastPulseSettingsRev;
             lastPulseHistoryRev = feed.pulse.historyRev || lastPulseHistoryRev;
+            lastPulseMapRev = feed.pulse.mapRev || lastPulseMapRev;
           }
           liveFeedInitialized = true;
         }
@@ -6470,6 +6526,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       lastPulseNotifRev = '';
       lastPulseSettingsRev = '';
       lastPulseHistoryRev = '';
+      lastPulseMapRev = '';
     }
   };
 
@@ -7213,7 +7270,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
     };
 
-    return `<svg class="ns-cb350-svg" viewBox="0 0 280 280" role="img" aria-label="${isDown ? 'Download speed gauge' : 'Upload speed gauge'}">
+    return `<svg class="ns-gauge-svg" viewBox="0 0 280 280" role="img" aria-label="${isDown ? 'Download speed gauge' : 'Upload speed gauge'}">
       <defs>
         <linearGradient id="nsBezel_${uid}" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stop-color="#4b5563"/>
@@ -7245,17 +7302,17 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       <path d="${arcPath(startDeg + sweepDeg)}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="3.5" stroke-linecap="round"/>
       ${clamped > 0 ? `<path d="${arcPath(angleDeg)}" fill="none" stroke="${accent}" stroke-width="3.5" stroke-linecap="round" opacity="0.72"/>` : ''}
       ${ticksSvg}
-      <!-- Signature CB350 top unit label -->
+      <!-- Top unit label -->
       <text x="${cx}" y="102" text-anchor="middle" fill="#e2e8f0" font-size="14" font-weight="800" font-style="italic" font-family="'Manrope',sans-serif">${esc(metric.unit)}</text>
       <!-- Subtle glass digital speed readout (no neutral N, fuel, or odometer) -->
       <rect x="92" y="196" width="96" height="29" rx="9" fill="rgba(15,23,42,0.88)" stroke="${capHalo}" stroke-width="1.2"/>
       <text x="${cx}" y="215" text-anchor="middle" fill="#f8fafc" font-size="14.5" font-weight="800" font-family="'Manrope',monospace">${esc(metric.formatted)} <tspan font-size="10" fill="${accent}">${esc(metric.unit)}</tspan></text>
-      <!-- Glowing CB350 LED Pointer Needle (Blue for Download, Red for Upload) -->
+      <!-- Glowing LED Pointer Needle (Blue for Download, Red for Upload) -->
       <g transform="rotate(${angleDeg.toFixed(2)} ${cx} ${cy})" style="transition:transform 0.24s cubic-bezier(.22,.9,.32,1)">
         <polygon points="${cx-2.4},${cy+34} ${cx+2.4},${cy+34} ${cx+1.6},${cy-107} ${cx-1.6},${cy-107}" fill="${glowColor}" opacity="0.6" filter="url(#nsLedGlow_${uid})"/>
         <polygon points="${cx-1.9},${cy+32} ${cx+1.9},${cy+32} ${cx+1.1},${cy-107} ${cx-1.1},${cy-107}" fill="${accent}" filter="url(#nsLedGlow_${uid})"/>
       </g>
-      <!-- Matte center cap covering needle pivot like CB350 H'ness -->
+      <!-- Matte center cap covering needle pivot -->
       <circle cx="${cx}" cy="${cy}" r="18" fill="#0d0f12" stroke="#272c35" stroke-width="2"/>
       <circle cx="${cx}" cy="${cy}" r="12" fill="#171a20"/>
     </svg>`;
@@ -7273,7 +7330,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     return `
       <div class="panel-head">
         <div>
-          <div class="panel-title"><span class="ns-speed-live-dot ${liveSpeedState.running ? 'running' : ''}"></span>Live Network Speedtest · CB350 H'ness Dual Cluster</div>
+          <div class="panel-title"><span class="ns-speed-live-dot ${liveSpeedState.running ? 'running' : ''}"></span>Live Network Speedtest</div>
           <div class="panel-sub">${esc(phaseText)} · Mode: <b>${esc(liveSpeedState.source)}</b></div>
         </div>
         <div class="ns-speed-controls">
@@ -7289,40 +7346,40 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
             <option value="lan" ${speedSettings.sourceMode==='lan'?'selected':''}>Target: LAN Server</option>
           </select>
           <select class="filter-select ns-speed-interval-sel" title="Live Auto-Refresh Interval">
-            <option value="0" ${speedSettings.intervalSec===0?'selected':''}>Auto-test: Manual</option>
-            <option value="15" ${speedSettings.intervalSec===15?'selected':''}>Auto-test: 15s</option>
-            <option value="30" ${speedSettings.intervalSec===30?'selected':''}>Auto-test: 30s</option>
-            <option value="60" ${speedSettings.intervalSec===60?'selected':''}>Auto-test: 1 min</option>
-            <option value="300" ${speedSettings.intervalSec===300?'selected':''}>Auto-test: 5 min</option>
+            <option value="0" ${speedSettings.intervalSec===0?'selected':''}>Auto: Manual</option>
+            <option value="15" ${speedSettings.intervalSec===15?'selected':''}>Auto: 15s</option>
+            <option value="30" ${speedSettings.intervalSec===30?'selected':''}>Auto: 30s</option>
+            <option value="60" ${speedSettings.intervalSec===60?'selected':''}>Auto: 1m</option>
+            <option value="300" ${speedSettings.intervalSec===300?'selected':''}>Auto: 5m</option>
           </select>
-          <button type="button" class="btn primary ns-speed-run-btn" ${liveSpeedState.running ? 'disabled' : ''}>${liveSpeedState.running ? 'Testing…' : '▶ Run Live Speedtest'}</button>
+          <button type="button" class="btn primary ns-speed-run-btn" ${liveSpeedState.running ? 'disabled' : ''}>${liveSpeedState.running ? 'Testing…' : '▶ Run Test'}</button>
         </div>
       </div>
       <div class="ns-speed-cluster-grid">
-        <div class="ns-cb350-card" data-gauge="download">
+        <div class="ns-gauge-card" data-gauge="download">
           ${buildCb350GaugeSvg('download_' + suffix, dl)}
-          <div class="ns-cb350-caption">
-            <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#38bdf8;box-shadow:0 0 8px #0ea5e9"></span>
-            <span>DOWNLOAD SPEED</span>
+          <div class="ns-gauge-caption">
+            <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#38bdf8;box-shadow:0 0 8px #0ea5e9"></span>
+            <span>DOWNLOAD</span>
             <span style="color:#0284c7">${esc(dl.formatted)} ${esc(dl.unit)}</span>
           </div>
         </div>
-        <div class="ns-cb350-card" data-gauge="upload">
+        <div class="ns-gauge-card" data-gauge="upload">
           ${buildCb350GaugeSvg('upload_' + suffix, ul)}
-          <div class="ns-cb350-caption">
-            <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#ff3b1f;box-shadow:0 0 8px #ef4444"></span>
-            <span>UPLOAD SPEED</span>
+          <div class="ns-gauge-caption">
+            <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ff3b1f;box-shadow:0 0 8px #ef4444"></span>
+            <span>UPLOAD</span>
             <span style="color:#dc2626">${esc(ul.formatted)} ${esc(ul.unit)}</span>
           </div>
         </div>
       </div>
       <div class="ns-speed-meta-strip">
-        <div class="ns-speed-stat"><span>Latency / Ping (Google Edge)</span><b>${liveSpeedState.pingMs ? Number(liveSpeedState.pingMs).toFixed(1) + ' ms' : '— ms'}</b></div>
-        <div class="ns-speed-stat"><span>Network Jitter</span><b>${liveSpeedState.jitterMs ? Number(liveSpeedState.jitterMs).toFixed(1) + ' ms' : '— ms'}</b></div>
+        <div class="ns-speed-stat"><span>Latency / Ping (Google)</span><b>${liveSpeedState.pingMs ? Number(liveSpeedState.pingMs).toFixed(1) + ' ms' : '— ms'}</b></div>
+        <div class="ns-speed-stat"><span>Jitter</span><b>${liveSpeedState.jitterMs ? Number(liveSpeedState.jitterMs).toFixed(1) + ' ms' : '— ms'}</b></div>
         <div class="ns-speed-stat"><span>Peak Download</span><b style="color:#0284c7">${esc(peakDl.formatted)} ${esc(peakDl.unit)}</b></div>
         <div class="ns-speed-stat"><span>Peak Upload</span><b style="color:#dc2626">${esc(peakUl.formatted)} ${esc(peakUl.unit)}</b></div>
       </div>
-      ${liveSpeedState.error ? `<div style="padding:0 20px 14px;font-size:11px;color:#b53d38">⚠ ${esc(liveSpeedState.error)}</div>` : ''}
+      ${liveSpeedState.error ? `<div style="padding:0 14px 12px;font-size:11px;color:#b53d38">⚠ ${esc(liveSpeedState.error)}</div>` : ''}
     `;
   }
 
@@ -7389,13 +7446,22 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
 
   function ensureSpeedtestMounts(){
     const dash = document.getElementById('view-dashboard');
-    if(dash && !document.getElementById('nsDashboardSpeedPanel')){
+    if(dash && !document.getElementById('nsOverviewNetRow')){
       const grid4 = dash.querySelector('.grid-4');
+      const row = document.createElement('div');
+      row.className = 'ns-ov-net-row';
+      row.id = 'nsOverviewNetRow';
       const panel = document.createElement('div');
-      panel.className = 'panel ns-speed-panel';
+      panel.className = 'panel ns-speed-panel compact';
       panel.id = 'nsDashboardSpeedPanel';
-      if(grid4) grid4.after(panel); else dash.appendChild(panel);
+      const mapCard = document.createElement('div');
+      mapCard.className = 'panel ns-ov-map-card';
+      mapCard.id = 'nsDashboardNetMapCard';
+      row.appendChild(panel);
+      row.appendChild(mapCard);
+      if(grid4) grid4.after(row); else dash.appendChild(row);
       handleSpeedPanelEvents(panel);
+      window.nsNetworkMap?.renderOverviewPreview?.();
     }
 
     const mon = document.getElementById('view-monitoring');
@@ -7418,7 +7484,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
         <div class="panel-head">
           <div>
             <div class="panel-title">Speedometer Unit &amp; Live Network Speedtest Settings</div>
-            <div class="panel-sub">Choose how the Honda CB350 H'ness dual speed gauges scale speeds (auto Kbps / Mbps / Gbps or fixed unit).</div>
+            <div class="panel-sub">Choose how the dual download &amp; upload speed gauges scale speeds (auto Kbps / Mbps / Gbps or fixed unit).</div>
           </div>
           <button type="button" class="btn primary" onclick="nsSpeedMonitor.runSpeedtest()">▶ Test speed now</button>
         </div>
@@ -7716,6 +7782,1254 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       window.nsNotifCenter.refreshFromServer();
       window.nsSpeedMonitor.loadState();
     }, 55);
+  });
+})();
+</script>
+<script id="northstar-v5-network-map">
+(()=>{
+  const esc = (s) => (typeof window.safeEsc === 'function' ? window.safeEsc(s) : String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])));
+  const isSrv = () => { try{ return typeof serverMode !== 'undefined' && !!serverMode; }catch(_){ return false; } };
+  const apiCall = (url, opts) => (typeof apiFetch === 'function'
+    ? apiFetch(url, opts)
+    : fetch(url, { credentials:'same-origin', headers:{'X-Requested-With':'NorthstarIT', ...(opts?.headers||{})}, ...(opts||{}) }).then(r=>r.json()));
+  const LS_MAP_KEY = 'ns-network-map-v1';
+
+  const getAssetsList = () => { try{ return typeof assets !== 'undefined' && Array.isArray(assets) ? assets : []; }catch(_){ return []; } };
+  const getFactoriesList = () => {
+    try{
+      if(typeof factories !== 'undefined' && Array.isArray(factories) && factories.length){
+        return factories.map(f => typeof f === 'string' ? f : (f.code || f.name || '')).filter(Boolean);
+      }
+    }catch(_){}
+    const fromAssets = [...new Set(getAssetsList().map(a => String(a.site || a.factory || '').trim()).filter(Boolean))];
+    return fromAssets.length ? fromAssets : ['ARG', 'ARB', 'ARC', 'ARF'];
+  };
+
+  const STENCILS = [
+    { kind:'isp', label:'ISP / Cloud', icon:'☁', color:'#0ea5e9' },
+    { kind:'firewall', label:'Firewall', icon:'🛡', color:'#dc2626' },
+    { kind:'router', label:'Router', icon:'🔀', color:'#2563eb' },
+    { kind:'core_switch', label:'Core Switch', icon:'▣', color:'#157a54' },
+    { kind:'switch', label:'Access Switch', icon:'▤', color:'#059669' },
+    { kind:'server', label:'Server / Rack', icon:'🖥', color:'#7c3aed' },
+    { kind:'ap', label:'Wi-Fi AP', icon:'📶', color:'#0284c7' },
+    { kind:'nvr', label:'NVR / DVR', icon:'📼', color:'#9333ea' },
+    { kind:'cctv', label:'CCTV Camera', icon:'📹', color:'#db2777' },
+    { kind:'desktop', label:'Desktop PC', icon:'🖳', color:'#334155' },
+    { kind:'laptop', label:'Laptop', icon:'💻', color:'#475569' },
+    { kind:'printer', label:'Printer / MFD', icon:'🖨', color:'#b45309' },
+    { kind:'ups', label:'UPS / Power', icon:'🔋', color:'#16a34a' },
+    { kind:'patch', label:'Patch Panel', icon:'🔌', color:'#64748b' }
+  ];
+  const STENCIL_MAP = Object.fromEntries(STENCILS.map(s => [s.kind, s]));
+
+  const CABLE_STYLES = {
+    fiber: { label:'Fiber Trunk', color:'#f59e0b', width:3.2, dash:'' },
+    lan: { label:'LAN Cat6', color:'#10b981', width:2.4, dash:'' },
+    poe: { label:'CCTV PoE', color:'#9333ea', width:2.2, dash:'' },
+    wifi: { label:'Wi-Fi Link', color:'#0ea5e9', width:2.2, dash:'6 5' },
+    wan: { label:'WAN Uplink', color:'#ef4444', width:3.4, dash:'' }
+  };
+
+  let mapDoc = { diagrams: {}, rev: 1, updatedAt: '' };
+  try{
+    const cached = JSON.parse(localStorage.getItem(LS_MAP_KEY) || 'null');
+    if(cached && typeof cached === 'object' && cached.diagrams) mapDoc = cached;
+  }catch(_){}
+
+  let state = {
+    activeFactory: '',
+    tool: 'select', // select | pan | connect | zone | rect | circle | arrow | pen | text | eraser
+    viewMode: '3d', // 3d | 2d
+    zoom: 0.72,
+    panX: 0,
+    panY: 0,
+    pitch: 50,
+    yaw: -26,
+    floorGap: 145,
+    snapGrid: true,
+    showGrid: true,
+    cableKind: 'lan',
+    brushColor: '#157a54',
+    brushWidth: 3.5,
+    connectFromId: '',
+    selectedKind: '', // node | shape | link | stroke
+    selectedId: '',
+    selectedFloorId: '',
+    layers: { bg:true, zones:true, links:true, nodes:true, drawings:true },
+    paletteSearch: '',
+    dirty: false,
+    saving: false,
+    undoStack: [],
+    redoStack: []
+  };
+
+  // Overview mini preview camera state (rotatable & zoomable inline right on Overview)
+  let ovCam = { factory: '', floorId: '', viewMode: '3d', zoom: 0.34, pitch: 52, yaw: -28, panX: 0, panY: 0 };
+  let ovActiveDrag = null;
+  let studioActiveOp = null;
+
+  function clientToFloorSvgGlobal(ev, svgEl){
+    if(!svgEl || !svgEl.createSVGPoint) return { x: 100, y: 100 };
+    const pt = svgEl.createSVGPoint();
+    pt.x = ev.clientX; pt.y = ev.clientY;
+    const ctm = svgEl.getScreenCTM();
+    if(!ctm) return { x: 100, y: 100 };
+    const res = pt.matrixTransform(ctm.inverse());
+    return { x: res.x, y: res.y };
+  }
+
+  function saveLocalMap(){
+    try{ localStorage.setItem(LS_MAP_KEY, JSON.stringify(mapDoc)); }catch(_){}
+  }
+
+  function classifyAssetKind(a){
+    const raw = [a?.type, a?.subtype, a?.name].join(' ').toLowerCase();
+    if(raw.includes('firewall')) return 'firewall';
+    if(raw.includes('router')) return 'router';
+    if(raw.includes('core') && raw.includes('switch')) return 'core_switch';
+    if(raw.includes('switch') || raw.includes('network')) return 'switch';
+    if(raw.includes('server') || raw.includes('nas')) return 'server';
+    if(raw.includes('access point') || raw.includes('wifi') || raw.includes('wi-fi')) return 'ap';
+    if(raw.includes('nvr') || raw.includes('dvr')) return 'nvr';
+    if(raw.includes('cctv') || raw.includes('camera')) return 'cctv';
+    if(raw.includes('laptop')) return 'laptop';
+    if(raw.includes('printer')) return 'printer';
+    if(raw.includes('ups')) return 'ups';
+    return 'desktop';
+  }
+
+  function buildStarterDiagramForFactory(fcode){
+    const list = getAssetsList().filter(a => !fcode || fcode === 'All sites' || String(a.site || a.factory || '') === fcode);
+    const makeUid = (p) => p + '-' + Math.random().toString(36).slice(2,7);
+
+    const floor1Id = 'fl-ground';
+    const floor2Id = 'fl-first';
+    const f1Nodes = [];
+    const f1Links = [];
+    const f1Shapes = [
+      { id:makeUid('zn'), shapeType:'zone', x:45, y:55, w:390, h:280, label:'Server Room & Core MDF', fill:'#eefcf4', stroke:'#157a54', strokeWidth:2, opacity:0.85 },
+      { id:makeUid('zn'), shapeType:'zone', x:470, y:55, w:430, h:280, label:'Production & Floor Endpoints', fill:'#eff6ff', stroke:'#2563eb', strokeWidth:2, opacity:0.8 },
+      { id:makeUid('zn'), shapeType:'zone', x:935, y:55, w:410, h:280, label:'Perimeter CCTV & Wi-Fi', fill:'#fdf2f8', stroke:'#db2777', strokeWidth:2, opacity:0.8 }
+    ];
+
+    const ispId = makeUid('nd');
+    const fwId = makeUid('nd');
+    const sw1Id = makeUid('nd');
+    f1Nodes.push({ id:ispId, kind:'isp', label:'Fiber ISP Cloud', sublabel:'WAN Gateway', x:120, y:125, linkedAssetTag:'' });
+
+    const fwAsset = list.find(a => classifyAssetKind(a) === 'firewall');
+    const coreAsset = list.find(a => ['router','core_switch','switch'].includes(classifyAssetKind(a)));
+    const srvAssets = list.filter(a => classifyAssetKind(a) === 'server').slice(0, 3);
+    const camAssets = list.filter(a => ['cctv','nvr'].includes(classifyAssetKind(a))).slice(0, 6);
+    const pcAssets = list.filter(a => ['desktop','laptop','printer'].includes(classifyAssetKind(a))).slice(0, 6);
+
+    f1Nodes.push({ id:fwId, kind:'firewall', label: fwAsset?.name || 'Core Firewall', sublabel: fwAsset?.ipAddress || '10.0.0.1', x:255, y:125, linkedAssetTag: fwAsset?.tag || '' });
+    f1Nodes.push({ id:sw1Id, kind:'core_switch', label: coreAsset?.name || 'Ground Floor Core Switch', sublabel: coreAsset?.ipAddress || '10.0.0.2', x:255, y:245, linkedAssetTag: coreAsset?.tag || '' });
+    f1Links.push({ id:makeUid('lk'), from:ispId, to:fwId, kind:'wan', label:'ISP Fiber 1G' });
+    f1Links.push({ id:makeUid('lk'), from:fwId, to:sw1Id, kind:'fiber', label:'10G SFP+' });
+
+    if(srvAssets.length){
+      srvAssets.forEach((sa, idx) => {
+        const nid = makeUid('nd');
+        f1Nodes.push({ id:nid, kind:'server', label: sa.name || sa.tag, sublabel: sa.ipAddress || sa.tag, x:105, y:215 + idx*55, linkedAssetTag: sa.tag || '' });
+        f1Links.push({ id:makeUid('lk'), from:sw1Id, to:nid, kind:'fiber', label:'10G' });
+      });
+    } else {
+      const nid = makeUid('nd');
+      f1Nodes.push({ id:nid, kind:'server', label:'App & ERP Server', sublabel:'Rack-01', x:115, y:245, linkedAssetTag:'' });
+      f1Links.push({ id:makeUid('lk'), from:sw1Id, to:nid, kind:'fiber', label:'10G' });
+    }
+
+    (pcAssets.length ? pcAssets : [
+      { name:'Floor Desk 01', ipAddress:'192.168.1.20', _kind:'desktop' },
+      { name:'QC Terminal', ipAddress:'192.168.1.21', _kind:'desktop' },
+      { name:'Dispatch Printer', ipAddress:'192.168.1.30', _kind:'printer' }
+    ]).forEach((pa, idx) => {
+      const nid = makeUid('nd');
+      const k = pa._kind || classifyAssetKind(pa);
+      f1Nodes.push({ id:nid, kind:k, label: pa.name || pa.tag, sublabel: pa.ipAddress || pa.dept || 'Workstation', x:530 + (idx % 3)*125, y:125 + Math.floor(idx/3)*115, linkedAssetTag: pa.tag || '' });
+      f1Links.push({ id:makeUid('lk'), from:sw1Id, to:nid, kind:'lan', label:'1G' });
+    });
+
+    (camAssets.length ? camAssets : [
+      { name:'Main Gate Cam 01', ipAddress:'192.168.20.11', _kind:'cctv' },
+      { name:'NVR Storage 01', ipAddress:'192.168.20.5', _kind:'nvr' }
+    ]).forEach((ca, idx) => {
+      const nid = makeUid('nd');
+      const k = ca._kind || classifyAssetKind(ca);
+      f1Nodes.push({ id:nid, kind:k, label: ca.name || ca.tag, sublabel: ca.ipAddress || 'PoE', x:990 + (idx % 3)*120, y:125 + Math.floor(idx/3)*115, linkedAssetTag: ca.tag || '' });
+      f1Links.push({ id:makeUid('lk'), from:sw1Id, to:nid, kind:'poe', label:'PoE' });
+    });
+
+    // Second Floor (1st Floor Office & Admin)
+    const f2SwId = makeUid('nd');
+    const f2Nodes = [
+      { id:f2SwId, kind:'switch', label:'1st Floor Dist. Switch', sublabel:'10.0.1.2', x:260, y:180, linkedAssetTag:'' },
+      { id:makeUid('nd'), kind:'ap', label:'Office Wi-Fi AP', sublabel:'5GHz / Wi-Fi 6', x:560, y:135, linkedAssetTag:'' },
+      { id:makeUid('nd'), kind:'laptop', label:'Engineering Bay', sublabel:'CAD / ERP', x:560, y:245, linkedAssetTag:'' },
+      { id:makeUid('nd'), kind:'cctv', label:'Corridor Cam 02', sublabel:'PoE', x:960, y:180, linkedAssetTag:'' }
+    ];
+    const f2Links = [
+      { id:makeUid('lk'), from:f2SwId, to:f2Nodes[1].id, kind:'wifi', label:'Cat6 PoE' },
+      { id:makeUid('lk'), from:f2SwId, to:f2Nodes[2].id, kind:'lan', label:'1G' },
+      { id:makeUid('lk'), from:f2SwId, to:f2Nodes[3].id, kind:'poe', label:'PoE' }
+    ];
+    const f2Shapes = [
+      { id:makeUid('zn'), shapeType:'zone', x:45, y:55, w:390, h:280, label:'1st Floor IDF Closet', fill:'#ecfeff', stroke:'#0284c7', strokeWidth:2, opacity:0.8 },
+      { id:makeUid('zn'), shapeType:'zone', x:470, y:55, w:870, h:280, label:'Admin, Engineering & Wi-Fi Coverage', fill:'#f8fafc', stroke:'#475569', strokeWidth:2, opacity:0.85 }
+    ];
+
+    return {
+      factory: fcode,
+      activeFloorId: floor1Id,
+      floors: [
+        { id:floor1Id, name:'Ground Floor · Production & MDF', level:0, visible:true, width:1390, height:390, bgColor:'#ffffff', bgImage:'', bgOpacity:0.45, nodes:f1Nodes, links:f1Links, shapes:f1Shapes, strokes:[] },
+        { id:floor2Id, name:'1st Floor · Office & Admin', level:1, visible:true, width:1390, height:390, bgColor:'#ffffff', bgImage:'', bgOpacity:0.45, nodes:f2Nodes, links:f2Links, shapes:f2Shapes, strokes:[] }
+      ],
+      interFloorLinks: [
+        { id:makeUid('iflk'), fromFloorId:floor1Id, fromNodeId:sw1Id, toFloorId:floor2Id, toNodeId:f2SwId, kind:'fiber', label:'Vertical Fiber Riser 10G' }
+      ],
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  function ensureFactoryDiagram(fcode){
+    const fc = fcode || getFactoriesList()[0] || 'ARG';
+    if(!mapDoc.diagrams || typeof mapDoc.diagrams !== 'object') mapDoc.diagrams = {};
+    if(!mapDoc.diagrams[fc] || !Array.isArray(mapDoc.diagrams[fc].floors) || !mapDoc.diagrams[fc].floors.length){
+      mapDoc.diagrams[fc] = buildStarterDiagramForFactory(fc);
+      saveLocalMap();
+    }
+    return mapDoc.diagrams[fc];
+  }
+
+  function activeDiagram(){
+    if(!state.activeFactory) state.activeFactory = getFactoriesList()[0] || 'ARG';
+    return ensureFactoryDiagram(state.activeFactory);
+  }
+
+  function activeFloor(){
+    const diag = activeDiagram();
+    const fl = diag.floors.find(f => f.id === (state.selectedFloorId || diag.activeFloorId)) || diag.floors[0];
+    if(fl){
+      state.selectedFloorId = fl.id;
+      diag.activeFloorId = fl.id;
+    }
+    return fl;
+  }
+
+  function pushUndo(){
+    try{
+      state.undoStack.push(JSON.stringify(activeDiagram()));
+      if(state.undoStack.length > 50) state.undoStack.shift();
+      state.redoStack = [];
+    }catch(_){}
+  }
+
+  function resolveLiveNodeInfo(node){
+    const base = STENCIL_MAP[node.kind] || STENCIL_MAP.desktop;
+    let status = 'static';
+    let ip = node.sublabel || '';
+    let label = node.label || base.label;
+    let asset = null;
+    if(node.linkedAssetTag){
+      asset = getAssetsList().find(a => String(a.tag || '') === String(node.linkedAssetTag));
+      if(asset){
+        const rawSt = String(asset.ipStatus || asset.status || '').toLowerCase();
+        status = rawSt === 'online' ? 'online' : (rawSt === 'offline' ? 'offline' : (rawSt === 'maintenance' ? 'maintenance' : 'unknown'));
+        if(asset.ipAddress) ip = asset.ipAddress;
+        if(!node.customLabel) label = asset.name || asset.tag || label;
+      }
+    }
+    return { base, status, ip, label, asset };
+  }
+
+  function renderFloorSvgContent(floor, diag, opts = {}){
+    const W = floor.width || 1390, H = floor.height || 390;
+    const isInteractive = !opts.readonly;
+    const showLayers = opts.readonly ? { bg:true, zones:true, links:true, nodes:true, drawings:true } : state.layers;
+
+    let svg = '';
+    // Background blueprint image layer
+    if(showLayers.bg && floor.bgImage){
+      svg += `<image href="${esc(floor.bgImage)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid meet" opacity="${Number(floor.bgOpacity ?? 0.45)}"/>`;
+    }
+
+    // Zones & Shapes
+    if(showLayers.zones){
+      (floor.shapes || []).forEach(sh => {
+        const isSel = isInteractive && state.selectedKind === 'shape' && state.selectedId === sh.id;
+        const stColor = isSel ? '#157a54' : (sh.stroke || '#2563eb');
+        const sw = Number(sh.strokeWidth || 2) + (isSel ? 1.5 : 0);
+        const op = Number(sh.opacity ?? 0.85);
+        if(sh.shapeType === 'circle'){
+          const cx = sh.x + (sh.w||120)/2, cy = sh.y + (sh.h||120)/2;
+          svg += `<g data-nm-type="shape" data-nm-id="${esc(sh.id)}" data-floor-id="${esc(floor.id)}" opacity="${op}" style="cursor:move">
+            <ellipse cx="${cx}" cy="${cy}" rx="${Math.max(12,(sh.w||120)/2)}" ry="${Math.max(12,(sh.h||120)/2)}" fill="${esc(sh.fill||'#eefcf4')}" stroke="${esc(stColor)}" stroke-width="${sw}"/>
+            ${sh.label ? `<text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="${Number(sh.fontSize||12)}" font-weight="700" fill="${esc(sh.textColor||'#17251e')}">${esc(sh.label)}</text>` : ''}
+          </g>`;
+        } else if(sh.shapeType === 'arrow'){
+          const x1 = sh.x, y1 = sh.y, x2 = sh.x2 ?? (sh.x + (sh.w||120)), y2 = sh.y2 ?? (sh.y + (sh.h||0));
+          const ang = Math.atan2(y2 - y1, x2 - x1);
+          const hx1 = x2 - 12*Math.cos(ang - 0.45), hy1 = y2 - 12*Math.sin(ang - 0.45);
+          const hx2 = x2 - 12*Math.cos(ang + 0.45), hy2 = y2 - 12*Math.sin(ang + 0.45);
+          svg += `<g data-nm-type="shape" data-nm-id="${esc(sh.id)}" data-floor-id="${esc(floor.id)}" opacity="${op}" style="cursor:pointer">
+            <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${esc(stColor)}" stroke-width="${sw+1}" stroke-linecap="round"/>
+            <polygon points="${x2},${y2} ${hx1.toFixed(1)},${hy1.toFixed(1)} ${hx2.toFixed(1)},${hy2.toFixed(1)}" fill="${esc(stColor)}"/>
+            ${sh.label ? `<text x="${(x1+x2)/2}" y="${(y1+y2)/2 - 8}" text-anchor="middle" font-size="11" font-weight="700" fill="${esc(stColor)}">${esc(sh.label)}</text>` : ''}
+          </g>`;
+        } else if(sh.shapeType === 'text'){
+          svg += `<g data-nm-type="shape" data-nm-id="${esc(sh.id)}" data-floor-id="${esc(floor.id)}" style="cursor:move">
+            ${isSel ? `<rect x="${sh.x-6}" y="${sh.y-18}" width="160" height="26" rx="6" fill="rgba(21,122,84,0.08)" stroke="#157a54" stroke-dasharray="4 3"/>` : ''}
+            <text x="${sh.x}" y="${sh.y}" font-size="${Number(sh.fontSize||15)}" font-weight="800" fill="${esc(sh.textColor||sh.stroke||'#17251e')}">${esc(sh.label || 'Note')}</text>
+          </g>`;
+        } else {
+          const isZone = sh.shapeType === 'zone';
+          svg += `<g data-nm-type="shape" data-nm-id="${esc(sh.id)}" data-floor-id="${esc(floor.id)}" opacity="${op}" style="cursor:move">
+            <rect x="${sh.x}" y="${sh.y}" width="${Math.max(24,sh.w||160)}" height="${Math.max(24,sh.h||100)}" rx="10" fill="${esc(sh.fill||'#f8fafc')}" stroke="${esc(stColor)}" stroke-width="${sw}" ${isZone ? 'stroke-dasharray="7 4"' : ''}/>
+            ${sh.label ? `<text x="${sh.x+12}" y="${sh.y+21}" font-size="${Number(sh.fontSize||12)}" font-weight="800" fill="${esc(sh.textColor||stColor)}">${esc(sh.label)}</text>` : ''}
+            ${isSel ? `<rect class="nm-resize-handle" data-resize-id="${esc(sh.id)}" x="${sh.x+(sh.w||160)-8}" y="${sh.y+(sh.h||100)-8}" width="12" height="12" rx="3" fill="#157a54" stroke="#fff" stroke-width="1.5" style="cursor:nwse-resize"/>` : ''}
+          </g>`;
+        }
+      });
+    }
+
+    // Brush / Freehand Drawings
+    if(showLayers.drawings){
+      (floor.strokes || []).forEach(st => {
+        if(!Array.isArray(st.points) || st.points.length < 2) return;
+        const pts = st.points.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+        const isSel = isInteractive && state.selectedKind === 'stroke' && state.selectedId === st.id;
+        svg += `<polyline data-nm-type="stroke" data-nm-id="${esc(st.id)}" data-floor-id="${esc(floor.id)}" points="${pts}" fill="none" stroke="${esc(st.color||'#157a54')}" stroke-width="${Number(st.width||3) + (isSel?2:0)}" stroke-linecap="round" stroke-linejoin="round" opacity="${Number(st.opacity??0.92)}" style="cursor:pointer"/>`;
+      });
+    }
+
+    // Intra-floor Links / Cables
+    const nodeById = new Map((floor.nodes || []).map(n => [n.id, n]));
+    if(showLayers.links){
+      (floor.links || []).forEach(lk => {
+        const a = nodeById.get(lk.from), b = nodeById.get(lk.to);
+        if(!a || !b) return;
+        const cdef = CABLE_STYLES[lk.kind] || CABLE_STYLES.lan;
+        const isSel = isInteractive && state.selectedKind === 'link' && state.selectedId === lk.id;
+        const color = lk.color || cdef.color;
+        const mx = (a.x + b.x)/2, my = (a.y + b.y)/2;
+        svg += `<g data-nm-type="link" data-nm-id="${esc(lk.id)}" data-floor-id="${esc(floor.id)}" style="cursor:pointer">
+          <line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="transparent" stroke-width="12"/>
+          <line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${esc(isSel?'#111827':color)}" stroke-width="${(lk.width || cdef.width) + (isSel?2:0)}" ${cdef.dash ? `stroke-dasharray="${cdef.dash}"` : ''} class="${cdef.dash ? '' : 'nm-link-pulse'}" stroke-linecap="round" opacity="0.88"/>
+          ${lk.label ? `<rect x="${mx-34}" y="${my-9}" width="68" height="17" rx="5" fill="#fff" stroke="${esc(color)}" stroke-width="1"/><text x="${mx}" y="${my+3}" text-anchor="middle" font-size="9" font-weight="800" fill="#1e293b">${esc(lk.label)}</text>` : ''}
+        </g>`;
+      });
+    }
+
+    // Device Nodes
+    if(showLayers.nodes){
+      (floor.nodes || []).forEach(nd => {
+        const info = resolveLiveNodeInfo(nd);
+        const isSel = isInteractive && state.selectedKind === 'node' && state.selectedId === nd.id;
+        const isConnSrc = isInteractive && state.tool === 'connect' && state.connectFromId === nd.id;
+        const stColor = info.status === 'online' ? '#10b981' : (info.status === 'offline' ? '#ef4444' : (info.status === 'maintenance' ? '#f59e0b' : info.base.color));
+        const ringFill = info.status === 'online' ? '#ecfdf5' : (info.status === 'offline' ? '#fef2f2' : '#f8fafc');
+        svg += `<g data-nm-type="node" data-nm-id="${esc(nd.id)}" data-floor-id="${esc(floor.id)}" transform="translate(${nd.x},${nd.y})" style="cursor:${isInteractive?'grab':'pointer'}">
+          ${(isSel || isConnSrc) ? `<circle r="30" fill="none" stroke="${isConnSrc?'#f59e0b':'#157a54'}" stroke-width="2.6" stroke-dasharray="5 3"/>` : ''}
+          ${info.status === 'offline' ? `<circle r="27" fill="rgba(239,68,68,0.16)"/>` : ''}
+          <circle r="22" fill="${ringFill}" stroke="${esc(stColor)}" stroke-width="2.5"/>
+          <text x="0" y="6" text-anchor="middle" font-size="18">${esc(nd.customIcon || info.base.icon)}</text>
+          ${info.status !== 'static' ? `<circle cx="16" cy="-16" r="5.5" fill="${stColor}" stroke="#fff" stroke-width="1.6"/>` : ''}
+          <rect x="-56" y="25" width="112" height="${info.ip ? 27 : 16}" rx="6" fill="rgba(255,255,255,0.94)" stroke="#dbe5df" stroke-width="1"/>
+          <text x="0" y="36" text-anchor="middle" font-size="9.5" font-weight="800" fill="#17251e">${esc(String(info.label).slice(0,20))}</text>
+          ${info.ip ? `<text x="0" y="47" text-anchor="middle" font-size="8.2" font-weight="600" fill="#5e6d64">${esc(String(info.ip).slice(0,22))}</text>` : ''}
+        </g>`;
+      });
+    }
+
+    return svg;
+  }
+
+  function renderMapStatsSummary(diag){
+    let totalNodes = 0, online = 0, offline = 0;
+    (diag.floors || []).forEach(fl => {
+      (fl.nodes || []).forEach(nd => {
+        totalNodes++;
+        const inf = resolveLiveNodeInfo(nd);
+        if(inf.status === 'online') online++;
+        else if(inf.status === 'offline') offline++;
+      });
+    });
+    return { floors: (diag.floors || []).length, totalNodes, online, offline };
+  }
+
+  function renderOverviewPreview(){
+    const host = document.getElementById('nsDashboardNetMapCard');
+    if(!host) return;
+    const fList = getFactoriesList();
+    if(!ovCam.factory || !fList.includes(ovCam.factory)){
+      const gs = document.getElementById('globalSite')?.value;
+      ovCam.factory = (gs && gs !== 'All sites' && fList.includes(gs)) ? gs : fList[0];
+    }
+    const diag = ensureFactoryDiagram(ovCam.factory);
+    const stats = renderMapStatsSummary(diag);
+    const visibleFloors = diag.floors.filter(f => f.visible !== false);
+    const gap = 110;
+    const baseW = visibleFloors[0]?.width || 1390, baseH = visibleFloors[0]?.height || 390;
+
+    const slabsHtml = visibleFloors.map((fl, i) => {
+      const z = ovCam.viewMode === '3d' ? ((visibleFloors.length - 1 - i) * -gap + (visibleFloors.length - 1)*gap/2) : 0;
+      const svgContent = renderFloorSvgContent(fl, diag, { readonly: true });
+      const activeFloorCheck = ovCam.viewMode === '2d' && fl.id !== (ovCam.floorId || diag.activeFloorId);
+      if(activeFloorCheck) return '';
+      return `<div class="nm-floor-slab" style="width:${fl.width}px;height:${fl.height}px;margin-left:${-fl.width/2}px;margin-top:${-fl.height/2}px;transform:translate3d(0,0,${z}px)">
+        <div class="nm-slab-label">L${i+1} · ${esc(fl.name)}</div>
+        <svg width="${fl.width}" height="${fl.height}" viewBox="0 0 ${fl.width} ${fl.height}" style="display:block">${svgContent}</svg>
+      </div>`;
+    }).join('');
+
+    const t3d = ovCam.viewMode === '3d'
+      ? `translate3d(${ovCam.panX}px,${ovCam.panY}px,0px) scale(${ovCam.zoom}) rotateX(${ovCam.pitch}deg) rotateZ(${ovCam.yaw}deg)`
+      : `translate3d(${ovCam.panX}px,${ovCam.panY}px,0px) scale(${ovCam.zoom})`;
+
+    host.innerHTML = `
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">🗺 Factory Network Map · 3D Live Topology</div>
+          <div class="panel-sub">${esc(ovCam.factory)} · ${stats.floors} floors · <b>${stats.totalNodes}</b> nodes (${stats.online ? `<span style="color:#15803d">${stats.online} online</span>` : 'Live synced'}${stats.offline ? ` · <span style="color:#dc2626">${stats.offline} offline</span>` : ''})</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <select class="filter-select" id="ovMapFactorySel" style="font-size:10.5px;padding:5px 8px">
+            ${fList.map(fc => `<option value="${esc(fc)}" ${fc===ovCam.factory?'selected':''}>${esc(fc)}</option>`).join('')}
+          </select>
+          <button type="button" class="btn primary" style="font-size:10.5px;padding:6px 10px" onclick="nsNetworkMap.openStudio(document.getElementById('ovMapFactorySel')?.value)">Open Map Studio →</button>
+        </div>
+      </div>
+      <div class="ns-ov-map-stage" id="ovMapStage" title="Drag to rotate / move · Scroll to zoom">
+        <div class="nm-world-stage" id="ovMapWorld" style="width:${baseW}px;height:${baseH}px;transform:${t3d}">
+          ${slabsHtml}
+        </div>
+        <div class="ns-ov-map-hud">
+          <button type="button" id="ovMapToggle3d">${ovCam.viewMode==='3d'?'🧊 3D':'🗺 2D'}</button>
+          <button type="button" id="ovMapZoomIn">＋</button>
+          <button type="button" id="ovMapZoomOut">－</button>
+          <button type="button" id="ovMapRotL">⟲ Rotate</button>
+          <button type="button" id="ovMapRotR">⟳</button>
+          <button type="button" id="ovMapReset">Reset</button>
+        </div>
+      </div>
+    `;
+
+    // Bind inline Overview preview interactions
+    host.querySelector('#ovMapFactorySel')?.addEventListener('change', e => { ovCam.factory = e.target.value; renderOverviewPreview(); });
+    host.querySelector('#ovMapToggle3d')?.addEventListener('click', () => { ovCam.viewMode = ovCam.viewMode === '3d' ? '2d' : '3d'; renderOverviewPreview(); });
+    host.querySelector('#ovMapZoomIn')?.addEventListener('click', () => { ovCam.zoom = Math.min(1.6, +(ovCam.zoom + 0.08).toFixed(2)); renderOverviewPreview(); });
+    host.querySelector('#ovMapZoomOut')?.addEventListener('click', () => { ovCam.zoom = Math.max(0.16, +(ovCam.zoom - 0.08).toFixed(2)); renderOverviewPreview(); });
+    host.querySelector('#ovMapRotL')?.addEventListener('click', () => { ovCam.yaw -= 18; ovCam.viewMode = '3d'; renderOverviewPreview(); });
+    host.querySelector('#ovMapRotR')?.addEventListener('click', () => { ovCam.yaw += 18; ovCam.viewMode = '3d'; renderOverviewPreview(); });
+    host.querySelector('#ovMapReset')?.addEventListener('click', () => { ovCam.zoom=0.34; ovCam.pitch=52; ovCam.yaw=-28; ovCam.panX=0; ovCam.panY=0; ovCam.viewMode='3d'; renderOverviewPreview(); });
+
+    const stage = host.querySelector('#ovMapStage');
+    if(stage && !stage.dataset.bound){
+      stage.dataset.bound = '1';
+      stage.addEventListener('wheel', e => {
+        e.preventDefault();
+        ovCam.zoom = Math.max(0.16, Math.min(1.6, +(ovCam.zoom + (e.deltaY < 0 ? 0.05 : -0.05)).toFixed(2)));
+        const w = stage.querySelector('#ovMapWorld');
+        if(w) w.style.transform = ovCam.viewMode === '3d' ? `translate3d(${ovCam.panX}px,${ovCam.panY}px,0px) scale(${ovCam.zoom}) rotateX(${ovCam.pitch}deg) rotateZ(${ovCam.yaw}deg)` : `translate3d(${ovCam.panX}px,${ovCam.panY}px,0px) scale(${ovCam.zoom})`;
+      }, { passive:false });
+      stage.addEventListener('mousedown', e => {
+        if(e.target.closest('.ns-ov-map-hud')) return;
+        ovActiveDrag = { x: e.clientX, y: e.clientY, mode: e.shiftKey ? 'pan' : 'orbit', startYaw: ovCam.yaw, startPitch: ovCam.pitch, startPanX: ovCam.panX, startPanY: ovCam.panY };
+      });
+    }
+  }
+
+  function buildStudioMarkup(){
+    const diag = activeDiagram();
+    const fl = activeFloor();
+    const fList = getFactoriesList();
+    const facAssets = getAssetsList().filter(a => !state.activeFactory || state.activeFactory === 'All sites' || String(a.site || a.factory || '') === state.activeFactory);
+    const placedTags = new Set();
+    diag.floors.forEach(f => (f.nodes||[]).forEach(n => { if(n.linkedAssetTag) placedTags.add(n.linkedAssetTag); }));
+    const pq = state.paletteSearch.trim().toLowerCase();
+    const availAssets = facAssets.filter(a => !pq || [a.name, a.tag, a.ipAddress, a.type, a.subtype, a.dept].join(' ').toLowerCase().includes(pq)).slice(0, 60);
+
+    const view = document.getElementById('view-networkmap');
+    if(!view) return;
+
+    const visibleFloors = diag.floors.filter(f => f.visible !== false);
+    const slabsHtml = visibleFloors.map((f, idx) => {
+      const isAct = f.id === fl.id;
+      const z = state.viewMode === '3d' ? ((visibleFloors.length - 1 - idx) * -state.floorGap + (visibleFloors.length - 1)*state.floorGap/2) : 0;
+      if(state.viewMode === '2d' && !isAct) return '';
+      const svgInner = renderFloorSvgContent(f, diag, { readonly: false });
+      return `<div class="nm-floor-slab ${isAct ? 'is-active' : ''}" data-slab-floor-id="${esc(f.id)}" style="width:${f.width}px;height:${f.height}px;margin-left:${-f.width/2}px;margin-top:${-f.height/2}px;background:${esc(f.bgColor||'#ffffff')};transform:translate3d(0,0,${z}px)">
+        <div class="nm-slab-label">Floor ${idx+1}: ${esc(f.name)} (${(f.nodes||[]).length} nodes)</div>
+        <svg class="nm-floor-svg" data-svg-floor-id="${esc(f.id)}" width="${f.width}" height="${f.height}" viewBox="0 0 ${f.width} ${f.height}" style="display:block">${svgInner}</svg>
+      </div>`;
+    }).join('');
+
+    const t3d = state.viewMode === '3d'
+      ? `translate3d(${state.panX}px,${state.panY}px,0px) scale(${state.zoom}) rotateX(${state.pitch}deg) rotateZ(${state.yaw}deg)`
+      : `translate3d(${state.panX}px,${state.panY}px,0px) scale(${state.zoom})`;
+
+    view.innerHTML = `
+      <div class="page-head" style="margin-bottom:10px">
+        <div>
+          <div class="eyebrow">3D multi-floor topology &amp; CAD studio</div>
+          <h1>Network Map <span class="ticket-meta" style="font-size:11px;font-weight:700">${state.dirty ? '● Unsaved changes' : '✓ Synced'}</span></h1>
+        </div>
+        <div class="head-actions" style="flex-wrap:wrap">
+          <select class="filter-select" id="nmFactorySelect">
+            ${fList.map(fc => `<option value="${esc(fc)}" ${fc===state.activeFactory?'selected':''}>Factory: ${esc(fc)}</option>`).join('')}
+          </select>
+          <button type="button" class="btn" id="nmAutoGenerateBtn">⚡ Auto-Layout from Inventory</button>
+          <button type="button" class="btn" id="nmExportPngBtn">🖼 Export PNG</button>
+          <button type="button" class="btn" id="nmExportJsonBtn">⬇ JSON</button>
+          <button type="button" class="btn primary" id="nmSaveBtn">${state.saving ? 'Saving…' : '💾 Save Map'}</button>
+        </div>
+      </div>
+
+      <div class="nm-shell">
+        <!-- LEFT PANEL: Floors, Layers, Stencils & Asset Palette -->
+        <aside class="nm-panel">
+          <div class="nm-panel-head">
+            <span>🏢 Floors &amp; Stencils</span>
+            <button type="button" class="btn" style="padding:3px 7px;font-size:10px" id="nmAddFloorBtn">＋ Floor</button>
+          </div>
+          <div class="nm-scroll">
+            <div style="display:grid;gap:5px">
+              ${diag.floors.map((f, idx) => `
+                <div class="nm-floor-item ${f.id===fl.id?'active':''}" data-floor-pick="${esc(f.id)}">
+                  <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b>L${idx+1}</b> ${esc(f.name)}</span>
+                  <button type="button" data-floor-vis="${esc(f.id)}" title="Show/Hide floor in 3D" style="border:0;background:transparent;cursor:pointer;font-size:12px">${f.visible!==false?'👁':'🚫'}</button>
+                  ${diag.floors.length > 1 ? `<button type="button" data-floor-del="${esc(f.id)}" title="Delete floor" style="border:0;background:transparent;cursor:pointer;color:#b53d38;font-size:11px">✕</button>` : ''}
+                </div>
+              `).join('')}
+            </div>
+
+            <div style="border-top:1px solid #edf2ee;padding-top:8px">
+              <div style="font-size:10px;font-weight:800;color:#55665c;margin-bottom:6px">PHOTOSHOP-STYLE LAYERS</div>
+              <div style="display:grid;gap:4px;font-size:10.5px">
+                ${[['bg','Floor Blueprint Image'],['zones','Rooms & Zones'],['links','Cables & Fiber Links'],['nodes','Devices & Servers'],['drawings','Brush & Annotations']].map(([lk, lbl]) => `
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" data-layer-toggle="${lk}" ${state.layers[lk]?'checked':''}> ${lbl}</label>
+                `).join('')}
+                <div style="display:flex;gap:5px;margin-top:4px;flex-wrap:wrap">
+                  <label class="btn" style="font-size:10px;padding:4px 8px;cursor:pointer">🗺 Upload Floorplan<input type="file" id="nmBgUpload" accept="image/*" hidden></label>
+                  ${fl.bgImage ? `<button type="button" class="btn" id="nmBgClearBtn" style="font-size:10px;padding:4px 7px">Clear</button>` : ''}
+                </div>
+                ${fl.bgImage ? `<label style="font-size:10px;color:#556">Blueprint opacity <input type="range" id="nmBgOpacity" min="0.05" max="1" step="0.05" value="${fl.bgOpacity??0.45}" style="width:100%"></label>` : ''}
+              </div>
+            </div>
+
+            <div style="border-top:1px solid #edf2ee;padding-top:8px">
+              <div style="font-size:10px;font-weight:800;color:#55665c;margin-bottom:6px">CLICK TO ADD DEVICE / ICON</div>
+              <div class="nm-palette-grid">
+                ${STENCILS.map(s => `<button type="button" class="nm-palette-btn" data-add-stencil="${esc(s.kind)}"><span style="font-size:15px">${s.icon}</span><span>${esc(s.label)}</span></button>`).join('')}
+              </div>
+            </div>
+
+            <div style="border-top:1px solid #edf2ee;padding-top:8px">
+              <div style="font-size:10px;font-weight:800;color:#55665c;margin-bottom:6px">LINK LIVE FACTORY ASSETS (${availAssets.length})</div>
+              <input class="filter-input" id="nmAssetSearch" placeholder="Filter IP / name / tag..." value="${esc(state.paletteSearch)}" style="width:100%;font-size:10.5px;padding:5px 8px;margin-bottom:6px">
+              <div style="display:grid;gap:5px">
+                ${availAssets.map(a => {
+                  const placed = placedTags.has(a.tag);
+                  return `<div class="nm-asset-row">
+                    <div style="min-width:0;flex:1">
+                      <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name || a.tag)}</div>
+                      <div style="font-size:9.5px;color:#627168">${esc(a.type||'')}${a.ipAddress?' · '+esc(a.ipAddress):''}</div>
+                    </div>
+                    <button type="button" class="btn" data-drop-asset="${esc(a.tag)}" style="padding:3px 7px;font-size:9.5px">${placed?'＋ Again':'＋ Place'}</button>
+                  </div>`;
+                }).join('') || `<div class="ticket-meta">No matching assets for ${esc(state.activeFactory)}.</div>`}
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- CENTER STUDIO: Paint/CAD Toolbar + Google-Maps 3D/2D Canvas -->
+        <section class="nm-center">
+          <div class="nm-toolbar">
+            ${[
+              ['select','↖ Select'],['pan','✋ Pan'],['connect','🔗 Cable Link'],['zone','▭ Room/Zone'],
+              ['rect','⬜ Rect'],['circle','◯ Circle'],['arrow','↗ Arrow'],['pen','🖌 Brush'],['text','T Text'],['eraser','🧽 Erase']
+            ].map(([tid, lbl]) => `<button type="button" class="nm-tool-btn ${state.tool===tid?'active':''}" data-nm-tool="${tid}">${lbl}</button>`).join('')}
+            <div class="nm-sep"></div>
+            <select class="filter-select" id="nmCableSelect" title="Cable / Link type" style="font-size:10.5px;padding:4px 7px">
+              ${Object.entries(CABLE_STYLES).map(([k, v]) => `<option value="${k}" ${state.cableKind===k?'selected':''}>${v.label}</option>`).join('')}
+            </select>
+            <input type="color" id="nmBrushColor" value="${esc(state.brushColor)}" title="Drawing & Fill Color" style="width:28px;height:26px;padding:1px;border:1px solid #d5e0d9;border-radius:6px;cursor:pointer">
+            <select class="filter-select" id="nmBrushSize" title="Brush Width" style="font-size:10.5px;padding:4px 6px">
+              ${[2,3.5,6,10].map(sz => `<option value="${sz}" ${Number(state.brushWidth)===sz?'selected':''}>${sz}px</option>`).join('')}
+            </select>
+            <div class="nm-sep"></div>
+            <button type="button" class="nm-tool-btn" id="nmUndoBtn" title="Undo">↩ Undo</button>
+            <button type="button" class="nm-tool-btn" id="nmRedoBtn" title="Redo">↪ Redo</button>
+            <button type="button" class="nm-tool-btn" id="nmToggleModeBtn">${state.viewMode==='3d'?'🧊 3D Isometric':'🗺 2D CAD'}</button>
+            <button type="button" class="nm-tool-btn" id="nmGridToggleBtn">${state.showGrid?'# Grid ON':'# Grid OFF'}</button>
+          </div>
+
+          <div class="nm-viewport ${state.showGrid?'mode-grid':''}" id="nmViewport">
+            <div class="nm-floor-badge">
+              ${diag.floors.map((f, idx) => `<button type="button" class="nm-floor-pill ${f.id===fl.id?'active':''}" data-floor-pick="${esc(f.id)}">L${idx+1}: ${esc(f.name)}</button>`).join('')}
+            </div>
+
+            <div class="nm-world-stage" id="nmWorldStage" style="width:${fl.width}px;height:${fl.height}px;transform:${t3d}">
+              ${slabsHtml}
+            </div>
+
+            <div class="nm-camera-hud">
+              <label>Zoom <input type="range" id="nmZoomRange" min="0.25" max="2.4" step="0.04" value="${state.zoom}"><b>${Math.round(state.zoom*100)}%</b></label>
+              <label>3D Tilt <input type="range" id="nmPitchRange" min="0" max="75" step="1" value="${state.pitch}"><b>${Math.round(state.pitch)}°</b></label>
+              <label>Rotate <input type="range" id="nmYawRange" min="-180" max="180" step="1" value="${state.yaw}"><b>${Math.round(state.yaw)}°</b></label>
+              <label>Floor Gap <input type="range" id="nmGapRange" min="50" max="260" step="5" value="${state.floorGap}"></label>
+              <button type="button" class="nm-tool-btn" id="nmCamResetBtn">↺ Reset Camera</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- RIGHT PANEL: Inspector (Node, Cable, Zone/Shape, Brush, Floor Props) -->
+        <aside class="nm-panel nm-inspector-panel">
+          <div class="nm-panel-head"><span>🎛 Properties Inspector</span></div>
+          <div class="nm-scroll" id="nmInspectorBody"></div>
+        </aside>
+      </div>
+    `;
+
+    renderInspector();
+    bindStudioInteractions();
+  }
+
+  function findSelectedObj(){
+    const fl = activeFloor();
+    if(!fl || !state.selectedId) return null;
+    if(state.selectedKind === 'node') return (fl.nodes||[]).find(x => x.id === state.selectedId);
+    if(state.selectedKind === 'shape') return (fl.shapes||[]).find(x => x.id === state.selectedId);
+    if(state.selectedKind === 'link') return (fl.links||[]).find(x => x.id === state.selectedId);
+    if(state.selectedKind === 'stroke') return (fl.strokes||[]).find(x => x.id === state.selectedId);
+    return null;
+  }
+
+  function renderInspector(){
+    const host = document.getElementById('nmInspectorBody');
+    if(!host) return;
+    const fl = activeFloor();
+    const diag = activeDiagram();
+    const obj = findSelectedObj();
+
+    if(!obj){
+      host.innerHTML = `
+        <div class="nm-prop-row"><span>ACTIVE FLOOR NAME</span><input id="nmFloorNameInput" value="${esc(fl.name)}"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div class="nm-prop-row"><span>WIDTH (px)</span><input type="number" id="nmFloorWInput" value="${fl.width}"></div>
+          <div class="nm-prop-row"><span>HEIGHT (px)</span><input type="number" id="nmFloorHInput" value="${fl.height}"></div>
+        </div>
+        <div class="nm-prop-row"><span>FLOOR CANVAS COLOR</span><input type="color" id="nmFloorBgInput" value="${esc(fl.bgColor||'#ffffff')}"></div>
+        <div style="border-top:1px solid #edf2ee;padding-top:8px;display:grid;gap:6px">
+          <div style="font-size:10px;font-weight:800;color:#55665c">INTER-FLOOR FIBER RISERS (${(diag.interFloorLinks||[]).length})</div>
+          ${(diag.interFloorLinks||[]).map(r => `<div class="ticket-meta" style="display:flex;justify-content:space-between;align-items:center"><span>${esc(r.label||'Riser')}</span><button type="button" data-del-riser="${esc(r.id)}" class="btn" style="padding:2px 6px;font-size:9.5px;color:#b53d38">✕</button></div>`).join('') || '<div class="ticket-meta">No inter-floor risers yet.</div>'}
+        </div>
+        <div class="ticket-meta" style="background:#f5f9f6;padding:10px;border-radius:9px;line-height:1.5">
+          <b>Quick tips:</b><br>
+          • <b>Wheel</b> to zoom, <b>Right-drag</b> or <b>Rotate/Tilt</b> sliders for Google-Maps 3D orbit.<br>
+          • Click any device/zone/cable to edit properties, or double-click a linked asset to inspect it.<br>
+          • Use <b>Brush / Shapes / Zone</b> tools like Paint/Photoshop, then hit <b>Save Map</b>.
+        </div>
+      `;
+      host.querySelector('#nmFloorNameInput')?.addEventListener('change', e => { pushUndo(); fl.name = e.target.value; markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#nmFloorWInput')?.addEventListener('change', e => { pushUndo(); fl.width = Math.max(600, Math.min(3500, Number(e.target.value)||1390)); markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#nmFloorHInput')?.addEventListener('change', e => { pushUndo(); fl.height = Math.max(400, Math.min(2500, Number(e.target.value)||390)); markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#nmFloorBgInput')?.addEventListener('change', e => { pushUndo(); fl.bgColor = e.target.value; markDirty(); renderStudioAndOverview(); });
+      host.querySelectorAll('[data-del-riser]').forEach(b => b.addEventListener('click', () => {
+        pushUndo(); diag.interFloorLinks = (diag.interFloorLinks||[]).filter(r => r.id !== b.dataset.delRiser); markDirty(); renderStudioAndOverview();
+      }));
+      return;
+    }
+
+    if(state.selectedKind === 'node'){
+      const facAssets = getAssetsList().filter(a => !state.activeFactory || state.activeFactory === 'All sites' || String(a.site||a.factory||'') === state.activeFactory);
+      host.innerHTML = `
+        <div class="nm-prop-row"><span>DEVICE LABEL</span><input id="npLabel" value="${esc(obj.label||'')}"></div>
+        <div class="nm-prop-row"><span>SUBTITLE / IP ADDRESS</span><input id="npSub" value="${esc(obj.sublabel||'')}"></div>
+        <div class="nm-prop-row"><span>ICON / TYPE</span>
+          <select id="npKind">${STENCILS.map(s => `<option value="${s.kind}" ${obj.kind===s.kind?'selected':''}>${s.icon} ${esc(s.label)}</option>`).join('')}</select>
+        </div>
+        <div class="nm-prop-row"><span>LINK TO INVENTORY ASSET (LIVE STATUS)</span>
+          <select id="npLinkedTag"><option value="">None (static icon)</option>${facAssets.map(a => `<option value="${esc(a.tag)}" ${obj.linkedAssetTag===a.tag?'selected':''}>${esc((a.name||a.tag)+' ('+(a.ipAddress||a.tag)+')')}</option>`).join('')}</select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div class="nm-prop-row"><span>X</span><input type="number" id="npX" value="${Math.round(obj.x||0)}"></div>
+          <div class="nm-prop-row"><span>Y</span><input type="number" id="npY" value="${Math.round(obj.y||0)}"></div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+          ${obj.linkedAssetTag ? `<button type="button" class="btn" onclick="window.openAssetDetails?.('${esc(obj.linkedAssetTag)}')">🔍 View Asset</button>` : ''}
+          <button type="button" class="btn" id="npDupBtn">⧉ Duplicate</button>
+          <button type="button" class="btn danger" id="npDelBtn">🗑 Delete</button>
+        </div>
+      `;
+      host.querySelector('#npLabel')?.addEventListener('change', e => { pushUndo(); obj.label = e.target.value; obj.customLabel = true; markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#npSub')?.addEventListener('change', e => { pushUndo(); obj.sublabel = e.target.value; markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#npKind')?.addEventListener('change', e => { pushUndo(); obj.kind = e.target.value; markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#npLinkedTag')?.addEventListener('change', e => { pushUndo(); obj.linkedAssetTag = e.target.value; markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#npX')?.addEventListener('change', e => { pushUndo(); obj.x = Number(e.target.value)||0; markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#npY')?.addEventListener('change', e => { pushUndo(); obj.y = Number(e.target.value)||0; markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#npDupBtn')?.addEventListener('click', () => {
+        pushUndo();
+        const cp = { ...obj, id:'nd-'+Math.random().toString(36).slice(2,7), x:(obj.x||0)+36, y:(obj.y||0)+36 };
+        fl.nodes.push(cp); state.selectedId = cp.id; markDirty(); renderStudioAndOverview();
+      });
+      host.querySelector('#npDelBtn')?.addEventListener('click', deleteSelectedObject);
+    } else if(state.selectedKind === 'shape'){
+      host.innerHTML = `
+        <div class="nm-prop-row"><span>TEXT / LABEL</span><input id="spLabel" value="${esc(obj.label||'')}"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div class="nm-prop-row"><span>FILL</span><input type="color" id="spFill" value="${esc(obj.fill||'#eefcf4')}"></div>
+          <div class="nm-prop-row"><span>BORDER</span><input type="color" id="spStroke" value="${esc(obj.stroke||'#157a54')}"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div class="nm-prop-row"><span>WIDTH</span><input type="number" id="spW" value="${Math.round(obj.w||160)}"></div>
+          <div class="nm-prop-row"><span>HEIGHT</span><input type="number" id="spH" value="${Math.round(obj.h||100)}"></div>
+        </div>
+        <div class="nm-prop-row"><span>OPACITY (${Math.round((obj.opacity??0.85)*100)}%)</span><input type="range" id="spOp" min="0.1" max="1" step="0.05" value="${obj.opacity??0.85}"></div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button type="button" class="btn" id="spBackBtn">Send Back</button>
+          <button type="button" class="btn danger" id="npDelBtn">🗑 Delete</button>
+        </div>
+      `;
+      host.querySelector('#spLabel')?.addEventListener('change', e => { pushUndo(); obj.label = e.target.value; markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#spFill')?.addEventListener('change', e => { pushUndo(); obj.fill = e.target.value; markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#spStroke')?.addEventListener('change', e => { pushUndo(); obj.stroke = e.target.value; markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#spW')?.addEventListener('change', e => { pushUndo(); obj.w = Math.max(20, Number(e.target.value)||100); markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#spH')?.addEventListener('change', e => { pushUndo(); obj.h = Math.max(20, Number(e.target.value)||60); markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#spOp')?.addEventListener('input', e => { obj.opacity = Number(e.target.value); markDirty(); redrawWorldOnly(); });
+      host.querySelector('#spBackBtn')?.addEventListener('click', () => {
+        pushUndo(); fl.shapes = [obj, ...fl.shapes.filter(x => x.id !== obj.id)]; markDirty(); renderStudioAndOverview();
+      });
+      host.querySelector('#npDelBtn')?.addEventListener('click', deleteSelectedObject);
+    } else if(state.selectedKind === 'link'){
+      host.innerHTML = `
+        <div class="nm-prop-row"><span>CABLE / LINK LABEL</span><input id="lpLabel" value="${esc(obj.label||'')}"></div>
+        <div class="nm-prop-row"><span>CABLE TYPE</span>
+          <select id="lpKind">${Object.entries(CABLE_STYLES).map(([k,v]) => `<option value="${k}" ${obj.kind===k?'selected':''}>${v.label}</option>`).join('')}</select>
+        </div>
+        <button type="button" class="btn danger" id="npDelBtn" style="margin-top:6px">🗑 Delete Link</button>
+      `;
+      host.querySelector('#lpLabel')?.addEventListener('change', e => { pushUndo(); obj.label = e.target.value; markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#lpKind')?.addEventListener('change', e => { pushUndo(); obj.kind = e.target.value; markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#npDelBtn')?.addEventListener('click', deleteSelectedObject);
+    } else if(state.selectedKind === 'stroke'){
+      host.innerHTML = `
+        <div class="nm-prop-row"><span>BRUSH COLOR</span><input type="color" id="bpColor" value="${esc(obj.color||'#157a54')}"></div>
+        <div class="nm-prop-row"><span>WIDTH</span><input type="number" id="bpWidth" value="${Number(obj.width||3)}"></div>
+        <button type="button" class="btn danger" id="npDelBtn" style="margin-top:6px">🗑 Delete Stroke</button>
+      `;
+      host.querySelector('#bpColor')?.addEventListener('change', e => { pushUndo(); obj.color = e.target.value; markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#bpWidth')?.addEventListener('change', e => { pushUndo(); obj.width = Math.max(1, Number(e.target.value)||3); markDirty(); renderStudioAndOverview(); });
+      host.querySelector('#npDelBtn')?.addEventListener('click', deleteSelectedObject);
+    }
+  }
+
+  function deleteSelectedObject(){
+    const fl = activeFloor();
+    if(!fl || !state.selectedId) return;
+    pushUndo();
+    if(state.selectedKind === 'node'){
+      fl.nodes = fl.nodes.filter(n => n.id !== state.selectedId);
+      fl.links = fl.links.filter(l => l.from !== state.selectedId && l.to !== state.selectedId);
+    } else if(state.selectedKind === 'shape'){
+      fl.shapes = fl.shapes.filter(s => s.id !== state.selectedId);
+    } else if(state.selectedKind === 'link'){
+      fl.links = fl.links.filter(l => l.id !== state.selectedId);
+    } else if(state.selectedKind === 'stroke'){
+      fl.strokes = fl.strokes.filter(st => st.id !== state.selectedId);
+    }
+    state.selectedId = ''; state.selectedKind = '';
+    markDirty();
+    renderStudioAndOverview();
+  }
+
+  function markDirty(){
+    state.dirty = true;
+    activeDiagram().updatedAt = new Date().toISOString();
+    saveLocalMap();
+  }
+
+  function redrawWorldOnly(){
+    const diag = activeDiagram();
+    const fl = activeFloor();
+    const stage = document.getElementById('nmWorldStage');
+    if(!stage) return;
+    const t3d = state.viewMode === '3d'
+      ? `translate3d(${state.panX}px,${state.panY}px,0px) scale(${state.zoom}) rotateX(${state.pitch}deg) rotateZ(${state.yaw}deg)`
+      : `translate3d(${state.panX}px,${state.panY}px,0px) scale(${state.zoom})`;
+    stage.style.transform = t3d;
+    diag.floors.filter(f => f.visible !== false).forEach((f, idx, arr) => {
+      const svgEl = stage.querySelector(`.nm-floor-svg[data-svg-floor-id="${CSS.escape(f.id)}"]`);
+      if(svgEl) svgEl.innerHTML = renderFloorSvgContent(f, diag, { readonly:false });
+      const slab = stage.querySelector(`.nm-floor-slab[data-slab-floor-id="${CSS.escape(f.id)}"]`);
+      if(slab){
+        const z = state.viewMode === '3d' ? ((arr.length - 1 - idx) * -state.floorGap + (arr.length - 1)*state.floorGap/2) : 0;
+        slab.style.transform = `translate3d(0,0,${z}px)`;
+      }
+    });
+    renderOverviewPreview();
+  }
+
+  function renderStudioAndOverview(){
+    if(document.getElementById('view-networkmap')?.classList.contains('active')){
+      buildStudioMarkup();
+    }
+    renderOverviewPreview();
+  }
+
+  function bindStudioInteractions(){
+    const view = document.getElementById('view-networkmap');
+    if(!view) return;
+    const diag = activeDiagram();
+    const fl = activeFloor();
+
+    view.querySelector('#nmFactorySelect')?.addEventListener('change', e => {
+      state.activeFactory = e.target.value;
+      state.selectedFloorId = ''; state.selectedId = ''; state.selectedKind = '';
+      buildStudioMarkup();
+    });
+    view.querySelector('#nmSaveBtn')?.addEventListener('click', () => window.nsNetworkMap.saveToServer());
+    view.querySelector('#nmAutoGenerateBtn')?.addEventListener('click', () => {
+      pushUndo();
+      mapDoc.diagrams[state.activeFactory] = buildStarterDiagramForFactory(state.activeFactory);
+      state.selectedFloorId = mapDoc.diagrams[state.activeFactory].activeFloorId;
+      state.selectedId = '';
+      markDirty();
+      renderStudioAndOverview();
+      if(typeof showToast === 'function') showToast('Auto-generated layout from inventory assets');
+    });
+    view.querySelector('#nmAddFloorBtn')?.addEventListener('click', () => {
+      const nextNum = diag.floors.length + 1;
+      const defaultName = `Floor ${nextNum} · Level ${nextNum - 1}`;
+      pushUndo();
+      const nf = { id:'fl-'+Math.random().toString(36).slice(2,7), name:defaultName, level:nextNum-1, visible:true, width:1390, height:390, bgColor:'#ffffff', bgImage:'', bgOpacity:0.45, nodes:[], links:[], shapes:[], strokes:[] };
+      diag.floors.push(nf);
+      state.selectedFloorId = nf.id;
+      diag.activeFloorId = nf.id;
+      state.selectedId = ''; state.selectedKind = '';
+      markDirty();
+      renderStudioAndOverview();
+      document.getElementById('nmFloorNameInput')?.focus();
+      document.getElementById('nmFloorNameInput')?.select();
+    });
+    view.querySelectorAll('[data-floor-pick]').forEach(el => el.addEventListener('click', e => {
+      if(e.target.closest('[data-floor-vis],[data-floor-del]')) return;
+      state.selectedFloorId = el.dataset.floorPick;
+      diag.activeFloorId = state.selectedFloorId;
+      state.selectedId = '';
+      buildStudioMarkup();
+    }));
+    view.querySelectorAll('[data-floor-vis]').forEach(el => el.addEventListener('click', e => {
+      e.stopPropagation();
+      const f = diag.floors.find(x => x.id === el.dataset.floorVis);
+      if(f){ f.visible = f.visible === false; markDirty(); renderStudioAndOverview(); }
+    }));
+    view.querySelectorAll('[data-floor-del]').forEach(el => el.addEventListener('click', e => {
+      e.stopPropagation();
+      if(diag.floors.length <= 1 || !window.confirm('Delete this floor from diagram?')) return;
+      pushUndo();
+      diag.floors = diag.floors.filter(x => x.id !== el.dataset.floorDel);
+      state.selectedFloorId = diag.floors[0].id;
+      markDirty(); renderStudioAndOverview();
+    }));
+
+    view.querySelectorAll('[data-layer-toggle]').forEach(chk => chk.addEventListener('change', e => {
+      state.layers[chk.dataset.layerToggle] = !!e.target.checked;
+      redrawWorldOnly();
+    }));
+    view.querySelector('#nmBgUpload')?.addEventListener('change', e => {
+      const file = e.target.files?.[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => { pushUndo(); fl.bgImage = String(reader.result||''); markDirty(); renderStudioAndOverview(); };
+      reader.readAsDataURL(file);
+    });
+    view.querySelector('#nmBgClearBtn')?.addEventListener('click', () => { pushUndo(); fl.bgImage = ''; markDirty(); renderStudioAndOverview(); });
+    view.querySelector('#nmBgOpacity')?.addEventListener('input', e => { fl.bgOpacity = Number(e.target.value); markDirty(); redrawWorldOnly(); });
+
+    view.querySelectorAll('[data-add-stencil]').forEach(btn => btn.addEventListener('click', () => {
+      pushUndo();
+      const st = STENCIL_MAP[btn.dataset.addStencil] || STENCIL_MAP.desktop;
+      const nn = { id:'nd-'+Math.random().toString(36).slice(2,7), kind:st.kind, label:st.label, sublabel:'', x:200 + Math.round(Math.random()*280), y:140 + Math.round(Math.random()*160), linkedAssetTag:'' };
+      fl.nodes.push(nn); state.selectedKind = 'node'; state.selectedId = nn.id; state.tool = 'select';
+      markDirty(); renderStudioAndOverview();
+    }));
+    view.querySelector('#nmAssetSearch')?.addEventListener('input', e => { state.paletteSearch = e.target.value; buildStudioMarkup(); document.getElementById('nmAssetSearch')?.focus(); });
+    view.querySelectorAll('[data-drop-asset]').forEach(btn => btn.addEventListener('click', () => {
+      const a = getAssetsList().find(x => String(x.tag) === String(btn.dataset.dropAsset));
+      if(!a) return;
+      pushUndo();
+      const nn = { id:'nd-'+Math.random().toString(36).slice(2,7), kind:classifyAssetKind(a), label:a.name||a.tag, sublabel:a.ipAddress||a.tag, x:220 + Math.round(Math.random()*380), y:120 + Math.round(Math.random()*180), linkedAssetTag:a.tag };
+      fl.nodes.push(nn); state.selectedKind = 'node'; state.selectedId = nn.id; state.tool = 'select';
+      markDirty(); renderStudioAndOverview();
+    }));
+
+    // Toolbar
+    view.querySelectorAll('[data-nm-tool]').forEach(btn => btn.addEventListener('click', () => {
+      state.tool = btn.dataset.nmTool; state.connectFromId = ''; buildStudioMarkup();
+    }));
+    view.querySelector('#nmCableSelect')?.addEventListener('change', e => { state.cableKind = e.target.value; });
+    view.querySelector('#nmBrushColor')?.addEventListener('change', e => { state.brushColor = e.target.value; });
+    view.querySelector('#nmBrushSize')?.addEventListener('change', e => { state.brushWidth = Number(e.target.value)||3.5; });
+    view.querySelector('#nmToggleModeBtn')?.addEventListener('click', () => { state.viewMode = state.viewMode === '3d' ? '2d' : '3d'; buildStudioMarkup(); });
+    view.querySelector('#nmGridToggleBtn')?.addEventListener('click', () => { state.showGrid = !state.showGrid; buildStudioMarkup(); });
+    view.querySelector('#nmUndoBtn')?.addEventListener('click', () => {
+      if(!state.undoStack.length) return;
+      state.redoStack.push(JSON.stringify(activeDiagram()));
+      mapDoc.diagrams[state.activeFactory] = JSON.parse(state.undoStack.pop());
+      markDirty(); renderStudioAndOverview();
+    });
+    view.querySelector('#nmRedoBtn')?.addEventListener('click', () => {
+      if(!state.redoStack.length) return;
+      state.undoStack.push(JSON.stringify(activeDiagram()));
+      mapDoc.diagrams[state.activeFactory] = JSON.parse(state.redoStack.pop());
+      markDirty(); renderStudioAndOverview();
+    });
+
+    // Camera HUD sliders
+    view.querySelector('#nmZoomRange')?.addEventListener('input', e => { state.zoom = Number(e.target.value); e.target.nextElementSibling.textContent = Math.round(state.zoom*100)+'%'; redrawWorldOnly(); });
+    view.querySelector('#nmPitchRange')?.addEventListener('input', e => { state.pitch = Number(e.target.value); e.target.nextElementSibling.textContent = Math.round(state.pitch)+'°'; state.viewMode='3d'; redrawWorldOnly(); });
+    view.querySelector('#nmYawRange')?.addEventListener('input', e => { state.yaw = Number(e.target.value); e.target.nextElementSibling.textContent = Math.round(state.yaw)+'°'; state.viewMode='3d'; redrawWorldOnly(); });
+    view.querySelector('#nmGapRange')?.addEventListener('input', e => { state.floorGap = Number(e.target.value); redrawWorldOnly(); });
+    view.querySelector('#nmCamResetBtn')?.addEventListener('click', () => {
+      state.zoom=0.72; state.pitch=50; state.yaw=-26; state.panX=0; state.panY=0; state.viewMode='3d'; buildStudioMarkup();
+    });
+
+    // Export JSON & PNG
+    view.querySelector('#nmExportJsonBtn')?.addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(diag, null, 2)], { type:'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `network-map-${state.activeFactory}.json`; a.click();
+    });
+    view.querySelector('#nmExportPngBtn')?.addEventListener('click', () => {
+      const svgEl = view.querySelector(`.nm-floor-svg[data-svg-floor-id="${CSS.escape(fl.id)}"]`);
+      if(!svgEl) return;
+      const cloned = svgEl.cloneNode(true);
+      cloned.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${fl.width}" height="${fl.height}" style="background:${fl.bgColor||'#fff'}">${cloned.innerHTML}</svg>`);
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas'); c.width = fl.width; c.height = fl.height;
+        const ctx = c.getContext('2d'); ctx.fillStyle = fl.bgColor || '#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0);
+        const link = document.createElement('a'); link.download = `network-map-${state.activeFactory}-${fl.name.replace(/\W+/g,'_')}.png`; link.href = c.toDataURL('image/png'); link.click();
+      };
+      img.src = url;
+    });
+
+    // Viewport mouse/drag/draw/orbit interaction
+    const vp = view.querySelector('#nmViewport');
+    if(vp && !vp.dataset.bound){
+      vp.dataset.bound = '1';
+
+      vp.addEventListener('wheel', e => {
+        e.preventDefault();
+        state.zoom = Math.max(0.25, Math.min(2.4, +(state.zoom + (e.deltaY < 0 ? 0.06 : -0.06)).toFixed(2)));
+        const zr = view.querySelector('#nmZoomRange');
+        if(zr){ zr.value = state.zoom; zr.nextElementSibling.textContent = Math.round(state.zoom*100)+'%'; }
+        redrawWorldOnly();
+      }, { passive:false });
+
+      vp.addEventListener('contextmenu', e => e.preventDefault());
+
+      vp.addEventListener('mousedown', e => {
+        if(e.target.closest('.nm-camera-hud,.nm-floor-badge')) return;
+        if(e.button === 2 || (e.shiftKey && state.tool === 'select')){
+          studioActiveOp = { kind:'orbit', sx:e.clientX, sy:e.clientY, yaw:state.yaw, pitch:state.pitch };
+          return;
+        }
+        if(e.button === 1 || state.tool === 'pan'){
+          studioActiveOp = { kind:'pan', sx:e.clientX, sy:e.clientY, panX:state.panX, panY:state.panY };
+          return;
+        }
+
+        const itemEl = e.target.closest('[data-nm-type]');
+        const resizeEl = e.target.closest('[data-resize-id]');
+        const svgEl = e.target.closest('.nm-floor-svg') || view.querySelector(`.nm-floor-svg[data-svg-floor-id="${CSS.escape(fl.id)}"]`);
+        if(!svgEl) return;
+
+        const hitFloorId = svgEl.dataset.svgFloorId;
+        if(hitFloorId && hitFloorId !== fl.id){
+          state.selectedFloorId = hitFloorId;
+          diag.activeFloorId = hitFloorId;
+        }
+        const curFloor = activeFloor();
+        const pt = clientToFloorSvgGlobal(e, svgEl);
+
+        if(state.tool === 'eraser' && itemEl){
+          state.selectedKind = itemEl.dataset.nmType;
+          state.selectedId = itemEl.dataset.nmId;
+          deleteSelectedObject();
+          return;
+        }
+
+        if(state.tool === 'connect'){
+          if(itemEl && itemEl.dataset.nmType === 'node'){
+            const nid = itemEl.dataset.nmId;
+            if(!state.connectFromId){
+              state.connectFromId = nid;
+              redrawWorldOnly();
+            } else if(state.connectFromId !== nid){
+              pushUndo();
+              const cdef = CABLE_STYLES[state.cableKind] || CABLE_STYLES.lan;
+              curFloor.links.push({ id:'lk-'+Math.random().toString(36).slice(2,7), from:state.connectFromId, to:nid, kind:state.cableKind, label:cdef.label });
+              state.connectFromId = '';
+              markDirty(); renderStudioAndOverview();
+            } else {
+              state.connectFromId = ''; redrawWorldOnly();
+            }
+          }
+          return;
+        }
+
+        if(state.tool === 'text'){
+          pushUndo();
+          const ns = { id:'sh-'+Math.random().toString(36).slice(2,7), shapeType:'text', x:pt.x, y:pt.y, label:'Label / Rack Note', fontSize:15, textColor:state.brushColor };
+          curFloor.shapes.push(ns); state.selectedKind='shape'; state.selectedId=ns.id; state.tool='select';
+          markDirty(); renderStudioAndOverview();
+          document.getElementById('spLabel')?.focus();
+          document.getElementById('spLabel')?.select();
+          return;
+        }
+
+        if(state.tool === 'pen'){
+          pushUndo();
+          const stroke = { id:'st-'+Math.random().toString(36).slice(2,7), color:state.brushColor, width:state.brushWidth, opacity:0.95, points:[[pt.x, pt.y]] };
+          curFloor.strokes.push(stroke);
+          studioActiveOp = { kind:'pen', svgEl, stroke };
+          return;
+        }
+
+        if(['zone','rect','circle','arrow'].includes(state.tool)){
+          pushUndo();
+          const sh = {
+            id:'sh-'+Math.random().toString(36).slice(2,7),
+            shapeType: state.tool,
+            x: pt.x, y: pt.y, w: 10, h: 10, x2: pt.x, y2: pt.y,
+            label: state.tool === 'zone' ? 'New Zone / Room' : '',
+            fill: state.tool === 'zone' ? '#eefcf4' : '#ffffff',
+            stroke: state.brushColor || '#157a54',
+            strokeWidth: 2, opacity: 0.85
+          };
+          curFloor.shapes.push(sh);
+          state.selectedKind = 'shape'; state.selectedId = sh.id;
+          studioActiveOp = { kind:'drawShape', svgEl, sh, sx:pt.x, sy:pt.y };
+          return;
+        }
+
+        if(resizeEl){
+          const sh = (curFloor.shapes||[]).find(s => s.id === resizeEl.dataset.resizeId);
+          if(sh){
+            pushUndo();
+            studioActiveOp = { kind:'resizeShape', svgEl, sh, sx:pt.x, sy:pt.y, origW:sh.w||120, origH:sh.h||80 };
+          }
+          return;
+        }
+
+        if(itemEl){
+          state.selectedKind = itemEl.dataset.nmType;
+          state.selectedId = itemEl.dataset.nmId;
+          const obj = findSelectedObj();
+          renderInspector();
+          if(obj && (state.selectedKind === 'node' || state.selectedKind === 'shape')){
+            pushUndo();
+            studioActiveOp = { kind:'moveObj', svgEl, obj, sx:pt.x, sy:pt.y, origX:obj.x||0, origY:obj.y||0, origX2:obj.x2, origY2:obj.y2 };
+          } else {
+            redrawWorldOnly();
+          }
+          return;
+        }
+
+        state.selectedId = ''; state.selectedKind = '';
+        renderInspector();
+        studioActiveOp = { kind:'pan', sx:e.clientX, sy:e.clientY, panX:state.panX, panY:state.panY };
+      });
+
+      vp.addEventListener('dblclick', e => {
+        const nodeEl = e.target.closest('[data-nm-type="node"]');
+        if(!nodeEl) return;
+        const flCur = activeFloor();
+        const nd = (flCur.nodes||[]).find(n => n.id === nodeEl.dataset.nmId);
+        if(nd?.linkedAssetTag && typeof window.openAssetDetails === 'function'){
+          window.openAssetDetails(nd.linkedAssetTag);
+        }
+      });
+    }
+  }
+
+  window.addEventListener('mousemove', e => {
+    if(ovActiveDrag){
+      const dx = e.clientX - ovActiveDrag.x, dy = e.clientY - ovActiveDrag.y;
+      if(ovActiveDrag.mode === 'orbit' && ovCam.viewMode === '3d'){
+        ovCam.yaw = ovActiveDrag.startYaw + dx * 0.35;
+        ovCam.pitch = Math.max(15, Math.min(76, ovActiveDrag.startPitch - dy * 0.25));
+      } else {
+        ovCam.panX = ovActiveDrag.startPanX + dx;
+        ovCam.panY = ovActiveDrag.startPanY + dy;
+      }
+      const w = document.getElementById('ovMapWorld');
+      if(w) w.style.transform = ovCam.viewMode === '3d' ? `translate3d(${ovCam.panX}px,${ovCam.panY}px,0px) scale(${ovCam.zoom}) rotateX(${ovCam.pitch}deg) rotateZ(${ovCam.yaw}deg)` : `translate3d(${ovCam.panX}px,${ovCam.panY}px,0px) scale(${ovCam.zoom})`;
+    }
+    const op = studioActiveOp;
+    if(!op) return;
+    if(op.kind === 'orbit'){
+      state.yaw = op.yaw + (e.clientX - op.sx) * 0.4;
+      state.pitch = Math.max(0, Math.min(75, op.pitch - (e.clientY - op.sy) * 0.3));
+      state.viewMode = '3d';
+      redrawWorldOnly();
+      return;
+    }
+    if(op.kind === 'pan'){
+      state.panX = op.panX + (e.clientX - op.sx);
+      state.panY = op.panY + (e.clientY - op.sy);
+      redrawWorldOnly();
+      return;
+    }
+    const pt = clientToFloorSvgGlobal(e, op.svgEl);
+    if(op.kind === 'pen'){
+      const last = op.stroke.points[op.stroke.points.length - 1];
+      if(Math.hypot(pt.x - last[0], pt.y - last[1]) >= 4){
+        op.stroke.points.push([pt.x, pt.y]);
+        redrawWorldOnly();
+      }
+    } else if(op.kind === 'drawShape'){
+      if(op.sh.shapeType === 'arrow'){
+        op.sh.x2 = pt.x; op.sh.y2 = pt.y;
+      } else {
+        op.sh.x = Math.min(op.sx, pt.x);
+        op.sh.y = Math.min(op.sy, pt.y);
+        op.sh.w = Math.max(24, Math.abs(pt.x - op.sx));
+        op.sh.h = Math.max(24, Math.abs(pt.y - op.sy));
+      }
+      redrawWorldOnly();
+    } else if(op.kind === 'resizeShape'){
+      op.sh.w = Math.max(24, op.origW + (pt.x - op.sx));
+      op.sh.h = Math.max(24, op.origH + (pt.y - op.sy));
+      redrawWorldOnly();
+    } else if(op.kind === 'moveObj'){
+      const dx = pt.x - op.sx, dy = pt.y - op.sy;
+      op.obj.x = Math.round(op.origX + dx);
+      op.obj.y = Math.round(op.origY + dy);
+      if(typeof op.origX2 === 'number') op.obj.x2 = Math.round(op.origX2 + dx);
+      if(typeof op.origY2 === 'number') op.obj.y2 = Math.round(op.origY2 + dy);
+      redrawWorldOnly();
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    ovActiveDrag = null;
+    if(!studioActiveOp) return;
+    const kind = studioActiveOp.kind;
+    const wasMutating = ['pen','drawShape','resizeShape','moveObj'].includes(kind);
+    studioActiveOp = null;
+    if(wasMutating){
+      if(kind === 'drawShape') state.tool = 'select';
+      markDirty();
+      if(document.getElementById('view-networkmap')?.classList.contains('active')) buildStudioMarkup();
+      renderOverviewPreview();
+    }
+  });
+
+  window.nsNetworkMap = {
+    getDoc: () => mapDoc,
+    getState: () => ({ ...state }),
+    renderOverviewPreview,
+    openStudio(factoryCode){
+      if(factoryCode) state.activeFactory = factoryCode;
+      if(typeof window.go === 'function') window.go('networkmap');
+      buildStudioMarkup();
+    },
+    async loadFromServer(){
+      if(!isSrv()){ renderOverviewPreview(); return; }
+      try{
+        const res = await apiCall('/api/network-map');
+        if(res && typeof res.diagrams === 'object'){
+          mapDoc = res;
+          saveLocalMap();
+          renderStudioAndOverview();
+        }
+      }catch(_){ renderOverviewPreview(); }
+    },
+    async refreshFromServer(){
+      return this.loadFromServer();
+    },
+    async saveToServer(){
+      saveLocalMap();
+      if(!isSrv()){
+        state.dirty = false; renderStudioAndOverview();
+        if(typeof showToast === 'function') showToast('Saved Network Map locally');
+        return { ok:true };
+      }
+      state.saving = true;
+      buildStudioMarkup();
+      try{
+        const res = await apiCall('/api/network-map', {
+          method:'PUT',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(mapDoc)
+        });
+        if(res?.rev) mapDoc.rev = res.rev;
+        if(res?.updatedAt) mapDoc.updatedAt = res.updatedAt;
+        state.dirty = false;
+        saveLocalMap();
+        renderStudioAndOverview();
+        if(typeof showToast === 'function') showToast('✓ Network Map saved & synced across sessions');
+        return res;
+      }catch(err){
+        if(typeof showToast === 'function') showToast('Could not save Network Map: ' + (err?.message || err));
+      }finally{
+        state.saving = false;
+        renderStudioAndOverview();
+      }
+    }
+  };
+
+  if(typeof window.go === 'function'){
+    const prevGo2 = window.go;
+    window.go = function(viewName){
+      const res = prevGo2.apply(this, arguments);
+      if(viewName === 'networkmap') buildStudioMarkup();
+      if(viewName === 'dashboard') renderOverviewPreview();
+      return res;
+    };
+  }
+
+  // Re-render live status colors whenever assets re-render
+  if(typeof window.renderAssets === 'function'){
+    const prevRA = window.renderAssets;
+    window.renderAssets = function(){
+      const r = prevRA.apply(this, arguments);
+      renderOverviewPreview();
+      if(document.getElementById('view-networkmap')?.classList.contains('active')) redrawWorldOnly();
+      return r;
+    };
+  }
+
+  // Keyboard shortcuts in Network Map Studio (Ctrl+Z, Delete, Esc)
+  document.addEventListener('keydown', e => {
+    if(!document.getElementById('view-networkmap')?.classList.contains('active')) return;
+    if(e.target && ['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
+    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z'){
+      e.preventDefault(); document.getElementById('nmUndoBtn')?.click();
+    } else if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y'){
+      e.preventDefault(); document.getElementById('nmRedoBtn')?.click();
+    } else if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's'){
+      e.preventDefault(); window.nsNetworkMap.saveToServer();
+    } else if(e.key === 'Delete' || e.key === 'Backspace'){
+      deleteSelectedObject();
+    } else if(e.key === 'Escape'){
+      state.tool = 'select'; state.connectFromId = ''; buildStudioMarkup();
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      ensureFactoryDiagram(getFactoriesList()[0]);
+      renderOverviewPreview();
+      window.nsNetworkMap.loadFromServer();
+    }, 80);
   });
 })();
 </script>
