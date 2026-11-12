@@ -62,10 +62,13 @@ tr:hover td{background:#fafdfb}
 .portal-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .portal-tab{background:#f2f6f4;color:#33463c;border:1px solid #d5e2da;padding:10px 16px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
 .portal-tab.active{background:#167c56;color:#fff;border-color:#167c56;box-shadow:0 6px 16px #167c5624}
+#portalLiveToastStack{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:360px;pointer-events:none}
+.portal-live-toast{pointer-events:auto;background:#ffffff;border:1px solid #cce3d4;border-left:4px solid #16845d;border-radius:10px;padding:11px 14px;box-shadow:0 12px 28px rgba(15,23,42,.16);font-size:12.5px;color:#1b2620}
 @media(max-width:900px){.grid-3,.mat-box.active{grid-template-columns:1fr}.grid-2{grid-template-columns:1fr}.card{padding:18px}}
 </style>
 </head>
 <body>
+<div id="portalLiveToastStack" aria-live="polite"></div>
 <main class="wrap">
   <section class="card" style="border-top:4px solid #16845d">
     <div class="top-bar">
@@ -393,15 +396,75 @@ function setActiveListKind(kind){
   });
 }
 
-async function loadPublicTickets(){
+let portalTicketsBusy = false;
+let portalTicketsPending = false;
+let portalSeededTickets = false;
+const portalSeenIds = new Set();
+let portalAudioCtx = null;
+
+function playPortalChime(){
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+    if(!portalAudioCtx) portalAudioCtx = new Ctx();
+    if(portalAudioCtx.state === 'suspended') portalAudioCtx.resume().catch(()=>{});
+    const now = portalAudioCtx.currentTime;
+    [[784,0,0.12],[1046.5,0.13,0.16]].forEach(([f,off,dur])=>{
+      const o = portalAudioCtx.createOscillator(), g = portalAudioCtx.createGain();
+      o.type = 'triangle'; o.frequency.setValueAtTime(f, now + off);
+      g.gain.setValueAtTime(0.0001, now + off);
+      g.gain.exponentialRampToValueAtTime(0.18, now + off + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + off + dur);
+      o.connect(g); g.connect(portalAudioCtx.destination);
+      o.start(now + off); o.stop(now + off + dur + 0.02);
+    });
+  }catch(_){}
+}
+
+function showPortalToast(title, msg, withSound){
+  const stack = $('portalLiveToastStack');
+  if(!stack) return;
+  const el = document.createElement('div');
+  el.className = 'portal-live-toast';
+  el.innerHTML = `<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+    <div><strong>${h(title)}</strong><div style="margin-top:2px;color:#4a5851">${h(msg)}</div></div>
+    <button type="button" style="border:0;background:transparent;cursor:pointer;font-size:15px;line-height:1;color:#69756d" onclick="this.closest('.portal-live-toast')?.remove()">×</button>
+  </div>`;
+  stack.appendChild(el);
+  setTimeout(() => el.remove(), 7000);
+  if(withSound) playPortalChime();
+}
+
+async function loadPublicTickets(opts){
+  if(portalTicketsBusy){
+    portalTicketsPending = true;
+    return;
+  }
+  portalTicketsBusy = true;
   const kind = activeListKind;
   const body = $('publicRows');
   try {
-    const r = await fetch('/api/public/tickets?kind=' + encodeURIComponent(kind));
+    const r = await fetch('/api/public/tickets?kind=' + encodeURIComponent(kind), { cache: 'no-store' });
     const d = await r.json();
     if(!r.ok) throw Error(d.error || 'Could not load tickets');
 
-    let rows = (d.tickets || []).filter(t => (t.kind || 'IT help desk') === kind);
+    let allList = Array.isArray(d.tickets) ? d.tickets : [];
+    const newArrivals = [];
+    allList.forEach(t => {
+      const id = String(t.id || '');
+      if(!id) return;
+      if(!portalSeenIds.has(id)){
+        portalSeenIds.add(id);
+        if(portalSeededTickets && !(opts && opts.silent)) newArrivals.push(t);
+      }
+    });
+    portalSeededTickets = true;
+    if(newArrivals.length && opts && opts.notifyNew){
+      const first = newArrivals[0];
+      showPortalToast('Ticket update: ' + first.id, (first.name || 'Employee') + ' · ' + (first.sub || first.primary || ''), true);
+    }
+
+    let rows = allList.filter(t => (t.kind || 'IT help desk') === kind);
 
     const factoryEl = $('listFactory'), oldFactory = factoryEl.value;
     const factories = [...new Set(rows.map(t => t.factory).filter(Boolean))].sort();
@@ -477,6 +540,12 @@ async function loadPublicTickets(){
     $('listUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString();
   } catch(e) {
     body.innerHTML = '<tr><td colspan="10" style="color:#a13030">' + h(e.message) + '</td></tr>';
+  } finally {
+    portalTicketsBusy = false;
+    if(portalTicketsPending){
+      portalTicketsPending = false;
+      setTimeout(() => loadPublicTickets({ notifyNew: true }), 40);
+    }
   }
 }
 
@@ -540,9 +609,12 @@ $('ticketForm').addEventListener('submit', async e => {
     if(!r.ok) throw Error(d.error || 'Could not submit ticket');
     pendingFiles = [];
     renderPendingFiles();
+    if(d.id) portalSeenIds.add(String(d.id));
+    broadcastPortalSync('ticket-created', { id: d.id, kind });
     setActiveListKind(kind);
     showTracking(d.tracking_token, d.id);
-    loadPublicTickets();
+    loadPublicTickets({ silent: true });
+    showPortalToast('Submitted: ' + d.id, 'IT team has been alerted immediately.', true);
   } catch(err) {
     $('error').textContent = err.message;
     $('error').classList.remove('hidden');
@@ -564,10 +636,104 @@ $('newTicket').addEventListener('click', () => {
   renderSubcategories();
 });
 
+const portalLiveChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('northstar-live-sync') : null;
+let lastPortalTicketRev = '';
+let lastPortalSettingsRev = '';
+let portalPulseTimer = null;
+
+function broadcastPortalSync(type, extra){
+  const msg = { type, ts: Date.now(), ...(extra || {}) };
+  try{ if(portalLiveChannel) portalLiveChannel.postMessage(msg); }catch(_){}
+  try{ localStorage.setItem('ns_live_ticket_ping', JSON.stringify(msg)); }catch(_){}
+}
+
+function handleExternalSyncEvent(msg){
+  if(!msg || typeof msg !== 'object') return;
+  if(msg.type === 'ticket-created' || msg.type === 'ticket-changed'){
+    loadPublicTickets({ notifyNew: true });
+    const token = new URLSearchParams(location.hash.slice(1)).get('track');
+    if(token) checkStatus(token);
+  }
+  if(msg.type === 'ticketing-settings-changed'){
+    refreshPortalOptions();
+  }
+}
+
+if(portalLiveChannel){
+  portalLiveChannel.addEventListener('message', e => handleExternalSyncEvent(e.data));
+}
+window.addEventListener('storage', e => {
+  if(e.key === 'ns_live_ticket_ping' && e.newValue){
+    try{ handleExternalSyncEvent(JSON.parse(e.newValue)); }catch(_){}
+  }
+});
+
+async function refreshPortalOptions(){
+  const r = await fetch('/api/public/portal-options', { cache: 'no-store' });
+  if(!r.ok) return;
+  const fresh = await r.json();
+  data = fresh;
+  if(Array.isArray(data.ticketCategoryTree) && data.ticketCategoryTree.length){
+    CATEGORY_TREE = data.ticketCategoryTree;
+  }
+  if(Array.isArray(data.materialRequestCategories) && data.materialRequestCategories.length){
+    MATERIAL_CATEGORIES = data.materialRequestCategories;
+  }
+  const prevF = $('factory').value, prevD = $('department').value, prevE = $('employee').value;
+  options($('factory'), 'Select factory', data.factories.map(f => ({
+    code: f.code,
+    label: f.name && f.name !== f.code ? f.code + ' · ' + f.name : f.code
+  })), 'code', 'label');
+  if(prevF && [...$('factory').options].some(o => o.value === prevF)){
+    $('factory').value = prevF;
+    fillDepartments();
+    if(prevD && [...$('department').options].some(o => o.value === prevD)){
+      $('department').value = prevD;
+      fillEmployees();
+      if(prevE && [...$('employee').options].some(o => o.value === prevE)) $('employee').value = prevE;
+    }
+  }
+  renderPrimaryCategories();
+  renderSubcategories();
+}
+
+async function pollPublicPulse(){
+  try{
+    const r = await fetch('/api/public/live-pulse', { cache: 'no-store' });
+    if(r.ok){
+      const p = await r.json();
+      if(lastPortalTicketRev && p.ticketRev && p.ticketRev !== lastPortalTicketRev){
+        lastPortalTicketRev = p.ticketRev;
+        loadPublicTickets({ notifyNew: true });
+        const token = new URLSearchParams(location.hash.slice(1)).get('track');
+        if(token) checkStatus(token);
+      } else if(p.ticketRev){
+        lastPortalTicketRev = p.ticketRev;
+      }
+      if(lastPortalSettingsRev && p.settingsRev && p.settingsRev !== lastPortalSettingsRev){
+        lastPortalSettingsRev = p.settingsRev;
+        refreshPortalOptions();
+      } else if(p.settingsRev){
+        lastPortalSettingsRev = p.settingsRev;
+      }
+    }
+  }catch(_){}
+  const delay = document.hidden ? 4000 : 1000;
+  clearTimeout(portalPulseTimer);
+  portalPulseTimer = setTimeout(pollPublicPulse, delay);
+}
+
+document.addEventListener('visibilitychange', () => {
+  if(!document.hidden){
+    clearTimeout(portalPulseTimer);
+    pollPublicPulse();
+  }
+});
+
 async function load(){
   renderPrimaryCategories();
   renderSubcategories();
-  const r = await fetch('/api/public/portal-options');
+  const r = await fetch('/api/public/portal-options', { cache: 'no-store' });
   if(!r.ok) throw Error('Could not load factory and employee list.');
   data = await r.json();
   if(Array.isArray(data.ticketCategoryTree) && data.ticketCategoryTree.length){
@@ -583,8 +749,9 @@ async function load(){
   renderPrimaryCategories();
   fillDepartments();
   renderSubcategories();
-  loadPublicTickets();
-  setInterval(loadPublicTickets, 15000);
+  await loadPublicTickets({ silent: true });
+  clearTimeout(portalPulseTimer);
+  portalPulseTimer = setTimeout(pollPublicPulse, 1000);
 }
 
 (async () => {

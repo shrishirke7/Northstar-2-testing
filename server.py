@@ -303,13 +303,13 @@ def enforce_module_access():
     if not profile or session.get("is_admin") or not request.path.startswith("/api/"):
         return None
     path = request.path
+    method = request.method
     if path.startswith(("/api/internal/", "/api/public/")) or path in (
         "/api/login", "/api/logout", "/api/profile", "/api/profile/preferences",
         "/api/account/password", "/api/account/profile-picture", "/api/account/recovery-answers",
-        "/api/account/logout-all", "/api/data", "/api/live-alerts-feed",
+        "/api/account/logout-all", "/api/data", "/api/live-alerts-feed", "/api/live-pulse",
     ) or (path == "/api/notifications/sounds" and method == "GET") or path.startswith("/api/recovery/"):
         return None
-    method = request.method
     is_write = method in ("POST", "PUT", "PATCH", "DELETE")
     module = next((value for prefix, value in MODULE_API_PATHS.items() if path == prefix or path.startswith(prefix + "/")), None)
     if path.startswith("/api/admin/"):
@@ -1162,6 +1162,8 @@ DEFAULT_SOUND_ALERTS = {
         "subtypes": ["Firewall", "Router", "NVR"],
         "keywords": ["firewall", "server", "core switch", "dc-", "nvr"],
         "deviceTags": [],
+        "alertOnOffline": True,
+        "alertOnOnline": True,
     },
 }
 
@@ -1191,6 +1193,9 @@ def normalize_sound_state(state):
     for list_key in ("types", "subtypes", "keywords", "deviceTags"):
         if isinstance(raw_crit.get(list_key), list):
             merged["criticalCriteria"][list_key] = [str(x).strip()[:80] for x in raw_crit[list_key] if str(x).strip()][:50]
+    for bool_key in ("alertOnOffline", "alertOnOnline"):
+        if bool_key in raw_crit:
+            merged["criticalCriteria"][bool_key] = bool(raw_crit.get(bool_key))
     lib = raw.get("soundLibrary") if isinstance(raw.get("soundLibrary"), list) else []
     clean_lib = []
     for item in lib[:12]:
@@ -1199,8 +1204,8 @@ def normalize_sound_state(state):
         sid = str(item.get("id") or "").strip()[:80]
         sname = str(item.get("name") or "").strip()[:80]
         data_url = str(item.get("dataUrl") or "").strip()
-        mime = str(item.get("mime") or "").strip()[:60]
-        if sid and sname and data_url.startswith("data:audio/") and len(data_url) <= 3_500_000:
+        mime = str(item.get("mime") or item.get("mimeType") or "").strip()[:60]
+        if sid and sname and data_url.startswith(("data:audio/", "data:video/webm", "data:video/mp4", "data:video/ogg", "data:application/ogg")) and len(data_url) <= 3_500_000:
             clean_lib.append({"id": sid, "name": sname, "mime": mime, "dataUrl": data_url, "size": int(item.get("size") or len(data_url))})
     return merged, clean_lib
 
@@ -1250,7 +1255,7 @@ def save_notification_sounds():
             if not isinstance(item, dict):
                 return jsonify(error="Each custom ringtone must be an object."), 400
             durl = str(item.get("dataUrl") or "")
-            if not durl.startswith("data:audio/"):
+            if not durl.startswith(("data:audio/", "data:video/webm", "data:video/mp4", "data:video/ogg", "data:application/ogg")):
                 return jsonify(error="Only audio files (.mp3, .wav, .ogg, .m4a, .webm) are accepted as ringtones."), 400
             if len(durl) > 3_500_000:
                 return jsonify(error="Each custom ringtone must be 2.5 MB or smaller."), 400
@@ -1271,6 +1276,41 @@ def save_notification_sounds():
     return jsonify(ok=True, soundAlerts=state["soundAlerts"], soundLibrary=state["soundLibrary"])
 
 
+def _pulse_versions(conn, include_internal=False):
+    row = conn.execute("""
+        SELECT
+          COALESCE((SELECT extract(epoch FROM max(updated_at))::text FROM tickets), '0'),
+          (SELECT count(*)::bigint FROM tickets),
+          COALESCE((SELECT max(id) FROM ticket_events), 0),
+          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='settings'), '0'),
+          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='assets'), '0'),
+          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='notifications'), '0')
+    """).fetchone()
+    ticket_rev = f"{row[0]}:{row[1]}:{row[2]}"
+    out = {
+        "ticketRev": ticket_rev,
+        "settingsRev": str(row[3] or "0"),
+        "serverTime": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+    if include_internal:
+        out["assetsRev"] = str(row[4] or "0")
+        out["notificationsRev"] = str(row[5] or "0")
+    return out
+
+
+@app.get("/api/live-pulse")
+@signed_in
+def live_pulse():
+    with db() as conn:
+        return jsonify(**_pulse_versions(conn, include_internal=True))
+
+
+@app.get("/api/public/live-pulse")
+def public_live_pulse():
+    with db() as conn:
+        return jsonify(**_pulse_versions(conn, include_internal=False))
+
+
 @app.get("/api/live-alerts-feed")
 @signed_in
 def live_alerts_feed():
@@ -1278,30 +1318,39 @@ def live_alerts_feed():
     is_adm = bool(session.get("is_admin"))
     can_tickets = is_adm or module_access(who, "tickets")
     can_devices = is_adm or any(module_access(who, m) for m in ("assets", "network", "notifications", "overview", "surveillance", "data_center"))
+    want_tickets = request.args.get("tickets", "1") != "0"
+    want_devices = request.args.get("devices", "1") != "0"
+    want_sounds = request.args.get("sounds", "0") == "1"
     out = {"latestTickets": [], "deviceStates": [], "serverTime": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     with db() as conn:
-        notif_row = conn.execute("SELECT value FROM app_state WHERE key='notifications'").fetchone()
-        sound_alerts, sound_library = normalize_sound_state(notif_row[0] if notif_row else {})
-        out["soundAlerts"] = sound_alerts
-        out["includeSounds"] = bool(sound_library)
-        if can_tickets:
+        if want_sounds:
+            notif_row = conn.execute("SELECT value FROM app_state WHERE key='notifications'").fetchone()
+            sound_alerts, sound_library = normalize_sound_state(notif_row[0] if notif_row else {})
+            out["soundAlerts"] = sound_alerts
+            out["soundLibrary"] = sound_library
+            out["includeSounds"] = bool(sound_library)
+        if want_tickets and can_tickets:
             t_rows = conn.execute(
-                "SELECT id,kind,display_name,department,factory,primary_category,sub_category,status,created_at FROM tickets ORDER BY created_at DESC LIMIT 40"
+                "SELECT id,kind,display_name,department,factory,primary_category,sub_category,status,created_at,updated_at FROM tickets ORDER BY created_at DESC LIMIT 40"
             ).fetchall()
             out["latestTickets"] = [
-                {"id": r[0], "kind": r[1], "name": r[2], "dept": r[3], "site": r[4], "primary": r[5], "sub": r[6], "status": r[7], "created": r[8].isoformat(timespec="seconds") if r[8] else ""}
+                {"id": r[0], "kind": r[1], "name": r[2], "dept": r[3], "site": r[4], "primary": r[5], "sub": r[6],
+                 "status": r[7], "created": r[8].isoformat(timespec="seconds") if r[8] else "",
+                 "updated": r[9].isoformat(timespec="seconds") if r[9] else ""}
                 for r in t_rows
             ]
-        if can_devices:
+        if want_devices and can_devices:
             a_row = conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone()
             a_list = a_row[0] if a_row and isinstance(a_row[0], list) else []
             out["deviceStates"] = [
                 {"tag": str(a.get("tag") or ""), "name": str(a.get("name") or ""), "type": str(a.get("type") or ""),
                  "subtype": str(a.get("subtype") or ""), "site": str(a.get("site") or ""),
+                 "ipAddress": str(a.get("ipAddress") or a.get("ip_address") or ""),
                  "ipStatus": str(a.get("ipStatus") or a.get("status") or ""),
                  "ipCheckedAt": str(a.get("ipCheckedAt") or ""), "lastSeen": str(a.get("lastSeen") or a.get("seen") or "")}
                 for a in a_list if isinstance(a, dict)
             ]
+        out["pulse"] = _pulse_versions(conn, include_internal=True)
     return jsonify(**out)
 
 
@@ -2112,6 +2161,21 @@ def public_ticket_attachment():
     return send_from_directory(UPLOAD_DIR / parts[0] / parts[1], parts[2], as_attachment=False)
 
 
+def _next_ticket_id(conn):
+    token_date = datetime.now().strftime("%d-%m-%Y")
+    conn.execute("SELECT pg_advisory_xact_lock(hashtext(CURRENT_DATE::text))")
+    rows = conn.execute(
+        "SELECT id FROM tickets WHERE created_at::date=CURRENT_DATE OR id LIKE %s",
+        (f"IT%/{token_date}",),
+    ).fetchall()
+    max_seq = 0
+    for (tid,) in rows:
+        m = re.match(r"^IT(\d+)/", str(tid or ""))
+        if m:
+            max_seq = max(max_seq, int(m.group(1)))
+    return f"IT{max_seq + 1:02d}/{token_date}", token_date
+
+
 @app.post("/api/public/tickets")
 def create_public_ticket():
     is_multipart = bool(request.content_type and "multipart/form-data" in request.content_type)
@@ -2156,10 +2220,7 @@ def create_public_ticket():
         if not dept_exists or not factory_exists:
             return jsonify(error="The selected factory or department is no longer available. Refresh the portal."), 400
         remote = request.remote_addr or "127.0.0.1"
-        conn.execute("SELECT pg_advisory_xact_lock(hashtext(CURRENT_DATE::text))")
-        seq = conn.execute("SELECT count(*) FROM tickets WHERE created_at::date=CURRENT_DATE").fetchone()[0] + 1
-        token_date = datetime.now().strftime("%d-%m-%Y")
-        ticket_id = f"IT{seq:02d}/{token_date}"
+        ticket_id, token_date = _next_ticket_id(conn)
         tracking_token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(tracking_token.encode()).hexdigest()
         username = "public-" + token_hash[:24]
@@ -2785,15 +2846,12 @@ def create_ticket():
     files = request.files.getlist("files")
     if len(files) > 5:
         return jsonify(error="Attach up to five screenshots"), 400
-    token_date = datetime.now().strftime("%d-%m-%Y")
-    ticket_dir = UPLOAD_DIR / "tickets" / token_date
-    ticket_dir.mkdir(parents=True, exist_ok=True)
     profile = session["profile"]
     remote = request.remote_addr
     with db() as conn:
-        conn.execute("SELECT pg_advisory_xact_lock(hashtext(CURRENT_DATE::text))")
-        seq = conn.execute("SELECT count(*) FROM tickets WHERE created_at::date=CURRENT_DATE").fetchone()[0] + 1
-        ticket_id = f"IT{seq:02d}/{token_date}"
+        ticket_id, token_date = _next_ticket_id(conn)
+        ticket_dir = UPLOAD_DIR / "tickets" / token_date
+        ticket_dir.mkdir(parents=True, exist_ok=True)
         saved = []
         for f in files:
             if not f.filename:
@@ -2857,6 +2915,77 @@ def list_ticket_worklog(ticket_id):
             abort(404)
         rows = conn.execute("SELECT actor,detail,created_at FROM ticket_events WHERE ticket_id=%s AND event_type IN ('created','updated','worklog') ORDER BY created_at DESC LIMIT 100", (ticket_id,)).fetchall()
     return jsonify(events=[{"actor":r[0],"detail":r[1],"created":r[2].isoformat(timespec="minutes")} for r in rows])
+
+
+def _can_delete_tickets():
+    profile = session.get("profile") or {}
+    if session.get("is_admin") or profile.get("role") == "IT Ticketing":
+        return True
+    if not isinstance(profile.get("module_permissions"), dict) and module_access(profile, "tickets", write=True):
+        return True
+    return False
+
+
+def _delete_tickets_tx(conn, raw_ids):
+    ids = []
+    seen = set()
+    for x in (raw_ids or []):
+        s = str(x or "").strip()[:120]
+        if s and s not in seen:
+            seen.add(s)
+            ids.append(s)
+    if not ids:
+        return []
+    rows = conn.execute("SELECT id, attachments FROM tickets WHERE id = ANY(%s)", (ids,)).fetchall()
+    if not rows:
+        return []
+    deleted_ids = [r[0] for r in rows]
+    tickets_root = (UPLOAD_DIR / "tickets").resolve()
+    files_to_remove = []
+    for _, atts in rows:
+        for item in (atts or []):
+            rel = str(item.get("path", "") if isinstance(item, dict) else "").strip()
+            if not rel:
+                continue
+            try:
+                p = (UPLOAD_DIR / rel).resolve()
+                if p != tickets_root and tickets_root in p.parents:
+                    files_to_remove.append(p)
+            except OSError:
+                continue
+    conn.execute("DELETE FROM tickets WHERE id = ANY(%s)", (deleted_ids,))
+    for p in files_to_remove:
+        try:
+            p.unlink(missing_ok=True)
+        except OSError:
+            pass
+    return deleted_ids
+
+
+@app.delete("/api/tickets/<path:ticket_id>")
+@ticket_manager
+def delete_ticket(ticket_id):
+    if not _can_delete_tickets():
+        return jsonify(error="Ticketing backend or administrator access is required to delete tickets."), 403
+    with db() as conn:
+        deleted = _delete_tickets_tx(conn, [ticket_id])
+    if not deleted:
+        abort(404)
+    return jsonify(ok=True, deletedIds=deleted, deleted=len(deleted))
+
+
+@app.post("/api/tickets/bulk-delete")
+@ticket_manager
+def bulk_delete_tickets():
+    if not _can_delete_tickets():
+        return jsonify(error="Ticketing backend or administrator access is required to delete tickets."), 403
+    body = request.get_json(silent=True) or {}
+    ids = body.get("ids") if isinstance(body, dict) else None
+    if not isinstance(ids, list) or not ids or len(ids) > 500:
+        return jsonify(error="Select between 1 and 500 tickets or material requests to delete."), 400
+    with db() as conn:
+        deleted = _delete_tickets_tx(conn, ids)
+    return jsonify(ok=True, deletedIds=deleted, deleted=len(deleted))
 
 
 @app.get("/api/backups")
