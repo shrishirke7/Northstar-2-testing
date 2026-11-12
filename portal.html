@@ -58,6 +58,10 @@ tr:hover td{background:#fafdfb}
 .badge-resolved,.badge-closed{background:#e7f6ee;color:#147852}
 .repair-pill{display:inline-block;margin-top:5px;padding:3px 8px;border-radius:6px;background:#e8f4ed;color:#126847;border:1px solid #c5e3d1;font-size:11px;font-weight:700}
 .factory-pill{display:inline-block;padding:2px 6px;border-radius:4px;background:#eef5f1;color:#147852;font-weight:700;font-size:10.5px}
+.issued-pill{display:block;margin-top:5px;padding:6px 8px;border-radius:7px;background:#e8f7ee;color:#116343;border:1px solid #bce3cc;font-size:11px;line-height:1.45}
+.portal-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.portal-tab{background:#f2f6f4;color:#33463c;border:1px solid #d5e2da;padding:10px 16px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.portal-tab.active{background:#167c56;color:#fff;border-color:#167c56;box-shadow:0 6px 16px #167c5624}
 @media(max-width:900px){.grid-3,.mat-box.active{grid-template-columns:1fr}.grid-2{grid-template-columns:1fr}.card{padding:18px}}
 </style>
 </head>
@@ -99,10 +103,7 @@ tr:hover td{background:#fafdfb}
         </div>
         <div class="field" style="margin-bottom:0" id="primaryCategoryBox">
           <label>Primary category *</label>
-          <div class="pill-group" id="primaryPills">
-            <label class="pill-choice"><input type="radio" name="primaryCat" value="Network / Hardware" checked> 🖥️ Network / Hardware</label>
-            <label class="pill-choice"><input type="radio" name="primaryCat" value="ERP / Software / Manufacturing"> 📊 ERP / Software / Manufacturing</label>
-          </div>
+          <div class="pill-group" id="primaryPills"></div>
         </div>
       </div>
 
@@ -160,15 +161,18 @@ tr:hover td{background:#fafdfb}
     <div class="top-bar" style="margin-bottom:10px">
       <div>
         <h2 style="margin:0">🌐 Live IT Tickets &amp; Material Request Status</h2>
-        <p class="sub" style="margin-top:3px">Real-time queue of all IT tickets, repair stages, expected completion times and material requests.</p>
+        <p class="sub" style="margin-top:3px">IT Support Tickets and Material Requests are tracked in separate dedicated sections with live Parts Inventory fulfillment details.</p>
       </div>
       <span class="small" id="listUpdated"></span>
     </div>
 
+    <div class="portal-tabs" role="tablist">
+      <button type="button" class="portal-tab active" data-kind-tab="IT help desk">🧰 IT Help-Desk Tickets Queue</button>
+      <button type="button" class="portal-tab" data-kind-tab="Material request">📦 IT Material Requests &amp; Parts Fulfillment</button>
+    </div>
+
     <div class="filters">
-      <b style="font-size:12px;color:#415448">🔍 Filter View:</b>
-      <label><input type="radio" name="listKind" value="IT help desk" checked> Live IT Help-Desk With Status</label>
-      <label><input type="radio" name="listKind" value="Material request"> List of All Material Request With Status</label>
+      <b style="font-size:12px;color:#415448">🔍 Filter:</b>
       <select id="listFactory"><option value="">All factories</option></select>
       <select id="listSub"><option value="">All sub-categories</option></select>
       <select id="listStatus"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select>
@@ -192,24 +196,36 @@ const headers = {'X-Requested-With':'NorthstarIT'};
 let data = {factories:[], departments:[], employees:[]};
 let poller = null;
 let pendingFiles = [];
+let activeListKind = 'IT help desk';
 
-const SUBCATEGORIES = {
-  'Network / Hardware': [
-    'Computer / Desktop', 'Laptop', 'Monitor / Screen', 'Network Switch / Router',
-    'Wi-Fi / Access Point', 'LAN / Patch Cable', 'Printer / Scanner',
-    'CCTV / Surveillance', 'Server / Storage', 'UPS / Power', 'Other Hardware'
-  ],
-  'ERP / Software / Manufacturing': [
-    'ERP Software', 'Manufacturing System', 'Digital Catalog',
-    'Reports / Billing', 'Operating System / Windows', 'Email / Login / Outlook',
-    'Software License', 'Other Software'
-  ],
-  'Material request': [
-    'RAM', 'SSD / Hard Drive', 'Monitor / Screen', 'Keyboard & Mouse',
-    'SMPS / Power Supply', 'Laptop / Desktop', 'Network Switch / Cables',
-    'Printer / Toner', 'Accessories / Peripherals', 'Other Material'
-  ]
-};
+let CATEGORY_TREE = [
+  {
+    id: 'cat-network-hardware',
+    name: 'Network / Hardware',
+    icon: '🖥️',
+    subcategories: [
+      'Computer / Desktop', 'Laptop', 'Monitor / Screen', 'Network Switch / Router',
+      'Wi-Fi / Access Point', 'LAN / Patch Cable', 'Printer / Scanner',
+      'CCTV / Surveillance', 'Server / Storage', 'UPS / Power', 'Other Hardware'
+    ]
+  },
+  {
+    id: 'cat-erp-software',
+    name: 'ERP / Software / Manufacturing',
+    icon: '📊',
+    subcategories: [
+      'ERP Software', 'Manufacturing System', 'Digital Catalog',
+      'Reports / Billing', 'Operating System / Windows', 'Email / Login / Outlook',
+      'Software License', 'Other Software'
+    ]
+  }
+];
+
+let MATERIAL_CATEGORIES = [
+  'RAM', 'SSD / Hard Drive', 'Monitor / Screen', 'Keyboard & Mouse',
+  'SMPS / Power Supply', 'Laptop / Desktop', 'Network Switch / Cables',
+  'Printer / Toner', 'Accessories / Peripherals', 'Other Material'
+];
 
 function h(v){
   return String(v || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -226,7 +242,23 @@ function currentKind(){
 
 function currentPrimary(){
   if(currentKind() === 'Material request') return 'Material request';
-  return document.querySelector('input[name="primaryCat"]:checked')?.value || 'Network / Hardware';
+  return document.querySelector('input[name="primaryCat"]:checked')?.value || (CATEGORY_TREE[0]?.name || 'Network / Hardware');
+}
+
+function renderPrimaryCategories(){
+  const selected = document.querySelector('input[name="primaryCat"]:checked')?.value;
+  const group = $('primaryPills');
+  if(!group) return;
+  const list = CATEGORY_TREE.length ? CATEGORY_TREE : [{name:'Network / Hardware',icon:'🖥️',subcategories:['Other']}];
+  const chosen = list.some(c => c.name === selected) ? selected : list[0].name;
+  group.innerHTML = list.map(c => `
+    <label class="pill-choice">
+      <input type="radio" name="primaryCat" value="${h(c.name)}" ${c.name === chosen ? 'checked' : ''}> ${h((c.icon ? c.icon + ' ' : '') + c.name)}
+    </label>
+  `).join('');
+  group.querySelectorAll('input[name="primaryCat"]').forEach(el => {
+    el.addEventListener('change', renderSubcategories);
+  });
 }
 
 function fillDepartments(){
@@ -256,7 +288,10 @@ function fillEmployees(){
 function renderSubcategories(){
   const kind = currentKind();
   const primary = currentPrimary();
-  const list = SUBCATEGORIES[primary] || SUBCATEGORIES['Network / Hardware'];
+  const catObj = CATEGORY_TREE.find(c => c.name === primary) || CATEGORY_TREE[0];
+  const list = kind === 'Material request'
+    ? (MATERIAL_CATEGORIES.length ? MATERIAL_CATEGORIES : ['Other Material'])
+    : ((catObj && Array.isArray(catObj.subcategories) && catObj.subcategories.length) ? catObj.subcategories : ['Other']);
   const currentSub = $('subcategory').value;
 
   $('primaryCategoryBox').style.opacity = kind === 'Material request' ? '0.45' : '1';
@@ -312,12 +347,17 @@ $('portalFiles').addEventListener('change', e => {
   renderPendingFiles();
 });
 
-document.querySelectorAll('input[name="requestKind"], input[name="primaryCat"]').forEach(el => {
+document.querySelectorAll('input[name="requestKind"]').forEach(el => {
   el.addEventListener('change', renderSubcategories);
 });
 
 $('factory').addEventListener('change', fillDepartments);
 $('department').addEventListener('change', fillEmployees);
+
+function issuedPartsHtml(list){
+  if(!Array.isArray(list) || !list.length) return '';
+  return list.map(ip => `<div class="issued-pill">✅ <b>Issued from Parts Inventory:</b> ${h(ip.quantity)} × ${h(ip.partName)}${ip.sku ? ' (' + h(ip.sku) + ')' : ''} · <b>${h(ip.condition || 'New')}</b> · Site ${h(ip.site || '—')} · ${h(ip.date || '')}</div>`).join('');
+}
 
 async function checkStatus(token){
   try {
@@ -329,8 +369,9 @@ async function checkStatus(token){
     const d = await r.json();
     if(!r.ok) throw Error(d.error || 'Ticket not found');
     const rep = d.repair ? `<br>Repair stage: <span class="repair-pill">🔨 ${h(d.repair.caseNo)} · ${h(d.repair.stage)}${d.repair.completedAt ? ' · Repaired ' + h(d.repair.completedAt) : ''}</span>` : '';
+    const issued = issuedPartsHtml(d.issuedParts);
     $('status').innerHTML = '<b>' + h(d.id) + '</b><br>Status: <span class="status">' + h(d.status) + '</span>' +
-      (d.eta ? '<br>Expected ETA: ' + h(d.eta) : '') + rep +
+      (d.eta ? '<br>Expected ETA: ' + h(d.eta) : '') + rep + issued +
       (d.note ? '<br>Update: ' + h(d.note) : '') +
       '<br><span class="small">Last updated: ' + h(d.updated || '—') + '</span>';
   } catch(e) {
@@ -345,15 +386,22 @@ function elapsed(m){
   return days ? days + 'd ' + (hours % 24) + 'h' : hours + 'h ' + (m % 60) + 'm';
 }
 
+function setActiveListKind(kind){
+  activeListKind = kind === 'Material request' ? 'Material request' : 'IT help desk';
+  document.querySelectorAll('.portal-tab[data-kind-tab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.kindTab === activeListKind);
+  });
+}
+
 async function loadPublicTickets(){
-  const kind = document.querySelector('input[name="listKind"]:checked')?.value || 'IT help desk';
+  const kind = activeListKind;
   const body = $('publicRows');
   try {
     const r = await fetch('/api/public/tickets?kind=' + encodeURIComponent(kind));
     const d = await r.json();
     if(!r.ok) throw Error(d.error || 'Could not load tickets');
 
-    let rows = d.tickets || [];
+    let rows = (d.tickets || []).filter(t => (t.kind || 'IT help desk') === kind);
 
     const factoryEl = $('listFactory'), oldFactory = factoryEl.value;
     const factories = [...new Set(rows.map(t => t.factory).filter(Boolean))].sort();
@@ -375,7 +423,7 @@ async function loadPublicTickets(){
 
     $('publicHead').innerHTML = kind === 'IT help desk'
       ? '<tr><th>Token</th><th>Created Date &amp; Time</th><th>User &amp; Dept</th><th>Category / Sub</th><th>Issue Description</th><th>Photos</th><th>Assigned</th><th>Status</th><th>Repair Stage / ETA / Note</th><th>Elapsed</th></tr>'
-      : '<tr><th>Token</th><th>Requested Date &amp; Time</th><th>User &amp; Dept</th><th>Material / Item</th><th>Description &amp; Qty</th><th>Photos</th><th>Assigned</th><th>Status</th><th>Fulfillment Note / ETA</th><th>Elapsed</th></tr>';
+      : '<tr><th>Request ID</th><th>Requested Date &amp; Time</th><th>Requester &amp; Dept</th><th>Material Category</th><th>Requested Item &amp; Reason</th><th>Photos</th><th>Assigned</th><th>Status</th><th>Parts Inventory Issuance / Note / ETA</th><th>Elapsed</th></tr>';
 
     body.innerHTML = rows.length ? rows.map(t => {
       const photos = t.photos?.length
@@ -389,6 +437,9 @@ async function loadPublicTickets(){
       let stageInfo = '';
       if(t.repair){
         stageInfo += `<div class="repair-pill">🔨 ${h(t.repair.caseNo)} · ${h(t.repair.stage)}${t.repair.completedAt ? ' ✅ ' + h(t.repair.completedAt) : ''}</div>`;
+      }
+      if(Array.isArray(t.issuedParts) && t.issuedParts.length){
+        stageInfo += issuedPartsHtml(t.issuedParts);
       }
       if(t.eta){
         stageInfo += `<small style="color:#167c56;font-weight:700">⏳ Expected: ${h(t.eta)}</small>`;
@@ -418,10 +469,10 @@ async function loadPublicTickets(){
         <td>${photos}</td>
         <td><b>${h(t.assigned || 'Unassigned')}</b></td>
         <td>${statusBadge}</td>
-        <td style="min-width:190px">${noteHtml}</td>
+        <td style="min-width:210px">${noteHtml}</td>
         <td style="white-space:nowrap">${elapsed(t.durationMinutes)}</td>
       </tr>`;
-    }).join('') : '<tr><td colspan="10" style="text-align:center;padding:24px;color:#728077">No tickets match these filters.</td></tr>';
+    }).join('') : `<tr><td colspan="10" style="text-align:center;padding:24px;color:#728077">No ${kind === 'Material request' ? 'material requests' : 'IT support tickets'} match these filters.</td></tr>`;
 
     $('listUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString();
   } catch(e) {
@@ -429,7 +480,12 @@ async function loadPublicTickets(){
   }
 }
 
-document.querySelectorAll('input[name="listKind"]').forEach(x => x.addEventListener('change', loadPublicTickets));
+document.querySelectorAll('.portal-tab[data-kind-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    setActiveListKind(btn.dataset.kindTab);
+    loadPublicTickets();
+  });
+});
 ['listFactory', 'listSub', 'listStatus'].forEach(id => $(id).addEventListener('change', loadPublicTickets));
 $('listSearch').addEventListener('input', loadPublicTickets);
 $('refreshList').addEventListener('click', loadPublicTickets);
@@ -484,6 +540,7 @@ $('ticketForm').addEventListener('submit', async e => {
     if(!r.ok) throw Error(d.error || 'Could not submit ticket');
     pendingFiles = [];
     renderPendingFiles();
+    setActiveListKind(kind);
     showTracking(d.tracking_token, d.id);
     loadPublicTickets();
   } catch(err) {
@@ -508,14 +565,22 @@ $('newTicket').addEventListener('click', () => {
 });
 
 async function load(){
+  renderPrimaryCategories();
   renderSubcategories();
   const r = await fetch('/api/public/portal-options');
   if(!r.ok) throw Error('Could not load factory and employee list.');
   data = await r.json();
+  if(Array.isArray(data.ticketCategoryTree) && data.ticketCategoryTree.length){
+    CATEGORY_TREE = data.ticketCategoryTree;
+  }
+  if(Array.isArray(data.materialRequestCategories) && data.materialRequestCategories.length){
+    MATERIAL_CATEGORIES = data.materialRequestCategories;
+  }
   options($('factory'), 'Select factory', data.factories.map(f => ({
     code: f.code,
     label: f.name && f.name !== f.code ? f.code + ' · ' + f.name : f.code
   })), 'code', 'label');
+  renderPrimaryCategories();
   fillDepartments();
   renderSubcategories();
   loadPublicTickets();
@@ -523,6 +588,7 @@ async function load(){
 }
 
 (async () => {
+  renderPrimaryCategories();
   renderSubcategories();
   try {
     await load();

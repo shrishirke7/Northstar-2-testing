@@ -306,8 +306,8 @@ def enforce_module_access():
     if path.startswith(("/api/internal/", "/api/public/")) or path in (
         "/api/login", "/api/logout", "/api/profile", "/api/profile/preferences",
         "/api/account/password", "/api/account/profile-picture", "/api/account/recovery-answers",
-        "/api/account/logout-all", "/api/data",
-    ) or path.startswith("/api/recovery/"):
+        "/api/account/logout-all", "/api/data", "/api/live-alerts-feed",
+    ) or (path == "/api/notifications/sounds" and method == "GET") or path.startswith("/api/recovery/"):
         return None
     method = request.method
     is_write = method in ("POST", "PUT", "PATCH", "DELETE")
@@ -1147,6 +1147,64 @@ def _queue_asset_status_notifications(conn, state, asset, previous, current, che
     state["queue"] = state.get("queue", [])[-500:]
 
 
+DEFAULT_SOUND_ALERTS = {
+    "masterEnabled": True,
+    "volume": 0.85,
+    "desktopNotifications": False,
+    "events": {
+        "ticket": {"enabled": True, "soundId": "builtin:ticket-chime"},
+        "online": {"enabled": True, "soundId": "builtin:online-ping"},
+        "offline": {"enabled": True, "soundId": "builtin:offline-beep"},
+        "critical": {"enabled": True, "soundId": "builtin:critical-siren"},
+    },
+    "criticalCriteria": {
+        "types": ["Server", "Network"],
+        "subtypes": ["Firewall", "Router", "NVR"],
+        "keywords": ["firewall", "server", "core switch", "dc-", "nvr"],
+        "deviceTags": [],
+    },
+}
+
+
+def normalize_sound_state(state):
+    raw = state if isinstance(state, dict) else {}
+    saved_cfg = raw.get("soundAlerts") if isinstance(raw.get("soundAlerts"), dict) else {}
+    merged = json.loads(json.dumps(DEFAULT_SOUND_ALERTS))
+    if "masterEnabled" in saved_cfg:
+        merged["masterEnabled"] = bool(saved_cfg.get("masterEnabled"))
+    if "volume" in saved_cfg:
+        try:
+            merged["volume"] = max(0.0, min(1.0, float(saved_cfg.get("volume", 0.85))))
+        except (TypeError, ValueError):
+            pass
+    if "desktopNotifications" in saved_cfg:
+        merged["desktopNotifications"] = bool(saved_cfg.get("desktopNotifications"))
+    raw_events = saved_cfg.get("events") if isinstance(saved_cfg.get("events"), dict) else {}
+    for ev_key in ("ticket", "online", "offline", "critical"):
+        ev_val = raw_events.get(ev_key)
+        if isinstance(ev_val, dict):
+            if "enabled" in ev_val:
+                merged["events"][ev_key]["enabled"] = bool(ev_val.get("enabled"))
+            if isinstance(ev_val.get("soundId"), str) and ev_val.get("soundId").strip():
+                merged["events"][ev_key]["soundId"] = ev_val.get("soundId").strip()[:120]
+    raw_crit = saved_cfg.get("criticalCriteria") if isinstance(saved_cfg.get("criticalCriteria"), dict) else {}
+    for list_key in ("types", "subtypes", "keywords", "deviceTags"):
+        if isinstance(raw_crit.get(list_key), list):
+            merged["criticalCriteria"][list_key] = [str(x).strip()[:80] for x in raw_crit[list_key] if str(x).strip()][:50]
+    lib = raw.get("soundLibrary") if isinstance(raw.get("soundLibrary"), list) else []
+    clean_lib = []
+    for item in lib[:12]:
+        if not isinstance(item, dict):
+            continue
+        sid = str(item.get("id") or "").strip()[:80]
+        sname = str(item.get("name") or "").strip()[:80]
+        data_url = str(item.get("dataUrl") or "").strip()
+        mime = str(item.get("mime") or "").strip()[:60]
+        if sid and sname and data_url.startswith("data:audio/") and len(data_url) <= 3_500_000:
+            clean_lib.append({"id": sid, "name": sname, "mime": mime, "dataUrl": data_url, "size": int(item.get("size") or len(data_url))})
+    return merged, clean_lib
+
+
 @app.get("/api/notifications")
 @app.get("/api/admin/notifications")
 @signed_in
@@ -1159,9 +1217,92 @@ def get_notification_rules():
         asset_row = conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone()
         assets = asset_row[0] if asset_row else []
     history = [{k: item.get(k) for k in ("id", "rule", "asset", "tag", "category", "status", "channel", "recipient", "state", "createdAt", "error")} for item in state.get("queue", [])[-100:]]
+    sound_alerts, sound_library = normalize_sound_state(state)
     return jsonify(rules=state.get("rules", []), history=history, channels=_notification_channel_status(),
+                   soundAlerts=sound_alerts, soundLibrary=sound_library,
                    users=[{"username": u.get("username") or u.get("id", ""), "name": u.get("name") or u.get("username") or u.get("id", ""), "email": u.get("email", ""), "phone": u.get("phone") or u.get("phone_number", "")} for u in users],
-                   assets=[{"tag": a.get("tag", ""), "name": a.get("name", ""), "type": a.get("type", ""), "site": a.get("site", "")} for a in assets])
+                   assets=[{"tag": a.get("tag", ""), "name": a.get("name", ""), "type": a.get("type", ""), "subtype": a.get("subtype", ""), "site": a.get("site", "")} for a in assets])
+
+
+@app.get("/api/notifications/sounds")
+@signed_in
+def get_notification_sounds():
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='notifications'").fetchone()
+        state = row[0] if row else {}
+    sound_alerts, sound_library = normalize_sound_state(state)
+    return jsonify(soundAlerts=sound_alerts, soundLibrary=sound_library)
+
+
+@app.put("/api/notifications/sounds")
+@signed_in
+def save_notification_sounds():
+    if not session.get("is_admin") and not module_access(session.get("profile", {}), "notifications", write=True):
+        return jsonify(error="Write access on Notifications is required."), 403
+    body = request.get_json(force=True) or {}
+    if not isinstance(body, dict):
+        return jsonify(error="Invalid sound preferences payload."), 400
+    raw_lib = body.get("soundLibrary")
+    if isinstance(raw_lib, list):
+        if len(raw_lib) > 12:
+            return jsonify(error="Upload up to 12 custom ringtones."), 400
+        for item in raw_lib:
+            if not isinstance(item, dict):
+                return jsonify(error="Each custom ringtone must be an object."), 400
+            durl = str(item.get("dataUrl") or "")
+            if not durl.startswith("data:audio/"):
+                return jsonify(error="Only audio files (.mp3, .wav, .ogg, .m4a, .webm) are accepted as ringtones."), 400
+            if len(durl) > 3_500_000:
+                return jsonify(error="Each custom ringtone must be 2.5 MB or smaller."), 400
+    sound_alerts, sound_library = normalize_sound_state({
+        "soundAlerts": body.get("soundAlerts", {}),
+        "soundLibrary": body.get("soundLibrary", []),
+    })
+    with db() as conn:
+        current = conn.execute("SELECT value FROM app_state WHERE key='notifications' FOR UPDATE").fetchone()
+        state = dict(current[0]) if current and isinstance(current[0], dict) else {"rules": [], "queue": []}
+        state["soundAlerts"] = sound_alerts
+        if "soundLibrary" in body:
+            state["soundLibrary"] = sound_library
+        else:
+            _, existing_lib = normalize_sound_state(state)
+            state["soundLibrary"] = existing_lib
+        conn.execute("INSERT INTO app_state(key,value) VALUES('notifications',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(state),))
+    return jsonify(ok=True, soundAlerts=state["soundAlerts"], soundLibrary=state["soundLibrary"])
+
+
+@app.get("/api/live-alerts-feed")
+@signed_in
+def live_alerts_feed():
+    who = session["profile"]
+    is_adm = bool(session.get("is_admin"))
+    can_tickets = is_adm or module_access(who, "tickets")
+    can_devices = is_adm or any(module_access(who, m) for m in ("assets", "network", "notifications", "overview", "surveillance", "data_center"))
+    out = {"latestTickets": [], "deviceStates": [], "serverTime": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    with db() as conn:
+        notif_row = conn.execute("SELECT value FROM app_state WHERE key='notifications'").fetchone()
+        sound_alerts, sound_library = normalize_sound_state(notif_row[0] if notif_row else {})
+        out["soundAlerts"] = sound_alerts
+        out["includeSounds"] = bool(sound_library)
+        if can_tickets:
+            t_rows = conn.execute(
+                "SELECT id,kind,display_name,department,factory,primary_category,sub_category,status,created_at FROM tickets ORDER BY created_at DESC LIMIT 40"
+            ).fetchall()
+            out["latestTickets"] = [
+                {"id": r[0], "kind": r[1], "name": r[2], "dept": r[3], "site": r[4], "primary": r[5], "sub": r[6], "status": r[7], "created": r[8].isoformat(timespec="seconds") if r[8] else ""}
+                for r in t_rows
+            ]
+        if can_devices:
+            a_row = conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone()
+            a_list = a_row[0] if a_row and isinstance(a_row[0], list) else []
+            out["deviceStates"] = [
+                {"tag": str(a.get("tag") or ""), "name": str(a.get("name") or ""), "type": str(a.get("type") or ""),
+                 "subtype": str(a.get("subtype") or ""), "site": str(a.get("site") or ""),
+                 "ipStatus": str(a.get("ipStatus") or a.get("status") or ""),
+                 "ipCheckedAt": str(a.get("ipCheckedAt") or ""), "lastSeen": str(a.get("lastSeen") or a.get("seen") or "")}
+                for a in a_list if isinstance(a, dict)
+            ]
+    return jsonify(**out)
 
 
 @app.put("/api/notifications")
@@ -1739,6 +1880,119 @@ def public_helpdesk_page():
     return send_from_directory(ROOT, "portal.html")
 
 
+DEFAULT_TICKET_CATEGORY_TREE = [
+    {
+        "id": "cat-network-hardware",
+        "name": "Network / Hardware",
+        "icon": "🖥️",
+        "subcategories": [
+            "Computer / Desktop", "Laptop", "Monitor / Screen", "Network Switch / Router",
+            "Wi-Fi / Access Point", "LAN / Patch Cable", "Printer / Scanner",
+            "CCTV / Surveillance", "Server / Storage", "UPS / Power", "Other Hardware",
+        ],
+    },
+    {
+        "id": "cat-erp-software",
+        "name": "ERP / Software / Manufacturing",
+        "icon": "📊",
+        "subcategories": [
+            "ERP Software", "Manufacturing System", "Digital Catalog",
+            "Reports / Billing", "Operating System / Windows", "Email / Login / Outlook",
+            "Software License", "Other Software",
+        ],
+    },
+]
+DEFAULT_MATERIAL_CATEGORIES = [
+    "RAM", "SSD / Hard Drive", "Monitor / Screen", "Keyboard & Mouse",
+    "SMPS / Power Supply", "Laptop / Desktop", "Network Switch / Cables",
+    "Printer / Toner", "Accessories / Peripherals", "Other Material",
+]
+
+
+def normalize_ticketing_settings(settings_val):
+    settings = settings_val if isinstance(settings_val, dict) else {}
+    raw_tree = settings.get("ticketCategoryTree")
+    clean_tree = []
+    seen_names = set()
+    if isinstance(raw_tree, list):
+        for idx, item in enumerate(raw_tree[:40]):
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name") or "").strip()[:80]
+            if not name or name.casefold() in seen_names:
+                continue
+            seen_names.add(name.casefold())
+            icon = str(item.get("icon") or "🎫").strip()[:12] or "🎫"
+            cid = str(item.get("id") or f"cat-{idx + 1}").strip()[:60]
+            raw_subs = item.get("subcategories") if isinstance(item.get("subcategories"), list) else []
+            subs = []
+            seen_sub = set()
+            for s in raw_subs[:60]:
+                sname = str(s or "").strip()[:80]
+                if sname and sname.casefold() not in seen_sub:
+                    seen_sub.add(sname.casefold())
+                    subs.append(sname)
+            clean_tree.append({"id": cid, "name": name, "icon": icon, "subcategories": subs or ["Other"]})
+    if not clean_tree:
+        clean_tree = json.loads(json.dumps(DEFAULT_TICKET_CATEGORY_TREE))
+        seen_names = {c["name"].casefold() for c in clean_tree}
+        legacy_cats = settings.get("ticketCategories")
+        if isinstance(legacy_cats, list):
+            for idx,cname in enumerate(legacy_cats[:40]):
+                s = str(cname or "").strip()[:80]
+                if s and s.casefold() not in seen_names:
+                    seen_names.add(s.casefold())
+                    clean_tree.append({"id": f"cat-custom-{idx + 1}", "name": s, "icon": "🎫", "subcategories": ["General Issue", "Other"]})
+    raw_mat = settings.get("materialRequestCategories")
+    mat_cats = []
+    if isinstance(raw_mat, list):
+        seen_mat = set()
+        for m in raw_mat[:60]:
+            ms = str(m or "").strip()[:80]
+            if ms and ms.casefold() not in seen_mat:
+                seen_mat.add(ms.casefold())
+                mat_cats.append(ms)
+    if not mat_cats:
+        mat_cats = list(DEFAULT_MATERIAL_CATEGORIES)
+    priority = str(settings.get("defaultTicketPriority") or "Normal").strip()
+    if priority not in ("Normal", "Low", "High", "Urgent"):
+        priority = "Normal"
+    return {
+        "ticketCategoryTree": clean_tree,
+        "ticketCategories": [c["name"] for c in clean_tree],
+        "materialRequestCategories": mat_cats,
+        "defaultTicketPriority": priority,
+    }
+
+
+def issued_parts_map_from_conn(conn):
+    row = conn.execute("SELECT value FROM app_state WHERE key='parts_assignments'").fetchone()
+    rows = row[0] if row and isinstance(row[0], list) else []
+    by_ticket = {}
+    for a in rows:
+        if not isinstance(a, dict):
+            continue
+        tid = str(a.get("ticketId") or a.get("materialRequestId") or "").strip()
+        if not tid:
+            continue
+        by_ticket.setdefault(tid, []).append({
+            "id": str(a.get("id") or ""),
+            "partId": str(a.get("partId") or ""),
+            "partName": str(a.get("partName") or ""),
+            "sku": str(a.get("sku") or ""),
+            "condition": str(a.get("condition") or "New"),
+            "quantity": int(a.get("quantity") or 0),
+            "returned": int(a.get("returned") or 0),
+            "site": str(a.get("site") or ""),
+            "dept": str(a.get("dept") or ""),
+            "user": str(a.get("user") or ""),
+            "date": str(a.get("date") or ""),
+            "issuedBy": str(a.get("issuedBy") or ""),
+            "notes": str(a.get("notes") or a.get("work") or ""),
+        })
+    return by_ticket
+
+
 @app.get("/api/public/portal-options")
 def public_portal_options():
     with db() as conn:
@@ -1747,6 +2001,7 @@ def public_portal_options():
     users = rows["manual_users"] if isinstance(rows["manual_users"], list) else []
     departments = rows["departments"] if isinstance(rows["departments"], list) else []
     settings = rows["settings"] if isinstance(rows["settings"], dict) else {}
+    ticketing_cfg = normalize_ticketing_settings(settings)
     factories = [{"code": str(f.get("code", "")).strip(), "name": str(f.get("name", "")).strip()}
                  for f in settings.get("factories", []) if isinstance(f, dict) and f.get("code")]
     for code in ("ARG", "ARB", "ARC", "ARF"):
@@ -1773,7 +2028,7 @@ def public_portal_options():
         if name and dept and site and key:
             public_key = hashlib.sha256((APP_SECRET + "|" + key.casefold() + "|" + dept.casefold() + "|" + site.casefold()).encode()).hexdigest()
             employees.append({"key": public_key, "name": name, "department": dept, "factory": site})
-    return jsonify(factories=factories, departments=depts, employees=employees)
+    return jsonify(factories=factories, departments=depts, employees=employees, **ticketing_cfg)
 
 
 def repair_map_from_conn(conn):
@@ -1819,6 +2074,7 @@ def public_ticket_list():
                 FROM tickets t WHERE t.kind=%s ORDER BY t.created_at DESC LIMIT 5000
             """, (kind,)).fetchall()
         repair_map = repair_map_from_conn(conn)
+        issued_map = issued_parts_map_from_conn(conn)
     now = datetime.now(timezone.utc)
     result = []
     for r in rows:
@@ -1833,7 +2089,7 @@ def public_ticket_list():
                        "description":r[7],"material":r[16] or "","photos":photos,"assigned":r[9],"status":r[10],
                        "eta":r[11].isoformat(timespec="minutes") if r[11] else "","note":r[12],
                        "created":r[13].isoformat(timespec="minutes"),"durationMinutes":duration,
-                       "repair":repair_map.get(r[0])})
+                       "repair":repair_map.get(r[0]),"issuedParts":issued_map.get(r[0], [])})
     return jsonify(tickets=result)
 
 
@@ -1931,11 +2187,12 @@ def get_public_ticket_status():
     with db() as conn:
         row = conn.execute("SELECT id,status,eta,note,updated_at FROM tickets WHERE public_token_hash=%s", (token_hash,)).fetchone()
         repair = repair_map_from_conn(conn).get(row[0]) if row else None
+        issued_parts = issued_parts_map_from_conn(conn).get(row[0], []) if row else []
     if not row:
         abort(404)
     return jsonify(id=row[0], status=row[1], eta=row[2].isoformat(timespec="minutes") if row[2] else "",
                    note=row[3], updated=row[4].isoformat(timespec="minutes") if row[4] else "",
-                   repair=repair)
+                   repair=repair, issuedParts=issued_parts)
 
 
 @app.post("/api/account/profile-picture")
@@ -2006,8 +2263,14 @@ def get_data():
         keys = ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "vendors", "manual_users", "settings", "camera_streams", "camera_profiles", "network_ranges", "network_scan", "scanner_heartbeat", "scanner_ip_status", "notifications")
         out = {k: (conn.execute("SELECT value FROM app_state WHERE key=%s", (k,)).fetchone() or ([],))[0] for k in keys}
         settings_val = out.get("settings") if isinstance(out.get("settings"), dict) else {}
+        ticketing_cfg = normalize_ticketing_settings(settings_val)
         safe_factories = {k: settings_val[k] for k in ("factories", "factoryOrder", "removedFactoryCodes", "factoryTerm", "factoryTermPlural", "assetTypes", "assetSubcategories", "categoryTileHidden", "companyName") if k in settings_val}
+        safe_factories.update(ticketing_cfg)
         if session.get("is_admin"):
+            if isinstance(out.get("settings"), dict):
+                out["settings"] = {**out["settings"], **ticketing_cfg}
+            else:
+                out["settings"] = dict(ticketing_cfg)
             out["users"] = [
                 {k: v for k, v in u.items() if k not in ("password_hash", "recovery_answer_hashes")}
                 | {"source": "manual", "hasRecoveryQuestions": bool(u.get("recovery_answer_hashes"))}
@@ -2348,7 +2611,152 @@ def list_tickets():
     with db() as conn:
         rows = conn.execute(f"SELECT {TICKET_COLUMNS} FROM tickets ORDER BY created_at DESC LIMIT 1000").fetchall()
         repair_map = repair_map_from_conn(conn)
-    return jsonify(tickets=[{**ticket_json(r), "repair": repair_map.get(r[0])} for r in rows])
+        issued_map = issued_parts_map_from_conn(conn)
+    return jsonify(tickets=[{**ticket_json(r), "repair": repair_map.get(r[0]), "issuedParts": issued_map.get(r[0], [])} for r in rows])
+
+
+@app.put("/api/tickets/settings")
+@ticket_manager
+def update_ticket_settings():
+    profile = session.get("profile", {})
+    if not session.get("is_admin") and profile.get("role") != "IT Ticketing" and not module_access(profile, "settings", write=True):
+        return jsonify(error="Ticketing backend or administrator access is required."), 403
+    body = request.get_json(force=True) or {}
+    if not isinstance(body, dict):
+        return jsonify(error="Invalid ticketing settings payload."), 400
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='settings' FOR UPDATE").fetchone()
+        settings_val = dict(row[0]) if row and isinstance(row[0], dict) else {}
+        merged = dict(settings_val)
+        for key in ("ticketCategoryTree", "ticketCategories", "materialRequestCategories", "defaultTicketPriority"):
+            if key in body:
+                merged[key] = body[key]
+        normalized = normalize_ticketing_settings(merged)
+        settings_val.update(normalized)
+        conn.execute("INSERT INTO app_state(key,value) VALUES('settings',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(settings_val),))
+    return jsonify(ok=True, settings=normalized)
+
+
+@app.get("/api/tickets/parts-options")
+@ticket_manager
+def ticket_parts_options():
+    profile = session.get("profile", {})
+    can_view_cost = bool(session.get("is_admin") or module_access(profile, "parts") or module_access(profile, "valuation"))
+    if not (session.get("is_admin") or profile.get("role") == "IT Ticketing" or module_access(profile, "parts")):
+        return jsonify(error="Parts inventory access is not enabled for your account."), 403
+    with db() as conn:
+        inv_row = conn.execute("SELECT value FROM app_state WHERE key='parts_inventory'").fetchone()
+        cat_row = conn.execute("SELECT value FROM app_state WHERE key='parts_catalog'").fetchone()
+        asgn_row = conn.execute("SELECT value FROM app_state WHERE key='parts_assignments'").fetchone()
+    inv = inv_row[0] if inv_row and isinstance(inv_row[0], list) else []
+    if not can_view_cost:
+        inv = [{k: v for k, v in item.items() if k != "unitCost"} for item in inv if isinstance(item, dict)]
+    cat = cat_row[0] if cat_row and isinstance(cat_row[0], list) else []
+    asgn = asgn_row[0] if asgn_row and isinstance(asgn_row[0], list) else []
+    return jsonify(parts_inventory=inv, parts_catalog=cat, parts_assignments=asgn if can_view_cost else [])
+
+
+@app.post("/api/tickets/<path:ticket_id>/issue-material")
+@ticket_manager
+def issue_material_for_ticket(ticket_id):
+    profile = session.get("profile", {})
+    if not (session.get("is_admin") or profile.get("role") == "IT Ticketing" or module_access(profile, "parts", write=True)):
+        return jsonify(error="Ticketing backend or Parts write permission is required."), 403
+    body = request.get_json(force=True) or {}
+    part_id = str(body.get("partId") or "").strip()
+    site = str(body.get("site") or "").strip()
+    condition = str(body.get("condition") or "New").strip()
+    dept = str(body.get("dept") or "").strip()[:120]
+    user = str(body.get("user") or "").strip()[:120]
+    notes = str(body.get("notes") or "").strip()[:400]
+    new_status = str(body.get("status") or "Resolved").strip()
+    if new_status not in ("In progress", "Resolved", "Closed"):
+        new_status = "Resolved"
+    try:
+        qty = int(body.get("quantity") or 0)
+    except (TypeError, ValueError):
+        qty = 0
+    if not part_id or qty < 1 or condition not in ("New", "RepairedRefurbished", "Repaired", "Refurbished", "Damaged"):
+        return jsonify(error="Select a valid part, condition, and positive quantity."), 400
+    actor = str(profile.get("name") or profile.get("username") or "IT")[:120]
+    issue_date = datetime.now().strftime("%Y-%m-%d")
+    with db() as conn:
+        t_row = conn.execute("SELECT id,display_name,department,factory,material,sub_category FROM tickets WHERE id=%s FOR UPDATE", (ticket_id,)).fetchone()
+        if not t_row:
+            abort(404)
+        inv_row = conn.execute("SELECT value FROM app_state WHERE key='parts_inventory' FOR UPDATE").fetchone()
+        asgn_row = conn.execute("SELECT value FROM app_state WHERE key='parts_assignments' FOR UPDATE").fetchone()
+        inv_list = list(inv_row[0]) if inv_row and isinstance(inv_row[0], list) else []
+        asgn_list = list(asgn_row[0]) if asgn_row and isinstance(asgn_row[0], list) else []
+        part = next((p for p in inv_list if isinstance(p, dict) and str(p.get("id") or "") == part_id and (not site or str(p.get("site") or "") == site)), None)
+        if not part:
+            return jsonify(error="Selected part was not found at the chosen factory."), 404
+        if condition == "New":
+            avail = max(0, int(float(part.get("newQty") or 0)))
+        elif condition == "RepairedRefurbished":
+            avail = max(0, int(float(part.get("repairedQty") or 0))) + max(0, int(float(part.get("refurbishedQty") or 0)))
+        elif condition == "Repaired":
+            avail = max(0, int(float(part.get("repairedQty") or 0)))
+        elif condition == "Refurbished":
+            avail = max(0, int(float(part.get("refurbishedQty") or 0)))
+        else:
+            avail = max(0, int(float(part.get("damagedQty") or 0)))
+        if avail < qty:
+            return jsonify(error=f"Not enough stock in {condition}. Available: {avail}, Requested: {qty}."), 400
+        rep_ded = 0
+        ref_ded = 0
+        cond_label = "Repaired / Refurbished" if condition == "RepairedRefurbished" else condition
+        if condition == "RepairedRefurbished":
+            rep_avail = max(0, int(float(part.get("repairedQty") or 0)))
+            rep_ded = min(rep_avail, qty)
+            ref_ded = qty - rep_ded
+            part["repairedQty"] = rep_avail - rep_ded
+            part["refurbishedQty"] = max(0, int(float(part.get("refurbishedQty") or 0)) - ref_ded)
+        elif condition == "Repaired":
+            part["repairedQty"] = max(0, int(float(part.get("repairedQty") or 0)) - qty)
+        elif condition == "Refurbished":
+            part["refurbishedQty"] = max(0, int(float(part.get("refurbishedQty") or 0)) - qty)
+        elif condition == "Damaged":
+            part["damagedQty"] = max(0, int(float(part.get("damagedQty") or 0)) - qty)
+        else:
+            part["newQty"] = max(0, int(float(part.get("newQty") or 0)) - qty)
+        assign_id = f"assign-{int(datetime.now().timestamp() * 1000)}-{uuid.uuid4().hex[:5]}"
+        assignment = {
+            "id": assign_id,
+            "partId": part.get("id", ""),
+            "productId": part.get("productId", ""),
+            "partName": part.get("name", ""),
+            "sku": part.get("sku", ""),
+            "category": part.get("category", ""),
+            "group": part.get("group", ""),
+            "site": site or part.get("site", "") or t_row[3],
+            "dept": dept or t_row[2],
+            "user": user or t_row[1],
+            "quantity": qty,
+            "returned": 0,
+            "condition": cond_label,
+            "repairedDeducted": rep_ded,
+            "refurbishedDeducted": ref_ded,
+            "date": issue_date,
+            "ticketId": ticket_id,
+            "materialRequestId": ticket_id,
+            "materialRequested": t_row[4] or t_row[5] or "",
+            "issuedBy": actor,
+            "unitCost": float(part.get("unitCost") or 0),
+            "work": notes or f"Issued for Material Request {ticket_id}",
+            "notes": notes or f"Issued for Material Request {ticket_id}",
+        }
+        asgn_list.insert(0, assignment)
+        conn.execute("INSERT INTO app_state(key,value) VALUES('parts_inventory',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(inv_list),))
+        conn.execute("INSERT INTO app_state(key,value) VALUES('parts_assignments',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(asgn_list),))
+        ticket_note = f"Issued {qty} × {part.get('name', 'Part')} ({cond_label}) from {assignment['site']} Parts Inventory to {assignment['user']} on {issue_date}"
+        if notes:
+            ticket_note += f" · {notes}"
+        conn.execute("UPDATE tickets SET status=%s, note=%s, assigned_to=CASE WHEN assigned_to='Unassigned' THEN %s ELSE assigned_to END, updated_at=now() WHERE id=%s",
+                     (new_status, ticket_note[:1000], actor, ticket_id))
+        conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'material_issued',%s)", (ticket_id, actor, ticket_note[:1000]))
+        issued_list = issued_parts_map_from_conn(conn).get(ticket_id, [])
+    return jsonify(ok=True, assignment=assignment, status=new_status, note=ticket_note, issuedParts=issued_list, parts_inventory=inv_list, parts_assignments=asgn_list)
 
 
 @app.get("/api/tickets/<path:ticket_id>/attachments/<path:filename>")
