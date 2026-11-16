@@ -262,8 +262,8 @@
 .ov-cust-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid #e0ebe4;border-radius:12px;padding:10px 14px;font-size:12px;transition:box-shadow .15s}
 .ov-cust-row:hover{box-shadow:0 2px 8px rgba(0,0,0,0.04);border-color:#c8dbcf}
 .ov-cust-drag-handle{cursor:grab;color:#829288;font-size:16px}
-.login-portal-btn{width:min(260px,100%);height:48px;margin:16px auto 0;display:flex;align-items:center;justify-content:center;gap:10px;border:1.5px solid #26392f;border-radius:30px;background:#ffffff;color:#26392f;font-size:13.5px;font-weight:700;text-decoration:none;box-shadow:0 4px 14px rgba(38,57,47,.10);transition:all .18s ease;box-sizing:border-box}
-.login-portal-btn:hover{background:#f0f7f3;border-color:#157a54;color:#157a54;transform:translateY(-1px);box-shadow:0 6px 18px rgba(21,122,84,.18)}
+.login-portal-btn{width:min(370px,100%);height:48px;margin:16px auto 0;display:flex;align-items:center;justify-content:center;gap:10px;border:1.5px solid #cbd5e1;border-radius:30px;background:#ffffff;color:#334155;font-size:13.5px;font-weight:700;text-decoration:none;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.06);transition:all .18s ease;box-sizing:border-box}
+.login-portal-btn:hover{background:#f8fafc;border-color:#94a3b8;color:#0f172a;transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,.09)}
 .login-portal-btn span{font-size:16px}
 </style></head>
 <body>
@@ -283,7 +283,17 @@
 
 <section class="view" id="view-assets"><div class="page-head"><div><div class="eyebrow">Your entire IT estate</div><h1>Asset inventory</h1><p>Every device, its specs, owner and location — all in one place.</p></div><div class="head-actions"><button type="button" class="btn" onclick="openAssetImportModal()">↑ &nbsp;Import Excel / CSV</button><button type="button" class="btn" onclick="openAssetExportChoicesModal('asset-register')">↓ &nbsp;Export Excel / CSV</button><button class="btn primary" onclick="openModal()">＋ &nbsp;Add asset</button></div></div><div class="kpis"><div class="kpi-pill">All assets <b id="assetCount">368</b></div><div class="kpi-pill">Online <b style="color:#1687d9">342</b></div><div class="kpi-pill">Offline <b style="color:#cd6559">18</b></div><div class="kpi-pill">Unassigned <b style="color:#b88633">8</b></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="assetSearch" placeholder="⌕  Search name, tag, user or serial..."><select class="filter-select" id="assetFactoryFilter"><option value="">All factories</option></select><select class="filter-select" id="typeFilter"><option value="">All device types</option><option>Laptop</option><option>Desktop</option><option>Server</option><option>Printer</option><option>Network</option><option>Mobile</option><option>Tablet</option><option>CCTV</option><option>NVR</option><option>DVR</option></select><select class="filter-select" id="deptFilter"><option value="">All departments</option><option>IT</option><option>Finance</option><option>Design</option><option>HR</option><option>Operations</option><option>Engineering</option></select><select class="filter-select" id="statusFilter"><option value="">Any status</option><option>Online</option><option>Offline</option><option>Stale</option><option>Not checked</option><option>No IP</option><option>Maintenance</option></select><select class="filter-select" id="networkSubtypeFilter"><option value="">All network sub-categories</option><option>Switch</option><option>Router</option><option>Access point</option><option>Firewall</option><option>Other network device</option></select><div class="toolbar-spacer"></div><button type="button" class="btn" onclick="openAssetImportModal()">↑ &nbsp;Import</button></div><div id="assetBulkBar" class="ns-bulk-bar"><div id="assetBulkSummary"><b>0</b> assets selected</div><div class="ns-bulk-actions"><button type="button" class="btn" id="assetSelectFilteredBtn" onclick="selectAllFilteredAssets()" style="display:none"></button><button type="button" class="btn" onclick="clearAssetSelection()">Clear selection</button><button type="button" class="btn danger" id="assetBulkDeleteBtn" onclick="bulkDeleteSelectedAssets()">🗑 &nbsp;Delete selected (<span id="assetBulkDeleteCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="assetSelectAll" title="Select all visible rows" aria-label="Select all visible assets"></th><th>ASSET / TAG</th><th>DEVICE TYPE</th><th>SPECIFICATIONS</th><th>ASSIGNED TO</th><th>DEPARTMENT</th><th>FACTORY</th><th>AGE</th><th>LAST MAINTENANCE</th><th>STATUS</th><th>LAST SEEN</th></tr></thead><tbody id="assetTable"></tbody></table></div></div></section>
 
-<section class="view" id="view-ageing"><div class="page-head"><div><div class="eyebrow">Lifecycle · Service history</div><h1>Asset ageing & risk</h1><p>Age uses the purchase / in-service date. Risk uses saved maintenance records.</p></div><div class="head-actions"><button class="btn" onclick="exportAssetAgeing()">↓ Export list</button></div></div><div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px"><div style="font-size:10px;font-weight:800;color:#157a54;letter-spacing:.9px;text-transform:uppercase">ASSET AGE BRACKETS · CLICK ANY TILE TO VIEW &amp; FILTER DEVICES</div><button type="button" class="btn" id="ageUnrecordedBtn" onclick="openAgeBucketModal('unknown')" style="display:none;font-size:10px;padding:5px 10px">Not recorded: <b id="ageUnknownCount">0</b></button></div><div class="grid-4" id="ageBracketGrid"><div class="card metric age-bracket-card" data-age-bucket="lt1" onclick="openAgeBucketModal('lt1')" role="button" tabindex="0"><div class="metric-top"><span>Less than 1 year</span><span class="metric-icon" style="background:#e7f6ee;color:#157a54">🌱</span></div><div class="metric-value" id="ageLt1Count">0</div><div class="metric-foot">0–11 months · Click to inspect list</div></div><div class="card metric age-bracket-card" data-age-bucket="1to3" onclick="openAgeBucketModal('1to3')" role="button" tabindex="0"><div class="metric-top"><span>1–3 years (incl. 2–3 yrs)</span><span class="metric-icon" style="background:#e8f2ff;color:#1d6ec9">💻</span></div><div class="metric-value" id="age1to3Count">0</div><div class="metric-foot">12–35 months · Click to inspect list</div></div><div class="card metric age-bracket-card" data-age-bucket="3to5" onclick="openAgeBucketModal('3to5')" role="button" tabindex="0"><div class="metric-top"><span>3–5 years</span><span class="metric-icon" style="background:#fff6e5;color:#b97c10">⏳</span></div><div class="metric-value" id="age3to5Count">0</div><div class="metric-foot">36–59 months · Click to inspect list</div></div><div class="card metric age-bracket-card" data-age-bucket="5plus" onclick="openAgeBucketModal('5plus')" role="button" tabindex="0"><div class="metric-top"><span>5+ years</span><span class="metric-icon" style="background:#fff0ee;color:#c9423d">🔥</span></div><div class="metric-value" id="age5PlusCount">0</div><div class="metric-foot">60+ months · Refresh priority · Click list</div></div></div><div style="font-size:10px;font-weight:800;color:#69756d;letter-spacing:.9px;text-transform:uppercase;margin:4px 0 8px">MAINTENANCE RISK PROFILE</div><div class="grid-4"><div class="card metric"><div class="metric-top">Healthy · no service history</div><div class="metric-value" id="ageHealthyCount">0</div><div class="metric-foot">Risk 0 · no maintenance recorded</div></div><div class="card metric"><div class="metric-top">Low risk</div><div class="metric-value" id="ageLowCount">0</div><div class="metric-foot">1–3 records</div></div><div class="card metric"><div class="metric-top">Medium risk</div><div class="metric-value" id="ageMediumCount">0</div><div class="metric-foot">4–5 records</div></div><div class="card metric"><div class="metric-top">High risk</div><div class="metric-value" id="ageHighCount">0</div><div class="metric-foot">6 or more records</div></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="ageSearch" placeholder="Search asset, tag or owner"><select class="filter-select" id="ageSort"><option value="oldest">Oldest to newest</option><option value="newest">Newest to oldest</option></select><select class="filter-select" id="ageYear"><option value="">All years</option></select><input class="filter-input" id="ageFrom" type="date" aria-label="Purchased from"><input class="filter-input" id="ageTo" type="date" aria-label="Purchased to"><select class="filter-select" id="ageRisk"><option value="">All risk levels</option><option>Healthy</option><option>Low</option><option>Medium</option><option>High</option></select></div><div class="table-wrap"><table><thead><tr><th>ASSET</th><th>FACTORY</th><th>PURCHASE DATE</th><th>AGE</th><th>MAINTENANCE COUNT</th><th>RISK</th></tr></thead><tbody id="assetAgeingTable"></tbody></table></div></div></section><section class="view" id="view-tickets"><div class="page-head"><div><div class="eyebrow">Help desk · Request tracking</div><h1>IT help desk &amp; material requests</h1><p>Raise support issues or material requests and track them in separate, crystal-clear queues.</p></div><div class="head-actions"><button class="btn" onclick="openIpManager()">⌖ &nbsp;Device / IP mapping</button><button class="btn primary" onclick="document.getElementById('ticketFormCard').scrollIntoView({behavior:'smooth'})">＋ &nbsp;Raise a ticket / request</button><button class="btn" id="ticketingBackendButton" style="display:none" onclick="go('ticketing')">⚙ &nbsp;Ticketing backend</button></div></div><div class="grid-4"><div class="card metric"><div class="metric-top"><span>Open IT tickets</span><span class="metric-icon">✉</span></div><div class="metric-value" id="openTicketCount">0</div><div class="metric-foot">Help-desk issues awaiting start</div></div><div class="card metric"><div class="metric-top"><span>In progress</span><span class="metric-icon">↻</span></div><div class="metric-value" id="progressTicketCount">0</div><div class="metric-foot">Being worked on by IT</div></div><div class="card metric"><div class="metric-top"><span>Resolved / Closed</span><span class="metric-icon">✓</span></div><div class="metric-value" id="resolvedTicketCount">0</div><div class="metric-foot">IT support issues completed</div></div><div class="card metric"><div class="metric-top"><span>Open material requests</span><span class="metric-icon">📦</span></div><div class="metric-value" id="openMaterialReqCount">0</div><div class="metric-foot">Tracked separately below</div></div></div><div class="panel" id="ticketFormCard" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">✎ &nbsp;Submit a new IT ticket / material request</div><div class="panel-sub">Your mapped employee, department and factory details are filled in automatically.</div></div><span class="status warning" id="identityStatus">Signed in</span></div><div style="padding:16px 18px 18px"><div style="font-size:10px;font-weight:700;color:#707d74;margin-bottom:8px">REQUEST TYPE</div><label class="ticket-choice"><input type="radio" name="requestKind" value="IT help desk" checked> 🧰 IT issue / help desk</label><label class="ticket-choice"><input type="radio" name="requestKind" value="Material request"> 📦 IT material request</label><div style="font-size:10px;font-weight:700;color:#707d74;margin:12px 0 7px">PRIMARY CATEGORY</div><div id="primaryCategories"><label class="ticket-choice"><input type="radio" name="primaryCategory" value="ERP / Software / Manufacturing" checked> 📊 ERP / Software / Manufacturing</label><label class="ticket-choice"><input type="radio" name="primaryCategory" value="Network / Hardware"> 🖥️ Network / Hardware</label></div><div class="ticket-subcats"><div class="ticket-subcats-title">Select sub-category</div><div id="ticketSubcats" style="display:flex;flex-wrap:wrap;gap:7px"></div></div><div class="ticket-identity"><div><span>YOUR NAME</span><b id="ticketIdentityName">Suneel Maurya</b></div><div><span>DEPARTMENT</span><b id="ticketIdentityDept">INDO OFFICE</b></div><div><span>FACTORY / LOCATION</span><b id="ticketIdentitySite">ARG</b></div><div><span>DEVICE IP · MAPPED</span><b id="ticketIdentityIp">192.168.130.3</b></div></div><form id="ticketForm"><div class="ticket-form-grid"><div class="field full" id="materialFields" style="display:none"><label>Requested item / quantity / justification</label><input name="material" placeholder="e.g. USB-C dock · qty 2 · required for new workstations"></div><div class="field full"><label>Describe your issue in detail *</label><textarea class="filter-input ticket-description" name="description" required placeholder="Describe the problem, what you were trying to do, and any error message..."></textarea></div><div class="field full"><label>Attach screenshots (up to 3)</label><input id="ticketFiles" type="file" accept="image/*" multiple class="filter-input"><div id="ticketFileNames" class="ticket-meta"></div></div></div><div style="display:flex;gap:8px;align-items:center;margin-top:12px"><span class="ticket-meta">A ticket number will be generated automatically.</span><button class="btn primary" style="margin-left:auto;min-width:210px">↥ &nbsp;Submit IT ticket</button></div></form></div></div><div class="ns-section-tabs" id="ticketsSectionTabs"><button type="button" class="ns-sec-tab active" data-ticket-tab="IT help desk" onclick="switchTicketsTab('IT help desk')">🧰 IT Support Tickets <span class="ns-tab-badge" id="tabItTicketsCount">0</span></button><button type="button" class="ns-sec-tab" data-ticket-tab="Material request" onclick="switchTicketsTab('Material request')">📦 IT Material Requests &amp; Parts Status <span class="ns-tab-badge" id="tabMatReqCount">0</span></button></div><div class="panel" id="ticketsQueuePanel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">🌐 &nbsp;Live IT Support Tickets Queue</div><div class="panel-sub">All IT help-desk issues (Material Requests are tracked separately in the Material Requests tab).</div></div><button class="btn" onclick="renderTickets();showToast('Ticket list refreshed')">↻ &nbsp;Refresh</button></div><div style="padding:0 15px 14px"><div class="ticket-filter-strip"><span class="ticket-meta" style="font-weight:700">FILTER</span><select class="filter-select" id="ticketKindFilter" style="display:none"><option value="">All tickets & requests</option><option>IT help desk</option><option>Material request</option></select><select class="filter-select" id="ticketStatusFilter"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select><select class="filter-select" id="ticketCategoryFilter"><option value="">All categories</option><option>ERP / Software / Manufacturing</option><option>Network / Hardware</option></select><select class="filter-select" id="ticketSiteFilter"><option value="">All factories</option><option>ARG</option><option>ARB</option><option>ARC</option><option>ARF</option></select><input class="filter-input" id="ticketSearch" placeholder="Search ticket, user or issue..." style="min-width:180px"></div><div class="table-wrap"><table class="ticket-table"><thead><tr><th>TICKET</th><th>USER · DEPT · FACTORY</th><th>CATEGORY / SUB</th><th>ISSUE</th><th>ASSIGNED TO</th><th>STATUS</th><th>ETA</th><th>NOTE / REMARK</th><th>UPDATED</th></tr></thead><tbody id="ticketTable"></tbody></table></div></div></div><div class="panel" id="materialRequestsPanel" style="display:none;margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">📦 &nbsp;IT Material Requests &amp; Parts Inventory Status</div><div class="panel-sub">Track every hardware/material request separately and verify parts issued against it from Parts Inventory.</div></div><button class="btn" onclick="renderTickets();showToast('Material request list refreshed')">↻ &nbsp;Refresh</button></div><div style="padding:0 15px 14px"><div class="ticket-filter-strip"><span class="ticket-meta" style="font-weight:700">FILTER MATERIAL REQUESTS</span><select class="filter-select" id="mrUserStatusFilter" onchange="renderTickets()"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select><select class="filter-select" id="mrUserSiteFilter" onchange="renderTickets()"><option value="">All factories</option></select><input class="filter-input" id="mrUserSearch" placeholder="Search request ID, item, user..." style="min-width:200px" oninput="renderTickets()"></div><div class="table-wrap"><table class="ticket-table"><thead><tr><th>REQUEST ID</th><th>REQUESTER · DEPT · FACTORY</th><th>CATEGORY</th><th>REQUESTED ITEM &amp; REASON</th><th>ASSIGNED TO</th><th>STATUS</th><th>PARTS INVENTORY FULFILLMENT</th><th>ETA &amp; UPDATED</th></tr></thead><tbody id="materialUserTable"></tbody></table></div></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">How auto-identification works</div><div class="panel-sub">Manual IP mapping previews the flow; secure login and user accounts are managed by your administrator.</div></div><button class="link-btn" onclick="openIpManager()">Manage mappings →</button></div><div class="health-wrap"><div class="site-overview"><div class="site-tile"><div class="site-tile-head">1 · Map workstation IP</div><p>Admin registers a trusted device IP against a user, department and factory.</p></div><div class="site-tile"><div class="site-tile-head">2 · Verify identity</div><p>Users sign in with their local application account.</p></div><div class="site-tile"><div class="site-tile-head">3 · Open request link</div><p>Signed-in users get their mapped name, department and site prefilled in the issue form.</p></div><div class="site-tile"><div class="site-tile-head">4 · Track to closure</div><p>IT updates assignee, status, work notes and expected completion time in the live queue.</p></div></div></div></div></section><section class="view" id="view-ticketing"><div class="page-head"><div><div class="eyebrow">IT operations · Backend workbench</div><h1>Ticketing backend &amp; settings</h1><p>Manage IT Tickets, fulfill Material Requests from Parts Inventory, and configure dynamic Categories &amp; Sub-categories.</p></div><div class="head-actions"><button class="btn" onclick="refreshServerTickets().then(()=>renderTicketingBackend())">↻ &nbsp;Refresh</button></div></div><div class="ns-section-tabs" id="ticketingBackendTabs"><button type="button" class="ns-sec-tab active" data-backend-tab="tickets" onclick="switchTicketingBackendTab('tickets')">🎫 IT Support Tickets <span class="ns-tab-badge" id="beItTicketsBadge">0</span></button><button type="button" class="ns-sec-tab" data-backend-tab="materials" onclick="switchTicketingBackendTab('materials')">📦 Material Requests &amp; Parts Issue <span class="ns-tab-badge" id="beMatReqBadge">0</span></button><button type="button" class="ns-sec-tab" data-backend-tab="settings" onclick="switchTicketingBackendTab('settings')">⚙ Ticketing Settings &amp; Categories</button></div><div class="panel" id="ticketingTabTickets"><div class="section-toolbar"><input class="filter-input" id="ticketingSearch" placeholder="Search ticket, user or issue"><select class="filter-select" id="ticketingKind" style="display:none"><option value="IT help desk">IT help desk</option></select><select class="filter-select" id="ticketingCatFilter" onchange="renderTicketingBackend()"><option value="">All primary categories</option></select><select class="filter-select" id="ticketingStatus"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select></div><div id="beTicketBulkBar" class="ns-bulk-bar"><div id="beTicketBulkSummary"><b>0</b> tickets selected</div><div class="ns-bulk-actions"><button type="button" class="btn" onclick="clearTicketingSelection('tickets')">Clear selection</button><button type="button" class="btn danger" onclick="bulkDeleteTicketingRecords('tickets')">🗑 &nbsp;Delete selected (<span id="beTicketBulkCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="beTicketSelectAll" aria-label="Select all visible IT tickets"></th><th>TICKET / CREATED</th><th>REQUESTER / FACTORY / DEPT</th><th>ISSUE</th><th>ASSIGN TO</th><th>STATUS</th><th>ETA</th><th>WORK UPDATE</th><th>ACTIONS</th></tr></thead><tbody id="ticketingTable"></tbody></table></div></div><div class="panel" id="ticketingTabMaterials" style="display:none"><div class="section-toolbar"><input class="filter-input" id="beMrSearch" placeholder="Search request ID, item, requester..." oninput="renderTicketingBackend()"><select class="filter-select" id="beMrSite" onchange="renderTicketingBackend()"><option value="">All factories</option></select><select class="filter-select" id="beMrStatus" onchange="renderTicketingBackend()"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select></div><div id="beMrBulkBar" class="ns-bulk-bar"><div id="beMrBulkSummary"><b>0</b> material requests selected</div><div class="ns-bulk-actions"><button type="button" class="btn" onclick="clearTicketingSelection('materials')">Clear selection</button><button type="button" class="btn danger" onclick="bulkDeleteTicketingRecords('materials')">🗑 &nbsp;Delete selected (<span id="beMrBulkCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="beMrSelectAll" aria-label="Select all visible material requests"></th><th>REQUEST / CREATED</th><th>REQUESTER / FACTORY / DEPT</th><th>CATEGORY &amp; ITEM NEEDED</th><th>ASSIGN / STATUS / ETA</th><th>PARTS INVENTORY ISSUED</th><th>FULFILL FROM INVENTORY / WORK</th></tr></thead><tbody id="ticketingMaterialTable"></tbody></table></div></div><div id="ticketingTabSettings" style="display:none"></div></section><section class="view" id="view-users"><div class="page-head"><div><div class="eyebrow">People · Access · Security</div><h1>People, users &amp; access</h1><p>Manage employees, sign-in accounts, module permissions, and account recovery.</p></div><div class="head-actions"><button class="btn" type="button" onclick="exportEmployeeRegister()">↓ &nbsp;Export employee register</button><button class="btn primary" onclick="addUser()">＋ &nbsp;Add user / administrator</button></div></div><div class="kpis"><div class="kpi-pill">Active users <b>0</b></div><div class="kpi-pill">With assigned assets <b>0</b></div><div class="kpi-pill">No assigned devices <b>0</b></div><div class="kpi-pill">Login accounts <b>0</b></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="userSearch" placeholder="⌕  Search name, email or employee ID..."><select class="filter-select" id="userDeptFilter"><option value="">All departments</option></select><select class="filter-select" id="userSiteFilter"><option value="">All factories</option></select><select class="filter-select" id="userEmploymentFilter"><option value="">All employment statuses</option><option>Active</option><option>On leave</option><option>Inactive</option></select></div><div class="table-wrap"><table><thead><tr><th>EMPLOYEE</th><th>EMPLOYEE ID / LOGIN</th><th>DATE OF BIRTH</th><th>DEPARTMENT</th><th>FACTORY</th><th>IP / NETWORK STATUS</th><th>ASSETS</th><th>SOFTWARE</th><th>LAST ACTIVE</th><th>ROLE &amp; ACCESS</th></tr></thead><tbody id="userTable"></tbody></table></div></div>
+<section class="view" id="view-ageing"><div class="page-head"><div><div class="eyebrow">Lifecycle · Service history</div><h1>Asset ageing & risk</h1><p>Age uses the purchase / in-service date. Risk uses saved maintenance records.</p></div><div class="head-actions"><button class="btn" onclick="exportAssetAgeing()">↓ Export list</button></div></div><div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px"><div style="font-size:10px;font-weight:800;color:#157a54;letter-spacing:.9px;text-transform:uppercase">ASSET AGE BRACKETS · CLICK ANY TILE TO VIEW &amp; FILTER DEVICES</div><button type="button" class="btn" id="ageUnrecordedBtn" onclick="openAgeBucketModal('unknown')" style="display:none;font-size:10px;padding:5px 10px">Not recorded: <b id="ageUnknownCount">0</b></button></div><div class="grid-4" id="ageBracketGrid"><div class="card metric age-bracket-card" data-age-bucket="lt1" onclick="openAgeBucketModal('lt1')" role="button" tabindex="0"><div class="metric-top"><span>Less than 1 year</span><span class="metric-icon" style="background:#e7f6ee;color:#157a54">🌱</span></div><div class="metric-value" id="ageLt1Count">0</div><div class="metric-foot">0–11 months · Click to inspect list</div></div><div class="card metric age-bracket-card" data-age-bucket="1to3" onclick="openAgeBucketModal('1to3')" role="button" tabindex="0"><div class="metric-top"><span>1–3 years (incl. 2–3 yrs)</span><span class="metric-icon" style="background:#e8f2ff;color:#1d6ec9">💻</span></div><div class="metric-value" id="age1to3Count">0</div><div class="metric-foot">12–35 months · Click to inspect list</div></div><div class="card metric age-bracket-card" data-age-bucket="3to5" onclick="openAgeBucketModal('3to5')" role="button" tabindex="0"><div class="metric-top"><span>3–5 years</span><span class="metric-icon" style="background:#fff6e5;color:#b97c10">⏳</span></div><div class="metric-value" id="age3to5Count">0</div><div class="metric-foot">36–59 months · Click to inspect list</div></div><div class="card metric age-bracket-card" data-age-bucket="5plus" onclick="openAgeBucketModal('5plus')" role="button" tabindex="0"><div class="metric-top"><span>5+ years</span><span class="metric-icon" style="background:#fff0ee;color:#c9423d">🔥</span></div><div class="metric-value" id="age5PlusCount">0</div><div class="metric-foot">60+ months · Refresh priority · Click list</div></div></div><div style="font-size:10px;font-weight:800;color:#69756d;letter-spacing:.9px;text-transform:uppercase;margin:4px 0 8px">MAINTENANCE RISK PROFILE</div><div class="grid-4"><div class="card metric"><div class="metric-top">Healthy · no service history</div><div class="metric-value" id="ageHealthyCount">0</div><div class="metric-foot">Risk 0 · no maintenance recorded</div></div><div class="card metric"><div class="metric-top">Low risk</div><div class="metric-value" id="ageLowCount">0</div><div class="metric-foot">1–3 records</div></div><div class="card metric"><div class="metric-top">Medium risk</div><div class="metric-value" id="ageMediumCount">0</div><div class="metric-foot">4–5 records</div></div><div class="card metric"><div class="metric-top">High risk</div><div class="metric-value" id="ageHighCount">0</div><div class="metric-foot">6 or more records</div></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="ageSearch" placeholder="Search asset, tag or owner"><select class="filter-select" id="ageSort"><option value="oldest">Oldest to newest</option><option value="newest">Newest to oldest</option></select><select class="filter-select" id="ageYear"><option value="">All years</option></select><input class="filter-input" id="ageFrom" type="date" aria-label="Purchased from"><input class="filter-input" id="ageTo" type="date" aria-label="Purchased to"><select class="filter-select" id="ageRisk"><option value="">All risk levels</option><option>Healthy</option><option>Low</option><option>Medium</option><option>High</option></select></div><div class="table-wrap"><table><thead><tr><th>ASSET</th><th>FACTORY</th><th>PURCHASE DATE</th><th>AGE</th><th>MAINTENANCE COUNT</th><th>RISK</th></tr></thead><tbody id="assetAgeingTable"></tbody></table></div></div></section><section class="view" id="view-tickets"><div class="page-head"><div><div class="eyebrow">Help desk · Request tracking</div><h1>IT help desk &amp; material requests</h1><p>Raise support issues or material requests and track them in separate, crystal-clear queues.</p></div><div class="head-actions"><button class="btn" onclick="openIpManager()">⌖ &nbsp;Device / IP mapping</button><button class="btn primary" onclick="document.getElementById('ticketFormCard').scrollIntoView({behavior:'smooth'})">＋ &nbsp;Raise a ticket / request</button><button class="btn" id="ticketingBackendButton" style="display:none" onclick="go('ticketing')">⚙ &nbsp;Ticketing backend</button></div></div><div class="grid-4"><div class="card metric"><div class="metric-top"><span>Open IT tickets</span><span class="metric-icon">✉</span></div><div class="metric-value" id="openTicketCount">0</div><div class="metric-foot">Help-desk issues awaiting start</div></div><div class="card metric"><div class="metric-top"><span>In progress</span><span class="metric-icon">↻</span></div><div class="metric-value" id="progressTicketCount">0</div><div class="metric-foot">Being worked on by IT</div></div><div class="card metric"><div class="metric-top"><span>Resolved / Closed</span><span class="metric-icon">✓</span></div><div class="metric-value" id="resolvedTicketCount">0</div><div class="metric-foot">IT support issues completed</div></div><div class="card metric"><div class="metric-top"><span>Open material requests</span><span class="metric-icon">📦</span></div><div class="metric-value" id="openMaterialReqCount">0</div><div class="metric-foot">Tracked separately below</div></div></div>
+<div class="tf-factory-section" id="tfFactorySection" style="margin:16px 0 18px">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:10.5px;font-weight:800;color:#157a54;letter-spacing:.9px;text-transform:uppercase">FACTORY TICKET BREAKDOWN · CLICK TILE TO DRILL DOWN</div>
+      <div style="font-size:12px;color:#64748b;margin-top:2px">Live open &amp; closed tickets grouped by factory location. Click any factory to inspect itemized tickets.</div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:#157a54;background:#eefcf4;padding:4px 10px;border-radius:20px;border:1px solid #ccebd7" id="tfFactoryTotalBadge">0 Factories Active</div>
+  </div>
+  <div class="val-tiles-grid" id="tfFactoryTilesGrid"></div>
+</div><div class="panel" id="ticketFormCard" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">✎ &nbsp;Submit a new IT ticket / material request</div><div class="panel-sub">Your mapped employee, department and factory details are filled in automatically.</div></div><span class="status warning" id="identityStatus">Signed in</span></div><div style="padding:16px 18px 18px"><div style="font-size:10px;font-weight:700;color:#707d74;margin-bottom:8px">REQUEST TYPE</div><label class="ticket-choice"><input type="radio" name="requestKind" value="IT help desk" checked> 🧰 IT issue / help desk</label><label class="ticket-choice"><input type="radio" name="requestKind" value="Material request"> 📦 IT material request</label><div style="font-size:10px;font-weight:700;color:#707d74;margin:12px 0 7px">PRIMARY CATEGORY</div><div id="primaryCategories"><label class="ticket-choice"><input type="radio" name="primaryCategory" value="ERP / Software / Manufacturing" checked> 📊 ERP / Software / Manufacturing</label><label class="ticket-choice"><input type="radio" name="primaryCategory" value="Network / Hardware"> 🖥️ Network / Hardware</label></div><div class="ticket-subcats"><div class="ticket-subcats-title">Select sub-category</div><div id="ticketSubcats" style="display:flex;flex-wrap:wrap;gap:7px"></div></div><div class="ticket-identity"><div><span>YOUR NAME</span><b id="ticketIdentityName">Suneel Maurya</b></div><div><span>DEPARTMENT</span><b id="ticketIdentityDept">INDO OFFICE</b></div><div><span>FACTORY / LOCATION</span><b id="ticketIdentitySite">ARG</b></div><div><span>DEVICE IP · MAPPED</span><b id="ticketIdentityIp">192.168.130.3</b></div></div><form id="ticketForm"><div class="ticket-form-grid"><div class="field full" id="materialFields" style="display:none"><label>Requested item / quantity / justification</label><input name="material" placeholder="e.g. USB-C dock · qty 2 · required for new workstations"></div><div class="field full"><label>Describe your issue in detail *</label><textarea class="filter-input ticket-description" name="description" required placeholder="Describe the problem, what you were trying to do, and any error message..."></textarea></div><div class="field full"><label>Attach screenshots (up to 3)</label><input id="ticketFiles" type="file" accept="image/*" multiple class="filter-input"><div id="ticketFileNames" class="ticket-meta"></div></div></div><div style="display:flex;gap:8px;align-items:center;margin-top:12px"><span class="ticket-meta">A ticket number will be generated automatically.</span><button class="btn primary" style="margin-left:auto;min-width:210px">↥ &nbsp;Submit IT ticket</button></div></form></div></div><div class="ns-section-tabs" id="ticketsSectionTabs"><button type="button" class="ns-sec-tab active" data-ticket-tab="IT help desk" onclick="switchTicketsTab('IT help desk')">🧰 IT Support Tickets <span class="ns-tab-badge" id="tabItTicketsCount">0</span></button><button type="button" class="ns-sec-tab" data-ticket-tab="Material request" onclick="switchTicketsTab('Material request')">📦 IT Material Requests &amp; Parts Status <span class="ns-tab-badge" id="tabMatReqCount">0</span></button></div><div class="panel" id="ticketsQueuePanel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">🌐 &nbsp;Live IT Support Tickets Queue</div><div class="panel-sub">All IT help-desk issues (Material Requests are tracked separately in the Material Requests tab).</div></div><button class="btn" onclick="renderTickets();showToast('Ticket list refreshed')">↻ &nbsp;Refresh</button></div><div style="padding:0 15px 14px"><div class="ticket-filter-strip"><span class="ticket-meta" style="font-weight:700">FILTER</span><select class="filter-select" id="ticketKindFilter" style="display:none"><option value="">All tickets & requests</option><option>IT help desk</option><option>Material request</option></select><select class="filter-select" id="ticketStatusFilter"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select><select class="filter-select" id="ticketCategoryFilter"><option value="">All categories</option><option>ERP / Software / Manufacturing</option><option>Network / Hardware</option></select><select class="filter-select" id="ticketSiteFilter"><option value="">All factories</option><option>ARG</option><option>ARB</option><option>ARC</option><option>ARF</option></select><input class="filter-input" id="ticketSearch" placeholder="Search ticket, user or issue..." style="min-width:180px"></div><div class="table-wrap"><table class="ticket-table"><thead><tr><th>TICKET</th><th>USER · DEPT · FACTORY</th><th>CATEGORY / SUB</th><th>ISSUE</th><th>ASSIGNED TO</th><th>STATUS</th><th>ETA</th><th>NOTE / REMARK</th><th>UPDATED</th></tr></thead><tbody id="ticketTable"></tbody></table></div></div></div><div class="panel" id="materialRequestsPanel" style="display:none;margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">📦 &nbsp;IT Material Requests &amp; Parts Inventory Status</div><div class="panel-sub">Track every hardware/material request separately and verify parts issued against it from Parts Inventory.</div></div><button class="btn" onclick="renderTickets();showToast('Material request list refreshed')">↻ &nbsp;Refresh</button></div><div style="padding:0 15px 14px"><div class="ticket-filter-strip"><span class="ticket-meta" style="font-weight:700">FILTER MATERIAL REQUESTS</span><select class="filter-select" id="mrUserStatusFilter" onchange="renderTickets()"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select><select class="filter-select" id="mrUserSiteFilter" onchange="renderTickets()"><option value="">All factories</option></select><input class="filter-input" id="mrUserSearch" placeholder="Search request ID, item, user..." style="min-width:200px" oninput="renderTickets()"></div><div class="table-wrap"><table class="ticket-table"><thead><tr><th>REQUEST ID</th><th>REQUESTER · DEPT · FACTORY</th><th>CATEGORY</th><th>REQUESTED ITEM &amp; REASON</th><th>ASSIGNED TO</th><th>STATUS</th><th>PARTS INVENTORY FULFILLMENT</th><th>ETA &amp; UPDATED</th></tr></thead><tbody id="materialUserTable"></tbody></table></div></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">How auto-identification works</div><div class="panel-sub">Manual IP mapping previews the flow; secure login and user accounts are managed by your administrator.</div></div><button class="link-btn" onclick="openIpManager()">Manage mappings →</button></div><div class="health-wrap"><div class="site-overview"><div class="site-tile"><div class="site-tile-head">1 · Map workstation IP</div><p>Admin registers a trusted device IP against a user, department and factory.</p></div><div class="site-tile"><div class="site-tile-head">2 · Verify identity</div><p>Users sign in with their local application account.</p></div><div class="site-tile"><div class="site-tile-head">3 · Open request link</div><p>Signed-in users get their mapped name, department and site prefilled in the issue form.</p></div><div class="site-tile"><div class="site-tile-head">4 · Track to closure</div><p>IT updates assignee, status, work notes and expected completion time in the live queue.</p></div></div></div></div></section><section class="view" id="view-ticketing"><div class="page-head"><div><div class="eyebrow">IT operations · Backend workbench</div><h1>Ticketing backend &amp; settings</h1><p>Manage IT Tickets, fulfill Material Requests from Parts Inventory, and configure dynamic Categories &amp; Sub-categories.</p></div><div class="head-actions"><button class="btn" onclick="refreshServerTickets().then(()=>renderTicketingBackend())">↻ &nbsp;Refresh</button></div></div><div class="ns-section-tabs" id="ticketingBackendTabs"><button type="button" class="ns-sec-tab active" data-backend-tab="tickets" onclick="switchTicketingBackendTab('tickets')">🎫 IT Support Tickets <span class="ns-tab-badge" id="beItTicketsBadge">0</span></button><button type="button" class="ns-sec-tab" data-backend-tab="materials" onclick="switchTicketingBackendTab('materials')">📦 Material Requests &amp; Parts Issue <span class="ns-tab-badge" id="beMatReqBadge">0</span></button><button type="button" class="ns-sec-tab" data-backend-tab="settings" onclick="switchTicketingBackendTab('settings')">⚙ Ticketing Settings &amp; Categories</button></div><div class="panel" id="ticketingTabTickets"><div class="section-toolbar"><input class="filter-input" id="ticketingSearch" placeholder="Search ticket, user or issue"><select class="filter-select" id="ticketingKind" style="display:none"><option value="IT help desk">IT help desk</option></select><select class="filter-select" id="ticketingCatFilter" onchange="renderTicketingBackend()"><option value="">All primary categories</option></select><select class="filter-select" id="ticketingStatus"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select></div><div id="beTicketBulkBar" class="ns-bulk-bar"><div id="beTicketBulkSummary"><b>0</b> tickets selected</div><div class="ns-bulk-actions"><button type="button" class="btn" onclick="clearTicketingSelection('tickets')">Clear selection</button><button type="button" class="btn danger" onclick="bulkDeleteTicketingRecords('tickets')">🗑 &nbsp;Delete selected (<span id="beTicketBulkCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="beTicketSelectAll" aria-label="Select all visible IT tickets"></th><th>TICKET / CREATED</th><th>REQUESTER / FACTORY / DEPT</th><th>ISSUE</th><th>ASSIGN TO</th><th>STATUS</th><th>ETA</th><th>WORK UPDATE</th><th>ACTIONS</th></tr></thead><tbody id="ticketingTable"></tbody></table></div></div><div class="panel" id="ticketingTabMaterials" style="display:none"><div class="section-toolbar"><input class="filter-input" id="beMrSearch" placeholder="Search request ID, item, requester..." oninput="renderTicketingBackend()"><select class="filter-select" id="beMrSite" onchange="renderTicketingBackend()"><option value="">All factories</option></select><select class="filter-select" id="beMrStatus" onchange="renderTicketingBackend()"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select></div><div id="beMrBulkBar" class="ns-bulk-bar"><div id="beMrBulkSummary"><b>0</b> material requests selected</div><div class="ns-bulk-actions"><button type="button" class="btn" onclick="clearTicketingSelection('materials')">Clear selection</button><button type="button" class="btn danger" onclick="bulkDeleteTicketingRecords('materials')">🗑 &nbsp;Delete selected (<span id="beMrBulkCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="beMrSelectAll" aria-label="Select all visible material requests"></th><th>REQUEST / CREATED</th><th>REQUESTER / FACTORY / DEPT</th><th>CATEGORY &amp; ITEM NEEDED</th><th>ASSIGN / STATUS / ETA</th><th>PARTS INVENTORY ISSUED</th><th>FULFILL FROM INVENTORY / WORK</th></tr></thead><tbody id="ticketingMaterialTable"></tbody></table></div></div><div id="ticketingTabSettings" style="display:none"></div></section><section class="view" id="view-users"><div class="page-head"><div><div class="eyebrow">People · Access · Security</div><h1>People, users &amp; access</h1><p>Manage employees, sign-in accounts, module permissions, and account recovery.</p></div><div class="head-actions"><button class="btn" type="button" onclick="exportEmployeeRegister()">↓ &nbsp;Export employee register</button><button class="btn primary" onclick="addUser()">＋ &nbsp;Add user / administrator</button></div></div><div class="kpis"><div class="kpi-pill">Active users <b>0</b></div><div class="kpi-pill">With assigned assets <b>0</b></div><div class="kpi-pill">No assigned devices <b>0</b></div><div class="kpi-pill">Login accounts <b>0</b></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="userSearch" placeholder="⌕  Search name, email or employee ID..."><select class="filter-select" id="userDeptFilter"><option value="">All departments</option></select><select class="filter-select" id="userSiteFilter"><option value="">All factories</option></select><select class="filter-select" id="userEmploymentFilter"><option value="">All employment statuses</option><option>Active</option><option>On leave</option><option>Inactive</option></select></div><div class="table-wrap"><table><thead><tr><th>EMPLOYEE</th><th>EMPLOYEE ID / LOGIN</th><th>DATE OF BIRTH</th><th>DEPARTMENT</th><th>FACTORY</th><th>IP / NETWORK STATUS</th><th>ASSETS</th><th>SOFTWARE</th><th>LAST ACTIVE</th><th>ROLE &amp; ACCESS</th></tr></thead><tbody id="userTable"></tbody></table></div></div>
 <div class="settings-columns" style="margin-top:14px">
  <div class="panel settings-panel" id="userSecurityPasswordPanel"><div class="panel-head"><div><div class="panel-title">Change local account password</div><div class="panel-sub">Applies to your signed-in Northstar account.</div></div><button type="button" class="btn" onclick="signOutAllDevices()" style="color:#b53d38">Sign out all devices</button></div><form id="changePasswordForm" method="post" action="/api/account/password" class="form-grid" style="padding:16px 18px"><label class="field">Current password<input name="current_password" type="password" autocomplete="current-password" required></label><label class="field">New password<input name="new_password" type="password" autocomplete="new-password" required></label><label class="field">Confirm new password<input name="confirm_password" type="password" autocomplete="new-password" required></label><div class="field" style="align-self:end"><button class="btn primary">Update password</button></div><div id="passwordChangeStatus" class="form-note field full" aria-live="polite">Enter any password of your choice.</div></form></div>
  <div class="panel settings-panel" id="userSecurityRecoveryPanel"><div class="panel-head"><div><div class="panel-title">Password recovery questions</div><div class="panel-sub">Save private answers for account recovery. Answers are hashed and never displayed.</div></div></div><form id="recoveryAnswersForm" method="post" action="/api/account/recovery-answers" class="form-grid" style="padding:16px 18px"><label class="field">Current password<input name="current_password" type="password" autocomplete="current-password" required></label><label class="field">Favourite animal<input name="animal" required minlength="3" maxlength="200" autocomplete="off"></label><label class="field">Favourite colour<input name="colour" required minlength="3" maxlength="200" autocomplete="off"></label><label class="field">Favourite food<input name="food" required minlength="3" maxlength="200" autocomplete="off"></label><div class="field" style="align-self:end"><button class="btn primary" type="submit">Save recovery answers</button></div><div id="recoveryAnswersStatus" class="form-note field full" aria-live="polite">Use answers that are hard for others to guess.</div></form></div>
@@ -10365,5 +10375,448 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
   }
 })();
 </script>
+
+<script id="northstar-factory-ticket-tiles-logic">
+(function(){
+  let activeDrillFactory = '';
+  let activeDrillFilter = 'all'; // all | open | progress | closed | material
+  let activeDrillSearch = '';
+
+  function escTxt(s){ return typeof esc === 'function' ? esc(s) : String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function getActiveFactoryListForTickets(){
+    const set = new Set();
+    try{
+      if(typeof window.factoryCodes === 'function'){
+        const fc = window.factoryCodes();
+        if(Array.isArray(fc)) fc.forEach(c => c && set.add(String(c).trim()));
+      }
+    }catch(_){}
+    try{
+      if(typeof customFactoryRecords === 'function'){
+        const cfr = customFactoryRecords();
+        if(Array.isArray(cfr)) cfr.forEach(f => {
+          const c = typeof f === 'string' ? f : (f?.code || f?.name);
+          if(c) set.add(String(c).trim());
+        });
+      }
+    }catch(_){}
+    try{
+      const custom = JSON.parse(localStorage.getItem('northstar-factories') || '[]');
+      if(Array.isArray(custom)) custom.forEach(f => {
+        const c = typeof f === 'string' ? f : (f?.code || f?.name);
+        if(c) set.add(String(c).trim());
+      });
+    }catch(_){}
+    try{
+      if(typeof tickets !== 'undefined' && Array.isArray(tickets)){
+        tickets.forEach(t => {
+          const s = String(t.site || t.factory || '').trim();
+          if(s) set.add(s);
+        });
+      }
+    }catch(_){}
+    ['ARG','ARB','ARC','ARF'].forEach(c => set.add(c));
+    const arr = [...set].filter(Boolean);
+    return arr.length ? arr : ['ARG','ARB','ARC','ARF'];
+  }
+
+  function getFactoryDisplayName(fc){
+    try{
+      if(typeof customFactoryRecords === 'function'){
+        const rec = customFactoryRecords().find(x => x.code === fc);
+        if(rec && rec.name) return rec.name;
+      }
+    }catch(_){}
+    try{
+      const custom = JSON.parse(localStorage.getItem('northstar-factories') || '[]');
+      const rec = Array.isArray(custom) ? custom.find(x => (typeof x === 'object' && x?.code === fc)) : null;
+      if(rec && rec.name) return rec.name;
+    }catch(_){}
+    const std = { 'ARG':'ARG Central Plant', 'ARB':'ARB Production Hub', 'ARC':'ARC Fabrication Unit', 'ARF':'ARF Finishing Works', 'SS-ALL':'SS Main Complex', 'PNP':'PNP Operations' };
+    return std[fc] || (fc + ' Factory');
+  }
+
+  window.renderFactoryTicketTiles = function(){
+    const host = document.getElementById('tfFactoryTilesGrid');
+    if(!host) return;
+    const fCodes = getActiveFactoryListForTickets();
+    const allT = (typeof tickets !== 'undefined' && Array.isArray(tickets)) ? tickets : [];
+
+    const badge = document.getElementById('tfFactoryTotalBadge');
+    if(badge) badge.textContent = `${fCodes.length} Factories Active · ${allT.length} Total Tickets`;
+
+    host.innerHTML = fCodes.map(fc => {
+      const facTickets = allT.filter(t => String(t.site || t.factory || '').trim() === fc);
+      const total = facTickets.length;
+      const openCount = facTickets.filter(t => ['Open', 'In progress'].includes(t.status)).length;
+      const closedCount = facTickets.filter(t => ['Resolved', 'Closed'].includes(t.status)).length;
+      const fName = getFactoryDisplayName(fc);
+      const openPct = total ? Math.round((openCount / total) * 100) : 0;
+
+      return `
+        <div class="val-tile" onclick="openFactoryTicketsModal('${escTxt(fc)}')" role="button" tabindex="0" title="Click to inspect ${escTxt(fc)} tickets" style="border-radius:14px;background:#fff;border:1.5px solid #e2e8f0;padding:14px 16px;cursor:pointer;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease;">
+          <div class="val-tile-head">
+            <div>
+              <div class="val-drill-kicker" style="color:#157a54;font-size:10px;font-weight:800;letter-spacing:.9px">FACTORY QUEUE</div>
+              <div class="val-tile-title" style="font-size:14.5px;font-weight:800;color:#1e3025;margin-top:2px">
+                🏭 ${escTxt(fc)} · <span style="font-weight:600;font-size:12.5px;color:#64748b">${escTxt(fName)}</span>
+              </div>
+            </div>
+            <span class="val-icon" style="background:#eefcf4;color:#157a54;font-size:18px;width:38px;height:38px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center">🎫</span>
+          </div>
+
+          <div style="margin:10px 0 4px">
+            <div class="val-tile-amt" style="font-size:24px;font-weight:800;color:#0f172a;line-height:1.15">
+              ${total} <span style="font-size:12px;font-weight:600;color:#64748b">tickets</span>
+            </div>
+            <div class="val-tile-sub" style="margin-top:4px;display:flex;align-items:center;gap:12px;font-weight:700;font-size:11.5px">
+              <span style="color:#15803d">🟢 ${openCount} Open</span>
+              <span style="color:#64748b">⚪ ${closedCount} Closed</span>
+            </div>
+          </div>
+
+          <div class="val-bar-track" style="margin:6px 0;height:5px;border-radius:999px;background:#eef2f6;overflow:hidden">
+            <div class="val-bar-fill" style="width:${openPct}%;height:100%;background:#15803d;border-radius:999px"></div>
+          </div>
+
+          <div class="val-tile-foot" style="display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:11px;color:#64748b;margin-top:2px">
+            <span>${openPct}% active open</span>
+            <span class="val-drill-hint" style="font-size:10.5px;font-weight:700;color:#157a54;background:#e7f4ed;padding:3px 10px;border-radius:999px">Drill down →</span>
+          </div>
+        </div>
+      `;
+    }).join('') || '<div class="empty-state">No factories available.</div>';
+
+    if(activeDrillFactory && document.getElementById('tfDrillModal')?.classList.contains('open')){
+      renderDrillModalContent();
+    }
+  };
+
+  window.openFactoryTicketsModal = function(fc){
+    activeDrillFactory = fc;
+    activeDrillFilter = 'all';
+    activeDrillSearch = '';
+    const modal = document.getElementById('tfDrillModal');
+    if(!modal) return;
+    modal.classList.add('open');
+    renderDrillModalContent();
+    document.getElementById('tfDrillSearch')?.focus();
+  };
+
+  window.closeFactoryTicketsModal = function(){
+    const modal = document.getElementById('tfDrillModal');
+    if(modal) modal.classList.remove('open');
+    activeDrillFactory = '';
+  };
+
+  function renderDrillModalContent(){
+    const fc = activeDrillFactory;
+    if(!fc) return;
+    const fName = getFactoryDisplayName(fc);
+    const allT = (typeof tickets !== 'undefined' && Array.isArray(tickets)) ? tickets : [];
+    const facTickets = allT.filter(t => String(t.site || t.factory || '').trim() === fc);
+
+    const openCount = facTickets.filter(t => ['Open', 'In progress'].includes(t.status)).length;
+    const closedCount = facTickets.filter(t => ['Resolved', 'Closed'].includes(t.status)).length;
+    const openOnlyCount = facTickets.filter(t => t.status === 'Open').length;
+    const progOnlyCount = facTickets.filter(t => t.status === 'In progress').length;
+    const matCount = facTickets.filter(t => t.kind === 'Material request').length;
+
+    // Header info
+    const titleEl = document.getElementById('tfDrillTitle');
+    if(titleEl) titleEl.textContent = `🏭 ${fc} · ${fName}`;
+    const subEl = document.getElementById('tfDrillSub');
+    if(subEl) subEl.textContent = `${facTickets.length} total tickets logged for this factory. Click any sub-tile to filter list.`;
+
+    // Export button
+    const expBtn = document.getElementById('tfDrillExportBtn');
+    if(expBtn){
+      expBtn.onclick = () => {
+        if(typeof exportCsv === 'function'){
+          exportCsv(`tickets-${fc.toLowerCase()}`, facTickets);
+        }
+      };
+    }
+
+    // Valuation Sub-tiles inside Modal
+    const subtilesHost = document.getElementById('tfDrillSubtiles');
+    if(subtilesHost){
+      const isAll = activeDrillFilter === 'all';
+      const isOpen = activeDrillFilter === 'open';
+      const isClosed = activeDrillFilter === 'closed';
+
+      subtilesHost.innerHTML = `
+        <div class="val-tile ${isOpen?'active-filter':''}" onclick="setDrillFilter('open')" role="button" tabindex="0" style="border:1.5px solid ${isOpen?'#15803d':'#e2e8f0'};background:${isOpen?'#f0fdf4':'#fff'};border-radius:14px;padding:12px 14px;cursor:pointer">
+          <div class="val-tile-head">
+            <div>
+              <div class="val-drill-kicker" style="color:#15803d;font-size:10px;font-weight:800">TOTAL OPEN TICKETS</div>
+              <div class="val-tile-amt" style="font-size:22px;color:#15803d">${openCount}</div>
+            </div>
+            <span style="font-size:20px">🟢</span>
+          </div>
+          <div class="val-tile-sub" style="font-size:11px;color:#64748b;margin-top:4px">Open &amp; In Progress issues</div>
+          <div class="val-drill-hint" style="margin-top:6px;display:inline-block;font-size:10px;background:${isOpen?'#15803d':'#e7f4ed'};color:${isOpen?'#fff':'#157a54'}">
+            ${isOpen ? '✓ Active Filter' : 'Click to view open list →'}
+          </div>
+        </div>
+
+        <div class="val-tile ${isClosed?'active-filter':''}" onclick="setDrillFilter('closed')" role="button" tabindex="0" style="border:1.5px solid ${isClosed?'#475569':'#e2e8f0'};background:${isClosed?'#f8fafc':'#fff'};border-radius:14px;padding:12px 14px;cursor:pointer">
+          <div class="val-tile-head">
+            <div>
+              <div class="val-drill-kicker" style="color:#475569;font-size:10px;font-weight:800">TOTAL CLOSED / RESOLVED</div>
+              <div class="val-tile-amt" style="font-size:22px;color:#334155">${closedCount}</div>
+            </div>
+            <span style="font-size:20px">⚪</span>
+          </div>
+          <div class="val-tile-sub" style="font-size:11px;color:#64748b;margin-top:4px">Completed &amp; resolved tickets</div>
+          <div class="val-drill-hint" style="margin-top:6px;display:inline-block;font-size:10px;background:${isClosed?'#334155':'#f1f5f9'};color:${isClosed?'#fff':'#475569'}">
+            ${isClosed ? '✓ Active Filter' : 'Click to view closed list →'}
+          </div>
+        </div>
+
+        <div class="val-tile ${isAll?'active-filter':''}" onclick="setDrillFilter('all')" role="button" tabindex="0" style="border:1.5px solid ${isAll?'#157a54':'#e2e8f0'};background:${isAll?'#eefcf4':'#fff'};border-radius:14px;padding:12px 14px;cursor:pointer">
+          <div class="val-tile-head">
+            <div>
+              <div class="val-drill-kicker" style="color:#157a54;font-size:10px;font-weight:800">ALL FACTORY TICKETS</div>
+              <div class="val-tile-amt" style="font-size:22px;color:#0f172a">${facTickets.length}</div>
+            </div>
+            <span style="font-size:20px">📁</span>
+          </div>
+          <div class="val-tile-sub" style="font-size:11px;color:#64748b;margin-top:4px">Full factory support log</div>
+          <div class="val-drill-hint" style="margin-top:6px;display:inline-block;font-size:10px;background:${isAll?'#157a54':'#e7f4ed'};color:${isAll?'#fff':'#157a54'}">
+            ${isAll ? '✓ Active Filter' : 'Click to view all list →'}
+          </div>
+        </div>
+      `;
+    }
+
+    // Tabs
+    const tabsHost = document.getElementById('tfDrillFilterTabs');
+    if(tabsHost){
+      const tabs = [
+        { id:'all', label:`All (${facTickets.length})` },
+        { id:'open', label:`🟢 Open (${openOnlyCount})` },
+        { id:'progress', label:`🟡 In progress (${progOnlyCount})` },
+        { id:'closed', label:`⚪ Closed (${closedCount})` },
+        { id:'material', label:`📦 Material requests (${matCount})` }
+      ];
+      tabsHost.innerHTML = tabs.map(tb => `
+        <button type="button" class="val-tab ${activeDrillFilter===tb.id?'active':''}" onclick="setDrillFilter('${tb.id}')">
+          ${tb.label}
+        </button>
+      `).join('');
+    }
+
+    // Search input
+    const sInput = document.getElementById('tfDrillSearch');
+    if(sInput && !sInput.dataset.bound){
+      sInput.dataset.bound = '1';
+      sInput.addEventListener('input', e => {
+        activeDrillSearch = e.target.value.toLowerCase().trim();
+        renderDrillTable();
+      });
+    }
+
+    renderDrillTable();
+  }
+
+  window.setDrillFilter = function(filterId){
+    activeDrillFilter = filterId;
+    renderDrillModalContent();
+  };
+
+  function renderDrillTable(){
+    const fc = activeDrillFactory;
+    const allT = (typeof tickets !== 'undefined' && Array.isArray(tickets)) ? tickets : [];
+    let rows = allT.filter(t => String(t.site || t.factory || '').trim() === fc);
+
+    if(activeDrillFilter === 'open'){
+      rows = rows.filter(t => ['Open', 'In progress'].includes(t.status));
+    } else if(activeDrillFilter === 'progress'){
+      rows = rows.filter(t => t.status === 'In progress');
+    } else if(activeDrillFilter === 'closed'){
+      rows = rows.filter(t => ['Resolved', 'Closed'].includes(t.status));
+    } else if(activeDrillFilter === 'material'){
+      rows = rows.filter(t => t.kind === 'Material request');
+    }
+
+    if(activeDrillSearch){
+      rows = rows.filter(t => [t.id, t.name, t.dept, t.primary, t.sub, t.description, t.status, t.assigned, t.material].join(' ').toLowerCase().includes(activeDrillSearch));
+    }
+
+    const tbody = document.getElementById('tfDrillTableBody');
+    const footSummary = document.getElementById('tfDrillFootSummary');
+    if(footSummary) footSummary.textContent = `${rows.length} tickets shown for ${fc} · Reconciled in real time`;
+
+    if(!tbody) return;
+    if(!rows.length){
+      tbody.innerHTML = `<tr><td colspan="7" class="ticket-empty" style="text-align:center;padding:28px 14px;color:#64748b;font-size:12px">No tickets match this filter for <b>${escTxt(fc)}</b>.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rows.map(t => {
+      const isOp = t.status === 'Open';
+      const isPrg = t.status === 'In progress';
+      const stColor = isOp ? '#15803d' : (isPrg ? '#b45309' : '#475569');
+      const stBg = isOp ? '#dcfce7' : (isPrg ? '#fef3c7' : '#f1f5f9');
+
+      return `
+        <tr>
+          <td>
+            <b class="ticket-token" style="font-size:11.5px;color:#1e293b">${escTxt(t.id)}</b>
+            <div class="ticket-meta" style="font-size:10px;color:#64748b">${escTxt(t.updated || t.created || 'Recorded')}</div>
+            ${t.kind === 'Material request' ? '<span class="status warning" style="font-size:9.5px;padding:1px 5px;margin-top:2px;display:inline-block">📦 Material Req</span>' : ''}
+          </td>
+          <td>
+            <span class="ticket-user" style="font-weight:700;color:#0f172a">${escTxt(t.name || 'Anonymous')}</span>
+            <div style="font-size:11px;color:#64748b">${escTxt(t.dept || '—')}</div>
+          </td>
+          <td>
+            <b style="font-size:11px;color:#334155">${escTxt(t.primary || 'General')}</b>
+            <div class="ticket-meta" style="font-size:10px;color:#64748b">↳ ${escTxt(t.sub || 'Other')}</div>
+          </td>
+          <td style="max-width:240px;white-space:normal;font-size:11.5px;line-height:1.4;color:#1e293b">
+            ${escTxt(t.description || '—')}
+            ${t.material ? `<div style="font-size:10px;color:#0284c7;margin-top:3px"><b>Part needed:</b> ${escTxt(t.material)}</div>` : ''}
+          </td>
+          <td>
+            <span class="status" style="background:${stBg};color:${stColor};font-weight:700;font-size:10.5px;padding:3px 8px;border-radius:6px">
+              ${escTxt(t.status || 'Open')}
+            </span>
+            ${t.assigned && t.assigned !== 'Unassigned' ? `<div style="font-size:9.5px;color:#64748b;margin-top:3px">Assigned: ${escTxt(t.assigned)}</div>` : ''}
+          </td>
+          <td>
+            <div style="font-size:11px;color:#334155">${escTxt(t.eta || 'No ETA')}</div>
+            <div class="ticket-meta" style="font-size:10px;color:#64748b;max-width:140px;overflow:hidden;text-overflow:ellipsis">${escTxt(t.note || t.work || '—')}</div>
+          </td>
+          <td>
+            <button type="button" class="btn primary" onclick="jumpToTicketInQueue('${escTxt(t.id)}')" style="font-size:10.5px;padding:4px 9px;white-space:nowrap">
+              View in table →
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  window.jumpToTicketInQueue = function(ticketId){
+    window.closeFactoryTicketsModal();
+    const table = document.getElementById('ticketTable');
+    if(!table) return;
+    const row = table.querySelector(`[data-ticket="${ticketId}"]`)?.closest('tr') ||
+                [...table.querySelectorAll('tr')].find(r => r.textContent.includes(ticketId));
+    if(row){
+      row.scrollIntoView({ behavior:'smooth', block:'center' });
+      row.style.transition = 'background .3s ease';
+      row.style.background = '#dcfce7';
+      setTimeout(() => { row.style.background = ''; }, 2400);
+    } else {
+      // Clear site & search filters on main tickets table to make sure it's visible
+      const siteF = document.getElementById('ticketSiteFilter');
+      const searchF = document.getElementById('ticketSearch');
+      if(siteF) siteF.value = '';
+      if(searchF) searchF.value = ticketId;
+      if(typeof renderTickets === 'function') renderTickets();
+      setTimeout(() => {
+        const r2 = [...document.querySelectorAll('#ticketTable tr')].find(r => r.textContent.includes(ticketId));
+        if(r2){
+          r2.scrollIntoView({ behavior:'smooth', block:'center' });
+          r2.style.background = '#dcfce7';
+          setTimeout(() => { r2.style.background = ''; }, 2400);
+        }
+      }, 100);
+    }
+  };
+
+  // Close on backdrop click
+  document.getElementById('tfDrillModal')?.addEventListener('click', e => {
+    if(e.target.id === 'tfDrillModal') window.closeFactoryTicketsModal();
+  });
+
+  // Hook into renderTickets
+  if(typeof window.renderTickets === 'function'){
+    const prevRT = window.renderTickets;
+    window.renderTickets = function(){
+      const res = prevRT.apply(this, arguments);
+      window.renderFactoryTicketTiles();
+      return res;
+    };
+  }
+
+  // Hook into factory updates
+  ['renameFactory', 'removeFactory', 'addFactory', 'saveFactoryOrder', 'renderFactoryRows', 'renderSettings'].forEach(fn => {
+    if(typeof window[fn] === 'function'){
+      const orig = window[fn];
+      window[fn] = function(){
+        const res = orig.apply(this, arguments);
+        window.renderFactoryTicketTiles();
+        return res;
+      };
+    }
+  });
+
+  // Initial render when DOM is ready
+  document.addEventListener('DOMContentLoaded', () => {
+    window.renderFactoryTicketTiles();
+  });
+
+  // In case DOM is already ready
+  setTimeout(() => {
+    window.renderFactoryTicketTiles();
+  }, 100);
+
+})();
+</script>
+
+
+<div class="val-modal-backdrop" id="tfDrillModal" role="dialog" aria-modal="true" aria-labelledby="tfDrillTitle">
+  <div class="val-modal-dialog" style="width:min(1080px,96vw)">
+    <div class="val-modal-head">
+      <div>
+        <div class="val-drill-kicker" id="tfDrillKicker">FACTORY TICKET BREAKDOWN · LEVEL 1</div>
+        <h2 class="val-drill-title" id="tfDrillTitle">Factory Tickets</h2>
+        <div class="val-tile-sub" id="tfDrillSub">Itemized queue of open, in-progress, and closed tickets.</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button type="button" class="btn" id="tfDrillExportBtn">↓ Export List</button>
+        <button type="button" class="btn" onclick="closeFactoryTicketsModal()">✕ Close</button>
+      </div>
+    </div>
+    <div class="val-modal-body" style="display:flex;flex-direction:column;gap:14px">
+      <!-- Valuation Subtiles: Open, Closed, Total -->
+      <div class="val-tiles-grid" id="tfDrillSubtiles"></div>
+
+      <!-- Filter tabs and search -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div class="val-dim-tabs" id="tfDrillFilterTabs"></div>
+        <input class="filter-input" id="tfDrillSearch" placeholder="Search ticket, user, issue..." style="max-width:240px;font-size:12px;padding:6px 10px">
+      </div>
+
+      <!-- Ticket items table -->
+      <div class="table-wrap" style="max-height:48vh;overflow-y:auto;border:1px solid #edf2ef;border-radius:12px">
+        <table class="ticket-table" style="width:100%;margin:0">
+          <thead>
+            <tr>
+              <th>TICKET</th>
+              <th>REQUESTER &amp; DEPT</th>
+              <th>CATEGORY / SUB</th>
+              <th>ISSUE / DETAILS</th>
+              <th>STATUS</th>
+              <th>ETA &amp; NOTE</th>
+              <th>ACTION</th>
+            </tr>
+          </thead>
+          <tbody id="tfDrillTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="val-modal-foot">
+      <span class="val-tile-sub" id="tfDrillFootSummary">0 tickets shown</span>
+      <button type="button" class="btn primary" onclick="closeFactoryTicketsModal()">Done</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
