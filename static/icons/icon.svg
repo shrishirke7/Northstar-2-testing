@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1b2e25"/>
+      <stop offset="100%" stop-color="#0f1a14"/>
+    </linearGradient>
+    <linearGradient id="nGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d4f56e"/>
+      <stop offset="100%" stop-color="#b8e843"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  <rect x="24" y="24" width="464" height="464" rx="96" fill="none" stroke="#2c4a3b" stroke-width="4" opacity="0.4"/>
+  <!-- Elegant "N" Mark -->
+  <path d="M 148 116 L 210 116 L 210 270 L 302 116 L 364 116 L 364 396 L 302 396 L 302 242 L 210 396 L 148 396 Z" 
+        fill="url(#nGrad)" filter="url(#shadow)"/>
+  <circle cx="364" cy="116" r="16" fill="#157a54"/>
+</svg>

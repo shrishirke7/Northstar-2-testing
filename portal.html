@@ -2,8 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>IT Help Desk &amp; Material Request Portal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#157a54">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Swarnshilp Portal">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<title>Swarnshilp · IT Help Desk &amp; Material Request Portal</title>
 <style>
 :root{font-family:Inter,"Segoe UI",sans-serif;color:#1c2b24;background:#f3f6f4}
 *{box-sizing:border-box}
@@ -764,6 +774,34 @@ async function load(){
   } catch(e) {
     $('error').textContent = e.message;
     $('error').classList.remove('hidden');
+  }
+})();
+</script>
+
+<script id="portal-pwa-sse-logic">
+(function(){
+  // Service Worker Registration for Portal
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .catch(function(err){ console.warn('[Portal PWA] SW notice:', err); });
+    });
+  }
+
+  // Connect to SSE for instant sub-second portal refresh
+  if(typeof EventSource !== 'undefined'){
+    try{
+      const es = new EventSource('/api/public/live-stream');
+      es.addEventListener('ticket', function(){
+        if(typeof loadPortalQueue === 'function') loadPortalQueue();
+      });
+      es.addEventListener('notification', function(){
+        if(typeof loadPortalQueue === 'function') loadPortalQueue();
+      });
+      es.addEventListener('pulse', function(){
+        if(typeof loadPortalQueue === 'function') loadPortalQueue();
+      });
+    }catch(_){}
   }
 })();
 </script>

@@ -1,0 +1,74 @@
+{
+  "name": "Swarnshilp IT Asset Intelligence",
+  "short_name": "Swarnshilp",
+  "description": "Real-time IT Asset, Ticketing, Surveillance & Network Intelligence System",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#17251e",
+  "theme_color": "#157a54",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "IT Help Desk",
+      "short_name": "Tickets",
+      "description": "Manage and resolve open IT tickets",
+      "url": "/?view=tickets",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Raise Support Ticket",
+      "short_name": "New Ticket",
+      "description": "Quickly submit a help desk issue",
+      "url": "/portal",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Asset Inventory",
+      "short_name": "Assets",
+      "description": "Live devices, specs and IP status",
+      "url": "/?view=assets",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Overview Dashboard",
+      "short_name": "Overview",
+      "description": "Executive dashboard & network gauges",
+      "url": "/?view=dashboard",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

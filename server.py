@@ -1,4 +1,5 @@
 import json
+import queue
 import os
 import re
 import secrets
@@ -351,6 +352,38 @@ def add_security_headers(response):
 @app.get("/cctv-live.js")
 def cctv_live_script():
     return send_from_directory(ROOT, "cctv-live.js")
+
+
+@app.get("/manifest.json")
+def pwa_manifest():
+    response = send_from_directory(ROOT, "manifest.json", mimetype="application/manifest+json")
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+@app.get("/sw.js")
+def pwa_service_worker():
+    response = send_from_directory(ROOT, "sw.js", mimetype="application/javascript")
+    response.headers["Service-Worker-Allowed"] = "/"
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+@app.get("/apple-touch-icon.png")
+def pwa_apple_touch_icon():
+    return send_from_directory(ROOT, "apple-touch-icon.png", mimetype="image/png")
+
+
+@app.get("/favicon.ico")
+def pwa_favicon():
+    return send_from_directory(ROOT, "favicon.ico", mimetype="image/x-icon")
+
+
+@app.get("/static/icons/<path:filename>")
+def pwa_static_icon(filename):
+    clean = secure_filename(filename)
+    mime = "image/svg+xml" if clean.endswith(".svg") else "image/png"
+    return send_from_directory(ROOT / "static" / "icons", clean, mimetype=mime)
 
 
 @app.get("/")
@@ -1315,6 +1348,29 @@ def _normalize_notif_history_doc(raw):
     return {"events": events, "reads": reads, "silent": silent, "rev": int(doc.get("rev") or 0)}
 
 
+_LIVE_STREAM_SUBSCRIBERS = set()
+_LIVE_STREAM_LOCK = threading.Lock()
+
+
+def _broadcast_live_stream_event(event_type="pulse", data=None):
+    with _LIVE_STREAM_LOCK:
+        if not _LIVE_STREAM_SUBSCRIBERS:
+            return
+        msg = {
+            "type": event_type,
+            "timestamp": time.time(),
+            "data": data or {}
+        }
+        dead = []
+        for q in list(_LIVE_STREAM_SUBSCRIBERS):
+            try:
+                q.put_nowait(msg)
+            except Exception:
+                dead.append(q)
+        for q in dead:
+            _LIVE_STREAM_SUBSCRIBERS.discard(q)
+
+
 def _record_notification_event(conn, item):
     if not isinstance(item, dict):
         return None
@@ -1347,6 +1403,7 @@ def _record_notification_event(conn, item):
         "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
         (json.dumps(doc),),
     )
+    _broadcast_live_stream_event("notification", ev)
     return ev
 
 
@@ -1401,6 +1458,49 @@ def _record_asset_transition_notification(conn, notif_state, asset, new_status, 
         "targetIp": ip,
         "createdAt": checked_at,
     })
+
+
+def _generate_sse_stream():
+    q = queue.Queue(maxsize=120)
+    with _LIVE_STREAM_LOCK:
+        _LIVE_STREAM_SUBSCRIBERS.add(q)
+    try:
+        try:
+            with db() as conn:
+                pulse = _pulse_versions(conn, include_internal=True)
+            yield f"event: connected\ndata: {json.dumps(pulse)}\n\n"
+        except Exception:
+            yield "event: connected\ndata: {}\n\n"
+        while True:
+            try:
+                msg = q.get(timeout=20)
+                ev_type = msg.get("type", "pulse")
+                yield f"event: {ev_type}\ndata: {json.dumps(msg)}\n\n"
+            except queue.Empty:
+                yield f": heartbeat {int(time.time())}\n\n"
+    except GeneratorExit:
+        pass
+    finally:
+        with _LIVE_STREAM_LOCK:
+            _LIVE_STREAM_SUBSCRIBERS.discard(q)
+
+
+@app.get("/api/live-stream")
+def live_stream_sse():
+    resp = Response(_generate_sse_stream(), mimetype="text/event-stream")
+    resp.headers["Cache-Control"] = "no-cache, no-transform"
+    resp.headers["X-Accel-Buffering"] = "no"
+    resp.headers["Connection"] = "keep-alive"
+    return resp
+
+
+@app.get("/api/public/live-stream")
+def public_live_stream_sse():
+    resp = Response(_generate_sse_stream(), mimetype="text/event-stream")
+    resp.headers["Cache-Control"] = "no-cache, no-transform"
+    resp.headers["X-Accel-Buffering"] = "no"
+    resp.headers["Connection"] = "keep-alive"
+    return resp
 
 
 @app.get("/api/live-pulse")
