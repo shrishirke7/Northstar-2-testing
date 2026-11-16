@@ -21,7 +21,7 @@ services:
     restart: unless-stopped
     env_file: .env
     ports:
-      - "127.0.0.1:18000:8000"
+      - "127.0.0.1:${APP_PORT:-18000}:8000"
     environment:
       DATABASE_URL: postgresql://northstar:${DB_PASSWORD}@db:5432/northstar
       UPLOAD_DIR: /app/uploads
@@ -45,7 +45,7 @@ services:
     user: "0:0"
     env_file: .env
     environment:
-      SCANNER_URL: http://127.0.0.1:18000
+      SCANNER_URL: http://127.0.0.1:${APP_PORT:-18000}
     network_mode: host
     cap_drop: [ALL]
     cap_add: [NET_RAW]

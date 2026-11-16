@@ -168,7 +168,82 @@
 @media(max-width:1180px){.ns-ov-net-row{grid-template-columns:1fr}.nm-shell{grid-template-columns:230px minmax(0,1fr);height:auto}.nm-inspector-panel{grid-column:1/-1}}
 @media(max-width:850px){.ns-sound-grid,.ns-speed-cluster-grid{grid-template-columns:1fr}.ns-speed-meta-strip{grid-template-columns:repeat(2,1fr)}.nm-shell{grid-template-columns:1fr}}
 @media(max-width:680px){.ns-top-notif-btn span.ns-notif-lbl,.ns-top-silent-btn span.ns-silent-lbl{display:none}.ns-top-notif-wrap{gap:4px}}
-@media(max-width:700px){.module-permission-grid{grid-template-columns:1fr}}</style></head>
+@media(max-width:700px){.module-permission-grid{grid-template-columns:1fr}}/* Google Maps Controls & Pegman */
+.nm-gmap-controls{position:absolute;left:14px;bottom:14px;z-index:35;display:flex;flex-direction:column;gap:6px;user-select:none}
+.nm-gmap-btn-group{display:flex;flex-direction:column;background:#fff;border-radius:9px;border:1px solid #ccd8d0;box-shadow:0 6px 18px rgba(15,23,42,.14);overflow:hidden}
+.nm-gmap-btn{border:none;background:#fff;color:#1e3025;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;cursor:pointer;transition:.15s}
+.nm-gmap-btn:hover{background:#eff7f2;color:#157a54}
+.nm-gmap-btn:active{background:#dcf0e4}
+.nm-gmap-btn-group .nm-gmap-btn:first-child{border-bottom:1px solid #e2ebe5}
+.nm-gmap-single-btn{background:#fff;border-radius:9px;border:1px solid #ccd8d0;box-shadow:0 6px 18px rgba(15,23,42,.14);width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;transition:.15s}
+.nm-gmap-single-btn:hover{background:#eff7f2;border-color:#157a54}
+.nm-gmap-single-btn.active{background:#157a54;color:#fff;border-color:#157a54;box-shadow:0 4px 14px rgba(21,122,84,.35)}
+.nm-pegman-btn{color:#ea580c;font-size:18px}
+.nm-pegman-btn.active{background:#ea580c;color:#fff;border-color:#ea580c}
+
+/* Floor Walkaround Drawer */
+.nm-walkaround-drawer{position:absolute;left:14px;right:14px;bottom:14px;z-index:32;background:rgba(255,255,255,.96);border:1px solid #d5e2da;border-radius:14px;box-shadow:0 18px 48px rgba(15,23,42,.22);backdrop-filter:blur(10px);padding:12px 16px;display:grid;gap:10px;animation:nmSlideUp .22s cubic-bezier(.22,.9,.32,1)}
+@keyframes nmSlideUp{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+.nm-wa-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.nm-wa-stepper{display:inline-flex;align-items:center;gap:6px;background:#f1f6f3;padding:3px;border-radius:10px;border:1px solid #dbe6df}
+.nm-wa-step-btn{border:none;background:#fff;border-radius:7px;padding:4px 9px;font-size:11px;font-weight:700;color:#1e3025;cursor:pointer}
+.nm-wa-step-btn:hover{background:#157a54;color:#fff}
+.nm-wa-stats{display:flex;gap:7px;flex-wrap:wrap}
+.nm-wa-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;border:1px solid #d8e5dd;background:#fff}
+.nm-wa-pill.online{background:#ecfdf5;color:#065f46;border-color:#a7f3d0}
+.nm-wa-pill.offline{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+.nm-wa-rooms{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px}
+.nm-wa-room-btn{border:1px solid #d6e2db;background:#fff;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;color:#213329;white-space:nowrap;cursor:pointer}
+.nm-wa-room-btn:hover{background:#eff7f2;border-color:#157a54;color:#157a54}
+.nm-wa-devices{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;max-height:140px;overflow-y:auto;padding-right:4px}
+.nm-wa-device-chip{display:flex;align-items:center;gap:7px;padding:6px 9px;background:#fff;border:1px solid #e0ece5;border-radius:8px;font-size:11px;cursor:pointer;transition:.12s}
+.nm-wa-device-chip:hover{border-color:#157a54;background:#f3faf5;transform:translateY(-1px)}
+
+/* Street View 360° Walkthrough Scene */
+.nm-streetview-overlay{position:absolute;inset:0;z-index:40;background:#0d1319;display:flex;flex-direction:column;overflow:hidden;user-select:none;animation:nmFadeIn .2s ease}
+@keyframes nmFadeIn{from{opacity:0}to{opacity:1}}
+.nm-sv-topbar{padding:10px 16px;background:rgba(15,23,42,.88);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:space-between;gap:12px;color:#f8fafc;z-index:10;border-bottom:1px solid rgba(255,255,255,.12)}
+.nm-sv-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#38bdf8}
+.nm-sv-compass{font-size:11.5px;font-weight:700;color:#94a3b8}
+.nm-sv-scene{position:relative;flex:1;overflow:hidden;perspective:1000px;cursor:grab}
+.nm-sv-scene:active{cursor:grabbing}
+.nm-sv-room-box{position:absolute;left:50%;top:50%;width:1800px;height:1200px;margin-left:-900px;margin-top:-600px;transform-style:preserve-3d;transition:transform .06s ease-out}
+.nm-sv-floor-plane{position:absolute;left:0;bottom:0;width:100%;height:100%;transform:rotateX(90deg) translateZ(-350px);background:radial-gradient(circle at 50% 50%,#273342 0%,#111822 75%),repeating-linear-gradient(45deg,rgba(255,255,255,.03) 0px,rgba(255,255,255,.03) 2px,transparent 2px,transparent 40px);box-shadow:inset 0 0 100px rgba(0,0,0,.8)}
+.nm-sv-ceiling-plane{position:absolute;left:0;top:0;width:100%;height:100%;transform:rotateX(-90deg) translateZ(-350px);background:radial-gradient(circle at 50% 50%,#1e293b 0%,#090d14 80%),repeating-linear-gradient(to right,rgba(255,255,255,.04) 0px,rgba(255,255,255,.04) 2px,transparent 2px,transparent 60px)}
+.nm-sv-wall-back{position:absolute;inset:0;transform:translateZ(-600px);background:linear-gradient(180deg,#15202b 0%,#0b1118 100%);border-bottom:3px solid #0ea5e9}
+.nm-sv-placards-container{position:absolute;inset:0;transform-style:preserve-3d;pointer-events:none}
+.nm-sv-placard{position:absolute;pointer-events:auto;background:rgba(15,23,42,.92);border:1.5px solid rgba(56,189,248,.6);border-radius:12px;padding:9px 13px;color:#fff;box-shadow:0 12px 32px rgba(0,0,0,.6),0 0 18px rgba(56,189,248,.25);backdrop-filter:blur(8px);cursor:pointer;transition:transform .15s,box-shadow .15s}
+.nm-sv-placard:hover{transform:scale(1.08);box-shadow:0 16px 40px rgba(0,0,0,.7),0 0 28px rgba(56,189,248,.45)}
+.nm-sv-placard.offline{border-color:rgba(239,68,68,.7);box-shadow:0 12px 32px rgba(0,0,0,.6),0 0 18px rgba(239,68,68,.3)}
+.nm-sv-arrow-strip{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);display:flex;gap:10px;z-index:15;flex-wrap:wrap;justify-content:center}
+.nm-sv-waypoint-btn{background:rgba(15,23,42,.88);border:1px solid #38bdf8;color:#f8fafc;border-radius:99px;padding:8px 16px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;gap:7px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4);backdrop-filter:blur(6px);transition:.15s}
+.nm-sv-waypoint-btn:hover{background:#0284c7;color:#fff;transform:translateY(-2px);box-shadow:0 8px 24px rgba(2,132,199,.5)}
+
+/* Dynamic Overview Tiles Grid */
+.ov-dynamic-tiles-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:12px;margin-bottom:14px}
+.ov-custom-tile{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:5px;cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;position:relative;overflow:hidden;user-select:none}
+.ov-custom-tile:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(15,23,42,.09);border-color:#157a54}
+.ov-tile-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ov-tile-title{font-size:11.5px;font-weight:700;color:#55665c;line-height:1.3}
+.ov-tile-badge{width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+.ov-tile-val{font:800 24px 'Manrope',sans-serif;color:#14221a;margin:2px 0 1px}
+.ov-tile-foot{font-size:10.5px;color:#708277;line-height:1.3;display:flex;align-items:center;gap:5px}
+
+/* Overview Drilldown Modal Sub-tiles */
+.ov-drill-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-bottom:14px}
+.ov-drill-subtile{background:#fff;border:1px solid #dbe6df;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:.15s}
+.ov-drill-subtile:hover{border-color:#157a54;box-shadow:0 8px 20px rgba(15,23,42,.08);background:#f9fcf9}
+.ov-drill-subhead{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:800;color:#1a2b22}
+.ov-drill-count{font:800 20px 'Manrope',sans-serif;color:#157a54}
+.ov-drill-bar-track{width:100%;height:5px;background:#e8f0ec;border-radius:99px;overflow:hidden}
+.ov-drill-bar-fill{height:100%;background:#157a54;border-radius:99px}
+.ov-drill-meta{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#5c6f64}
+
+/* Overview Customize Modal */
+.ov-cust-list{display:grid;gap:7px;max-height:280px;overflow-y:auto;padding-right:4px}
+.ov-cust-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid #e0ebe4;border-radius:10px;padding:8px 12px;font-size:12px}
+.ov-cust-drag-handle{cursor:grab;color:#829288;font-size:16px}
+</style></head>
 <body>
 <div class="auth-gate" id="authGate"><div class="login-shell"><section class="login-visual"><div class="login-visual-brand"><span class="login-diamond">◇</span><img id="loginBrandLogo" class="login-brand-logo" alt="" hidden><span id="loginVisualName">IT Asset Management</span></div><div class="jewel-art" aria-hidden="true"><svg viewBox="0 0 420 340" role="presentation"><path d="M100 80 Q210 300 320 80" fill="none" stroke="#c58b35" stroke-width="5"/><path d="M121 121 Q210 272 299 121" fill="none" stroke="#f1d38d" stroke-width="3"/><g fill="#fff9e9" stroke="#c58b35" stroke-width="3"><circle cx="132" cy="140" r="11"/><circle cx="160" cy="178" r="11"/><circle cx="190" cy="208" r="11"/><circle cx="210" cy="230" r="17"/><circle cx="230" cy="208" r="11"/><circle cx="260" cy="178" r="11"/><circle cx="288" cy="140" r="11"/><path d="M210 247l-18 31 18 29 18-29z"/></g><g fill="none" stroke="#f9f3df" stroke-width="4" stroke-linecap="round"><path d="M73 230q-20-45 5-86m-4 49q-33-15-37-43m41 24q28-35 56-31M347 230q20-45-5-86m4 49q33-15 37-43m-41 24q-28-35-56-31"/></g><g fill="#fff9e9"><circle cx="75" cy="139" r="7"/><circle cx="37" cy="150" r="6"/><circle cx="133" cy="162" r="6"/><circle cx="345" cy="139" r="7"/><circle cx="383" cy="150" r="6"/><circle cx="287" cy="162" r="6"/></g></svg></div><div class="login-dots" id="loginSlideDots"><i></i><i></i><i></i><i></i></div></section><section class="login-side"><div class="login-wordmark"><img id="loginWordmarkLogo" class="login-brand-logo" alt="" hidden><span id="loginBrandName">IT Asset Management</span><span>◇</span></div><div class="login-form-wrap"><div class="login-kicker">IT ASSET INTELLIGENCE</div><h1 id="loginWelcome">Welcome to IT Asset Management</h1><p>Sign in with your account to continue.</p><a class="link-btn" href="/portal" style="display:block;text-align:center;margin:-22px auto 24px">Raise an IT ticket without signing in</a><form id="loginForm" method="post" action="/api/login"><label class="login-field"><span>Username</span><input name="username" required autocomplete="username" placeholder="Enter your username"></label><label class="login-field"><span>Password</span><input name="password" required type="password" autocomplete="current-password" placeholder="Enter your password"></label><div class="auth-error" id="loginError" role="alert" aria-live="polite"></div><button class="login-submit" type="submit">Sign in <span>→</span></button></form><button type="button" id="recoveryToggle" class="link-btn" aria-expanded="false" style="display:block;margin:15px auto 0">Forgot password?</button><section id="recoveryPanel" hidden class="panel" style="text-align:left;margin-top:14px;padding:16px"><h2 style="margin:0 0 8px;font-size:16px">Reset your password</h2><p style="font-size:12px;color:#758179;line-height:1.5">Answer all three questions exactly as you saved them. Use private answers that other people cannot easily guess.</p><form id="recoveryForm" method="post" action="/api/recovery/reset"><label class="login-field"><span>Username</span><input name="username" required maxlength="120" autocomplete="username"></label><label class="login-field"><span>Favourite animal</span><input name="animal" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>Favourite colour</span><input name="colour" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>Favourite food</span><input name="food" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>New password</span><input name="new_password" required type="password" minlength="10" maxlength="1024" autocomplete="new-password"></label><label class="login-field"><span>Confirm new password</span><input name="confirm_password" required type="password" minlength="10" maxlength="1024" autocomplete="new-password"></label><div id="recoveryStatus" class="auth-error" role="status" aria-live="polite"></div><button class="login-submit" type="submit">Reset password</button><button class="link-btn" id="recoveryCancel" type="button" style="display:block;margin:10px auto">Back to sign in</button></form></section><div class="login-security"><span>▣</span> Secure sign-in · Your account is protected</div></div><div class="login-footer" id="loginFooter">IT Asset Management</div></section></div></div><script>
 (()=>{const form=document.getElementById('loginForm');if(!form)return;if(location.search)history.replaceState(null,'',location.pathname+location.hash);form.method='post';form.action='/api/login';if(location.protocol!=='file:'){form.addEventListener('submit',async e=>{e.preventDefault();const btn=form.querySelector('button[type="submit"]'),error=document.getElementById('loginError'),data=Object.fromEntries(new FormData(form));btn.disabled=true;error.textContent='';try{const r=await fetch('/api/login',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'NorthstarIT'},body:JSON.stringify(data)}),body=await r.json().catch(()=>({}));if(!r.ok)throw new Error(body.error||'Sign-in could not be completed.');location.reload()}catch(err){error.textContent=err.message||'Unable to reach the sign-in service. Try again.'}finally{btn.disabled=false}})}const toggle=document.getElementById('recoveryToggle'),panel=document.getElementById('recoveryPanel'),recovery=document.getElementById('recoveryForm'),cancel=document.getElementById('recoveryCancel');toggle?.addEventListener('click',()=>{panel.hidden=!panel.hidden;toggle.setAttribute('aria-expanded',String(!panel.hidden))});cancel?.addEventListener('click',()=>{panel.hidden=true;toggle?.setAttribute('aria-expanded','false')});recovery?.addEventListener('submit',async e=>{e.preventDefault();const status=document.getElementById('recoveryStatus'),button=recovery.querySelector('button[type="submit"]'),d=Object.fromEntries(new FormData(recovery));status.textContent='';if(d.new_password!==d.confirm_password){status.textContent='Passwords do not match.';return}if(d.new_password.length<10){status.textContent='Use at least 10 characters for the new password.';return}button.disabled=true;try{const r=await fetch('/api/recovery/reset',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'NorthstarIT'},body:JSON.stringify({username:d.username,answers:[d.animal,d.colour,d.food],new_password:d.new_password,confirm_password:d.confirm_password})}),body=await r.json().catch(()=>({}));status.textContent=r.status===429?(body.message||'Too many attempts. Wait 15 minutes and try again.'):body.message||'If the account and answers match, the password was reset. Try signing in.';if(r.ok&&r.status!==429)recovery.reset()}catch(err){status.textContent='Unable to reach the recovery service. Try again.'}finally{button.disabled=false}})})();
@@ -176,14 +251,15 @@
 <aside class="sidebar"><div class="brand"><div class="brand-mark">N</div><div><div class="brand-name">northstar<span style="color:var(--lime)">.</span></div><div class="brand-sub">IT ASSET INTELLIGENCE</div></div></div><div class="org-label">Workspace</div><nav class="nav" id="mainNav"><button class="active" data-view="dashboard"><span class="ico">▦</span><span class="nav-label">Overview</span></button><button data-view="assets"><span class="ico">▤</span><span class="nav-label">Asset inventory</span></button><button data-view="datacenter"><span class="ico">▦</span><span class="nav-label">Data Center</span></button><button data-view="tickets"><span class="ico">✉</span><span class="nav-label">IT help desk</span><span class="nav-badge" id="ticketBadge">3</span></button><button data-view="maintenance"><span class="ico">⚒</span><span class="nav-label">Maintenance & repairs</span><span class="nav-badge" style="background:#b78738">4</span></button><button data-view="ageing"><span class="ico">◷</span><span class="nav-label">Asset ageing & risk</span></button><button data-view="users"><span class="ico">♙</span><span class="nav-label">Users</span></button><button data-view="departments"><span class="ico">⌂</span><span class="nav-label">Departments</span></button><button data-view="factories"><span class="ico">🏭</span><span class="nav-label">Factories</span></button><button data-view="software"><span class="ico">▧</span><span class="nav-label">Software & licenses</span></button><button data-view="monitoring"><span class="ico">⌁</span><span class="nav-label">Network monitoring</span><span class="nav-badge">3</span></button><button data-view="networkmap"><span class="ico">🗺</span><span class="nav-label">Network Map</span></button><button data-view="snmp"><span class="ico">📊</span><span class="nav-label">SNMP bandwidth</span></button><button data-view="surveillance"><span class="ico">◉</span><span class="nav-label">Surveillance</span></button><button data-view="parts"><span class="ico">▣</span><span class="nav-label">Parts inventory</span></button><button data-view="reports"><span class="ico">▥</span><span class="nav-label">Reports</span></button></nav><button class="nav-customize" id="customizeModulesButton" type="button"><span class="ico">☷</span><span class="nav-label">Customize modules</span></button><div class="sidebar-bottom"><div class="org-label">System</div><nav class="nav"><button data-view="backups"><span class="ico">▣</span><span class="nav-label">Backup & restore</span></button><button data-view="settings"><span class="ico">⚙</span><span class="nav-label">Settings</span></button></nav><div class="help-card"><b>Need a hand?</b><p>Make asset management work the way your team does.</p><button onclick="showHelp()">Visit help center ↗</button></div><div class="profile sidebar-account"><div class="avatar">IT</div><div><div class="profile-name">Signed in</div><div class="profile-role">Account menu in top bar</div></div></div></div></aside>
 <main class="main"><header class="topbar"><div class="crumb"><span id="companyCrumb">IT Asset Management</span>&nbsp; / &nbsp;<b id="crumb">Overview</b></div><select class="site-select" id="globalSite" aria-label="Select factory"><option value="All sites">All factories</option><option>ARG</option><option>ARB</option><option>ARC</option><option>ARF</option></select><div class="top-spacer"></div><div class="ns-top-notif-wrap" id="nsTopNotifWrap"><button type="button" class="ns-top-silent-btn" id="nsTopSilentBtn" title="Silent mode: mute ringtones &amp; screen popups while keeping notification dropdown &amp; history"><span id="nsTopSilentIcon">🔊</span><span class="ns-silent-lbl" id="nsTopSilentLabel">Alerts Live</span></button><button type="button" class="ns-top-notif-btn" id="nsTopNotifBtn" aria-expanded="false" aria-haspopup="true"><span>🔔</span><span class="ns-notif-lbl">Notifications</span><span class="ns-top-notif-badge" id="nsTopNotifBadge">0</span></button><div class="ns-notif-shade" id="nsTopNotifDropdown" role="region" aria-label="Notification dropdown"></div></div><label class="search"><span>⌕</span><input id="globalSearch" placeholder="Search assets, users..." aria-label="Search assets and users"><span style="font-size:9px">⌘ K</span></label><button class="top-btn" aria-label="Notifications" onclick="showNotifications()">♧<span class="notification-dot"></span></button><button class="top-btn" aria-label="Help" onclick="showHelp()">?</button><div class="profile-menu-wrap"><button class="top-profile" id="profileMenuButton" aria-label="Profile menu" aria-expanded="false" onclick="toggleProfileMenu()"><span class="top-avatar" id="topAvatar">U</span><span id="topProfileName">Account</span><span aria-hidden="true">⌄</span></button><div class="profile-menu" id="profileMenu" hidden><div class="profile-menu-heading"><b id="menuProfileName">Account</b><small id="menuProfileRole">User</small></div><button type="button" onclick="document.getElementById('profilePictureInput').click()">Change profile picture</button><button type="button" onclick="openPasswordSettings()">Change password</button><button type="button" class="profile-menu-logout" onclick="signOut()">Log out</button></div><input id="profilePictureInput" type="file" accept="image/png,image/jpeg,image/webp" hidden></div></header>
 <div class="content">
-<section class="view active" id="view-dashboard"><div class="page-head"><div><div class="eyebrow">IT overview · Live inventory</div><h1>IT overview <span style="font-size:20px">✳</span></h1><p>Here’s what’s happening across your IT estate today.</p></div><div class="head-actions"><button class="btn" onclick="exportCsv('IT-overview',assets)">↓ &nbsp;Export report</button><button class="btn primary" onclick="openModal()">＋ &nbsp;Add asset</button></div></div>
+<section class="view active" id="view-dashboard"><div class="page-head"><div><div class="eyebrow">IT overview · Live inventory</div><h1>IT overview <span style="font-size:20px">✳</span></h1><p>Here’s what’s happening across your IT estate today.</p></div><div class="head-actions"><button type="button" class="btn" id="ovCustomizeTilesBtn" onclick="openOverviewCustomizeModal()">⚙ &nbsp;Customize</button><button type="button" class="btn" onclick="openAssetExportChoicesModal('IT-overview')">↓ &nbsp;Export report</button><button class="btn primary" onclick="openModal()">＋ &nbsp;Add asset</button></div></div>
 <div class="site-strip" id="siteChips"><button class="site-chip selected" data-site="All sites">All factories <b>4</b></button><button class="site-chip" data-site="ARG">ARG <b>112</b></button><button class="site-chip" data-site="ARB">ARB <b>86</b></button><button class="site-chip" data-site="ARC">ARC <b>74</b></button><button class="site-chip" data-site="ARF">ARF <b>96</b></button></div>
-<div class="grid-4"><div class="card metric"><div class="metric-top"><span>Total assets</span><span class="metric-icon">▤</span></div><div class="metric-value" id="totalAssets">368</div><div class="metric-foot"><span class="up">↑ 12</span> added this month</div></div><div class="card metric"><div class="metric-top"><span>Online devices</span><span class="metric-icon">⌁</span></div><div class="metric-value">342</div><div class="metric-foot"><span class="up">92.9%</span> of managed devices</div></div><div class="card metric"><div class="metric-top"><span>Assigned to users</span><span class="metric-icon">♙</span></div><div class="metric-value">296</div><div class="metric-foot">Across <span class="up">18 departments</span></div></div><div class="card metric"><div class="metric-top"><span>Needs attention</span><span class="metric-icon" style="background:#fff4eb;color:#c87549">♢</span></div><div class="metric-value">7</div><div class="metric-foot"><span class="warn">3 offline</span> · 4 licenses expiring</div></div></div>
+<div class="ov-dynamic-tiles-grid" id="overviewDynamicTilesGrid"></div>
+<div class="grid-4" id="overviewLegacyGrid" style="display:none"><div class="card metric"><div class="metric-top"><span>Total assets</span><span class="metric-icon">▤</span></div><div class="metric-value" id="totalAssets">368</div><div class="metric-foot"><span class="up">↑ 12</span> added this month</div></div><div class="card metric"><div class="metric-top"><span>Online devices</span><span class="metric-icon">⌁</span></div><div class="metric-value">342</div><div class="metric-foot"><span class="up">92.9%</span> of managed devices</div></div><div class="card metric"><div class="metric-top"><span>Assigned to users</span><span class="metric-icon">♙</span></div><div class="metric-value">296</div><div class="metric-foot">Across <span class="up">18 departments</span></div></div><div class="card metric"><div class="metric-top"><span>Needs attention</span><span class="metric-icon" style="background:#fff4eb;color:#c87549">♢</span></div><div class="metric-value">7</div><div class="metric-foot"><span class="warn">3 offline</span> · 4 licenses expiring</div></div></div>
 <div class="category-grid"><div class="panel category-card" onclick="filterAssetType('Laptop')"><span class="cat-icon">▱</span><div class="cat-title">Laptops</div><div class="cat-count">146</div><div class="cat-meta">34 due for refresh</div></div><div class="panel category-card" onclick="filterAssetType('Desktop')"><span class="cat-icon">▣</span><div class="cat-title">Desktop PCs</div><div class="cat-count">86</div><div class="cat-meta">12 due for refresh</div></div><div class="panel category-card" onclick="filterAssetType('Network')"><span class="cat-icon">⌁</span><div class="cat-title">Network devices</div><div class="cat-count">42</div><div class="cat-meta">14 switches · 8 routers</div></div><div class="panel category-card" onclick="filterAssetType('Mobile')"><span class="cat-icon">▯</span><div class="cat-title">Smartphones</div><div class="cat-count">38</div><div class="cat-meta">6 due for refresh</div></div><div class="panel category-card" onclick="filterAssetType('Tablet')"><span class="cat-icon">▭</span><div class="cat-title">Tablets</div><div class="cat-count">18</div><div class="cat-meta">2 due for refresh</div></div><div class="panel category-card" onclick="filterAssetType('Printer')"><span class="cat-icon">▧</span><div class="cat-title">Printers & MFDs</div><div class="cat-count">38</div><div class="cat-meta">3 maintenance due</div></div></div><div class="panel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">Network device breakdown</div><div class="panel-sub">Sub-categories across all factory locations</div></div><button class="link-btn" onclick="filterAssetType('Network')">View network assets →</button></div><div class="section-toolbar" style="justify-content:space-between"><span>Switches <b>14</b></span><span>Routers <b>8</b></span><span>Access points <b>10</b></span><span>Firewalls <b>4</b></span><span>Other <b>6</b></span></div></div><div class="panel surveillance-overview" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">Surveillance overview</div><div class="panel-sub">CCTV cameras and recording devices · current factory selection</div></div><button class="link-btn" data-go="surveillance">Open Surveillance →</button></div><div class="surv-overview-grid"><div><span>CCTV cameras</span><b id="ovCctvTotal">0</b><small id="ovCctvStatus">0 online · 0 offline</small></div><div><span>NVR recorders</span><b id="ovNvrTotal">0</b><small id="ovNvrStatus">0 online · 0 offline</small></div><div><span>DVR recorders</span><b id="ovDvrTotal">0</b><small id="ovDvrStatus">0 online · 0 offline</small></div></div><div class="table-wrap"><table><thead><tr><th>FACTORY</th><th>DEPARTMENT</th><th>CAMERAS</th><th>ONLINE</th><th>OFFLINE</th></tr></thead><tbody id="ovSurveillanceBreakdown"></tbody></table></div></div><div class="dashboard-grid"><div class="panel"><div class="panel-head"><div><div class="panel-title">Device activity</div><div class="panel-sub">Online and offline devices · last 7 days</div></div><div class="chart-legend"><span><i class="legend-dot" style="background:#24805a"></i>Online</span><span><i class="legend-dot" style="background:#d3a14f"></i>Offline</span><button class="filter-select" style="padding:6px 8px">Last 7 days⌄</button></div></div><div class="chart-wrap"><svg class="chart" viewBox="0 0 660 160" preserveAspectRatio="none"><defs><linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#60a77d" stop-opacity=".19"/><stop offset="1" stop-color="#60a77d" stop-opacity="0"/></linearGradient></defs><line class="gridline" x1="40" y1="20" x2="650" y2="20"/><line class="gridline" x1="40" y1="60" x2="650" y2="60"/><line class="gridline" x1="40" y1="100" x2="650" y2="100"/><line class="gridline" x1="40" y1="140" x2="650" y2="140"/><text x="0" y="23">360</text><text x="0" y="63">320</text><text x="0" y="103">280</text><text x="0" y="143">240</text><path class="area" d="M40 59 C80 57 92 47 126 51 S176 64 212 47 S262 44 298 38 S348 47 384 37 S434 30 470 34 S520 22 556 28 S612 21 650 19 L650 148 L40 148Z"/><path class="line" d="M40 59 C80 57 92 47 126 51 S176 64 212 47 S262 44 298 38 S348 47 384 37 S434 30 470 34 S520 22 556 28 S612 21 650 19"/><path class="line2" d="M40 118 C80 115 96 108 126 112 S177 119 212 106 S262 111 298 99 S347 110 384 102 S434 94 470 103 S520 90 556 96 S611 91 650 87"/><text x="37" y="158">Oct 7</text><text x="135" y="158">Oct 8</text><text x="233" y="158">Oct 9</text><text x="331" y="158">Oct 10</text><text x="429" y="158">Oct 11</text><text x="527" y="158">Oct 12</text><text x="617" y="158">Today</text></svg></div></div>
 <div class="panel"><div class="panel-head"><div><div class="panel-title">Asset health</div><div class="panel-sub">Across all four factories</div></div><button class="link-btn" data-go="monitoring">View details ↗</button></div><div class="health-wrap"><div class="health-score"><div class="ring"><svg width="85" height="85" viewBox="0 0 85 85"><circle cx="42.5" cy="42.5" r="34" fill="none" stroke="#edf1ed" stroke-width="8"/><circle cx="42.5" cy="42.5" r="34" fill="none" stroke="#4b9c69" stroke-width="8" stroke-dasharray="194 214" stroke-linecap="round"/></svg><strong>91%</strong></div><div class="health-desc"><b>Looking good</b><p>342 of 368 assets are online and healthy.</p></div></div><div class="health-list"><div class="health-row"><span>Online devices</span><b>342 <span style="color:#29905b">92.9%</span></b><div class="mini-bar"><i style="width:93%"></i></div></div><div class="health-row"><span>Offline devices</span><b>18 <span style="color:#b98a37">4.9%</span></b><div class="mini-bar"><i class="amber-fill" style="width:22%"></i></div></div><div class="health-row"><span>Unassigned</span><b>8 <span style="color:#cf6658">2.2%</span></b><div class="mini-bar"><i class="red-fill" style="width:12%"></i></div></div></div></div></div></div>
 <div class="panel" style="margin:0 0 14px"><div class="panel-head"><div><div class="panel-title">Asset lifecycle & age</div><div class="panel-sub">Age is calculated from purchase / in-service date. Amber assets are nearing refresh.</div></div><button class="link-btn" data-go="assets">View lifecycle register →</button></div><div class="table-wrap"><table><thead><tr><th>ASSET</th><th>CATEGORY</th><th>FACTORY</th><th>DEVICE AGE</th><th>WARRANTY UNTIL</th><th>LAST MAINTENANCE</th></tr></thead><tbody id="lifecycleTable"></tbody></table></div></div><div class="bottom-grid"><div class="panel"><div class="panel-head"><div><div class="panel-title">Recently updated assets</div><div class="panel-sub">Latest activity across your inventory</div></div><button class="link-btn" data-go="assets">View all assets →</button></div><div class="table-wrap"><table><thead><tr><th>ASSET</th><th>TYPE</th><th>ASSIGNED TO</th><th>FACTORY</th><th>STATUS</th><th>LAST SEEN</th></tr></thead><tbody id="recentTable"></tbody></table></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">Recent alerts <span class="status critical" style="margin-left:5px">3 new</span></div><div class="panel-sub">Things that need your attention</div></div><button class="link-btn" data-go="monitoring">All alerts →</button></div><div class="alert-list"><div class="alert-item"><div class="alert-mark">!</div><div class="alert-text"><b>Device went offline</b><br>ARG-LT-024 · Rahul Patil<div class="alert-time">8 minutes ago</div></div></div><div class="alert-item"><div class="alert-mark">◷</div><div class="alert-text"><b>Windows license expiring soon</b><br>Microsoft 365 · 12 seats<div class="alert-time">42 minutes ago</div></div></div><div class="alert-item"><div class="alert-mark">↻</div><div class="alert-text"><b>New device discovered</b><br>192.168.1.148 · ARG Factory<div class="alert-time">1 hour ago</div></div></div></div></div></div></section>
 
-<section class="view" id="view-assets"><div class="page-head"><div><div class="eyebrow">Your entire IT estate</div><h1>Asset inventory</h1><p>Every device, its specs, owner and location — all in one place.</p></div><div class="head-actions"><button type="button" class="btn" onclick="openAssetImportModal()">↑ &nbsp;Import Excel / CSV</button><button class="btn" onclick="exportCsv('asset-register',assets)">↓ &nbsp;Export</button><button class="btn primary" onclick="openModal()">＋ &nbsp;Add asset</button></div></div><div class="kpis"><div class="kpi-pill">All assets <b id="assetCount">368</b></div><div class="kpi-pill">Online <b style="color:#1687d9">342</b></div><div class="kpi-pill">Offline <b style="color:#cd6559">18</b></div><div class="kpi-pill">Unassigned <b style="color:#b88633">8</b></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="assetSearch" placeholder="⌕  Search name, tag, user or serial..."><select class="filter-select" id="assetFactoryFilter"><option value="">All factories</option></select><select class="filter-select" id="typeFilter"><option value="">All device types</option><option>Laptop</option><option>Desktop</option><option>Server</option><option>Printer</option><option>Network</option><option>Mobile</option><option>Tablet</option><option>CCTV</option><option>NVR</option><option>DVR</option></select><select class="filter-select" id="deptFilter"><option value="">All departments</option><option>IT</option><option>Finance</option><option>Design</option><option>HR</option><option>Operations</option><option>Engineering</option></select><select class="filter-select" id="statusFilter"><option value="">Any status</option><option>Online</option><option>Offline</option><option>Stale</option><option>Not checked</option><option>No IP</option><option>Maintenance</option></select><select class="filter-select" id="networkSubtypeFilter"><option value="">All network sub-categories</option><option>Switch</option><option>Router</option><option>Access point</option><option>Firewall</option><option>Other network device</option></select><div class="toolbar-spacer"></div><button type="button" class="btn" onclick="openAssetImportModal()">↑ &nbsp;Import</button></div><div id="assetBulkBar" class="ns-bulk-bar"><div id="assetBulkSummary"><b>0</b> assets selected</div><div class="ns-bulk-actions"><button type="button" class="btn" id="assetSelectFilteredBtn" onclick="selectAllFilteredAssets()" style="display:none"></button><button type="button" class="btn" onclick="clearAssetSelection()">Clear selection</button><button type="button" class="btn danger" id="assetBulkDeleteBtn" onclick="bulkDeleteSelectedAssets()">🗑 &nbsp;Delete selected (<span id="assetBulkDeleteCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="assetSelectAll" title="Select all visible rows" aria-label="Select all visible assets"></th><th>ASSET / TAG</th><th>DEVICE TYPE</th><th>SPECIFICATIONS</th><th>ASSIGNED TO</th><th>DEPARTMENT</th><th>FACTORY</th><th>AGE</th><th>LAST MAINTENANCE</th><th>STATUS</th><th>LAST SEEN</th></tr></thead><tbody id="assetTable"></tbody></table></div></div></section>
+<section class="view" id="view-assets"><div class="page-head"><div><div class="eyebrow">Your entire IT estate</div><h1>Asset inventory</h1><p>Every device, its specs, owner and location — all in one place.</p></div><div class="head-actions"><button type="button" class="btn" onclick="openAssetImportModal()">↑ &nbsp;Import Excel / CSV</button><button type="button" class="btn" onclick="openAssetExportChoicesModal('asset-register')">↓ &nbsp;Export Excel / CSV</button><button class="btn primary" onclick="openModal()">＋ &nbsp;Add asset</button></div></div><div class="kpis"><div class="kpi-pill">All assets <b id="assetCount">368</b></div><div class="kpi-pill">Online <b style="color:#1687d9">342</b></div><div class="kpi-pill">Offline <b style="color:#cd6559">18</b></div><div class="kpi-pill">Unassigned <b style="color:#b88633">8</b></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="assetSearch" placeholder="⌕  Search name, tag, user or serial..."><select class="filter-select" id="assetFactoryFilter"><option value="">All factories</option></select><select class="filter-select" id="typeFilter"><option value="">All device types</option><option>Laptop</option><option>Desktop</option><option>Server</option><option>Printer</option><option>Network</option><option>Mobile</option><option>Tablet</option><option>CCTV</option><option>NVR</option><option>DVR</option></select><select class="filter-select" id="deptFilter"><option value="">All departments</option><option>IT</option><option>Finance</option><option>Design</option><option>HR</option><option>Operations</option><option>Engineering</option></select><select class="filter-select" id="statusFilter"><option value="">Any status</option><option>Online</option><option>Offline</option><option>Stale</option><option>Not checked</option><option>No IP</option><option>Maintenance</option></select><select class="filter-select" id="networkSubtypeFilter"><option value="">All network sub-categories</option><option>Switch</option><option>Router</option><option>Access point</option><option>Firewall</option><option>Other network device</option></select><div class="toolbar-spacer"></div><button type="button" class="btn" onclick="openAssetImportModal()">↑ &nbsp;Import</button></div><div id="assetBulkBar" class="ns-bulk-bar"><div id="assetBulkSummary"><b>0</b> assets selected</div><div class="ns-bulk-actions"><button type="button" class="btn" id="assetSelectFilteredBtn" onclick="selectAllFilteredAssets()" style="display:none"></button><button type="button" class="btn" onclick="clearAssetSelection()">Clear selection</button><button type="button" class="btn danger" id="assetBulkDeleteBtn" onclick="bulkDeleteSelectedAssets()">🗑 &nbsp;Delete selected (<span id="assetBulkDeleteCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="assetSelectAll" title="Select all visible rows" aria-label="Select all visible assets"></th><th>ASSET / TAG</th><th>DEVICE TYPE</th><th>SPECIFICATIONS</th><th>ASSIGNED TO</th><th>DEPARTMENT</th><th>FACTORY</th><th>AGE</th><th>LAST MAINTENANCE</th><th>STATUS</th><th>LAST SEEN</th></tr></thead><tbody id="assetTable"></tbody></table></div></div></section>
 
 <section class="view" id="view-ageing"><div class="page-head"><div><div class="eyebrow">Lifecycle · Service history</div><h1>Asset ageing & risk</h1><p>Age uses the purchase / in-service date. Risk uses saved maintenance records.</p></div><div class="head-actions"><button class="btn" onclick="exportAssetAgeing()">↓ Export list</button></div></div><div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px"><div style="font-size:10px;font-weight:800;color:#157a54;letter-spacing:.9px;text-transform:uppercase">ASSET AGE BRACKETS · CLICK ANY TILE TO VIEW &amp; FILTER DEVICES</div><button type="button" class="btn" id="ageUnrecordedBtn" onclick="openAgeBucketModal('unknown')" style="display:none;font-size:10px;padding:5px 10px">Not recorded: <b id="ageUnknownCount">0</b></button></div><div class="grid-4" id="ageBracketGrid"><div class="card metric age-bracket-card" data-age-bucket="lt1" onclick="openAgeBucketModal('lt1')" role="button" tabindex="0"><div class="metric-top"><span>Less than 1 year</span><span class="metric-icon" style="background:#e7f6ee;color:#157a54">🌱</span></div><div class="metric-value" id="ageLt1Count">0</div><div class="metric-foot">0–11 months · Click to inspect list</div></div><div class="card metric age-bracket-card" data-age-bucket="1to3" onclick="openAgeBucketModal('1to3')" role="button" tabindex="0"><div class="metric-top"><span>1–3 years (incl. 2–3 yrs)</span><span class="metric-icon" style="background:#e8f2ff;color:#1d6ec9">💻</span></div><div class="metric-value" id="age1to3Count">0</div><div class="metric-foot">12–35 months · Click to inspect list</div></div><div class="card metric age-bracket-card" data-age-bucket="3to5" onclick="openAgeBucketModal('3to5')" role="button" tabindex="0"><div class="metric-top"><span>3–5 years</span><span class="metric-icon" style="background:#fff6e5;color:#b97c10">⏳</span></div><div class="metric-value" id="age3to5Count">0</div><div class="metric-foot">36–59 months · Click to inspect list</div></div><div class="card metric age-bracket-card" data-age-bucket="5plus" onclick="openAgeBucketModal('5plus')" role="button" tabindex="0"><div class="metric-top"><span>5+ years</span><span class="metric-icon" style="background:#fff0ee;color:#c9423d">🔥</span></div><div class="metric-value" id="age5PlusCount">0</div><div class="metric-foot">60+ months · Refresh priority · Click list</div></div></div><div style="font-size:10px;font-weight:800;color:#69756d;letter-spacing:.9px;text-transform:uppercase;margin:4px 0 8px">MAINTENANCE RISK PROFILE</div><div class="grid-4"><div class="card metric"><div class="metric-top">Healthy · no service history</div><div class="metric-value" id="ageHealthyCount">0</div><div class="metric-foot">Risk 0 · no maintenance recorded</div></div><div class="card metric"><div class="metric-top">Low risk</div><div class="metric-value" id="ageLowCount">0</div><div class="metric-foot">1–3 records</div></div><div class="card metric"><div class="metric-top">Medium risk</div><div class="metric-value" id="ageMediumCount">0</div><div class="metric-foot">4–5 records</div></div><div class="card metric"><div class="metric-top">High risk</div><div class="metric-value" id="ageHighCount">0</div><div class="metric-foot">6 or more records</div></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="ageSearch" placeholder="Search asset, tag or owner"><select class="filter-select" id="ageSort"><option value="oldest">Oldest to newest</option><option value="newest">Newest to oldest</option></select><select class="filter-select" id="ageYear"><option value="">All years</option></select><input class="filter-input" id="ageFrom" type="date" aria-label="Purchased from"><input class="filter-input" id="ageTo" type="date" aria-label="Purchased to"><select class="filter-select" id="ageRisk"><option value="">All risk levels</option><option>Healthy</option><option>Low</option><option>Medium</option><option>High</option></select></div><div class="table-wrap"><table><thead><tr><th>ASSET</th><th>FACTORY</th><th>PURCHASE DATE</th><th>AGE</th><th>MAINTENANCE COUNT</th><th>RISK</th></tr></thead><tbody id="assetAgeingTable"></tbody></table></div></div></section><section class="view" id="view-tickets"><div class="page-head"><div><div class="eyebrow">Help desk · Request tracking</div><h1>IT help desk &amp; material requests</h1><p>Raise support issues or material requests and track them in separate, crystal-clear queues.</p></div><div class="head-actions"><button class="btn" onclick="openIpManager()">⌖ &nbsp;Device / IP mapping</button><button class="btn primary" onclick="document.getElementById('ticketFormCard').scrollIntoView({behavior:'smooth'})">＋ &nbsp;Raise a ticket / request</button><button class="btn" id="ticketingBackendButton" style="display:none" onclick="go('ticketing')">⚙ &nbsp;Ticketing backend</button></div></div><div class="grid-4"><div class="card metric"><div class="metric-top"><span>Open IT tickets</span><span class="metric-icon">✉</span></div><div class="metric-value" id="openTicketCount">0</div><div class="metric-foot">Help-desk issues awaiting start</div></div><div class="card metric"><div class="metric-top"><span>In progress</span><span class="metric-icon">↻</span></div><div class="metric-value" id="progressTicketCount">0</div><div class="metric-foot">Being worked on by IT</div></div><div class="card metric"><div class="metric-top"><span>Resolved / Closed</span><span class="metric-icon">✓</span></div><div class="metric-value" id="resolvedTicketCount">0</div><div class="metric-foot">IT support issues completed</div></div><div class="card metric"><div class="metric-top"><span>Open material requests</span><span class="metric-icon">📦</span></div><div class="metric-value" id="openMaterialReqCount">0</div><div class="metric-foot">Tracked separately below</div></div></div><div class="panel" id="ticketFormCard" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">✎ &nbsp;Submit a new IT ticket / material request</div><div class="panel-sub">Your mapped employee, department and factory details are filled in automatically.</div></div><span class="status warning" id="identityStatus">Signed in</span></div><div style="padding:16px 18px 18px"><div style="font-size:10px;font-weight:700;color:#707d74;margin-bottom:8px">REQUEST TYPE</div><label class="ticket-choice"><input type="radio" name="requestKind" value="IT help desk" checked> 🧰 IT issue / help desk</label><label class="ticket-choice"><input type="radio" name="requestKind" value="Material request"> 📦 IT material request</label><div style="font-size:10px;font-weight:700;color:#707d74;margin:12px 0 7px">PRIMARY CATEGORY</div><div id="primaryCategories"><label class="ticket-choice"><input type="radio" name="primaryCategory" value="ERP / Software / Manufacturing" checked> 📊 ERP / Software / Manufacturing</label><label class="ticket-choice"><input type="radio" name="primaryCategory" value="Network / Hardware"> 🖥️ Network / Hardware</label></div><div class="ticket-subcats"><div class="ticket-subcats-title">Select sub-category</div><div id="ticketSubcats" style="display:flex;flex-wrap:wrap;gap:7px"></div></div><div class="ticket-identity"><div><span>YOUR NAME</span><b id="ticketIdentityName">Suneel Maurya</b></div><div><span>DEPARTMENT</span><b id="ticketIdentityDept">INDO OFFICE</b></div><div><span>FACTORY / LOCATION</span><b id="ticketIdentitySite">ARG</b></div><div><span>DEVICE IP · MAPPED</span><b id="ticketIdentityIp">192.168.130.3</b></div></div><form id="ticketForm"><div class="ticket-form-grid"><div class="field full" id="materialFields" style="display:none"><label>Requested item / quantity / justification</label><input name="material" placeholder="e.g. USB-C dock · qty 2 · required for new workstations"></div><div class="field full"><label>Describe your issue in detail *</label><textarea class="filter-input ticket-description" name="description" required placeholder="Describe the problem, what you were trying to do, and any error message..."></textarea></div><div class="field full"><label>Attach screenshots (up to 3)</label><input id="ticketFiles" type="file" accept="image/*" multiple class="filter-input"><div id="ticketFileNames" class="ticket-meta"></div></div></div><div style="display:flex;gap:8px;align-items:center;margin-top:12px"><span class="ticket-meta">A ticket number will be generated automatically.</span><button class="btn primary" style="margin-left:auto;min-width:210px">↥ &nbsp;Submit IT ticket</button></div></form></div></div><div class="ns-section-tabs" id="ticketsSectionTabs"><button type="button" class="ns-sec-tab active" data-ticket-tab="IT help desk" onclick="switchTicketsTab('IT help desk')">🧰 IT Support Tickets <span class="ns-tab-badge" id="tabItTicketsCount">0</span></button><button type="button" class="ns-sec-tab" data-ticket-tab="Material request" onclick="switchTicketsTab('Material request')">📦 IT Material Requests &amp; Parts Status <span class="ns-tab-badge" id="tabMatReqCount">0</span></button></div><div class="panel" id="ticketsQueuePanel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">🌐 &nbsp;Live IT Support Tickets Queue</div><div class="panel-sub">All IT help-desk issues (Material Requests are tracked separately in the Material Requests tab).</div></div><button class="btn" onclick="renderTickets();showToast('Ticket list refreshed')">↻ &nbsp;Refresh</button></div><div style="padding:0 15px 14px"><div class="ticket-filter-strip"><span class="ticket-meta" style="font-weight:700">FILTER</span><select class="filter-select" id="ticketKindFilter" style="display:none"><option value="">All tickets & requests</option><option>IT help desk</option><option>Material request</option></select><select class="filter-select" id="ticketStatusFilter"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select><select class="filter-select" id="ticketCategoryFilter"><option value="">All categories</option><option>ERP / Software / Manufacturing</option><option>Network / Hardware</option></select><select class="filter-select" id="ticketSiteFilter"><option value="">All factories</option><option>ARG</option><option>ARB</option><option>ARC</option><option>ARF</option></select><input class="filter-input" id="ticketSearch" placeholder="Search ticket, user or issue..." style="min-width:180px"></div><div class="table-wrap"><table class="ticket-table"><thead><tr><th>TICKET</th><th>USER · DEPT · FACTORY</th><th>CATEGORY / SUB</th><th>ISSUE</th><th>ASSIGNED TO</th><th>STATUS</th><th>ETA</th><th>NOTE / REMARK</th><th>UPDATED</th></tr></thead><tbody id="ticketTable"></tbody></table></div></div></div><div class="panel" id="materialRequestsPanel" style="display:none;margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">📦 &nbsp;IT Material Requests &amp; Parts Inventory Status</div><div class="panel-sub">Track every hardware/material request separately and verify parts issued against it from Parts Inventory.</div></div><button class="btn" onclick="renderTickets();showToast('Material request list refreshed')">↻ &nbsp;Refresh</button></div><div style="padding:0 15px 14px"><div class="ticket-filter-strip"><span class="ticket-meta" style="font-weight:700">FILTER MATERIAL REQUESTS</span><select class="filter-select" id="mrUserStatusFilter" onchange="renderTickets()"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select><select class="filter-select" id="mrUserSiteFilter" onchange="renderTickets()"><option value="">All factories</option></select><input class="filter-input" id="mrUserSearch" placeholder="Search request ID, item, user..." style="min-width:200px" oninput="renderTickets()"></div><div class="table-wrap"><table class="ticket-table"><thead><tr><th>REQUEST ID</th><th>REQUESTER · DEPT · FACTORY</th><th>CATEGORY</th><th>REQUESTED ITEM &amp; REASON</th><th>ASSIGNED TO</th><th>STATUS</th><th>PARTS INVENTORY FULFILLMENT</th><th>ETA &amp; UPDATED</th></tr></thead><tbody id="materialUserTable"></tbody></table></div></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">How auto-identification works</div><div class="panel-sub">Manual IP mapping previews the flow; secure login and user accounts are managed by your administrator.</div></div><button class="link-btn" onclick="openIpManager()">Manage mappings →</button></div><div class="health-wrap"><div class="site-overview"><div class="site-tile"><div class="site-tile-head">1 · Map workstation IP</div><p>Admin registers a trusted device IP against a user, department and factory.</p></div><div class="site-tile"><div class="site-tile-head">2 · Verify identity</div><p>Users sign in with their local application account.</p></div><div class="site-tile"><div class="site-tile-head">3 · Open request link</div><p>Signed-in users get their mapped name, department and site prefilled in the issue form.</p></div><div class="site-tile"><div class="site-tile-head">4 · Track to closure</div><p>IT updates assignee, status, work notes and expected completion time in the live queue.</p></div></div></div></div></section><section class="view" id="view-ticketing"><div class="page-head"><div><div class="eyebrow">IT operations · Backend workbench</div><h1>Ticketing backend &amp; settings</h1><p>Manage IT Tickets, fulfill Material Requests from Parts Inventory, and configure dynamic Categories &amp; Sub-categories.</p></div><div class="head-actions"><button class="btn" onclick="refreshServerTickets().then(()=>renderTicketingBackend())">↻ &nbsp;Refresh</button></div></div><div class="ns-section-tabs" id="ticketingBackendTabs"><button type="button" class="ns-sec-tab active" data-backend-tab="tickets" onclick="switchTicketingBackendTab('tickets')">🎫 IT Support Tickets <span class="ns-tab-badge" id="beItTicketsBadge">0</span></button><button type="button" class="ns-sec-tab" data-backend-tab="materials" onclick="switchTicketingBackendTab('materials')">📦 Material Requests &amp; Parts Issue <span class="ns-tab-badge" id="beMatReqBadge">0</span></button><button type="button" class="ns-sec-tab" data-backend-tab="settings" onclick="switchTicketingBackendTab('settings')">⚙ Ticketing Settings &amp; Categories</button></div><div class="panel" id="ticketingTabTickets"><div class="section-toolbar"><input class="filter-input" id="ticketingSearch" placeholder="Search ticket, user or issue"><select class="filter-select" id="ticketingKind" style="display:none"><option value="IT help desk">IT help desk</option></select><select class="filter-select" id="ticketingCatFilter" onchange="renderTicketingBackend()"><option value="">All primary categories</option></select><select class="filter-select" id="ticketingStatus"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select></div><div id="beTicketBulkBar" class="ns-bulk-bar"><div id="beTicketBulkSummary"><b>0</b> tickets selected</div><div class="ns-bulk-actions"><button type="button" class="btn" onclick="clearTicketingSelection('tickets')">Clear selection</button><button type="button" class="btn danger" onclick="bulkDeleteTicketingRecords('tickets')">🗑 &nbsp;Delete selected (<span id="beTicketBulkCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="beTicketSelectAll" aria-label="Select all visible IT tickets"></th><th>TICKET / CREATED</th><th>REQUESTER / FACTORY / DEPT</th><th>ISSUE</th><th>ASSIGN TO</th><th>STATUS</th><th>ETA</th><th>WORK UPDATE</th><th>ACTIONS</th></tr></thead><tbody id="ticketingTable"></tbody></table></div></div><div class="panel" id="ticketingTabMaterials" style="display:none"><div class="section-toolbar"><input class="filter-input" id="beMrSearch" placeholder="Search request ID, item, requester..." oninput="renderTicketingBackend()"><select class="filter-select" id="beMrSite" onchange="renderTicketingBackend()"><option value="">All factories</option></select><select class="filter-select" id="beMrStatus" onchange="renderTicketingBackend()"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select></div><div id="beMrBulkBar" class="ns-bulk-bar"><div id="beMrBulkSummary"><b>0</b> material requests selected</div><div class="ns-bulk-actions"><button type="button" class="btn" onclick="clearTicketingSelection('materials')">Clear selection</button><button type="button" class="btn danger" onclick="bulkDeleteTicketingRecords('materials')">🗑 &nbsp;Delete selected (<span id="beMrBulkCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="beMrSelectAll" aria-label="Select all visible material requests"></th><th>REQUEST / CREATED</th><th>REQUESTER / FACTORY / DEPT</th><th>CATEGORY &amp; ITEM NEEDED</th><th>ASSIGN / STATUS / ETA</th><th>PARTS INVENTORY ISSUED</th><th>FULFILL FROM INVENTORY / WORK</th></tr></thead><tbody id="ticketingMaterialTable"></tbody></table></div></div><div id="ticketingTabSettings" style="display:none"></div></section><section class="view" id="view-users"><div class="page-head"><div><div class="eyebrow">People · Access · Security</div><h1>People, users &amp; access</h1><p>Manage employees, sign-in accounts, module permissions, and account recovery.</p></div><div class="head-actions"><button class="btn" type="button" onclick="exportEmployeeRegister()">↓ &nbsp;Export employee register</button><button class="btn primary" onclick="addUser()">＋ &nbsp;Add user / administrator</button></div></div><div class="kpis"><div class="kpi-pill">Active users <b>0</b></div><div class="kpi-pill">With assigned assets <b>0</b></div><div class="kpi-pill">No assigned devices <b>0</b></div><div class="kpi-pill">Login accounts <b>0</b></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="userSearch" placeholder="⌕  Search name, email or employee ID..."><select class="filter-select" id="userDeptFilter"><option value="">All departments</option></select><select class="filter-select" id="userSiteFilter"><option value="">All factories</option></select><select class="filter-select" id="userEmploymentFilter"><option value="">All employment statuses</option><option>Active</option><option>On leave</option><option>Inactive</option></select></div><div class="table-wrap"><table><thead><tr><th>EMPLOYEE</th><th>EMPLOYEE ID / LOGIN</th><th>DATE OF BIRTH</th><th>DEPARTMENT</th><th>FACTORY</th><th>IP / NETWORK STATUS</th><th>ASSETS</th><th>SOFTWARE</th><th>LAST ACTIVE</th><th>ROLE &amp; ACCESS</th></tr></thead><tbody id="userTable"></tbody></table></div></div>
 <div class="settings-columns" style="margin-top:14px">
@@ -3364,6 +3440,9 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
  };
 
  // Expose template builders for tests
+ window.__importFields = IMPORT_FIELDS;
+ window.__buildTemplateData = buildTemplateData;
+ window.__buildXlsxBytes = buildXlsxBytes;
  window.__buildAssetImportXlsxBytes=()=>buildXlsxBytes([
   {name:'Asset Import',rows:[buildTemplateData().headers,...buildTemplateData().sampleRows],freezeTop:true},
   {name:'Instructions & Options',rows:buildTemplateData().guideRows,headerRow:false,sectionRows:buildTemplateData().sectionRows}
@@ -7879,6 +7958,176 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     return { x: res.x, y: res.y };
   }
 
+  function formatCompass(deg){
+    const d = ((deg % 360) + 360) % 360;
+    const dirs = ['N','NE','E','SE','S','SW','W','NW'];
+    const idx = Math.round(d / 45) % 8;
+    return `${dirs[idx]} ${Math.round(d)}°`;
+  }
+
+  function getLiveStatusForNode(node){
+    if(!node) return { status:'unknown', online:false, label:'Offline' };
+    const all = getAssetsList();
+    const a = node.linkedAssetTag ? all.find(x => String(x.tag) === String(node.linkedAssetTag)) : null;
+    const st = String(a?.status || a?.statusCategory || '').toLowerCase();
+    const isOnline = st === 'online' || st === 'healthy' || st === 'ok';
+    return {
+      status: isOnline ? 'online' : 'offline',
+      online: isOnline,
+      label: isOnline ? 'Online' : 'Offline',
+      asset: a
+    };
+  }
+
+  function isPointInZone(pt, shape){
+    if(!shape || shape.shapeType !== 'zone') return false;
+    const x = Number(shape.x)||0;
+    const y = Number(shape.y)||0;
+    const w = Number(shape.w)||100;
+    const h = Number(shape.h)||100;
+    return pt.x >= x && pt.x <= (x + w) && pt.y >= y && pt.y <= (y + h);
+  }
+
+  function renderWalkaroundDrawerHtml(fl, diag){
+    const nodes = fl.nodes || [];
+    const zones = (fl.shapes || []).filter(s => s.shapeType === 'zone');
+    const onlineCount = nodes.filter(n => getLiveStatusForNode(n).online).length;
+    const offlineCount = nodes.length - onlineCount;
+    const curIdx = diag.floors.findIndex(f => f.id === fl.id);
+    const hasPrev = curIdx > 0;
+    const hasNext = curIdx < (diag.floors.length - 1);
+
+    const activeZone = zones.find(z => z.id === state.svZoneId);
+    let filteredNodes = nodes;
+    if(state.svZoneId && activeZone){
+      filteredNodes = nodes.filter(n => isPointInZone(n, activeZone));
+    }
+    if(state.waFilterCat){
+      filteredNodes = filteredNodes.filter(n => n.kind === state.waFilterCat);
+    }
+
+    return `
+      <div class="nm-walkaround-drawer" id="nmWalkaroundDrawer">
+        <div class="nm-wa-head">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:800;color:#14221a;display:inline-flex;align-items:center;gap:6px">
+              🏢 <b>Floor Walkaround</b> · ${esc(fl.name)} (Level ${curIdx})
+            </span>
+            <div class="nm-wa-stepper">
+              <button type="button" class="nm-wa-step-btn" id="nmWaFloorPrev" ${!hasPrev?'disabled style="opacity:.4;cursor:not-allowed"':''}>▼ Lower Floor</button>
+              <button type="button" class="nm-wa-step-btn" id="nmWaFloorNext" ${!hasNext?'disabled style="opacity:.4;cursor:not-allowed"':''}>▲ Upper Floor</button>
+            </div>
+            <div class="nm-wa-stats">
+              <span class="nm-wa-pill">${nodes.length} Total Devices</span>
+              <span class="nm-wa-pill online">🟢 ${onlineCount} Online</span>
+              <span class="nm-wa-pill offline">🔴 ${offlineCount} Offline</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button type="button" class="btn" id="nmWaEnterStreetViewBtn" style="padding:4px 10px;font-size:11px;font-weight:800;background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe">🚶 360° Street View</button>
+            <button type="button" class="btn" id="nmWaCloseBtn" style="padding:4px 8px;font-size:11px" title="Close Walkaround">✕ Close</button>
+          </div>
+        </div>
+
+        <div class="nm-wa-rooms">
+          <button type="button" class="nm-wa-room-btn ${!state.svZoneId?'active':''}" data-wa-room="" style="${!state.svZoneId?'background:#157a54;color:#fff;border-color:#157a54':''}">All Rooms (${nodes.length})</button>
+          ${zones.map(z => {
+            const zCount = nodes.filter(n => isPointInZone(n, z)).length;
+            const isAct = state.svZoneId === z.id;
+            return `<button type="button" class="nm-wa-room-btn ${isAct?'active':''}" data-wa-room="${esc(z.id)}" style="${isAct?'background:#157a54;color:#fff;border-color:#157a54':''}">📍 ${esc(z.label||'Zone')} (${zCount})</button>`;
+          }).join('')}
+        </div>
+
+        <div class="nm-wa-devices">
+          ${filteredNodes.map(n => {
+            const st = getLiveStatusForNode(n);
+            const sten = STENCIL_MAP[n.kind] || { icon:'▣', color:'#157a54' };
+            const isSel = state.selectedId === n.id;
+            return `
+              <div class="nm-wa-device-chip" data-wa-dev="${esc(n.id)}" style="${isSel?'border-color:#157a54;background:#eefcf4;font-weight:700':''}">
+                <span style="font-size:14px;color:${sten.color}">${sten.icon}</span>
+                <div style="flex:1;min-width:0;overflow:hidden">
+                  <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.label)}</div>
+                  <div style="font-size:9.5px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.sublabel || n.linkedAssetTag || n.kind)}</div>
+                </div>
+                <span style="font-size:10px">${st.online ? '🟢' : '🔴'}</span>
+              </div>
+            `;
+          }).join('')}
+          ${filteredNodes.length === 0 ? '<div style="font-size:11px;color:#9ca3af;padding:10px">No devices located in this room or filter.</div>' : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderStreetViewOverlayHtml(fl, diag){
+    const nodes = fl.nodes || [];
+    const zones = (fl.shapes || []).filter(s => s.shapeType === 'zone');
+    const curZone = zones.find(z => z.id === state.svZoneId) || zones[0] || { id:'zn-main', label:'Server Room & Floor MDF' };
+    const zoneNodes = nodes.filter(n => isPointInZone(n, curZone));
+    const otherZones = zones.filter(z => z.id !== curZone.id);
+
+    return `
+      <div class="nm-streetview-overlay" id="nmStreetViewOverlay">
+        <div class="nm-sv-topbar">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span class="nm-sv-badge">🚶 360° Street View</span>
+            <span style="font-size:13px;font-weight:700;color:#f1f5f9">${esc(fl.name)} · <b>${esc(curZone.label || 'Room')}</b></span>
+            <span class="nm-sv-compass" id="nmSvCompassBadge">🧭 ${formatCompass(state.svYaw)}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button type="button" class="btn" id="nmSvExitBtn" style="padding:4px 10px;font-size:11px;background:#334155;color:#fff;border-color:#475569">✕ Exit Street View</button>
+          </div>
+        </div>
+
+        <div class="nm-sv-scene" id="nmSvScene" title="Click and drag to look around 360°">
+          <div class="nm-sv-room-box" id="nmSvRoomBox" style="transform:translateZ(400px) rotateX(${state.svPitch}deg) rotateY(${state.svYaw}deg)">
+            <div class="nm-sv-floor-plane"></div>
+            <div class="nm-sv-ceiling-plane"></div>
+            <div class="nm-sv-wall-back"></div>
+
+            <div class="nm-sv-placards-container">
+              ${zoneNodes.map((n, idx) => {
+                const st = getLiveStatusForNode(n);
+                const sten = STENCIL_MAP[n.kind] || { icon:'▣', color:'#38bdf8' };
+                const total = Math.max(1, zoneNodes.length);
+                const angleDeg = -50 + (idx / Math.max(1, total - 1 || 1)) * 100;
+                const rad = (angleDeg * Math.PI) / 180;
+                const px = Math.round(Math.sin(rad) * 450);
+                const pz = Math.round(-380 - Math.cos(rad) * 120);
+                const py = (idx % 2 === 0 ? -40 : 50);
+                return `
+                  <div class="nm-sv-placard ${st.online?'':'offline'}" data-sv-node="${esc(n.id)}" style="left:50%;top:50%;transform:translate3d(${px}px,${py}px,${pz}px) translate(-50%,-50%)">
+                    <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">
+                      <span style="font-size:16px">${sten.icon}</span>
+                      <b style="font-size:12px;color:#fff">${esc(n.label)}</b>
+                      <span style="margin-left:auto;font-size:10px">${st.online ? '🟢 Online' : '🔴 Offline'}</span>
+                    </div>
+                    <div style="font-size:10px;color:#94a3b8">${esc(n.sublabel || n.linkedAssetTag || 'Managed Device')}</div>
+                    ${n.linkedAssetTag ? `<div style="font-size:9px;color:#38bdf8;margin-top:2px">Tag: ${esc(n.linkedAssetTag)}</div>` : ''}
+                  </div>
+                `;
+              }).join('')}
+              ${zoneNodes.length === 0 ? `
+                <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) translateZ(-350px);color:#94a3b8;font-size:14px;background:rgba(15,23,42,.7);padding:12px 20px;border-radius:10px">
+                  No devices placed inside ${esc(curZone.label || 'this zone')}. Drag devices in Studio to position them here.
+                </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <div class="nm-sv-arrow-strip">
+            ${otherZones.map(oz => `
+              <button type="button" class="nm-sv-waypoint-btn" data-sv-zone="${esc(oz.id)}">
+                <span>↑</span> Walk to <b>${esc(oz.label || 'Next Room')}</b>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   function saveLocalMap(){
     try{ localStorage.setItem(LS_MAP_KEY, JSON.stringify(mapDoc)); }catch(_){}
   }
@@ -8366,6 +8615,9 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
             <button type="button" class="nm-tool-btn" id="nmRedoBtn" title="Redo">↪ Redo</button>
             <button type="button" class="nm-tool-btn" id="nmToggleModeBtn">${state.viewMode==='3d'?'🧊 3D Isometric':'🗺 2D CAD'}</button>
             <button type="button" class="nm-tool-btn" id="nmGridToggleBtn">${state.showGrid?'# Grid ON':'# Grid OFF'}</button>
+            <div class="nm-sep"></div>
+            <button type="button" class="nm-tool-btn ${state.walkaround?'active':''}" id="nmWalkaroundBtn" title="Floor Walkaround & Inspection">🏢 Walkaround</button>
+            <button type="button" class="nm-tool-btn ${state.streetView?'active':''}" id="nmStreetViewBtn" title="Google Street View 360° Walkthrough">🚶 Street View</button>
           </div>
 
           <div class="nm-viewport ${state.showGrid?'mode-grid':''}" id="nmViewport">
@@ -8376,6 +8628,19 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
             <div class="nm-world-stage" id="nmWorldStage" style="width:${fl.width}px;height:${fl.height}px;transform:${t3d}">
               ${slabsHtml}
             </div>
+
+            <div class="nm-gmap-controls">
+              <div class="nm-gmap-btn-group">
+                <button type="button" class="nm-gmap-btn" id="nmGmapZoomIn" title="Zoom in">＋</button>
+                <button type="button" class="nm-gmap-btn" id="nmGmapZoomOut" title="Zoom out">−</button>
+              </div>
+              <button type="button" class="nm-gmap-single-btn" id="nmGmapCompass" title="Reset Compass (North 0°)">🧭</button>
+              <button type="button" class="nm-gmap-single-btn nm-pegman-btn ${state.streetView?'active':''}" id="nmGmapPegman" title="Google Street View 360°">🚶</button>
+              <button type="button" class="nm-gmap-single-btn ${state.walkaround?'active':''}" id="nmGmapWalkaround" title="Floor Walkaround">🏢</button>
+            </div>
+
+            ${state.walkaround ? renderWalkaroundDrawerHtml(fl, diag) : ''}
+            ${state.streetView ? renderStreetViewOverlayHtml(fl, diag) : ''}
 
             <div class="nm-camera-hud">
               <label>Zoom <input type="range" id="nmZoomRange" min="0.25" max="2.4" step="0.04" value="${state.zoom}"><b>${Math.round(state.zoom*100)}%</b></label>
@@ -8719,6 +8984,71 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       img.src = url;
     });
 
+    // Walkaround & Street View Toggles & Controls
+    view.querySelector('#nmWalkaroundBtn')?.addEventListener('click', () => { state.walkaround = !state.walkaround; buildStudioMarkup(); });
+    view.querySelector('#nmGmapWalkaround')?.addEventListener('click', () => { state.walkaround = !state.walkaround; buildStudioMarkup(); });
+    view.querySelector('#nmStreetViewBtn')?.addEventListener('click', () => { state.streetView = !state.streetView; buildStudioMarkup(); });
+    view.querySelector('#nmGmapPegman')?.addEventListener('click', () => { state.streetView = !state.streetView; buildStudioMarkup(); });
+    view.querySelector('#nmGmapZoomIn')?.addEventListener('click', () => {
+      state.zoom = Math.min(2.8, +(state.zoom * 1.2).toFixed(2));
+      redrawWorldOnly();
+    });
+    view.querySelector('#nmGmapZoomOut')?.addEventListener('click', () => {
+      state.zoom = Math.max(0.2, +(state.zoom / 1.2).toFixed(2));
+      redrawWorldOnly();
+    });
+    view.querySelector('#nmGmapCompass')?.addEventListener('click', () => {
+      state.yaw = 0; state.pitch = 50; redrawWorldOnly();
+    });
+    view.querySelector('#nmWaCloseBtn')?.addEventListener('click', () => { state.walkaround = false; buildStudioMarkup(); });
+    view.querySelector('#nmWaEnterStreetViewBtn')?.addEventListener('click', () => { state.streetView = true; buildStudioMarkup(); });
+    view.querySelector('#nmSvExitBtn')?.addEventListener('click', () => { state.streetView = false; buildStudioMarkup(); });
+
+    view.querySelector('#nmWaFloorPrev')?.addEventListener('click', () => {
+      const curIdx = diag.floors.findIndex(f => f.id === fl.id);
+      if(curIdx > 0){ state.selectedFloorId = diag.floors[curIdx - 1].id; diag.activeFloorId = state.selectedFloorId; buildStudioMarkup(); }
+    });
+    view.querySelector('#nmWaFloorNext')?.addEventListener('click', () => {
+      const curIdx = diag.floors.findIndex(f => f.id === fl.id);
+      if(curIdx < diag.floors.length - 1){ state.selectedFloorId = diag.floors[curIdx + 1].id; diag.activeFloorId = state.selectedFloorId; buildStudioMarkup(); }
+    });
+
+    view.querySelectorAll('[data-wa-room]').forEach(btn => btn.addEventListener('click', () => {
+      state.svZoneId = btn.dataset.waRoom;
+      buildStudioMarkup();
+    }));
+    view.querySelectorAll('[data-wa-dev]').forEach(btn => btn.addEventListener('click', () => {
+      const nid = btn.dataset.waDev;
+      const n = (fl.nodes || []).find(x => x.id === nid);
+      if(n){
+        state.selectedKind = 'node'; state.selectedId = nid;
+        state.panX = Math.round(-n.x * state.zoom + 200);
+        state.panY = Math.round(-n.y * state.zoom + 100);
+        buildStudioMarkup();
+      }
+    }));
+
+    view.querySelectorAll('[data-sv-zone]').forEach(btn => btn.addEventListener('click', () => {
+      state.svZoneId = btn.dataset.svZone;
+      buildStudioMarkup();
+    }));
+    view.querySelectorAll('[data-sv-node]').forEach(btn => btn.addEventListener('click', () => {
+      const nid = btn.dataset.svNode;
+      const n = (fl.nodes || []).find(x => x.id === nid);
+      if(n && n.linkedAssetTag && typeof filterAssetType === 'function'){
+        if(typeof showToast === 'function') showToast(`Inspecting device: ${n.label} (${n.linkedAssetTag})`);
+      }
+    }));
+
+    // Street view 360 mouse look
+    const svScene = view.querySelector('#nmSvScene');
+    if(svScene){
+      svScene.addEventListener('mousedown', e => {
+        if(e.target.closest('.nm-sv-placard,.nm-sv-waypoint-btn')) return;
+        studioActiveOp = { kind:'svLook', sx:e.clientX, sy:e.clientY, yaw:state.svYaw, pitch:state.svPitch };
+      });
+    }
+
     // Viewport mouse/drag/draw/orbit interaction
     const vp = view.querySelector('#nmViewport');
     if(vp && !vp.dataset.bound){
@@ -8726,21 +9056,31 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
 
       vp.addEventListener('wheel', e => {
         e.preventDefault();
-        state.zoom = Math.max(0.25, Math.min(2.4, +(state.zoom + (e.deltaY < 0 ? 0.06 : -0.06)).toFixed(2)));
-        const zr = view.querySelector('#nmZoomRange');
-        if(zr){ zr.value = state.zoom; zr.nextElementSibling.textContent = Math.round(state.zoom*100)+'%'; }
-        redrawWorldOnly();
+        const rect = vp.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left - rect.width / 2;
+        const mouseY = e.clientY - rect.top - rect.height / 2;
+        const oldZoom = state.zoom;
+        const factor = e.deltaY < 0 ? 1.12 : 0.89;
+        const newZoom = Math.max(0.20, Math.min(2.8, +(oldZoom * factor).toFixed(3)));
+        if(newZoom !== oldZoom){
+          state.panX = Math.round(mouseX - (mouseX - state.panX) * (newZoom / oldZoom));
+          state.panY = Math.round(mouseY - (mouseY - state.panY) * (newZoom / oldZoom));
+          state.zoom = newZoom;
+          const zr = view.querySelector('#nmZoomRange');
+          if(zr){ zr.value = state.zoom; zr.nextElementSibling.textContent = Math.round(state.zoom*100)+'%'; }
+          redrawWorldOnly();
+        }
       }, { passive:false });
 
       vp.addEventListener('contextmenu', e => e.preventDefault());
 
       vp.addEventListener('mousedown', e => {
-        if(e.target.closest('.nm-camera-hud,.nm-floor-badge')) return;
+        if(e.target.closest('.nm-camera-hud,.nm-floor-badge,.nm-gmap-controls,.nm-walkaround-drawer,.nm-streetview-overlay')) return;
         if(e.button === 2 || (e.shiftKey && state.tool === 'select')){
           studioActiveOp = { kind:'orbit', sx:e.clientX, sy:e.clientY, yaw:state.yaw, pitch:state.pitch };
           return;
         }
-        if(e.button === 1 || state.tool === 'pan'){
+        if(e.button === 1 || state.tool === 'pan' || (e.button === 0 && state.tool === 'select' && !e.target.closest('[data-nm-type],[data-resize-id]'))){
           studioActiveOp = { kind:'pan', sx:e.clientX, sy:e.clientY, panX:state.panX, panY:state.panY };
           return;
         }
@@ -9031,6 +9371,856 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       window.nsNetworkMap.loadFromServer();
     }, 80);
   });
+})();
+</script>
+
+<script id="northstar-v6-overview-export-netmap">
+(()=>{
+  const esc = (s) => (typeof window.safeEsc === 'function' ? window.safeEsc(s) : String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])));
+  const LS_TILES_KEY = 'ns-overview-tiles-v1';
+
+  const DEFAULT_OVERVIEW_TILES = [
+    { id:'ov-tot', title:'Total assets', icon:'▦', bg:'#e7f6ee', color:'#157a54', status:'all', type:'', subtype:'', site:'', dept:'', foot:'Current inventory records', visible:true },
+    { id:'ov-onl', title:'Online devices', icon:'⌁', bg:'#e8f2ff', color:'#1687d9', status:'online', type:'', subtype:'', site:'', dept:'', foot:'Healthy & responding', visible:true },
+    { id:'ov-off', title:'Offline devices', icon:'⚠️', bg:'#fff0ee', color:'#cd6559', status:'offline', type:'', subtype:'', site:'', dept:'', foot:'Needs inspection', visible:true },
+    { id:'ov-attn', title:'Needs attention', icon:'♢', bg:'#fff6e5', color:'#b97c10', status:'attention', type:'', subtype:'', site:'', dept:'', foot:'Offline or expiring', visible:true },
+    { id:'ov-asn', title:'Assigned to users', icon:'♙', bg:'#eef2ff', color:'#4f46e5', status:'assigned', type:'', subtype:'', site:'', dept:'', foot:'Across departments', visible:true },
+    { id:'ov-off7', title:'Offline > 7 days', icon:'⏰', bg:'#fff0ee', color:'#b91c1c', status:'offline7', type:'', subtype:'', site:'', dept:'', foot:'Critical stale devices', visible:true },
+    { id:'ov-cctv', title:'Surveillance cameras', icon:'📹', bg:'#fdf2f8', color:'#db2777', status:'all', type:'CCTV', subtype:'', site:'', dept:'', foot:'Factory surveillance', visible:true },
+    { id:'ov-net', title:'Network infrastructure', icon:'📶', bg:'#eff6ff', color:'#2563eb', status:'all', type:'Network', subtype:'', site:'', dept:'', foot:'Core & access gear', visible:true }
+  ];
+
+  function loadOverviewTilesConfig(){
+    try{
+      const raw = localStorage.getItem(LS_TILES_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        if(Array.isArray(parsed) && parsed.length) return parsed;
+      }
+    }catch(_){}
+    return JSON.parse(JSON.stringify(DEFAULT_OVERVIEW_TILES));
+  }
+
+  function saveOverviewTilesConfig(list){
+    try{
+      localStorage.setItem(LS_TILES_KEY, JSON.stringify(list));
+    }catch(_){}
+  }
+
+  function getAssetsList(){
+    try{
+      return (typeof assets !== 'undefined' && Array.isArray(assets)) ? assets : [];
+    }catch(_){ return []; }
+  }
+
+  function getActiveSiteScope(){
+    const sel = document.getElementById('globalSite');
+    const val = (sel?.value || '').trim();
+    if(!val || val === 'All sites' || val === 'All factories') return '';
+    return val;
+  }
+
+  function matchAssetForTile(a, tile, siteScope){
+    const aSite = String(a.site || a.factory || '').trim();
+    if(siteScope && aSite && aSite !== siteScope) return false;
+    if(tile.site && aSite && aSite !== tile.site) return false;
+
+    const aDept = String(a.dept || a.department || '').trim();
+    if(tile.dept && aDept && aDept !== tile.dept) return false;
+
+    const aType = String(a.type || a.category || '').trim().toLowerCase();
+    if(tile.type && !aType.includes(tile.type.toLowerCase())) return false;
+
+    const aSub = String(a.subtype || '').trim().toLowerCase();
+    if(tile.subtype && !aSub.includes(tile.subtype.toLowerCase())) return false;
+
+    const st = String(a.status || a.statusCategory || '').trim().toLowerCase();
+    const isOnline = st === 'online' || st === 'healthy' || st === 'ok';
+    const isOffline = st === 'offline' || st === 'stale' || st === 'down';
+
+    if(tile.status === 'online' && !isOnline) return false;
+    if(tile.status === 'offline' && !isOffline) return false;
+    if(tile.status === 'assigned' && !(a.user || a.assignedTo)) return false;
+    if(tile.status === 'unassigned' && (a.user || a.assignedTo)) return false;
+    if(tile.status === 'attention'){
+      const hasExp = Boolean(a.licenseExpiring || a.expiringSoon);
+      if(!isOffline && !hasExp) return false;
+    }
+    if(tile.status === 'offline7'){
+      const days = Number(a.offlineDays || a.daysOffline || 0);
+      if(!isOffline || days < 7) return false;
+    }
+    return true;
+  }
+
+  function renderOverviewDynamicTiles(){
+    const host = document.getElementById('overviewDynamicTilesGrid');
+    if(!host) return;
+
+    const siteScope = getActiveSiteScope();
+    const allAssets = getAssetsList();
+    const tiles = loadOverviewTilesConfig();
+    const visibleTiles = tiles.filter(t => t.visible !== false);
+
+    host.innerHTML = visibleTiles.map(t => {
+      const matched = allAssets.filter(a => matchAssetForTile(a, t, siteScope));
+      const valSum = matched.reduce((acc, x) => acc + (Number(x.assetValue || x.purchaseCost || x.cost || x.value) || 0), 0);
+      const valLabel = valSum > 0 ? ('₹' + valSum.toLocaleString('en-IN')) : (matched.length + ' matching assets');
+
+      return `
+        <div class="ov-custom-tile" data-ov-tile-id="${esc(t.id)}" onclick="openOverviewTileDrilldown('${esc(t.id)}')">
+          <div class="ov-tile-top">
+            <span class="ov-tile-title">${esc(t.title)}</span>
+            <span class="ov-tile-badge" style="background:${esc(t.bg||'#eff6ff')};color:${esc(t.color||'#1d4ed8')}">${esc(t.icon||'▦')}</span>
+          </div>
+          <div class="ov-tile-val">${matched.length}</div>
+          <div class="ov-tile-foot">
+            <span>${esc(t.foot || valLabel)}</span>
+            <span style="margin-left:auto;font-size:10px;font-weight:700;color:${esc(t.color||'#157a54')}">Drill down →</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    const totalEl = document.getElementById('totalAssets');
+    if(totalEl){
+      const totalMatched = allAssets.filter(a => !siteScope || String(a.site||a.factory||'') === siteScope);
+      totalEl.textContent = String(totalMatched.length);
+    }
+  }
+  window.renderOverviewDynamicTiles = renderOverviewDynamicTiles;
+
+  let drillState = {
+    tileId: '',
+    dimension: 'category',
+    selectedGroupKey: '',
+    search: '',
+    level: 1
+  };
+
+  function ensureModals(){
+    if(!document.getElementById('ovDrillModal')){
+      const d = document.createElement('div');
+      d.id = 'ovDrillModal';
+      d.className = 'val-modal-backdrop';
+      d.style.display = 'none';
+      d.innerHTML = `
+        <div class="val-drill-card" style="max-width:960px;width:95%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
+          <div class="val-drill-head">
+            <div>
+              <div class="val-drill-kicker" id="ovDrillKicker">LEVEL 1 · SECONDARY BREAKDOWN</div>
+              <h2 id="ovDrillTitle" style="margin:2px 0 4px;font-size:18px;color:#14221a">Drilldown</h2>
+              <div class="val-drill-sub" id="ovDrillSubtitle">Breakdown of matching inventory assets</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button type="button" class="btn" id="ovDrillExportBtn" onclick="exportCurrentDrillList()">↓ Export List</button>
+              <button type="button" class="btn" onclick="closeOverviewDrilldown()">✕ Close</button>
+            </div>
+          </div>
+
+          <div style="padding:10px 18px 0;display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #e5ede8;background:#fafdfb;flex-wrap:wrap">
+            <div class="val-tab-strip" id="ovDrillDimTabs" style="display:flex;gap:6px">
+              <button type="button" class="val-tab-btn active" data-ov-dim="category">By Category</button>
+              <button type="button" class="val-tab-btn" data-ov-dim="factory">By Factory</button>
+              <button type="button" class="val-tab-btn" data-ov-dim="department">By Department</button>
+              <button type="button" class="val-tab-btn" data-ov-dim="status">By Status</button>
+              <button type="button" class="val-tab-btn" data-ov-dim="user">By User</button>
+            </div>
+            <div id="ovDrillBackBtnWrap" style="display:none">
+              <button type="button" class="btn" onclick="backToDrillLevel1()" style="font-size:11px;padding:4px 9px">← Back to secondary tiles</button>
+            </div>
+          </div>
+
+          <div style="flex:1;overflow-y:auto;padding:16px 18px" id="ovDrillBody"></div>
+
+          <div class="val-drill-foot" id="ovDrillFoot">
+            <span id="ovDrillSummary">Reconciled with crystal-clear accuracy.</span>
+            <button type="button" class="btn" onclick="closeOverviewDrilldown()" style="padding:4px 12px;font-size:11.5px">Done</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(d);
+    }
+
+    if(!document.getElementById('ovCustomizeModal')){
+      const c = document.createElement('div');
+      c.id = 'ovCustomizeModal';
+      c.className = 'val-modal-backdrop';
+      c.style.display = 'none';
+      c.innerHTML = `
+        <div class="val-drill-card" style="max-width:840px;width:95%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
+          <div class="val-drill-head">
+            <div>
+              <div class="val-drill-kicker">OVERVIEW DASHBOARD CUSTOMIZATION</div>
+              <h2 style="margin:2px 0 4px;font-size:18px;color:#14221a">Customize Metric Tiles</h2>
+              <div class="val-drill-sub">Add custom metric tiles, reorder, filter online/offline, and configure category or factory views.</div>
+            </div>
+            <button type="button" class="btn" onclick="closeOverviewCustomizeModal()">✕ Close</button>
+          </div>
+
+          <div style="flex:1;overflow-y:auto;padding:16px 18px;display:grid;gap:16px">
+            <div style="background:#f8faf9;border:1px solid #dbe6df;border-radius:12px;padding:14px">
+              <div style="font-size:12px;font-weight:800;color:#157a54;margin-bottom:10px">＋ ADD NEW CUSTOM TILE</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+                <label class="login-field" style="margin:0">
+                  <span style="font-size:11px;font-weight:700">Tile Title *</span>
+                  <input id="ovNewTitle" placeholder="e.g. ARG Online Laptops" value="My Custom Metric">
+                </label>
+                <label class="login-field" style="margin:0">
+                  <span style="font-size:11px;font-weight:700">Icon</span>
+                  <select id="ovNewIcon" class="filter-select" style="width:100%;height:38px">
+                    <option value="▦">▦ Dashboard Grid</option>
+                    <option value="⌁">⌁ Live Signal</option>
+                    <option value="⚠️">⚠️ Offline Warning</option>
+                    <option value="♢">♢ Attention Diamond</option>
+                    <option value="♙">♙ User Assigned</option>
+                    <option value="⏰">⏰ Clock / Stale</option>
+                    <option value="📹">📹 CCTV Camera</option>
+                    <option value="📶">📶 Network Wi-Fi</option>
+                    <option value="🖥">🖥 Server Rack</option>
+                    <option value="💻">💻 Laptop</option>
+                    <option value="🖨">🖨 Printer</option>
+                    <option value="🛡">🛡 Firewall / Security</option>
+                  </select>
+                </label>
+                <label class="login-field" style="margin:0">
+                  <span style="font-size:11px;font-weight:700">Color Theme</span>
+                  <select id="ovNewTheme" class="filter-select" style="width:100%;height:38px">
+                    <option value="#157a54,#e7f6ee">Emerald Green</option>
+                    <option value="#1687d9,#e8f2ff">Sapphire Blue</option>
+                    <option value="#cd6559,#fff0ee">Ruby Red</option>
+                    <option value="#b97c10,#fff6e5">Amber Yellow</option>
+                    <option value="#7c3aed,#f5f3ff">Purple</option>
+                    <option value="#db2777,#fdf2f8">Rose Pink</option>
+                    <option value="#0284c7,#f0f9ff">Sky Blue</option>
+                    <option value="#475569,#f1f5f9">Slate Gray</option>
+                  </select>
+                </label>
+                <label class="login-field" style="margin:0">
+                  <span style="font-size:11px;font-weight:700">Status Filter</span>
+                  <select id="ovNewStatus" class="filter-select" style="width:100%;height:38px">
+                    <option value="all">All Statuses</option>
+                    <option value="online">Online Only</option>
+                    <option value="offline">Offline Only</option>
+                    <option value="attention">Needs Attention</option>
+                    <option value="assigned">Assigned to User</option>
+                    <option value="unassigned">Unassigned Only</option>
+                    <option value="offline7">Offline &gt; 7 Days</option>
+                  </select>
+                </label>
+                <label class="login-field" style="margin:0">
+                  <span style="font-size:11px;font-weight:700">Category Filter</span>
+                  <select id="ovNewCategory" class="filter-select" style="width:100%;height:38px">
+                    <option value="">All Device Categories</option>
+                    <option value="Laptop">Laptops</option>
+                    <option value="Desktop">Desktops</option>
+                    <option value="Server">Servers</option>
+                    <option value="Network">Network Gear</option>
+                    <option value="CCTV">CCTV Cameras</option>
+                    <option value="NVR">NVR / DVR</option>
+                    <option value="Printer">Printers</option>
+                  </select>
+                </label>
+                <label class="login-field" style="margin:0">
+                  <span style="font-size:11px;font-weight:700">Factory Filter</span>
+                  <select id="ovNewFactory" class="filter-select" style="width:100%;height:38px">
+                    <option value="">All Factories</option>
+                    <option value="ARG">ARG</option>
+                    <option value="ARB">ARB</option>
+                    <option value="ARC">ARC</option>
+                    <option value="ARF">ARF</option>
+                  </select>
+                </label>
+              </div>
+
+              <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <div style="font-size:11px;font-weight:700;color:#6b7280">LIVE PREVIEW:</div>
+                <div class="ov-custom-tile" id="ovTilePreviewCard" style="width:230px;pointer-events:none;margin:0">
+                  <div class="ov-tile-top">
+                    <span class="ov-tile-title" id="ovPrevTitle">My Custom Metric</span>
+                    <span class="ov-tile-badge" id="ovPrevBadge" style="background:#e7f6ee;color:#157a54">▦</span>
+                  </div>
+                  <div class="ov-tile-val" id="ovPrevVal">0</div>
+                  <div class="ov-tile-foot" id="ovPrevFoot">Preview count</div>
+                </div>
+                <button type="button" class="btn primary" id="ovAddTileBtn" style="margin-left:auto" onclick="addNewCustomTile()">＋ Add this Tile</button>
+              </div>
+            </div>
+
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <span style="font-size:12px;font-weight:800;color:#213329">CONFIGURED TILES (<span id="ovCustTileCount">0</span>)</span>
+                <button type="button" class="btn" onclick="resetOverviewTilesToDefaults()" style="font-size:11px;padding:3px 8px;color:#b53d38">↺ Reset to Defaults</button>
+              </div>
+              <div class="ov-cust-list" id="ovCustTilesList"></div>
+            </div>
+          </div>
+
+          <div class="val-drill-foot">
+            <span style="font-size:11px;color:#65746b">Dynamic layout accommodates 100+ tiles with auto-scaling grid.</span>
+            <button type="button" class="btn primary" onclick="closeOverviewCustomizeModal()">✓ Save &amp; Apply</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(c);
+      bindCustomizeLivePreview();
+    }
+
+    if(!document.getElementById('assetExportChoicesModal')){
+      const e = document.createElement('div');
+      e.id = 'assetExportChoicesModal';
+      e.className = 'val-modal-backdrop';
+      e.style.display = 'none';
+      e.innerHTML = `
+        <div class="val-drill-card" style="max-width:540px;width:95%">
+          <div class="val-drill-head">
+            <div>
+              <div class="val-drill-kicker">BACKUP &amp; REPORTING EXPORT</div>
+              <h2 style="margin:2px 0 4px;font-size:18px;color:#14221a">Export Asset Inventory</h2>
+              <div class="val-drill-sub">Export 100% of your asset register with all 48 columns for perfect re-importable backups.</div>
+            </div>
+            <button type="button" class="btn" onclick="closeAssetExportChoicesModal()">✕</button>
+          </div>
+
+          <div style="padding:18px;display:grid;gap:12px">
+            <button type="button" class="btn" onclick="executeAssetExport('xlsx')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;text-align:left;border:1.5px solid #157a54;background:#f3faf6">
+              <span style="font-size:26px">📊</span>
+              <div>
+                <b style="font-size:13px;color:#157a54;display:block">Full Excel Workbook (.xlsx) — Recommended</b>
+                <span style="font-size:11.5px;color:#475569">Genuine multi-sheet Excel with frozen header row, full 48 data columns and complete field guide sheet. Re-imports seamlessly.</span>
+              </div>
+            </button>
+
+            <button type="button" class="btn" onclick="executeAssetExport('csv')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;text-align:left;border:1px solid #d5e2da;background:#fff">
+              <span style="font-size:26px">📄</span>
+              <div>
+                <b style="font-size:13px;color:#1e3025;display:block">Comma-Separated Values (.csv)</b>
+                <span style="font-size:11.5px;color:#64748b">Universal CSV with UTF-8 BOM encoding for Excel, Google Sheets and automated scripts.</span>
+              </div>
+            </button>
+          </div>
+
+          <div class="val-drill-foot">
+            <span style="font-size:11px;color:#6b7280">100% Symmetrical: Exported files match 48/48 importer columns.</span>
+            <button type="button" class="btn" onclick="closeAssetExportChoicesModal()">Cancel</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(e);
+    }
+  }
+
+  function bindCustomizeLivePreview(){
+    const titleInput = document.getElementById('ovNewTitle');
+    const iconInput = document.getElementById('ovNewIcon');
+    const themeInput = document.getElementById('ovNewTheme');
+    const statusInput = document.getElementById('ovNewStatus');
+    const catInput = document.getElementById('ovNewCategory');
+    const facInput = document.getElementById('ovNewFactory');
+
+    function updatePreview(){
+      const t = titleInput?.value || 'My Custom Metric';
+      const ic = iconInput?.value || '▦';
+      const [col, bg] = (themeInput?.value || '#157a54,#e7f6ee').split(',');
+      const st = statusInput?.value || 'all';
+      const cat = catInput?.value || '';
+      const fac = facInput?.value || '';
+
+      const pTitle = document.getElementById('ovPrevTitle');
+      const pBadge = document.getElementById('ovPrevBadge');
+      const pVal = document.getElementById('ovPrevVal');
+      const pFoot = document.getElementById('ovPrevFoot');
+
+      if(pTitle) pTitle.textContent = t;
+      if(pBadge){ pBadge.textContent = ic; pBadge.style.background = bg; pBadge.style.color = col; }
+
+      const all = getAssetsList();
+      const mockTile = { status:st, type:cat, site:fac, dept:'' };
+      const matched = all.filter(a => matchAssetForTile(a, mockTile, getActiveSiteScope()));
+      if(pVal) pVal.textContent = String(matched.length);
+      if(pFoot) pFoot.textContent = `${matched.length} devices match filter`;
+    }
+
+    [titleInput, iconInput, themeInput, statusInput, catInput, facInput].forEach(el => {
+      el?.addEventListener('input', updatePreview);
+      el?.addEventListener('change', updatePreview);
+    });
+    updatePreview();
+  }
+
+  window.openOverviewTileDrilldown = function(tileId, optDim){
+    ensureModals();
+    const tiles = loadOverviewTilesConfig();
+    const t = tiles.find(x => x.id === tileId) || tiles[0];
+    if(!t) return;
+
+    drillState.tileId = t.id;
+    drillState.dimension = optDim || drillState.dimension || 'category';
+    drillState.level = 1;
+    drillState.selectedGroupKey = '';
+    drillState.search = '';
+
+    const modal = document.getElementById('ovDrillModal');
+    if(modal) modal.style.display = 'flex';
+    renderDrillModalContent();
+  };
+
+  window.closeOverviewDrilldown = function(){
+    const modal = document.getElementById('ovDrillModal');
+    if(modal) modal.style.display = 'none';
+  };
+
+  function getMatchingAssetsForTile(tileId){
+    const tiles = loadOverviewTilesConfig();
+    const t = tiles.find(x => x.id === tileId) || tiles[0];
+    if(!t) return [];
+    const all = getAssetsList();
+    const siteScope = getActiveSiteScope();
+    return all.filter(a => matchAssetForTile(a, t, siteScope));
+  }
+
+  function renderDrillModalContent(){
+    const tiles = loadOverviewTilesConfig();
+    const t = tiles.find(x => x.id === drillState.tileId) || tiles[0];
+    const matching = getMatchingAssetsForTile(drillState.tileId);
+
+    const titleEl = document.getElementById('ovDrillTitle');
+    const kickerEl = document.getElementById('ovDrillKicker');
+    const subEl = document.getElementById('ovDrillSubtitle');
+    const bodyEl = document.getElementById('ovDrillBody');
+    const backBtnWrap = document.getElementById('ovDrillBackBtnWrap');
+    const dimTabsWrap = document.getElementById('ovDrillDimTabs');
+
+    if(titleEl) titleEl.textContent = t.title;
+    if(kickerEl) kickerEl.textContent = drillState.level === 1 ? `LEVEL 1 · SECONDARY BREAKDOWN (${drillState.dimension.toUpperCase()})` : `LEVEL 2 · ITEMIZED ASSETS (${drillState.selectedGroupKey})`;
+    if(subEl) subEl.textContent = `${matching.length} total assets matching "${t.title}".`;
+
+    if(drillState.level === 1){
+      if(backBtnWrap) backBtnWrap.style.display = 'none';
+      if(dimTabsWrap) dimTabsWrap.style.display = 'flex';
+
+      dimTabsWrap.querySelectorAll('[data-ov-dim]').forEach(b => {
+        b.classList.toggle('active', b.dataset.ovDim === drillState.dimension);
+      });
+
+      const groups = {};
+      matching.forEach(a => {
+        let key = 'Other';
+        if(drillState.dimension === 'category') key = a.type || a.category || 'Other';
+        else if(drillState.dimension === 'factory') key = a.site || a.factory || 'Unassigned';
+        else if(drillState.dimension === 'department') key = a.dept || a.department || 'Unassigned';
+        else if(drillState.dimension === 'status'){
+          const st = String(a.status || a.statusCategory || '').toLowerCase();
+          key = (st === 'online' || st === 'healthy' || st === 'ok') ? '🟢 Online' : '🔴 Offline';
+        } else if(drillState.dimension === 'user') key = a.user || a.assignedTo || a.owner || 'Unassigned';
+        groups[key] = (groups[key] || []);
+        groups[key].push(a);
+      });
+
+      const totalCount = Math.max(1, matching.length);
+      const groupEntries = Object.entries(groups).sort((a,b) => b[1].length - a[1].length);
+
+      bodyEl.innerHTML = `
+        <div class="ov-drill-grid">
+          ${groupEntries.map(([grpKey, arr]) => {
+            const pct = Math.round((arr.length / totalCount) * 100);
+            const valSum = arr.reduce((acc, x) => acc + (Number(x.assetValue || x.purchaseCost || x.cost || x.value) || 0), 0);
+            return `
+              <div class="ov-drill-subtile" onclick="openDrillLevel2('${esc(grpKey)}')">
+                <div class="ov-drill-subhead">
+                  <span>${esc(grpKey)}</span>
+                  <span class="ov-drill-count">${arr.length}</span>
+                </div>
+                <div class="ov-drill-bar-track">
+                  <div class="ov-drill-bar-fill" style="width:${pct}%"></div>
+                </div>
+                <div class="ov-drill-meta">
+                  <span>${pct}% of ${t.title}</span>
+                  <span>${valSum > 0 ? '₹' + valSum.toLocaleString('en-IN') : 'Click to inspect'}</span>
+                </div>
+                <button type="button" class="btn" style="margin-top:6px;width:100%;font-size:11px;padding:4px 8px;font-weight:700;color:#157a54;background:#f3faf5;border-color:#cbe5d6">
+                  Drill down →
+                </button>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    } else {
+      if(backBtnWrap) backBtnWrap.style.display = 'block';
+      if(dimTabsWrap) dimTabsWrap.style.display = 'none';
+
+      let items = matching.filter(a => {
+        let key = 'Other';
+        if(drillState.dimension === 'category') key = a.type || a.category || 'Other';
+        else if(drillState.dimension === 'factory') key = a.site || a.factory || 'Unassigned';
+        else if(drillState.dimension === 'department') key = a.dept || a.department || 'Unassigned';
+        else if(drillState.dimension === 'status'){
+          const st = String(a.status || a.statusCategory || '').toLowerCase();
+          key = (st === 'online' || st === 'healthy' || st === 'ok') ? '🟢 Online' : '🔴 Offline';
+        } else if(drillState.dimension === 'user') key = a.user || a.assignedTo || a.owner || 'Unassigned';
+        return key === drillState.selectedGroupKey;
+      });
+
+      const q = drillState.search.trim().toLowerCase();
+      if(q){
+        items = items.filter(a => [a.name, a.tag, a.ipAddress, a.macAddress, a.serial, a.user, a.dept, a.site].join(' ').toLowerCase().includes(q));
+      }
+
+      bodyEl.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <input class="filter-input" id="ovDrillSearchInput" value="${esc(drillState.search)}" placeholder="⌕ Search itemized devices..." style="width:260px">
+          <span style="font-size:12px;font-weight:700;color:#55665c">Showing <b>${items.length}</b> devices</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ASSET / TAG</th>
+                <th>DEVICE TYPE</th>
+                <th>SPECIFICATIONS / IP</th>
+                <th>ASSIGNED USER</th>
+                <th>DEPARTMENT</th>
+                <th>FACTORY</th>
+                <th>STATUS</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map(a => {
+                const st = String(a.status || a.statusCategory || '').toLowerCase();
+                const isOnline = st === 'online' || st === 'healthy' || st === 'ok';
+                return `
+                  <tr>
+                    <td><b>${esc(a.name||'Device')}</b><br><small style="color:#718096">${esc(a.tag||'-')}</small></td>
+                    <td>${esc(a.type||'-')}<br><small style="color:#718096">${esc(a.subtype||'')}</small></td>
+                    <td>${esc(a.ipAddress||'-')}<br><small style="color:#718096">${esc(a.cpu || a.ramGb || a.storageCapacity || '')}</small></td>
+                    <td>${esc(a.user || a.assignedTo || 'Unassigned')}</td>
+                    <td>${esc(a.dept || a.department || '-')}</td>
+                    <td>${esc(a.site || a.factory || '-')}</td>
+                    <td><span class="status ${isOnline?'good':'critical'}">${isOnline?'Online':'Offline'}</span></td>
+                  </tr>
+                `;
+              }).join('')}
+              ${items.length === 0 ? '<tr><td colspan="7" style="text-align:center;padding:24px;color:#94a3b8">No devices match your search.</td></tr>' : ''}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      document.getElementById('ovDrillSearchInput')?.addEventListener('input', e => {
+        drillState.search = e.target.value;
+        renderDrillModalContent();
+        document.getElementById('ovDrillSearchInput')?.focus();
+      });
+    }
+
+    dimTabsWrap?.querySelectorAll('[data-ov-dim]').forEach(b => {
+      b.onclick = () => {
+        drillState.dimension = b.dataset.ovDim;
+        renderDrillModalContent();
+      };
+    });
+  }
+
+  window.openDrillLevel2 = function(groupKey){
+    drillState.selectedGroupKey = groupKey;
+    drillState.level = 2;
+    drillState.search = '';
+    renderDrillModalContent();
+  };
+
+  window.backToDrillLevel1 = function(){
+    drillState.level = 1;
+    drillState.selectedGroupKey = '';
+    renderDrillModalContent();
+  };
+
+  window.exportCurrentDrillList = function(){
+    const tiles = loadOverviewTilesConfig();
+    const t = tiles.find(x => x.id === drillState.tileId) || tiles[0];
+    const items = getMatchingAssetsForTile(drillState.tileId);
+    if(typeof executeAssetExport === 'function'){
+      executeAssetExport('csv', items, `drilldown-${t.title.replace(/\W+/g,'_')}.csv`);
+    }
+  };
+
+  window.openOverviewCustomizeModal = function(){
+    ensureModals();
+    renderCustomizeList();
+    const modal = document.getElementById('ovCustomizeModal');
+    if(modal) modal.style.display = 'flex';
+  };
+
+  window.closeOverviewCustomizeModal = function(){
+    const modal = document.getElementById('ovCustomizeModal');
+    if(modal) modal.style.display = 'none';
+    renderOverviewDynamicTiles();
+  };
+
+  function renderCustomizeList(){
+    const host = document.getElementById('ovCustTilesList');
+    if(!host) return;
+    const tiles = loadOverviewTilesConfig();
+    const countEl = document.getElementById('ovCustTileCount');
+    if(countEl) countEl.textContent = String(tiles.length);
+
+    host.innerHTML = tiles.map((t, idx) => `
+      <div class="ov-cust-row" data-tile-idx="${idx}">
+        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+          <input type="checkbox" ${t.visible!==false?'checked':''} title="Toggle visibility" onchange="toggleTileVisibility(${idx})">
+          <span style="width:26px;height:26px;border-radius:6px;background:${esc(t.bg)};color:${esc(t.color)};display:inline-flex;align-items:center;justify-content:center;font-size:13px">${esc(t.icon||'▦')}</span>
+          <div style="flex:1;min-width:0;overflow:hidden">
+            <b style="color:#1e3025;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block">${esc(t.title)}</b>
+            <span style="font-size:10.5px;color:#718096">Status: ${esc(t.status||'all')} · Type: ${esc(t.type||'all')} · Site: ${esc(t.site||'all')}</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px">
+          <button type="button" class="btn" style="padding:2px 7px;font-size:11px" onclick="moveTileUp(${idx})" ${idx===0?'disabled style="opacity:.3"':''}>▲</button>
+          <button type="button" class="btn" style="padding:2px 7px;font-size:11px" onclick="moveTileDown(${idx})" ${idx===tiles.length-1?'disabled style="opacity:.3"':''}>▼</button>
+          <button type="button" class="btn danger" style="padding:2px 7px;font-size:11px" onclick="deleteCustomTile(${idx})">🗑</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  window.toggleTileVisibility = function(idx){
+    const list = loadOverviewTilesConfig();
+    if(list[idx]){
+      list[idx].visible = list[idx].visible === false ? true : false;
+      saveOverviewTilesConfig(list);
+      renderCustomizeList();
+    }
+  };
+
+  window.moveTileUp = function(idx){
+    if(idx <= 0) return;
+    const list = loadOverviewTilesConfig();
+    const temp = list[idx - 1];
+    list[idx - 1] = list[idx];
+    list[idx] = temp;
+    saveOverviewTilesConfig(list);
+    renderCustomizeList();
+  };
+
+  window.moveTileDown = function(idx){
+    const list = loadOverviewTilesConfig();
+    if(idx >= list.length - 1) return;
+    const temp = list[idx + 1];
+    list[idx + 1] = list[idx];
+    list[idx] = temp;
+    saveOverviewTilesConfig(list);
+    renderCustomizeList();
+  };
+
+  window.deleteCustomTile = function(idx){
+    const list = loadOverviewTilesConfig();
+    if(list.length <= 1){
+      if(typeof showToast === 'function') showToast('At least one tile must be kept.');
+      return;
+    }
+    list.splice(idx, 1);
+    saveOverviewTilesConfig(list);
+    renderCustomizeList();
+  };
+
+  window.addNewCustomTile = function(){
+    const title = (document.getElementById('ovNewTitle')?.value || '').trim();
+    if(!title){
+      if(typeof showToast === 'function') showToast('Please enter a tile title');
+      return;
+    }
+    const icon = document.getElementById('ovNewIcon')?.value || '▦';
+    const [color, bg] = (document.getElementById('ovNewTheme')?.value || '#157a54,#e7f6ee').split(',');
+    const status = document.getElementById('ovNewStatus')?.value || 'all';
+    const type = document.getElementById('ovNewCategory')?.value || '';
+    const site = document.getElementById('ovNewFactory')?.value || '';
+
+    const list = loadOverviewTilesConfig();
+    const newId = 'ov-cust-' + Math.random().toString(36).slice(2,8);
+    list.push({
+      id: newId,
+      title,
+      icon,
+      color,
+      bg,
+      status,
+      type,
+      subtype: '',
+      site,
+      dept: '',
+      foot: 'Custom configured metric',
+      visible: true
+    });
+    saveOverviewTilesConfig(list);
+    renderCustomizeList();
+    if(typeof showToast === 'function') showToast(`Added tile "${title}"`);
+    document.getElementById('ovNewTitle').value = '';
+  };
+
+  window.resetOverviewTilesToDefaults = function(){
+    if(!window.confirm('Reset overview tiles back to default layout?')) return;
+    saveOverviewTilesConfig(DEFAULT_OVERVIEW_TILES);
+    renderCustomizeList();
+    if(typeof showToast === 'function') showToast('Tiles reset to defaults');
+  };
+
+  window.openAssetExportChoicesModal = function(sourceName){
+    ensureModals();
+    const modal = document.getElementById('assetExportChoicesModal');
+    if(modal) modal.style.display = 'flex';
+  };
+
+  window.closeAssetExportChoicesModal = function(){
+    const modal = document.getElementById('assetExportChoicesModal');
+    if(modal) modal.style.display = 'none';
+  };
+
+  function assetToRow48(a){
+    const s = a.specs || {};
+    return [
+      a.name || '',
+      a.type || '',
+      a.subtype || '',
+      a.tag || '',
+      a.site || a.factory || '',
+      a.dept || a.department || '',
+      a.owner || a.user || a.assignedTo || '',
+      a.serial || '',
+      a.manufacturer || a.vendor || a.brand || '',
+      a.model || '',
+      a.ipAddress || a.ip || '',
+      a.macAddress || a.mac || '',
+      a.interfaceName || a.nic || '',
+      a.managementUrl || '',
+      a.purchaseDate || '',
+      a.warranty || a.warrantyUntil || '',
+      a.assetValue ?? a.purchaseCost ?? a.value ?? 0,
+      a.osType || s.osType || '',
+      a.osVersion || a.os || s.osVersion || '',
+      a.storageCapacity || s.storageCapacity || '',
+      a.storageUnit || s.storageUnit || 'GB',
+      a.ramGb || s.ramGb || '',
+      a.ramSpec || s.ramSpec || '',
+      a.ssdCapacity || s.ssdCapacity || '',
+      a.ssdUnit || s.ssdUnit || 'GB',
+      a.ssdType || s.ssdType || '',
+      a.hddCapacity || s.hddCapacity || '',
+      a.hddUnit || s.hddUnit || 'GB',
+      a.cpu || s.cpu || '',
+      a.cpuGeneration || s.cpuGeneration || '',
+      a.graphics || s.graphics || '',
+      a.wifiAdapter || s.wifiAdapter || '',
+      a.osActivation || s.osActivation || '',
+      a.switchMake || s.switchMake || '',
+      a.switchModel || s.switchModel || '',
+      a.usablePorts || s.usablePorts || '',
+      a.switchManageability || s.switchManageability || '',
+      a.routerSpecs || s.routerSpecs || '',
+      a.firewallModel || s.firewallModel || '',
+      a.printerCategory || s.printerCategory || '',
+      a.printerMakeModel || s.printerMakeModel || '',
+      a.cameraTechnology || s.cameraTechnology || '',
+      a.cameraResolution || s.cameraResolution || '',
+      a.cameraLocation || s.cameraLocation || '',
+      a.linkedRecorder || s.linkedRecorder || '',
+      a.cameraChannel || s.cameraChannel || '',
+      a.channelCapacity || s.channelCapacity || '',
+      a.installedDisks || s.installedDisks || '',
+      a.retentionDays || s.retentionDays || '',
+      a.otherSpecs || s.otherSpecs || a.notes || ''
+    ];
+  }
+
+  window.executeAssetExport = function(format, customItems, customFilename){
+    closeAssetExportChoicesModal();
+    const items = customItems || getAssetsList();
+    const tmplData = (typeof window.__buildTemplateData === 'function') ? window.__buildTemplateData() : null;
+    const headers = tmplData?.headers || [
+      'Asset Name *', 'Device Type / Category *', 'Sub-Category', 'Asset Tag (Auto if blank)', 'Factory *', 'Department',
+      'Assigned User', 'Serial Number', 'Manufacturer / Brand', 'Model', 'IP Address', 'MAC Address', 'Interface Name',
+      'Management URL', 'Purchase Date', 'Warranty Until', 'Asset Value (INR)', 'OS Type', 'OS Name / Version',
+      'Storage Capacity', 'Storage Unit (GB/TB)', 'RAM (GB)', 'RAM Specs / Frequency', 'SSD Capacity', 'SSD Unit (GB/TB)',
+      'SSD Type', 'HDD Capacity', 'HDD Unit (GB/TB)', 'CPU / Processor', 'CPU Generation', 'GPU / Graphics',
+      'Wi-Fi Adapter', 'OS Activation Status', 'Switch Make', 'Switch Model', 'Usable Ports', 'Switch Manageability',
+      'Router / AP Specs', 'Firewall Model', 'Printer Category', 'Printer Make / Model', 'Camera Technology (IP/Analog)',
+      'Camera Resolution (MP)', 'Camera Mounting Location', 'Linked NVR / DVR', 'Recorder Channel', 'NVR/DVR Channels',
+      'NVR/DVR Installed Disks', 'Recording Retention (Days)', 'Other Device Specs / Notes'
+    ];
+
+    const dataRows = items.map(assetToRow48);
+    const dateStr = new Date().toISOString().slice(0, 10);
+
+    if(format === 'xlsx' && typeof window.__buildXlsxBytes === 'function'){
+      const guideRows = tmplData?.guideRows || [];
+      const sectionRows = tmplData?.sectionRows || [];
+      const bytes = window.__buildXlsxBytes([
+        { name: 'All Assets', rows: [headers, ...dataRows], freezeTop: true },
+        { name: 'Field Guide & Options', rows: guideRows, headerRow: false, sectionRows: sectionRows }
+      ]);
+      const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = customFilename || `Northstar-Assets-Backup-${dateStr}.xlsx`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+      if(typeof showToast === 'function') showToast(`✓ Exported ${items.length} assets to Excel (.xlsx)`);
+    } else {
+      const csvRow = r => r.map(v => '"' + String(v ?? '').replaceAll('"', '""') + '"').join(',');
+      const csv = [headers, ...dataRows].map(csvRow).join('\r\n');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = customFilename || `Northstar-Assets-Backup-${dateStr}.csv`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+      if(typeof showToast === 'function') showToast(`✓ Exported ${items.length} assets to CSV (.csv)`);
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      ensureModals();
+      renderOverviewDynamicTiles();
+    }, 100);
+  });
+
+  const siteSel = document.getElementById('globalSite');
+  siteSel?.addEventListener('change', () => {
+    renderOverviewDynamicTiles();
+  });
+
+  document.querySelectorAll('#siteChips button').forEach(b => {
+    b.addEventListener('click', () => {
+      setTimeout(renderOverviewDynamicTiles, 50);
+    });
+  });
+
+  if(typeof window.renderDashboard === 'function'){
+    const prevRD = window.renderDashboard;
+    window.renderDashboard = function(){
+      const r = prevRD.apply(this, arguments);
+      renderOverviewDynamicTiles();
+      return r;
+    };
+  }
+
+  if(typeof window.renderAssets === 'function'){
+    const prevRA = window.renderAssets;
+    window.renderAssets = function(){
+      const r = prevRA.apply(this, arguments);
+      renderOverviewDynamicTiles();
+      return r;
+    };
+  }
+
+  if(typeof window.go === 'function'){
+    const prevGo = window.go;
+    window.go = function(v){
+      const res = prevGo.apply(this, arguments);
+      if(v === 'dashboard') renderOverviewDynamicTiles();
+      return res;
+    };
+  }
 })();
 </script>
 </body>
