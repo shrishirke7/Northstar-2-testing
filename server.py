@@ -389,8 +389,8 @@ def initial_setup():
     answer_hashes = recovery_answer_hashes(body.get("recovery_answers"))
     if not full_name or not re.fullmatch(r"[A-Za-z0-9._@-]{3,80}", username):
         return jsonify(error="Enter the administrator name and a valid username (3–80 letters, numbers, dots, underscores, @, or hyphens)."), 400
-    if len(password) < 10 or len(password) > 1024:
-        return jsonify(error="Choose a password with at least 10 characters."), 400
+    if not password or len(password) > 1024:
+        return jsonify(error="Enter a password."), 400
     if not answer_hashes:
         return jsonify(error="Answer all three recovery questions (3–200 characters each)."), 400
     with db() as conn:
@@ -1997,7 +1997,7 @@ def recover_account_password():
     raw_answers = body.get("answers", [])
     new_password = str(body.get("new_password", ""))
     confirm_password = str(body.get("confirm_password", ""))
-    if not username or len(new_password) < 10 or len(new_password) > 1024 or new_password != confirm_password:
+    if not username or not new_password or len(new_password) > 1024 or new_password != confirm_password:
         return jsonify(message=RECOVERY_GENERIC_MESSAGE), 200
     normalized = [normalize_recovery_answer(a) for a in raw_answers] if isinstance(raw_answers, list) else []
     if len(normalized) != len(RECOVERY_QUESTIONS) or any(len(a) < 3 or len(a) > 200 for a in normalized):
@@ -2519,8 +2519,8 @@ def change_account_password():
     current_password = str(body.get("current_password", ""))
     new_password = str(body.get("new_password", ""))
     confirm_password = str(body.get("confirm_password", ""))
-    if len(new_password) < 10 or len(new_password) > 1024:
-        return jsonify(error="New password must be at least 10 characters long"), 400
+    if not new_password or len(new_password) > 1024:
+        return jsonify(error="Enter a new password"), 400
     if new_password != confirm_password:
         return jsonify(error="New password and confirmation do not match"), 400
     username = session["profile"].get("username", "")
@@ -2712,8 +2712,8 @@ def save_data():
                             user["recovery_answer_hashes"] = prior["recovery_answer_hashes"]
                         pw_changed = False
                         if new_password:
-                            if len(new_password) < 10 or len(new_password) > 1024:
-                                return jsonify(error="Account passwords must be at least 10 characters long."), 400
+                            if len(new_password) > 1024:
+                                return jsonify(error="Password is too long."), 400
                             user["password_hash"] = generate_password_hash(new_password)
                             user["auth_version"] = int(prior.get("auth_version", 0) or 0) + 1
                             pw_changed = True
