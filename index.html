@@ -229,19 +229,38 @@
 .ov-tile-val{font:800 24px 'Manrope',sans-serif;color:#14221a;margin:2px 0 1px}
 .ov-tile-foot{font-size:10.5px;color:#708277;line-height:1.3;display:flex;align-items:center;gap:5px}
 
-/* Overview Drilldown Modal Sub-tiles */
-.ov-drill-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-bottom:14px}
-.ov-drill-subtile{background:#fff;border:1px solid #dbe6df;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:.15s}
-.ov-drill-subtile:hover{border-color:#157a54;box-shadow:0 8px 20px rgba(15,23,42,.08);background:#f9fcf9}
-.ov-drill-subhead{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:800;color:#1a2b22}
-.ov-drill-count{font:800 20px 'Manrope',sans-serif;color:#157a54}
-.ov-drill-bar-track{width:100%;height:5px;background:#e8f0ec;border-radius:99px;overflow:hidden}
-.ov-drill-bar-fill{height:100%;background:#157a54;border-radius:99px}
-.ov-drill-meta{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#5c6f64}
-
-/* Overview Customize Modal */
-.ov-cust-list{display:grid;gap:7px;max-height:280px;overflow-y:auto;padding-right:4px}
-.ov-cust-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid #e0ebe4;border-radius:10px;padding:8px 12px;font-size:12px}
+/* Valuation & Overview Shared Drilldown & Customize Modal Geometry */
+.val-modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.56);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:2600;display:none;align-items:center;justify-content:center;padding:18px}
+.val-modal-backdrop.open{display:flex}
+.val-modal-dialog, .val-drill-card{background:#ffffff !important;border-radius:18px;width:min(1040px,96vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 64px -12px rgba(15,23,42,.32);border:1px solid #e2e8f0;animation:valModalIn .18s cubic-bezier(.16,1,.3,1)}
+@keyframes valModalIn{from{opacity:0;transform:scale(.97) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.val-modal-head, .val-drill-head{padding:18px 24px 14px;border-bottom:1px solid #edf2ef;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;background:#ffffff;flex-shrink:0}
+.val-modal-body{padding:16px 24px;overflow-y:auto;flex:1;background:#ffffff}
+.val-modal-foot, .val-drill-foot{padding:14px 24px;border-top:1px solid #edf2ef;background:#ffffff;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;flex-shrink:0}
+.val-dim-tabs{display:inline-flex;flex-wrap:wrap;gap:6px;background:#f1f5f9;padding:4px;border-radius:11px}
+.val-tab, .val-tab-btn{border:none;background:transparent;color:#475569;font-size:12px;font-weight:700;padding:6px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.15s}
+.val-tab.active, .val-tab-btn.active{background:#157a54;color:#fff;box-shadow:0 2px 6px rgba(21,122,84,.25)}
+.val-drill-kicker{font-size:10.5px;font-weight:800;color:#157a54;letter-spacing:.9px;text-transform:uppercase}
+.val-drill-title{font-size:20px;font-weight:800;color:#14221a;margin:4px 0 2px}
+.val-drill-sub{font-size:12px;color:#64748b;margin:0}
+.val-tiles-grid, .ov-drill-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;padding:0}
+.val-tile, .ov-drill-subtile{background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;justify-content:space-between;gap:8px;cursor:pointer;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease;text-align:left;position:relative}
+.val-tile:hover, .ov-drill-subtile:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(15,23,42,.08);border-color:#157a54}
+.val-tile.static{cursor:default}.val-tile.static:hover{transform:none;box-shadow:none;border-color:#e2e8f0}
+.val-tile-head, .ov-drill-subhead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.val-tile-title{font-size:13px;font-weight:800;color:#1e3025;line-height:1.3}
+.val-tile-amt, .ov-drill-count{font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-.02em;line-height:1.15}
+.val-tile-sub, .ov-drill-meta{font-size:11.5px;color:#64748b;line-height:1.35}
+.val-icon{width:38px;height:38px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
+.val-icon svg{width:19px;height:19px;stroke-width:2}
+.val-bar-track, .ov-drill-bar-track{height:5px;border-radius:999px;background:#eef2f6;overflow:hidden;width:100%}
+.val-bar-fill, .ov-drill-bar-fill{height:100%;border-radius:999px;transition:width .25s ease}
+.val-tile-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:11px;color:#64748b;margin-top:2px}
+.val-drill-hint{font-size:10.5px;font-weight:700;color:#157a54;background:#e7f4ed;padding:3px 10px;border-radius:999px;white-space:nowrap}
+/* Overview Customize Modal Single Unified Scrollbar */
+.ov-cust-list{display:flex;flex-direction:column;gap:8px;overflow:visible;max-height:none}
+.ov-cust-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid #e0ebe4;border-radius:12px;padding:10px 14px;font-size:12px;transition:box-shadow .15s}
+.ov-cust-row:hover{box-shadow:0 2px 8px rgba(0,0,0,0.04);border-color:#c8dbcf}
 .ov-cust-drag-handle{cursor:grab;color:#829288;font-size:16px}
 </style></head>
 <body>
@@ -1205,6 +1224,7 @@ window.deleteRepairCase=async function(caseId){if(document.body.classList.contai
   const bar=Number.isFinite(sharePct)?'<div class="val-bar-track"><div class="val-bar-fill" style="width:'+Math.max(2,Math.min(100,sharePct)).toFixed(1)+'%;background:'+t.bar+'"></div></div>':'';
   return '<'+tag+' class="val-tile'+(clickable?'':' static')+'"><div><div class="val-tile-head"><div><div class="val-tile-title">'+escHtml(title)+'</div><div class="val-tile-amt" style="margin-top:4px">'+escHtml(amount)+'</div></div><div class="val-icon" style="background:'+t.bg+';color:'+t.fg+'">'+t.svg+'</div></div>'+(sub?'<div class="val-tile-sub" style="margin-top:5px">'+sub+'</div>':'')+'</div>'+bar+'<div class="val-tile-foot"><span>'+escHtml(footLeft||'')+'</span>'+(clickable?'<span class="val-drill-hint">Drill down ➔</span>':'')+'</div>'+endTag;
  }
+ window.valTheme=valTheme;window.valTileHtml=valTileHtml;
  function valScope(){
   const site=document.getElementById('valuationFactory')?.value||'';
   const dept=document.getElementById('valuationDept')?.value||'';
@@ -9503,14 +9523,16 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       const d = document.createElement('div');
       d.id = 'ovDrillModal';
       d.className = 'val-modal-backdrop';
+      d.setAttribute('role', 'dialog');
+      d.setAttribute('aria-modal', 'true');
       d.style.display = 'none';
       d.innerHTML = `
-        <div class="val-drill-card" style="max-width:960px;width:95%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
-          <div class="val-drill-head">
+        <div class="val-modal-dialog">
+          <div class="val-modal-head">
             <div>
-              <div class="val-drill-kicker" id="ovDrillKicker">LEVEL 1 · SECONDARY BREAKDOWN</div>
-              <h2 id="ovDrillTitle" style="margin:2px 0 4px;font-size:18px;color:#14221a">Drilldown</h2>
-              <div class="val-drill-sub" id="ovDrillSubtitle">Breakdown of matching inventory assets</div>
+              <div class="eyebrow" id="ovDrillKicker">LEVEL 1 · SECONDARY BREAKDOWN (CATEGORY)</div>
+              <h2 id="ovDrillTitle" style="margin:4px 0 2px;font-size:20px;font-weight:800;color:#14221a">Total assets</h2>
+              <div class="panel-sub" id="ovDrillSubtitle">Breakdown of matching inventory assets</div>
             </div>
             <div style="display:flex;align-items:center;gap:8px">
               <button type="button" class="btn" id="ovDrillExportBtn" onclick="exportCurrentDrillList()">↓ Export List</button>
@@ -9518,27 +9540,28 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
             </div>
           </div>
 
-          <div style="padding:10px 18px 0;display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #e5ede8;background:#fafdfb;flex-wrap:wrap">
-            <div class="val-tab-strip" id="ovDrillDimTabs" style="display:flex;gap:6px">
-              <button type="button" class="val-tab-btn active" data-ov-dim="category">By Category</button>
-              <button type="button" class="val-tab-btn" data-ov-dim="factory">By Factory</button>
-              <button type="button" class="val-tab-btn" data-ov-dim="department">By Department</button>
-              <button type="button" class="val-tab-btn" data-ov-dim="status">By Status</button>
-              <button type="button" class="val-tab-btn" data-ov-dim="user">By User</button>
+          <div id="ovDrillTabsWrap" style="padding:10px 24px 0;background:#ffffff;display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #edf2ef">
+            <div class="val-dim-tabs" id="ovDrillDimTabs">
+              <button type="button" class="val-tab active" data-ov-dim="category">By Category</button>
+              <button type="button" class="val-tab" data-ov-dim="factory">By Factory</button>
+              <button type="button" class="val-tab" data-ov-dim="department">By Department</button>
+              <button type="button" class="val-tab" data-ov-dim="status">By Status</button>
+              <button type="button" class="val-tab" data-ov-dim="user">By User</button>
             </div>
             <div id="ovDrillBackBtnWrap" style="display:none">
-              <button type="button" class="btn" onclick="backToDrillLevel1()" style="font-size:11px;padding:4px 9px">← Back to secondary tiles</button>
+              <button type="button" class="btn" onclick="backToDrillLevel1()" style="font-size:11.5px;padding:5px 12px;display:inline-flex;align-items:center;gap:6px">← Back to secondary tiles</button>
             </div>
           </div>
 
-          <div style="flex:1;overflow-y:auto;padding:16px 18px" id="ovDrillBody"></div>
+          <div class="val-modal-body" id="ovDrillBody"></div>
 
-          <div class="val-drill-foot" id="ovDrillFoot">
-            <span id="ovDrillSummary">Reconciled with crystal-clear accuracy.</span>
-            <button type="button" class="btn" onclick="closeOverviewDrilldown()" style="padding:4px 12px;font-size:11.5px">Done</button>
+          <div class="val-modal-foot" id="ovDrillFoot">
+            <div id="ovDrillSummary" style="font-size:12.5px;font-weight:700;color:#0f172a">Reconciled with crystal-clear accuracy.</div>
+            <div style="font-size:11.5px;color:#64748b">Every asset and rupee accounted cleanly with zero duplicate counting.</div>
           </div>
         </div>
       `;
+      d.addEventListener('click', e => { if(e.target === d) closeOverviewDrilldown(); });
       document.body.appendChild(d);
     }
 
@@ -9546,22 +9569,24 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       const c = document.createElement('div');
       c.id = 'ovCustomizeModal';
       c.className = 'val-modal-backdrop';
+      c.setAttribute('role', 'dialog');
+      c.setAttribute('aria-modal', 'true');
       c.style.display = 'none';
       c.innerHTML = `
-        <div class="val-drill-card" style="max-width:840px;width:95%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
-          <div class="val-drill-head">
+        <div class="val-modal-dialog" style="max-width:860px">
+          <div class="val-modal-head">
             <div>
-              <div class="val-drill-kicker">OVERVIEW DASHBOARD CUSTOMIZATION</div>
-              <h2 style="margin:2px 0 4px;font-size:18px;color:#14221a">Customize Metric Tiles</h2>
-              <div class="val-drill-sub">Add custom metric tiles, reorder, filter online/offline, and configure category or factory views.</div>
+              <div class="eyebrow">OVERVIEW DASHBOARD CUSTOMIZATION</div>
+              <h2 style="margin:4px 0 2px;font-size:20px;font-weight:800;color:#14221a">Customize Metric Tiles</h2>
+              <div class="panel-sub">Add custom metric tiles, reorder, filter online/offline, and configure category or factory views.</div>
             </div>
             <button type="button" class="btn" onclick="closeOverviewCustomizeModal()">✕ Close</button>
           </div>
 
-          <div style="flex:1;overflow-y:auto;padding:16px 18px;display:grid;gap:16px">
-            <div style="background:#f8faf9;border:1px solid #dbe6df;border-radius:12px;padding:14px">
-              <div style="font-size:12px;font-weight:800;color:#157a54;margin-bottom:10px">＋ ADD NEW CUSTOM TILE</div>
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+          <div class="val-modal-body" style="display:flex;flex-direction:column;gap:18px">
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:18px">
+              <div style="font-size:11.5px;font-weight:800;color:#157a54;letter-spacing:0.5px;margin-bottom:12px">＋ ADD NEW CUSTOM TILE</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px">
                 <label class="login-field" style="margin:0">
                   <span style="font-size:11px;font-weight:700">Tile Title *</span>
                   <input id="ovNewTitle" placeholder="e.g. ARG Online Laptops" value="My Custom Metric">
@@ -9633,8 +9658,8 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
                 </label>
               </div>
 
-              <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-                <div style="font-size:11px;font-weight:700;color:#6b7280">LIVE PREVIEW:</div>
+              <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e5ede8;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                <div style="font-size:11px;font-weight:700;color:#64748b">LIVE PREVIEW:</div>
                 <div class="ov-custom-tile" id="ovTilePreviewCard" style="width:230px;pointer-events:none;margin:0">
                   <div class="ov-tile-top">
                     <span class="ov-tile-title" id="ovPrevTitle">My Custom Metric</span>
@@ -9643,25 +9668,26 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
                   <div class="ov-tile-val" id="ovPrevVal">0</div>
                   <div class="ov-tile-foot" id="ovPrevFoot">Preview count</div>
                 </div>
-                <button type="button" class="btn primary" id="ovAddTileBtn" style="margin-left:auto" onclick="addNewCustomTile()">＋ Add this Tile</button>
+                <button type="button" class="btn primary" id="ovAddTileBtn" style="margin-left:auto;padding:8px 18px" onclick="addNewCustomTile()">＋ Add this Tile</button>
               </div>
             </div>
 
             <div>
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                <span style="font-size:12px;font-weight:800;color:#213329">CONFIGURED TILES (<span id="ovCustTileCount">0</span>)</span>
-                <button type="button" class="btn" onclick="resetOverviewTilesToDefaults()" style="font-size:11px;padding:3px 8px;color:#b53d38">↺ Reset to Defaults</button>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                <span style="font-size:12.5px;font-weight:800;color:#14221a">CONFIGURED TILES (<span id="ovCustTileCount">0</span>)</span>
+                <button type="button" class="btn" onclick="resetOverviewTilesToDefaults()" style="font-size:11px;padding:4px 10px;color:#b53d38;border-color:#fecaca;background:#fff5f5">↺ Reset to Defaults</button>
               </div>
               <div class="ov-cust-list" id="ovCustTilesList"></div>
             </div>
           </div>
 
-          <div class="val-drill-foot">
-            <span style="font-size:11px;color:#65746b">Dynamic layout accommodates 100+ tiles with auto-scaling grid.</span>
-            <button type="button" class="btn primary" onclick="closeOverviewCustomizeModal()">✓ Save &amp; Apply</button>
+          <div class="val-modal-foot">
+            <span style="font-size:12px;color:#64748b">Dynamic layout accommodates 100+ tiles with auto-scaling grid.</span>
+            <button type="button" class="btn primary" onclick="closeOverviewCustomizeModal()" style="padding:7px 18px;font-weight:700">✓ Save &amp; Apply</button>
           </div>
         </div>
       `;
+      c.addEventListener('click', e => { if(e.target === c) closeOverviewCustomizeModal(); });
       document.body.appendChild(c);
       bindCustomizeLivePreview();
     }
@@ -9670,29 +9696,31 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       const e = document.createElement('div');
       e.id = 'assetExportChoicesModal';
       e.className = 'val-modal-backdrop';
+      e.setAttribute('role', 'dialog');
+      e.setAttribute('aria-modal', 'true');
       e.style.display = 'none';
       e.innerHTML = `
-        <div class="val-drill-card" style="max-width:540px;width:95%">
-          <div class="val-drill-head">
+        <div class="val-modal-dialog" style="max-width:540px">
+          <div class="val-modal-head">
             <div>
-              <div class="val-drill-kicker">BACKUP &amp; REPORTING EXPORT</div>
-              <h2 style="margin:2px 0 4px;font-size:18px;color:#14221a">Export Asset Inventory</h2>
-              <div class="val-drill-sub">Export 100% of your asset register with all 48 columns for perfect re-importable backups.</div>
+              <div class="eyebrow">BACKUP &amp; REPORTING EXPORT</div>
+              <h2 style="margin:4px 0 2px;font-size:20px;font-weight:800;color:#14221a">Export Asset Inventory</h2>
+              <div class="panel-sub">Export 100% of your asset register with all 48 columns for perfect re-importable backups.</div>
             </div>
             <button type="button" class="btn" onclick="closeAssetExportChoicesModal()">✕</button>
           </div>
 
-          <div style="padding:18px;display:grid;gap:12px">
-            <button type="button" class="btn" onclick="executeAssetExport('xlsx')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;text-align:left;border:1.5px solid #157a54;background:#f3faf6">
-              <span style="font-size:26px">📊</span>
+          <div class="val-modal-body" style="padding:20px 24px;display:grid;gap:12px">
+            <button type="button" class="btn" onclick="executeAssetExport('xlsx')" style="display:flex;align-items:center;gap:14px;padding:14px 16px;text-align:left;border:1.5px solid #157a54;background:#f3faf6;border-radius:12px">
+              <span style="font-size:28px">📊</span>
               <div>
                 <b style="font-size:13px;color:#157a54;display:block">Full Excel Workbook (.xlsx) — Recommended</b>
                 <span style="font-size:11.5px;color:#475569">Genuine multi-sheet Excel with frozen header row, full 48 data columns and complete field guide sheet. Re-imports seamlessly.</span>
               </div>
             </button>
 
-            <button type="button" class="btn" onclick="executeAssetExport('csv')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;text-align:left;border:1px solid #d5e2da;background:#fff">
-              <span style="font-size:26px">📄</span>
+            <button type="button" class="btn" onclick="executeAssetExport('csv')" style="display:flex;align-items:center;gap:14px;padding:14px 16px;text-align:left;border:1px solid #d5e2da;background:#fff;border-radius:12px">
+              <span style="font-size:28px">📄</span>
               <div>
                 <b style="font-size:13px;color:#1e3025;display:block">Comma-Separated Values (.csv)</b>
                 <span style="font-size:11.5px;color:#64748b">Universal CSV with UTF-8 BOM encoding for Excel, Google Sheets and automated scripts.</span>
@@ -9700,13 +9728,24 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
             </button>
           </div>
 
-          <div class="val-drill-foot">
+          <div class="val-modal-foot">
             <span style="font-size:11px;color:#6b7280">100% Symmetrical: Exported files match 48/48 importer columns.</span>
             <button type="button" class="btn" onclick="closeAssetExportChoicesModal()">Cancel</button>
           </div>
         </div>
       `;
+      e.addEventListener('click', ev => { if(ev.target === e) closeAssetExportChoicesModal(); });
       document.body.appendChild(e);
+    }
+    if(!window._ovModalsKeyBound){
+      window._ovModalsKeyBound = true;
+      document.addEventListener('keydown', ev => {
+        if(ev.key === 'Escape'){
+          closeOverviewDrilldown();
+          closeOverviewCustomizeModal();
+          closeAssetExportChoicesModal();
+        }
+      });
     }
   }
 
@@ -9761,13 +9800,19 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     drillState.search = '';
 
     const modal = document.getElementById('ovDrillModal');
-    if(modal) modal.style.display = 'flex';
+    if(modal){
+      modal.classList.add('open');
+      modal.style.display = 'flex';
+    }
     renderDrillModalContent();
   };
 
   window.closeOverviewDrilldown = function(){
     const modal = document.getElementById('ovDrillModal');
-    if(modal) modal.style.display = 'none';
+    if(modal){
+      modal.classList.remove('open');
+      modal.style.display = 'none';
+    }
   };
 
   function getMatchingAssetsForTile(tileId){
@@ -9793,7 +9838,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
 
     if(titleEl) titleEl.textContent = t.title;
     if(kickerEl) kickerEl.textContent = drillState.level === 1 ? `LEVEL 1 · SECONDARY BREAKDOWN (${drillState.dimension.toUpperCase()})` : `LEVEL 2 · ITEMIZED ASSETS (${drillState.selectedGroupKey})`;
-    if(subEl) subEl.textContent = `${matching.length} total assets matching "${t.title}".`;
+    if(subEl) subEl.textContent = `${matching.length} total assets matching "${t.title}". Click any secondary tile for full itemized list.`;
 
     if(drillState.level === 1){
       if(backBtnWrap) backBtnWrap.style.display = 'none';
@@ -9819,33 +9864,47 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
 
       const totalCount = Math.max(1, matching.length);
       const groupEntries = Object.entries(groups).sort((a,b) => b[1].length - a[1].length);
+      const totalRupees = matching.reduce((acc, x) => acc + (Number(x.assetValue || x.purchaseCost || x.cost || x.value) || 0), 0);
 
       bodyEl.innerHTML = `
-        <div class="ov-drill-grid">
+        <div class="val-tiles-grid" style="padding:4px 0 12px">
           ${groupEntries.map(([grpKey, arr]) => {
-            const pct = Math.round((arr.length / totalCount) * 100);
+            const pct = Math.max(3, Math.round((arr.length / totalCount) * 100));
             const valSum = arr.reduce((acc, x) => acc + (Number(x.assetValue || x.purchaseCost || x.cost || x.value) || 0), 0);
+            const theme = (typeof window.valTheme === 'function' ? window.valTheme(grpKey) : null) || { bg: '#e7f6ee', fg: '#157a54', bar: '#157a54', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="2" width="20" height="20" rx="3"/></svg>' };
+            const amountDisplay = valSum > 0 ? ('₹' + valSum.toLocaleString('en-IN')) : (arr.length + ' assets');
+            const subDisplay = `${arr.length} asset${arr.length === 1 ? '' : 's'}${valSum > 0 ? ' · Purchase ₹' + valSum.toLocaleString('en-IN') : ' · ' + pct + '% of total'}`;
             return `
-              <div class="ov-drill-subtile" onclick="openDrillLevel2('${esc(grpKey)}')">
-                <div class="ov-drill-subhead">
-                  <span>${esc(grpKey)}</span>
-                  <span class="ov-drill-count">${arr.length}</span>
+              <button type="button" class="val-tile ov-drill-subtile" onclick="openDrillLevel2('${esc(grpKey)}')">
+                <div>
+                  <div class="val-tile-head">
+                    <div>
+                      <div class="val-tile-title">${esc(grpKey)}</div>
+                      <div class="val-tile-amt" style="margin-top:4px">${amountDisplay}</div>
+                    </div>
+                    <div class="val-icon" style="background:${theme.bg};color:${theme.fg}">
+                      ${theme.svg || '▦'}
+                    </div>
+                  </div>
+                  <div class="val-tile-sub" style="margin-top:5px">${subDisplay}</div>
                 </div>
-                <div class="ov-drill-bar-track">
-                  <div class="ov-drill-bar-fill" style="width:${pct}%"></div>
+                <div class="val-bar-track">
+                  <div class="val-bar-fill" style="width:${pct}%;background:${theme.bar || '#157a54'}"></div>
                 </div>
-                <div class="ov-drill-meta">
-                  <span>${pct}% of ${t.title}</span>
-                  <span>${valSum > 0 ? '₹' + valSum.toLocaleString('en-IN') : 'Click to inspect'}</span>
+                <div class="val-tile-foot">
+                  <span>Click for itemized list</span>
+                  <span class="val-drill-hint">Drill down ➔</span>
                 </div>
-                <button type="button" class="btn" style="margin-top:6px;width:100%;font-size:11px;padding:4px 8px;font-weight:700;color:#157a54;background:#f3faf5;border-color:#cbe5d6">
-                  Drill down →
-                </button>
-              </div>
+              </button>
             `;
-          }).join('')}
+          }).join('') || '<div class="empty-state" style="padding:40px;text-align:center;color:#64748b">No devices found in this secondary breakdown.</div>'}
         </div>
       `;
+
+      const footSummary = document.getElementById('ovDrillSummary');
+      if(footSummary){
+        footSummary.textContent = `${groupEntries.length} secondary groups · ${matching.length} assets${totalRupees > 0 ? ' · ₹' + totalRupees.toLocaleString('en-IN') : ''}`;
+      }
     } else {
       if(backBtnWrap) backBtnWrap.style.display = 'block';
       if(dimTabsWrap) dimTabsWrap.style.display = 'none';
@@ -9869,7 +9928,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
 
       bodyEl.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-          <input class="filter-input" id="ovDrillSearchInput" value="${esc(drillState.search)}" placeholder="⌕ Search itemized devices..." style="width:260px">
+          <input class="filter-input" id="ovDrillSearchInput" value="${esc(drillState.search)}" placeholder="⌕ Search itemized devices..." style="width:280px">
           <span style="font-size:12px;font-weight:700;color:#55665c">Showing <b>${items.length}</b> devices</span>
         </div>
         <div class="table-wrap">
@@ -9891,7 +9950,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
                 const isOnline = st === 'online' || st === 'healthy' || st === 'ok';
                 return `
                   <tr>
-                    <td><b>${esc(a.name||'Device')}</b><br><small style="color:#718096">${esc(a.tag||'-')}</small></td>
+                    <td><b><a href="#" style="color:#157a54;text-decoration:none" onclick="event.preventDefault();closeOverviewDrilldown();if(typeof openAssetDetails==='function')openAssetDetails('${esc(a.tag||'')}');">${esc(a.name||'Device')}</a></b><br><small style="color:#718096">${esc(a.tag||'-')}</small></td>
                     <td>${esc(a.type||'-')}<br><small style="color:#718096">${esc(a.subtype||'')}</small></td>
                     <td>${esc(a.ipAddress||'-')}<br><small style="color:#718096">${esc(a.cpu || a.ramGb || a.storageCapacity || '')}</small></td>
                     <td>${esc(a.user || a.assignedTo || 'Unassigned')}</td>
@@ -9906,6 +9965,12 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
           </table>
         </div>
       `;
+
+      const level2Rupees = items.reduce((acc, x) => acc + (Number(x.assetValue || x.purchaseCost || x.cost || x.value) || 0), 0);
+      const footSummary = document.getElementById('ovDrillSummary');
+      if(footSummary){
+        footSummary.textContent = `${items.length} itemized record${items.length === 1 ? '' : 's'}${level2Rupees > 0 ? ' · Total: ₹' + level2Rupees.toLocaleString('en-IN') : ''}`;
+      }
 
       document.getElementById('ovDrillSearchInput')?.addEventListener('input', e => {
         drillState.search = e.target.value;
@@ -9948,12 +10013,18 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     ensureModals();
     renderCustomizeList();
     const modal = document.getElementById('ovCustomizeModal');
-    if(modal) modal.style.display = 'flex';
+    if(modal){
+      modal.classList.add('open');
+      modal.style.display = 'flex';
+    }
   };
 
   window.closeOverviewCustomizeModal = function(){
     const modal = document.getElementById('ovCustomizeModal');
-    if(modal) modal.style.display = 'none';
+    if(modal){
+      modal.classList.remove('open');
+      modal.style.display = 'none';
+    }
     renderOverviewDynamicTiles();
   };
 
