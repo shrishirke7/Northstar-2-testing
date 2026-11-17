@@ -16,7 +16,8 @@ chmod +x "$INSTALL_DIR"/*.sh "$INSTALL_DIR/northstar-updater.py" 2>/dev/null || 
 if [[ -f "$INSTALL_DIR/systemd/northstar-updater.service" ]]; then
   install -m 0644 "$INSTALL_DIR/systemd/northstar-updater.service" /etc/systemd/system/northstar-updater.service
   systemctl daemon-reload
-  systemctl enable --now northstar-updater.service || systemctl restart northstar-updater.service || true
+  systemctl enable northstar-updater.service >/dev/null 2>&1 || true
+  systemctl restart northstar-updater.service || true
 fi
 cd "$INSTALL_DIR"
 set -a
@@ -84,6 +85,10 @@ if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
   ufw allow 80/tcp >/dev/null 2>&1 || true
   ufw allow 443/tcp >/dev/null 2>&1 || true
   ufw allow 5353/udp >/dev/null 2>&1 || true
+  ufw allow 5355/udp >/dev/null 2>&1 || true
+  ufw allow 137/udp >/dev/null 2>&1 || true
+  ufw allow "${HTTP_PORT:-8848}/tcp" >/dev/null 2>&1 || true
+  ufw allow "${HTTPS_PORT:-8849}/tcp" >/dev/null 2>&1 || true
   ufw allow 8848/tcp >/dev/null 2>&1 || true
   ufw allow 8849/tcp >/dev/null 2>&1 || true
 fi
@@ -92,4 +97,14 @@ bash ./backup.sh manual
 docker compose pull web
 docker compose up -d
 docker compose up -d --force-recreate web
+python3 - "$SITE_NAME" "${HTTP_PORT:-8848}" <<'PYNET' || true
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("updater", "/opt/northstar-it/northstar-updater.py")
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+tokens, mdns_hosts, short_names = mod._parse_site_tokens(sys.argv[1])
+if tokens:
+    mod._sync_avahi_and_etc_hosts(tokens, mdns_hosts, short_names)
+    mod._configure_host_nginx(tokens, mdns_hosts, short_names, int(sys.argv[2]))
+PYNET
 echo "Update complete. Existing .env, database, uploads, and backups were preserved."

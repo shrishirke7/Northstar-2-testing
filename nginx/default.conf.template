@@ -1,6 +1,11 @@
 log_format northstar_safe '$remote_addr - $remote_user [$time_local] "$request_method $uri $server_protocol" $status $body_bytes_sent "$http_referer" "$http_user_agent"';
 access_log /dev/stdout northstar_safe;
 
+map $http_x_forwarded_proto $forwarded_proto {
+    default $http_x_forwarded_proto;
+    ""      $scheme;
+}
+
 server {
     listen ${HTTP_PORT} default_server;
     server_name ${APP_FQDN} ${SITE_NAME} _ localhost;
@@ -21,7 +26,7 @@ server {
         proxy_set_header Host $http_host;
         proxy_set_header X-Original-Method $request_method;
         proxy_set_header X-Original-Origin $http_origin;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
     }
 
     # Only the browser WebRTC endpoint is proxied; go2rtc administration stays private.
@@ -30,7 +35,7 @@ server {
         proxy_pass http://go2rtc:1984/api/webrtc;
         proxy_http_version 1.1;
         proxy_set_header Host $http_host;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
         proxy_read_timeout 60s;
         proxy_send_timeout 60s;
     }
@@ -43,7 +48,7 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $http_host;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
         proxy_read_timeout 3600s;
         proxy_send_timeout 60s;
     }
@@ -59,7 +64,7 @@ server {
         proxy_set_header X-Forwarded-Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;
     }
@@ -71,7 +76,7 @@ server {
         proxy_set_header X-Forwarded-Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;
     }

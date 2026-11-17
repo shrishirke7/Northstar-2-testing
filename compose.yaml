@@ -25,12 +25,12 @@ services:
     environment:
       DATABASE_URL: postgresql://northstar:${DB_PASSWORD}@db:5432/northstar
       UPLOAD_DIR: /app/uploads
-      COOKIE_SECURE: "true"
+      COOKIE_SECURE: "${COOKIE_SECURE:-false}"
       GO2RTC_API: http://go2rtc:1984
     volumes:
       - ./uploads:/app/uploads
       - ./backups:/backups
-      - ./secrets:/app/secrets:ro
+      - ./secrets/nginx.crt:/app/secrets/nginx.crt:ro
       - /run/northstar-updater:/run/northstar-updater
     depends_on:
       db:
@@ -49,7 +49,7 @@ services:
       SCANNER_URL: http://127.0.0.1:${APP_PORT:-18000}
     network_mode: host
     cap_drop: [ALL]
-    cap_add: [NET_RAW]
+    cap_add: [NET_RAW, NET_BIND_SERVICE]
     depends_on: [app]
 
   web:

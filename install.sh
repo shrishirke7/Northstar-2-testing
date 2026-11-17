@@ -141,13 +141,15 @@ if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
   ufw allow 80/tcp >/dev/null 2>&1 || true
   ufw allow 443/tcp >/dev/null 2>&1 || true
   ufw allow 5353/udp >/dev/null 2>&1 || true
+  ufw allow 5355/udp >/dev/null 2>&1 || true
+  ufw allow 137/udp >/dev/null 2>&1 || true
   ufw allow "${HTTP_PORT}/tcp" >/dev/null 2>&1 || true
   ufw allow "${HTTPS_PORT}/tcp" >/dev/null 2>&1 || true
   ufw allow 8848/tcp >/dev/null 2>&1 || true
   ufw allow 8849/tcp >/dev/null 2>&1 || true
   ufw allow 8555/tcp >/dev/null 2>&1 || true
   ufw allow 8555/udp >/dev/null 2>&1 || true
-  echo "Opened UFW ports: 80, 443, 5353/udp, ${HTTP_PORT}/tcp, ${HTTPS_PORT}/tcp, 8555/tcp+udp"
+  echo "Opened UFW ports: 80, 443, 5353/5355/137/udp, ${HTTP_PORT}/tcp, ${HTTPS_PORT}/tcp, 8555/tcp+udp"
 fi
 
 cd "$INSTALL_DIR"
@@ -166,9 +168,20 @@ if [[ -d "$INSTALL_DIR/systemd" ]]; then
   systemctl daemon-reload
   systemctl enable --now northstar-backup-daily.timer northstar-backup-weekly.timer northstar-backup-monthly.timer
   if [[ -f /etc/systemd/system/northstar-updater.service ]]; then
-    systemctl enable --now northstar-updater.service
+    systemctl enable northstar-updater.service >/dev/null 2>&1 || true
+    systemctl restart northstar-updater.service || true
   fi
 fi
+python3 - "$SITE_NAME" "$HTTP_PORT" <<'PYNET' || true
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("updater", "/opt/northstar-it/northstar-updater.py")
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+tokens, mdns_hosts, short_names = mod._parse_site_tokens(sys.argv[1])
+if tokens:
+    mod._sync_avahi_and_etc_hosts(tokens, mdns_hosts, short_names)
+    mod._configure_host_nginx(tokens, mdns_hosts, short_names, int(sys.argv[2]))
+PYNET
 
 echo
 echo "======================================================================"

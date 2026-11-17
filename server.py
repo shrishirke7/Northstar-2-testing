@@ -494,7 +494,7 @@ def _serve_ca_cert_response():
             pass
     if not der:
         return jsonify(error="No HTTPS server certificate could be located on this host."), 404
-    path = (request.path or "").lower()
+    path = (getattr(request, "path", "") or "").lower()
     fname = "swarnshilp-server-ca.crt" if "swarnshilp" in path else "shree-server-ca.crt"
     want_dl = request.args.get("download", "").lower() in ("1", "true", "yes")
     disp = f'attachment; filename="{fname}"' if want_dl else f'inline; filename="{fname}"'
@@ -579,6 +579,14 @@ def initial_setup():
         if site_name:
             settings['siteName'] = site_name
         conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='settings'",(json.dumps(settings),))
+    if site_name:
+        def _delayed_apply(sn):
+            time.sleep(1.5)
+            try:
+                _updater_ipc({"action": "set_network_config", "siteName": sn, "httpPort": int(os.getenv("HTTP_PORT") or 8848), "httpsPort": int(os.getenv("HTTPS_PORT") or 8849)}, timeout=30)
+            except Exception:
+                pass
+        threading.Thread(target=_delayed_apply, args=(site_name,), daemon=True).start()
     return jsonify(ok=True, redirect="/"), 201
 
 
@@ -2169,9 +2177,15 @@ def scanner_heartbeat():
     if not _scanner_authorized():
         abort(403)
     state = {"last_seen": datetime.now(timezone.utc).isoformat()}
+    site_name = ""
     with db() as conn:
         conn.execute("INSERT INTO app_state(key,value) VALUES('scanner_heartbeat',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(state),))
-    return jsonify(ok=True)
+        srow = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
+        if srow and isinstance(srow[0], dict):
+            site_name = str(srow[0].get("siteName") or "").strip()
+    if not site_name:
+        site_name = str(os.getenv("SITE_NAME") or "").strip()
+    return jsonify(ok=True, siteName=site_name)
 
 
 @app.get("/api/internal/scanner-task")
@@ -3773,18 +3787,54 @@ def software_update_config():
     return jsonify(ok=True, repoUrl=repo_url, branch=branch)
 
 
+_HOST_TOKEN_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$")
+
+
+def _normalize_site_names(raw):
+    text = str(raw or "").strip()[:120]
+    if not text:
+        return ""
+    tokens = []
+    for part in re.split(r"[\s,]+", text):
+        p = part.strip()
+        if not p:
+            continue
+        if "://" in p:
+            p = p.split("://", 1)[1]
+        p = p.split("/", 1)[0].split("?", 1)[0].split(":", 1)[0].strip(".").lower()
+        if not p:
+            continue
+        try:
+            ipaddress.ip_address(p)
+            return None
+        except ValueError:
+            pass
+        if not _HOST_TOKEN_RE.match(p):
+            return None
+        tokens.append(p)
+    return " ".join(dict.fromkeys(tokens))
+
+
 @app.get("/api/admin/network-config")
 @administrator
 def admin_get_network_config():
     with db() as conn:
         row = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
     cfg = row[0] if row and isinstance(row[0], dict) else {}
+    ipc_status = _updater_ipc({"action": "get_network_status"}, timeout=2) if UPDATER_SOCK_PATH.exists() else {}
+    runtime = cfg.get("networkRuntime") if isinstance(cfg.get("networkRuntime"), dict) else {}
     return jsonify(
         ok=True,
         siteName=str(cfg.get("siteName") or ""),
-        httpPort=int(cfg.get("httpPort") or 8848),
-        httpsPort=int(cfg.get("httpsPort") or 8849),
+        httpPort=int(cfg.get("httpPort") or os.getenv("HTTP_PORT") or 8848),
+        httpsPort=int(cfg.get("httpsPort") or os.getenv("HTTPS_PORT") or 8849),
         updaterAvailable=bool(UPDATER_SOCK_PATH.exists()),
+        serverLanIp=str(ipc_status.get("serverLanIp") or runtime.get("serverLanIp") or ""),
+        hostNginxActive=bool(ipc_status.get("hostNginxActive", runtime.get("hostNginxActive", False))),
+        hostNginxApplied=bool(ipc_status.get("hostNginxApplied", runtime.get("hostNginxApplied", False))),
+        hostNginxDomains=ipc_status.get("hostNginxDomains", runtime.get("hostNginxDomains", [])),
+        hostNginxCertType=str(ipc_status.get("hostNginxCertType") or runtime.get("hostNginxCertType") or ""),
+        avahiActive=bool(ipc_status.get("avahiActive", runtime.get("avahiUpdated", False))),
     )
 
 
@@ -3792,7 +3842,10 @@ def admin_get_network_config():
 @administrator
 def admin_save_network_config():
     body = request.get_json(silent=True) or {}
-    site_name = str(body.get("siteName") or "").strip()[:120]
+    raw_site = str(body.get("siteName") or "").strip()[:120]
+    site_name = _normalize_site_names(raw_site)
+    if site_name is None:
+        return jsonify(error="Enter valid domain or LAN hostname(s), e.g. swarnshilp.local or shree-2026.ar-gold.in (without IP addresses or special symbols)."), 400
     try:
         http_port = int(body.get("httpPort") or 8848)
         https_port = int(body.get("httpsPort") or 8849)
@@ -3817,15 +3870,33 @@ def admin_save_network_config():
         "siteName": site_name,
         "httpPort": http_port,
         "httpsPort": https_port,
-    }, timeout=60)
+    }, timeout=90) if UPDATER_SOCK_PATH.exists() else {}
+
+    runtime = {
+        "serverLanIp": str(ipc_res.get("serverLanIp") or ""),
+        "hostNginxActive": bool(ipc_res.get("hostNginxActive")),
+        "hostNginxApplied": bool(ipc_res.get("hostNginxApplied")),
+        "hostNginxDomains": ipc_res.get("hostNginxDomains") or [],
+        "hostNginxCertType": str(ipc_res.get("hostNginxCertType") or ""),
+        "avahiUpdated": bool(ipc_res.get("avahiUpdated")),
+    }
+
+    if ipc_res.get("ok"):
+        with db() as conn:
+            row = conn.execute("SELECT value FROM app_state WHERE key='settings' FOR UPDATE").fetchone()
+            cfg = dict(row[0]) if row and isinstance(row[0], dict) else {}
+            cfg["networkRuntime"] = runtime
+            conn.execute("INSERT INTO app_state(key,value) VALUES('settings',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(cfg),))
 
     return jsonify(
         ok=True,
         siteName=site_name,
         httpPort=http_port,
         httpsPort=https_port,
+        updaterAvailable=bool(UPDATER_SOCK_PATH.exists()),
         dockerApplied=bool(ipc_res.get("ok")),
-        dockerMessage=ipc_res.get("message") or ("Settings saved in database. Restart containers or updater to apply to Docker." if not ipc_res.get("ok") else "Docker ports updated."),
+        dockerMessage=ipc_res.get("message") or ("Settings saved in database. LAN mDNS & LLMNR auto-discovery will activate within seconds; run sudo bash update.sh on Ubuntu to enable Port 80/443 Host Nginx multi-site integration." if not UPDATER_SOCK_PATH.exists() else "Network settings applied."),
+        **runtime,
     )
 
 
