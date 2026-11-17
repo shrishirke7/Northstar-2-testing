@@ -297,7 +297,7 @@ def check_api_origin():
         origin = request.headers.get("Origin")
         if origin and origin.rstrip("/") != request.host_url.rstrip("/"):
             abort(403)
-        if request.headers.get("X-Requested-With") != "NorthstarIT":
+        if request.headers.get("X-Requested-With") not in ("NorthstarIT", "ShreeIT"):
             abort(403)
 
 
@@ -310,6 +310,7 @@ def enforce_module_access():
     method = request.method
     if path.startswith(("/api/internal/", "/api/public/")) or path in (
         "/api/login", "/api/logout", "/api/profile", "/api/profile/preferences",
+        "/api/tile-configs",
         "/api/account/password", "/api/account/profile-picture", "/api/account/recovery-answers",
         "/api/account/logout-all", "/api/data", "/api/live-alerts-feed", "/api/live-pulse",
         "/api/live-stream",
@@ -464,7 +465,7 @@ def _serve_ca_cert_response():
     if not der:
         return jsonify(error="No HTTPS server certificate could be located on this host."), 404
     want_dl = request.args.get("download", "").lower() in ("1", "true", "yes")
-    disp = 'attachment; filename="swarnshilp-server-ca.crt"' if want_dl else 'inline; filename="swarnshilp-server-ca.crt"'
+    disp = 'attachment; filename="shree-server-ca.crt"' if want_dl else 'inline; filename="shree-server-ca.crt"'
     resp = Response(der, status=200, mimetype="application/x-x509-ca-cert")
     resp.headers["Content-Disposition"] = disp
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
@@ -472,6 +473,7 @@ def _serve_ca_cert_response():
     return resp
 
 
+@app.get("/shree-ca.crt")
 @app.get("/northstar-ca.crt")
 def pwa_ca_cert():
     return _serve_ca_cert_response()
@@ -1421,7 +1423,8 @@ def _pulse_versions(conn, include_internal=False):
           COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='assets'), '0'),
           COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='notifications'), '0'),
           COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='notification_history'), '0'),
-          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='network_map'), '0')
+          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='network_map'), '0'),
+          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='tile_configs'), '0')
     """).fetchone()
     ticket_rev = f"{row[0]}:{row[1]}:{row[2]}"
     out = {
@@ -1434,6 +1437,7 @@ def _pulse_versions(conn, include_internal=False):
         out["notificationsRev"] = str(row[5] or "0")
         out["historyRev"] = str(row[6] or "0")
         out["mapRev"] = str(row[7] or "0")
+        out["tileConfigsRev"] = str(row[8] or "0")
     return out
 
 
@@ -3513,14 +3517,18 @@ def bulk_delete_tickets():
 @administrator
 def backup_list():
     path = Path(os.getenv("BACKUP_DIR", "/backups"))
-    files = sorted(path.glob("northstar-*.tar.gz"), key=lambda x:x.stat().st_mtime, reverse=True) if path.exists() else []
+    files = sorted(
+        list(path.glob("northstar-*.tar.gz")) + list(path.glob("shree-*.tar.gz")),
+        key=lambda x: x.stat().st_mtime,
+        reverse=True,
+    ) if path.exists() else []
     return jsonify(backups=[{"name":p.name,"size":p.stat().st_size,"created":datetime.fromtimestamp(p.stat().st_mtime,timezone.utc).isoformat()} for p in files[:100]])
 
 
 @app.get("/api/backups/<path:name>")
 @administrator
 def download_backup(name):
-    if not re.fullmatch(r"northstar-(daily|weekly|monthly|manual)-[0-9T-]+\.tar\.gz", name):
+    if not re.fullmatch(r"(?:northstar|shree)-(daily|weekly|monthly|manual)-[0-9T-]+\.tar\.gz", name):
         abort(404)
     return send_from_directory(os.getenv("BACKUP_DIR", "/backups"), name, as_attachment=True)
 
@@ -3543,9 +3551,9 @@ def create_manual_backup():
 def restore_uploaded_backup():
     upload = request.files.get("backup")
     if not upload or not upload.filename:
-        return jsonify(error="Choose a Northstar .tar.gz backup file."), 400
+        return jsonify(error="Choose a Shree .tar.gz backup file."), 400
     if not upload.filename.lower().endswith((".tar.gz", ".tgz")):
-        return jsonify(error="Only Northstar .tar.gz backup files are supported."), 400
+        return jsonify(error="Only Shree .tar.gz backup files are supported."), 400
 
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="northstar-restore-") as temp_name:
@@ -3561,7 +3569,7 @@ def restore_uploaded_backup():
             )
         except subprocess.CalledProcessError as exc:
             app.logger.warning("Uploaded backup rejected: %s", (exc.stderr or exc.stdout)[-1000:])
-            return jsonify(error="Backup validation failed. Check that this is an intact Northstar backup."), 400
+            return jsonify(error="Backup validation failed. Check that this is an intact Shree backup."), 400
         except subprocess.TimeoutExpired:
             return jsonify(error="Backup validation took too long. No data was restored."), 504
 
@@ -3803,7 +3811,7 @@ def _run_internet_speedtest_worker(run_id):
             for p_url in probe_urls:
                 t0 = time.perf_counter()
                 try:
-                    req = URLRequest(p_url, headers={"User-Agent": "Northstar-SpeedMonitor/1.0", "Cache-Control": "no-store"})
+                    req = URLRequest(p_url, headers={"User-Agent": "Shree-SpeedMonitor/1.0", "Cache-Control": "no-store"})
                     with urlopen(req, timeout=3.5) as resp:
                         resp.read(64)
                     rtts.append((time.perf_counter() - t0) * 1000.0)
@@ -3831,7 +3839,7 @@ def _run_internet_speedtest_worker(run_id):
             try:
                 req = URLRequest(
                     "https://speed.cloudflare.com/__down?bytes=25000000",
-                    headers={"User-Agent": "Northstar-SpeedMonitor/1.0", "Cache-Control": "no-store"},
+                    headers={"User-Agent": "Shree-SpeedMonitor/1.0", "Cache-Control": "no-store"},
                 )
                 with urlopen(req, timeout=6.0) as resp:
                     while not dl_stop.is_set():
@@ -3881,7 +3889,7 @@ def _run_internet_speedtest_worker(run_id):
                     conn_http = http.client.HTTPSConnection("speed.cloudflare.com", timeout=5.0)
                     try:
                         conn_http.putrequest("POST", "/__up")
-                        conn_http.putheader("User-Agent", "Northstar-SpeedMonitor/1.0")
+                        conn_http.putheader("User-Agent", "Shree-SpeedMonitor/1.0")
                         conn_http.putheader("Content-Type", "application/octet-stream")
                         conn_http.putheader("Content-Length", str(total_per_req))
                         conn_http.endheaders()
@@ -4043,7 +4051,7 @@ def run_network_speedtest():
             "jitterMs": round(max(0.0, float(client_result.get("jitterMs") or 0)), 1),
             "downloadMbps": round(max(0.0, float(client_result.get("downloadMbps") or 0)), 2),
             "uploadMbps": round(max(0.0, float(client_result.get("uploadMbps") or 0)), 2),
-            "serverLabel": str(client_result.get("serverLabel") or "Northstar LAN Link")[:100],
+            "serverLabel": str(client_result.get("serverLabel") or "Shree LAN Link")[:100],
             "status": "ok",
         }
         with db() as conn:
@@ -4152,6 +4160,106 @@ def save_network_map():
             (json.dumps(doc),),
         )
     return jsonify(ok=True, rev=doc["rev"], updatedAt=doc["updatedAt"], diagrams=doc["diagrams"])
+
+
+def _normalize_tile_node(raw, depth=0):
+    if not isinstance(raw, dict) or depth > 4:
+        return None
+    subtiles = []
+    if isinstance(raw.get("subtiles"), list):
+        for st in raw["subtiles"][:150]:
+            ns = _normalize_tile_node(st, depth + 1)
+            if ns:
+                subtiles.append(ns)
+    return {
+        "id": str(raw.get("id") or f"tile-{uuid.uuid4().hex[:8]}")[:80],
+        "groupId": str(raw.get("groupId") or "grp-default")[:80],
+        "domCountId": str(raw.get("domCountId") or "")[:60],
+        "domFootId": str(raw.get("domFootId") or "")[:60],
+        "title": str(raw.get("title") or "Untitled Tile")[:120],
+        "icon": str(raw.get("icon") or "▦")[:16],
+        "bg": str(raw.get("bg") or "#e7f6ee")[:40],
+        "color": str(raw.get("color") or "#157a54")[:40],
+        "status": str(raw.get("status") or "all")[:32],
+        "type": str(raw.get("type") or "")[:60],
+        "subtype": str(raw.get("subtype") or "")[:60],
+        "site": str(raw.get("site") or "")[:60],
+        "dept": str(raw.get("dept") or "")[:80],
+        "keyword": str(raw.get("keyword") or "")[:80],
+        "foot": str(raw.get("foot") or "")[:120],
+        "visible": raw.get("visible") is not False,
+        "subtiles": subtiles,
+    }
+
+
+def _normalize_tile_module_cfg(raw):
+    if isinstance(raw, list):
+        raw = {"groups": [{"id": "grp-default", "name": "Overview", "icon": "▦", "color": "#157a54", "collapsed": False}], "tiles": raw}
+    if not isinstance(raw, dict):
+        return None
+    groups = []
+    for g in (raw.get("groups") if isinstance(raw.get("groups"), list) else [])[:50]:
+        if isinstance(g, dict) and g.get("id"):
+            groups.append({
+                "id": str(g.get("id"))[:80],
+                "name": str(g.get("name") or "Group")[:80],
+                "icon": str(g.get("icon") or "▦")[:16],
+                "color": str(g.get("color") or "#157a54")[:40],
+                "collapsed": bool(g.get("collapsed", False)),
+            })
+    tiles = []
+    for t in (raw.get("tiles") if isinstance(raw.get("tiles"), list) else [])[:250]:
+        nt = _normalize_tile_node(t, 0)
+        if nt:
+            tiles.append(nt)
+    return {"groups": groups, "tiles": tiles}
+
+
+def _normalize_tile_configs_doc(raw):
+    doc = dict(raw) if isinstance(raw, dict) else {}
+    out = {"rev": int(doc.get("rev") or 0), "updatedAt": str(doc.get("updatedAt") or "")}
+    for mod in ("overview", "datacenter", "surveillance"):
+        nm = _normalize_tile_module_cfg(doc.get(mod))
+        if nm is not None:
+            out[mod] = nm
+    return out
+
+
+@app.get("/api/tile-configs")
+@signed_in
+def get_tile_configs():
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='tile_configs'").fetchone()
+    return jsonify(_normalize_tile_configs_doc(row[0] if row else {}))
+
+
+@app.put("/api/tile-configs")
+@signed_in
+def save_tile_configs():
+    profile = session.get("profile") or {}
+    if not session.get("is_admin") and str(profile.get("role", "")).lower() == "viewer":
+        return jsonify(error="Viewer access is read-only."), 403
+    body = request.get_json(silent=True) or {}
+    if not isinstance(body, dict):
+        return jsonify(error="Invalid tile configuration payload."), 400
+    if len(json.dumps(body)) > 4 * 1024 * 1024:
+        return jsonify(error="Tile configuration exceeds 4 MB limit."), 400
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='tile_configs' FOR UPDATE").fetchone()
+        existing = _normalize_tile_configs_doc(row[0] if row else {})
+        incoming = _normalize_tile_configs_doc(body)
+        for mod in ("overview", "datacenter", "surveillance"):
+            if mod in incoming:
+                existing[mod] = incoming[mod]
+        existing["rev"] = int(existing.get("rev") or 0) + 1
+        existing["updatedAt"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        conn.execute(
+            "INSERT INTO app_state(key,value) VALUES('tile_configs',%s::jsonb) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+            (json.dumps(existing),),
+        )
+        _pg_emit_notify(conn, "pulse", {"source": "tile_configs", "rev": existing["rev"]})
+    return jsonify(ok=True, **existing)
 
 
 @app.errorhandler(413)

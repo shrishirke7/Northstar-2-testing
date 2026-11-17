@@ -1,6 +1,6 @@
-# Northstar IT Inventory
+# Shree IT Asset Intelligence
 
-Northstar is a self-hosted IT inventory and help-desk app for Ubuntu Server. It uses PostgreSQL, local application accounts, Docker Compose, and Nginx.
+Shree IT Asset Intelligence is a self-hosted IT inventory, data center, surveillance, and help-desk platform for Ubuntu Server. It uses PostgreSQL, local application accounts, Docker Compose, and Nginx.
 
 ## Install on Ubuntu Server
 

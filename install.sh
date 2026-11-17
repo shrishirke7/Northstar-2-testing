@@ -88,7 +88,9 @@ if [[ ! -s "$INSTALL_DIR/secrets/nginx.crt" || ! -s "$INSTALL_DIR/secrets/nginx.
     -out "$INSTALL_DIR/secrets/nginx.crt" \
     -subj "/CN=$APP_FQDN" \
     -addext "subjectAltName=DNS:$APP_FQDN,DNS:localhost,IP:$SERVER_IP,IP:127.0.0.1" \
-    -addext "basicConstraints=critical,CA:TRUE"
+    -addext "basicConstraints=critical,CA:TRUE" \
+    -addext "keyUsage=critical,digitalSignature,keyEncipherment,keyCertSign,cRLSign" \
+    -addext "extendedKeyUsage=serverAuth"
 fi
 chmod 600 "$INSTALL_DIR/secrets/nginx.key"
 chmod 644 "$INSTALL_DIR/secrets/nginx.crt"
@@ -125,7 +127,7 @@ fi
 
 echo
 echo "======================================================================"
-echo "  Northstar IT Asset Intelligence is installed and running!"
+echo "  Shree IT Asset Intelligence is installed and running!"
 echo "======================================================================"
 echo "  Admin / IT Portal URL : https://$APP_FQDN:$HTTPS_PORT"
 echo "  Public Helpdesk URL   : https://$APP_FQDN:$HTTPS_PORT/portal"

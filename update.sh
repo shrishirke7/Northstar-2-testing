@@ -22,13 +22,21 @@ cd "$INSTALL_DIR"
 set -a
 . "$INSTALL_DIR/.env"
 set +a
+NEEDS_CERT=0
 if [[ ! -s "$INSTALL_DIR/secrets/nginx.crt" || ! -s "$INSTALL_DIR/secrets/nginx.key" ]]; then
+  NEEDS_CERT=1
+elif ! openssl x509 -in "$INSTALL_DIR/secrets/nginx.crt" -noout -text 2>/dev/null | grep -q "Certificate Sign"; then
+  NEEDS_CERT=1
+fi
+if [[ "$NEEDS_CERT" -eq 1 ]]; then
   SERVER_IP="$(hostname -I | awk '{print $1}')"
   openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
     -keyout "$INSTALL_DIR/secrets/nginx.key" -out "$INSTALL_DIR/secrets/nginx.crt" \
-    -subj "/CN=$APP_FQDN" \
-    -addext "subjectAltName=DNS:$APP_FQDN,IP:$SERVER_IP" \
-    -addext "basicConstraints=critical,CA:TRUE"
+    -subj "/CN=${APP_FQDN:-$SERVER_IP}" \
+    -addext "subjectAltName=DNS:${APP_FQDN:-localhost},DNS:localhost,IP:$SERVER_IP,IP:127.0.0.1" \
+    -addext "basicConstraints=critical,CA:TRUE" \
+    -addext "keyUsage=critical,digitalSignature,keyEncipherment,keyCertSign,cRLSign" \
+    -addext "extendedKeyUsage=serverAuth"
   chmod 600 "$INSTALL_DIR/secrets/nginx.key"
   chmod 644 "$INSTALL_DIR/secrets/nginx.crt"
 fi

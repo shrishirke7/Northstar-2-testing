@@ -1,13 +1,13 @@
 {
   "id": "/?source=pwa",
-  "name": "Swarnshilp IT Asset Intelligence",
-  "short_name": "Swarnshilp",
-  "description": "Real-time IT Asset, Ticketing, Surveillance & Network Intelligence System",
+  "name": "Shree IT Asset Intelligence",
+  "short_name": "Shree",
+  "description": "Shree Real-time IT Asset, Ticketing, Surveillance & Network Intelligence System",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#17251e",
+  "background_color": "#051433",
   "theme_color": "#157a54",
   "categories": ["business", "productivity", "utilities"],
   "icons": [

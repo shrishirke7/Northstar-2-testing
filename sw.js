@@ -1,5 +1,5 @@
-/* Swarnshilp IT Asset Intelligence - Progressive Web App Service Worker */
-const CACHE_NAME = 'swarnshilp-pwa-v2';
+/* Shree IT Asset Intelligence - Progressive Web App Service Worker */
+const CACHE_NAME = 'shree-pwa-v3';
 const STATIC_ASSETS = [
   '/manifest.json',
   '/static/icons/icon-192.png',
@@ -74,7 +74,7 @@ self.addEventListener('fetch', (event) => {
             caches.open(CACHE_NAME).then((c) => c.put(req, clone));
           }
           return networkRes;
-        }).catch(() => null);
+        }).catch(() => cached || Response.error());
         return cached || fetchPromise;
       })
     );
@@ -91,7 +91,7 @@ self.addEventListener('message', (event) => {
       body: '',
       icon: '/static/icons/icon-192.png',
       badge: '/static/icons/icon-192.png',
-      tag: 'swarnshilp-alert',
+      tag: 'shree-alert',
       renotify: true,
       vibrate: [200, 100, 200],
       requireInteraction: false,
@@ -99,7 +99,7 @@ self.addEventListener('message', (event) => {
     }, options);
 
     event.waitUntil(
-      self.registration.showNotification(title || 'Swarnshilp Alert', notifOptions)
+      self.registration.showNotification(title || 'Shree Alert', notifOptions)
     );
   } else if (event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
@@ -138,10 +138,10 @@ self.addEventListener('push', (event) => {
   try {
     payload = event.data ? event.data.json() : {};
   } catch (_) {
-    payload = { title: 'Swarnshilp Notification', body: event.data ? event.data.text() : '' };
+    payload = { title: 'Shree Notification', body: event.data ? event.data.text() : '' };
   }
 
-  const title = payload.title || 'Swarnshilp Alert';
+  const title = payload.title || 'Shree Alert';
   const options = {
     body: payload.body || 'New IT update received.',
     icon: '/static/icons/icon-192.png',
