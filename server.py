@@ -15,6 +15,7 @@ import shutil
 import tempfile
 import base64
 import socket
+import ssl
 from datetime import datetime, timezone
 from functools import wraps
 from pathlib import Path
@@ -385,6 +386,100 @@ def pwa_static_icon(filename):
     clean = secure_filename(filename)
     mime = "image/svg+xml" if clean.endswith(".svg") else "image/png"
     return send_from_directory(ROOT / "static" / "icons", clean, mimetype=mime)
+
+
+def _extract_der_cert_from_pem(pem_bytes):
+    txt = pem_bytes.decode("ascii", errors="ignore")
+    m = re.search(r"-----BEGIN CERTIFICATE-----([\s\S]+?)-----END CERTIFICATE-----", txt)
+    if not m:
+        return None
+    b64 = re.sub(r"\s+", "", m.group(1))
+    try:
+        return base64.b64decode(b64)
+    except Exception:
+        return None
+
+
+def _fetch_server_ca_cert_der():
+    # 1. Check read-only public certificate files (never private keys)
+    for cand in (
+        Path("/app/secrets/nginx.crt"),
+        ROOT / "secrets" / "nginx.crt",
+        Path("/etc/nginx/certs/nginx.crt"),
+    ):
+        try:
+            if cand.is_file() and cand.stat().st_size > 0:
+                der = _extract_der_cert_from_pem(cand.read_bytes())
+                if der:
+                    return der
+        except OSError:
+            pass
+
+    # 2. Fallback: read public TLS certificate from local Nginx/web proxy over TLS handshake
+    ports = []
+    host_hdr = str(request.headers.get("X-Forwarded-Host") or request.host or "").strip()
+    if ":" in host_hdr:
+        try:
+            p = int(host_hdr.rsplit(":", 1)[1])
+            if 1 <= p <= 65535:
+                ports.append(p)
+        except ValueError:
+            pass
+    for env_p in (os.getenv("HTTPS_PORT"), "8849", "8899", "443"):
+        if env_p:
+            try:
+                p = int(env_p)
+                if 1 <= p <= 65535 and p not in ports:
+                    ports.append(p)
+            except ValueError:
+                pass
+
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    req_host = host_hdr.split(":")[0].strip("[]")
+    hosts = ["web", "127.0.0.1", "host.docker.internal"]
+    try:
+        if req_host:
+            ip_obj = ipaddress.ip_address(req_host)
+            if ip_obj.is_private and not ip_obj.is_multicast:
+                hosts.append(req_host)
+    except ValueError:
+        pass
+    for host in hosts:
+        for port in ports:
+            try:
+                with socket.create_connection((host, port), timeout=1.5) as sock:
+                    with ctx.wrap_socket(sock, server_hostname=req_host or host) as ssock:
+                        der = ssock.getpeercert(binary_form=True)
+                        if der:
+                            return der
+            except OSError:
+                continue
+    return None
+
+
+def _serve_ca_cert_response():
+    der = _fetch_server_ca_cert_der()
+    if not der:
+        return jsonify(error="No HTTPS server certificate could be located on this host."), 404
+    want_dl = request.args.get("download", "").lower() in ("1", "true", "yes")
+    disp = 'attachment; filename="swarnshilp-server-ca.crt"' if want_dl else 'inline; filename="swarnshilp-server-ca.crt"'
+    resp = Response(der, status=200, mimetype="application/x-x509-ca-cert")
+    resp.headers["Content-Disposition"] = disp
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
+
+
+@app.get("/northstar-ca.crt")
+def pwa_ca_cert():
+    return _serve_ca_cert_response()
+
+
+@app.get("/api/public/ca-cert")
+def public_ca_cert():
+    return _serve_ca_cert_response()
 
 
 @app.get("/")

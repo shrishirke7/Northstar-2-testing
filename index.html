@@ -11554,7 +11554,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       <button type="button" class="btn" onclick="closePwaCertGuide()">✕</button>
     </div>
     <div class="val-modal-body" style="display:grid;gap:12px;font-size:12.5px;line-height:1.5;color:#1e293b">
-      <a class="btn primary" href="/northstar-ca.crt" download="swarnshilp-server-ca.crt" style="justify-content:center;padding:11px 16px;font-size:13px;text-decoration:none">
+      <a id="pwaCertDownloadLink" class="btn primary" href="/northstar-ca.crt?download=1" download="swarnshilp-server-ca.crt" style="justify-content:center;padding:11px 16px;font-size:13px;text-decoration:none">
         📜 Download Server SSL Certificate (.crt)
       </a>
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px">
@@ -11811,6 +11811,21 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
 
   window.openPwaCertGuide = function(){
     window.nsNotifCenter?.closeShade?.();
+    const dl = document.getElementById('pwaCertDownloadLink');
+    if(dl){
+      const uaIos = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
+      if(uaIos){
+        dl.href = '/northstar-ca.crt';
+        dl.removeAttribute('download');
+        dl.target = '_blank';
+        dl.rel = 'noopener';
+      } else {
+        dl.href = '/northstar-ca.crt?download=1';
+        dl.setAttribute('download', 'swarnshilp-server-ca.crt');
+        dl.removeAttribute('target');
+        dl.removeAttribute('rel');
+      }
+    }
     const m = document.getElementById('pwaCertModal');
     if(m) m.classList.add('open');
   };

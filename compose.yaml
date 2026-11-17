@@ -30,6 +30,7 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./backups:/backups
+      - ./secrets/nginx.crt:/app/secrets/nginx.crt:ro
       - /run/northstar-updater:/run/northstar-updater
     depends_on:
       db:

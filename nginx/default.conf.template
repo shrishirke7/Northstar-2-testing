@@ -59,12 +59,6 @@ server {
         proxy_send_timeout 60s;
     }
 
-    location = /northstar-ca.crt {
-        alias /etc/nginx/certs/nginx.crt;
-        default_type application/x-x509-ca-cert;
-        add_header Content-Disposition 'attachment; filename="swarnshilp-server-ca.crt"';
-    }
-
     location ~ ^/api/(public/)?live-stream$ {
         proxy_pass http://app:8000;
         proxy_http_version 1.1;
