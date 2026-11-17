@@ -3845,7 +3845,7 @@ def admin_save_network_config():
     raw_site = str(body.get("siteName") or "").strip()[:120]
     site_name = _normalize_site_names(raw_site)
     if site_name is None:
-        return jsonify(error="Enter valid domain or LAN hostname(s), e.g. swarnshilp.local or shree-2026.ar-gold.in (without IP addresses or special symbols)."), 400
+        return jsonify(error="Enter valid domain or LAN hostname(s), e.g. swarnshilp.local or it.yourcompany.com (without IP addresses or special symbols)."), 400
     try:
         http_port = int(body.get("httpPort") or 8848)
         https_port = int(body.get("httpsPort") or 8849)
@@ -3898,6 +3898,47 @@ def admin_save_network_config():
         dockerMessage=ipc_res.get("message") or ("Settings saved in database. LAN mDNS & LLMNR auto-discovery will activate within seconds; run sudo bash update.sh on Ubuntu to enable Port 80/443 Host Nginx multi-site integration." if not UPDATER_SOCK_PATH.exists() else "Network settings applied."),
         **runtime,
     )
+
+
+@app.post("/api/admin/regenerate-ssl")
+@administrator
+def admin_regenerate_ssl():
+    if not UPDATER_SOCK_PATH.exists():
+        return jsonify(error="Host updater service is not running yet. Run sudo bash update.sh once on the Ubuntu server."), 503
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
+    cfg = row[0] if row and isinstance(row[0], dict) else {}
+    site_name = str(cfg.get("siteName") or "").strip()[:120]
+    res = _updater_ipc({"action": "regenerate_ssl", "siteName": site_name}, timeout=45)
+    if not res.get("ok"):
+        return jsonify(error=res.get("error") or "SSL certificate regeneration failed."), 400
+    return jsonify(res)
+
+
+def _find_android_apk():
+    for cand in (UPLOAD_DIR / "shree-it.apk", ROOT / "static" / "downloads" / "shree-it.apk", ROOT / "shree-it.apk"):
+        if cand.is_file() and cand.stat().st_size > 10000:
+            return cand
+    return None
+
+
+@app.get("/api/public/apk-status")
+def public_apk_status():
+    apk = _find_android_apk()
+    if not apk:
+        return jsonify(available=False, sizeBytes=0, downloadUrl="")
+    return jsonify(available=True, sizeBytes=apk.stat().st_size, downloadUrl="/download/shree-it.apk")
+
+
+@app.get("/download/shree-it.apk")
+def download_android_apk():
+    apk = _find_android_apk()
+    if not apk:
+        return jsonify(error="Android APK is not compiled yet. Run sudo bash build-apk.sh on the server first."), 404
+    resp = send_from_directory(apk.parent, apk.name, mimetype="application/vnd.android.package-archive")
+    resp.headers["Content-Disposition"] = 'attachment; filename="Shree-IT.apk"'
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return resp
 
 
 @app.post("/api/admin/software-update/check")

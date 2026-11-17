@@ -468,7 +468,7 @@ def _regenerate_leaf_cert(app_fqdn, tokens, mdns_hosts, short_names):
         run_cmd([
             "openssl", "x509", "-req", "-in", str(csr),
             "-CA", str(ca_crt), "-CAkey", str(ca_key), "-CAcreateserial",
-            "-out", str(leaf), "-days", "825", "-sha256", "-extfile", str(ext),
+            "-out", str(leaf), "-days", "365", "-sha256", "-extfile", str(ext),
         ], timeout=20)
         fullchain = leaf.read_text(encoding="utf-8") + ca_crt.read_text(encoding="utf-8")
         tmp_crt = secrets_dir / "nginx.crt.tmp"
@@ -483,6 +483,71 @@ def _regenerate_leaf_cert(app_fqdn, tokens, mdns_hosts, short_names):
         return False
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def regenerate_fresh_root_ca_and_leaf(site_name=""):
+    if not shutil.which("openssl"):
+        return {"ok": False, "error": "openssl is not available on this host."}
+    secrets_dir = INSTALL_DIR / "secrets"
+    secrets_dir.mkdir(parents=True, exist_ok=True)
+    ca_crt = secrets_dir / "ca.crt"
+    ca_key = secrets_dir / "ca.key"
+    ca_crt_tmp = secrets_dir / "ca.crt.tmp"
+    ca_key_tmp = secrets_dir / "ca.key.tmp"
+    try:
+        run_cmd([
+            "openssl", "req", "-x509", "-nodes", "-days", "3650", "-newkey", "rsa:2048",
+            "-keyout", str(ca_key_tmp), "-out", str(ca_crt_tmp),
+            "-subj", "/CN=Shree IT Root CA/O=Shree IT Asset Intelligence",
+            "-addext", "basicConstraints=critical,CA:TRUE,pathlen:0",
+            "-addext", "keyUsage=critical,keyCertSign,cRLSign",
+            "-addext", "subjectKeyIdentifier=hash",
+        ], timeout=30)
+        os.chmod(ca_key_tmp, 0o600)
+        os.chmod(ca_crt_tmp, 0o644)
+        ca_key_tmp.replace(ca_key)
+        ca_crt_tmp.replace(ca_crt)
+    except Exception as exc:
+        for f in (ca_crt_tmp, ca_key_tmp):
+            if f.exists():
+                f.unlink()
+        return {"ok": False, "error": str(exc)[:200]}
+
+    env_file = INSTALL_DIR / ".env"
+    lines = env_file.read_text(encoding="utf-8").splitlines() if env_file.exists() else []
+    app_fqdn, env_site, http_port = "", site_name, 8848
+    for line in lines:
+        s = line.strip()
+        if s.startswith("APP_FQDN="):
+            app_fqdn = _unquote_env(s.split("=", 1)[1])
+        elif s.startswith("SITE_NAME=") and not env_site:
+            env_site = _unquote_env(s.split("=", 1)[1])
+        elif s.startswith("HTTP_PORT="):
+            try:
+                http_port = int(_unquote_env(s.split("=", 1)[1]))
+            except ValueError:
+                pass
+    tokens, mdns_hosts, short_names = _parse_site_tokens(env_site)
+    leaf_ok = _regenerate_leaf_cert(app_fqdn, tokens, mdns_hosts, short_names)
+    if not leaf_ok:
+        return {"ok": False, "error": "Root CA created, but leaf certificate generation failed."}
+    host_nginx = _configure_host_nginx(tokens, mdns_hosts, short_names, http_port)
+    reloaded = False
+    try:
+        run_cmd(["docker", "compose", "exec", "-T", "web", "nginx", "-s", "reload"], cwd=INSTALL_DIR, timeout=30)
+        reloaded = True
+    except Exception:
+        try:
+            run_cmd(["docker", "compose", "kill", "-s", "HUP", "web"], cwd=INSTALL_DIR, timeout=30)
+            reloaded = True
+        except Exception:
+            pass
+    return {
+        "ok": True,
+        "reloaded": reloaded,
+        "hostNginxApplied": bool(host_nginx.get("applied")),
+        "message": "Fresh Root CA & 365-day Server SSL Certificate generated and reloaded cleanly!",
+    }
 
 
 def _host_nginx_is_active():
@@ -613,7 +678,7 @@ def _configure_host_nginx(tokens, mdns_hosts, short_names, http_port):
         f"    ssl_protocols TLSv1.2 TLSv1.3;\n"
     ) if has_ssl else ""
     conf = (
-        "# Auto-managed by Shree IT (northstar-updater). ERPNext configs are untouched.\n"
+        "# Auto-managed by Shree IT (northstar-updater). Existing host Nginx configs are untouched.\n"
         "server {\n"
         "    listen 80;\n"
         f"{ssl_block}"
@@ -840,6 +905,8 @@ def handle_conn(conn):
             resp = apply_network_config(site_name, http_port, https_port)
         elif action == "get_network_status":
             resp = _host_nginx_status()
+        elif action == "regenerate_ssl":
+            resp = regenerate_fresh_root_ca_and_leaf(str(req.get("siteName") or "").strip()[:120])
         else:
             resp = {"ok": False, "error": "Unsupported updater action."}
     except Exception as exc:

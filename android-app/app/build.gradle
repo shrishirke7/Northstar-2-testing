@@ -1,0 +1,45 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.shree.itassets'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.shree.itassets"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    signingConfigs {
+        release {
+            def ksFile = file("release-keystore.jks")
+            if (ksFile.exists()) {
+                storeFile ksFile
+                storePassword System.getenv("SHREE_KS_PASS") ?: "shreeIT2026!"
+                keyAlias System.getenv("SHREE_KEY_ALIAS") ?: "shreekey"
+                keyPassword System.getenv("SHREE_KS_PASS") ?: "shreeIT2026!"
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            def ksFile = file("release-keystore.jks")
+            signingConfig ksFile.exists() ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // Pure Android Framework SDK (zero external dependency download failures)
+}

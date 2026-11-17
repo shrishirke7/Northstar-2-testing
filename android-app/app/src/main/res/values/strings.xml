@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Shree IT</string>
+    <string name="setup_title">Connect to Shree Server</string>
+    <string name="setup_subtitle">Enter your office LAN URL, IP or domain once.</string>
+</resources>

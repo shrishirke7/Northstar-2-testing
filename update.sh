@@ -44,10 +44,10 @@ if [[ -n "$SITE_NAME" ]] && ! grep -q "$SITE_NAME" /etc/hosts 2>/dev/null; then
   echo "$SERVER_IP $SITE_NAME ${SITE_NAME%.local}" >> /etc/hosts 2>/dev/null || true
 fi
 
-if [[ ! -s "$INSTALL_DIR/secrets/ca.crt" || ! -s "$INSTALL_DIR/secrets/ca.key" ]]; then
+if [[ ! -s "$INSTALL_DIR/secrets/ca.crt" || ! -s "$INSTALL_DIR/secrets/ca.key" ]] || ! openssl x509 -in "$INSTALL_DIR/secrets/ca.crt" -noout -text 2>/dev/null | grep -q "CA:TRUE"; then
   openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
     -keyout "$INSTALL_DIR/secrets/ca.key" -out "$INSTALL_DIR/secrets/ca.crt" \
-    -subj "/CN=Shree Root CA/O=Shree IT Asset Intelligence" \
+    -subj "/CN=Shree IT Root CA/O=Shree IT Asset Intelligence" \
     -addext "basicConstraints=critical,CA:TRUE,pathlen:0" \
     -addext "keyUsage=critical,keyCertSign,cRLSign" \
     -addext "subjectKeyIdentifier=hash"
@@ -59,6 +59,8 @@ NEEDS_LEAF=0
 if [[ ! -s "$INSTALL_DIR/secrets/nginx.crt" || ! -s "$INSTALL_DIR/secrets/nginx.key" ]]; then
   NEEDS_LEAF=1
 elif ! openssl verify -CAfile "$INSTALL_DIR/secrets/ca.crt" "$INSTALL_DIR/secrets/nginx.crt" >/dev/null 2>&1; then
+  NEEDS_LEAF=1
+elif ! openssl x509 -in "$INSTALL_DIR/secrets/nginx.crt" -noout -ext subjectAltName 2>/dev/null | grep -q "$SERVER_IP"; then
   NEEDS_LEAF=1
 fi
 if [[ "$NEEDS_LEAF" -eq 1 ]]; then

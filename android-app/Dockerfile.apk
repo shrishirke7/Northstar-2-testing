@@ -1,0 +1,31 @@
+FROM eclipse-temurin:17-jdk-jammy
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    ANDROID_HOME=/opt/android-sdk \
+    GRADLE_HOME=/opt/gradle/gradle-8.5 \
+    PATH="/opt/gradle/gradle-8.5/bin:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:${PATH}"
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl unzip ca-certificates && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /opt/gradle /opt/android-sdk/cmdline-tools \
+    && curl -fsSL https://services.gradle.org/distributions/gradle-8.5-bin.zip -o /tmp/gradle.zip \
+    && unzip -q /tmp/gradle.zip -d /opt/gradle && rm -f /tmp/gradle.zip \
+    && curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o /tmp/cmdtools.zip \
+    && unzip -q /tmp/cmdtools.zip -d /opt/android-sdk/cmdline-tools \
+    && mv /opt/android-sdk/cmdline-tools/cmdline-tools /opt/android-sdk/cmdline-tools/latest \
+    && rm -f /tmp/cmdtools.zip \
+    && yes | sdkmanager --licenses >/dev/null \
+    && sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+WORKDIR /src
+COPY . /src
+
+RUN if [ ! -f /src/app/release-keystore.jks ]; then \
+      keytool -genkeypair -v -keystore /src/app/release-keystore.jks \
+        -storepass shreeIT2026! -keypass shreeIT2026! \
+        -alias shreekey -keyalg RSA -keysize 2048 -validity 10000 \
+        -dname "CN=Shree IT, O=Swarnshilp, C=IN"; \
+    fi \
+    && gradle assembleRelease --no-daemon \
+    && mkdir -p /out \
+    && cp /src/app/build/outputs/apk/release/app-release.apk /out/shree-it.apk
