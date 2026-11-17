@@ -116,7 +116,7 @@ html,body{overflow-x:hidden;max-width:100%}
         <img src="/static/icons/icon-192.png?v=3" alt="Shree" width="46" height="46" style="border-radius:11px;border:1.5px solid #b59e50;flex-shrink:0;box-shadow:0 4px 12px rgba(5,20,51,.18)">
         <div>
           <div class="eyebrow" id="portalEyebrow">SWARNSHILP · IT HELP DESK &amp; MATERIAL REQUESTS</div>
-          <h1 style="margin-top:2px">📝 Raise a support ticket or material request</h1>
+          <h1 id="portalMainHeading" style="margin-top:2px">📝 Raise a support ticket or material request</h1>
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -294,6 +294,7 @@ let SHOW_ALL_DESKS = false;
 let activeDeskId = 'it';
 let DEFAULT_IT_TREE_SNAPSHOT = null;
 let DEFAULT_IT_MAT_SNAPSHOT = null;
+let CURRENT_PORTAL_COMPANY = 'Swarnshilp';
 
 function h(v){
   return String(v || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -356,6 +357,12 @@ function syncDeskActiveData(){
       ? '🌐 Live Tickets & Material Requests (All Departments)'
       : ('🌐 Live ' + dk.name + ' Tickets & Requests');
   }
+  const cName = CURRENT_PORTAL_COMPANY || 'Swarnshilp';
+  const ey = $('portalEyebrow'), mh = $('portalMainHeading');
+  const dShort = dk.id === 'it' ? 'IT' : dk.name;
+  if(ey) ey.textContent = cName.toUpperCase() + ' · ' + dShort.toUpperCase() + ' HELP DESK & MATERIAL REQUESTS';
+  if(mh) mh.textContent = dk.id === 'it' ? '📝 Raise a support ticket or material request' : ('📝 Raise a ' + dk.name + ' ticket or request');
+  document.title = cName + ' · ' + dShort + ' Help Desk & Request Portal';
 }
 
 function renderComplaintDesks(){
@@ -834,11 +841,14 @@ window.addEventListener('storage', e => {
 function updatePortalBranding(cName){
   let name = String(cName || '').trim();
   if(!name || name === 'IT Asset Management' || name === 'Northstar' || name === 'Northstar IT' || name === 'Shree') name = 'Swarnshilp';
+  CURRENT_PORTAL_COMPANY = name;
+  const dk = currentDeskObj();
+  const dShort = (dk && dk.id !== 'it') ? dk.name : 'IT';
   const eyebrow = $('portalEyebrow');
-  if(eyebrow) eyebrow.textContent = name.toUpperCase() + ' · IT HELP DESK & MATERIAL REQUESTS';
+  if(eyebrow) eyebrow.textContent = name.toUpperCase() + ' · ' + dShort.toUpperCase() + ' HELP DESK & MATERIAL REQUESTS';
   const signIn = $('portalSignInBtn');
-  if(signIn) signIn.textContent = 'Sign in to ' + name + ' IT ↗';
-  document.title = name + ' · IT Help Desk & Material Request Portal';
+  if(signIn) signIn.textContent = 'Sign in to ' + name + ' ↗';
+  document.title = name + ' · ' + dShort + ' Help Desk & Request Portal';
 }
 try{
   const localSet = JSON.parse(localStorage.getItem('northstar-settings') || '{}');
