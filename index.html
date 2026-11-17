@@ -50,7 +50,7 @@
 .pwa-install-banner { display: none; }
 .ov-mob-tabs { display: none; }
 .ns-mob-collapse-pill { display: none; }
-@media(max-width:420px){.login-portal-btn{font-size:12px!important;padding:0 12px!important;gap:7px!important}}
+@media(max-width:420px){.login-portal-btn{font-size:11px!important;padding:0 10px!important;gap:6px!important;white-space:nowrap}}
 
 @media (max-width: 768px) {
   /* Sidebar off-canvas mobile drawer — ALWAYS restore full labels & badges overriding 680px compact desktop strip */
@@ -736,7 +736,9 @@
 .ns-speed-live-dot.running{background:#0ea5e9;box-shadow:0 0 0 4px rgba(14,165,233,.25);animation:nsPulseDot 1s infinite}
 @keyframes nsPulseDot{0%,100%{opacity:1}50%{opacity:.45}}
 .ns-ov-map-card{display:flex;flex-direction:column;overflow:hidden;min-height:360px}
-.ns-ov-map-stage{position:relative;flex:1;min-height:260px;background:radial-gradient(circle at 50% 35%,#f8fcfa,#e9f1ec);border-top:1px solid #e5ece7;overflow:hidden;cursor:grab;user-select:none}
+.ns-ov-map-stage{position:relative;flex:1;min-height:280px;background:radial-gradient(circle at 50% 35%,#f8fcfa,#e9f1ec);border-top:1px solid #e5ece7;overflow:hidden;cursor:grab;user-select:none;perspective:1400px;touch-action:pan-y}
+.ns-ov-zoom-toast{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:rgba(15,23,42,.84);color:#fff;font-size:11px;font-weight:700;padding:5px 12px;border-radius:99px;pointer-events:none;opacity:0;transition:opacity .2s;z-index:12;white-space:nowrap}
+.ns-ov-zoom-toast.show{opacity:1}
 .ns-ov-map-stage:active{cursor:grabbing}
 .ns-ov-map-hud{position:absolute;left:10px;bottom:10px;display:flex;gap:5px;z-index:5;flex-wrap:wrap}
 .ns-ov-map-hud button{border:1px solid #cddad2;background:rgba(255,255,255,.92);color:#1d2e25;border-radius:8px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;backdrop-filter:blur(6px)}
@@ -759,7 +761,7 @@
 .nm-floor-badge{position:absolute;left:12px;top:12px;z-index:20;display:flex;gap:5px;flex-wrap:wrap;max-width:75%}
 .nm-floor-pill{border:1px solid #cddbd3;background:rgba(255,255,255,.94);border-radius:99px;padding:4px 10px;font-size:10.5px;font-weight:700;color:#1f3228;cursor:pointer;box-shadow:0 4px 12px rgba(15,23,42,.08)}
 .nm-floor-pill.active{background:#157a54;border-color:#157a54;color:#fff}
-.nm-world-stage{position:absolute;left:50%;top:50%;transform-style:preserve-3d;transform-origin:center center}
+.nm-world-stage{position:absolute;left:50%;top:50%;width:0!important;height:0!important;transform-style:preserve-3d;transform-origin:0 0}
 .nm-floor-slab{position:absolute;left:0;top:0;transform-style:preserve-3d;border-radius:14px;border:2px solid #9db8a8;background:rgba(255,255,255,.94);box-shadow:0 22px 46px rgba(15,23,42,.18);transition:box-shadow .2s,border-color .2s}
 .nm-floor-slab.is-active{border-color:#157a54;box-shadow:0 26px 56px rgba(21,122,84,.24)}
 .nm-slab-label{position:absolute;left:10px;top:-24px;background:#17251e;color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:7px;letter-spacing:.3px;white-space:nowrap;pointer-events:none;box-shadow:0 4px 10px rgba(0,0,0,.2)}
@@ -894,11 +896,11 @@
 .login-apk-btn:hover{background:#dcfce7;border-color:#157a54;color:#0f5132}
 </style></head>
 <body>
-<div class="auth-gate" id="authGate"><div class="login-shell"><section class="login-visual"><div class="login-visual-brand"><span class="login-diamond">◇</span><img id="loginBrandLogo" class="login-brand-logo" alt="Shree" src="/static/icons/icon-192.png?v=3"><span id="loginVisualName">Swarnshilp</span></div><div class="jewel-art" aria-hidden="true"><svg viewBox="0 0 420 340" role="presentation"><path d="M100 80 Q210 300 320 80" fill="none" stroke="#c58b35" stroke-width="5"/><path d="M121 121 Q210 272 299 121" fill="none" stroke="#f1d38d" stroke-width="3"/><g fill="#fff9e9" stroke="#c58b35" stroke-width="3"><circle cx="132" cy="140" r="11"/><circle cx="160" cy="178" r="11"/><circle cx="190" cy="208" r="11"/><circle cx="210" cy="230" r="17"/><circle cx="230" cy="208" r="11"/><circle cx="260" cy="178" r="11"/><circle cx="288" cy="140" r="11"/><path d="M210 247l-18 31 18 29 18-29z"/></g><g fill="none" stroke="#f9f3df" stroke-width="4" stroke-linecap="round"><path d="M73 230q-20-45 5-86m-4 49q-33-15-37-43m41 24q28-35 56-31M347 230q20-45-5-86m4 49q33-15 37-43m-41 24q-28-35-56-31"/></g><g fill="#fff9e9"><circle cx="75" cy="139" r="7"/><circle cx="37" cy="150" r="6"/><circle cx="133" cy="162" r="6"/><circle cx="345" cy="139" r="7"/><circle cx="383" cy="150" r="6"/><circle cx="287" cy="162" r="6"/></g></svg></div><div class="login-dots" id="loginSlideDots"><i></i><i></i><i></i><i></i></div></section><section class="login-side"><div class="login-wordmark"><img id="loginWordmarkLogo" class="login-brand-logo" alt="Shree" src="/static/icons/icon-192.png?v=3"><span id="loginBrandName">Swarnshilp</span><span>◇</span></div><div class="login-form-wrap"><img id="loginCenterLogo" src="/static/icons/icon-192.png?v=3" alt="Shree" width="54" height="54" style="border-radius:13px;border:1.5px solid #b59e50;display:block;margin:0 auto 10px;box-shadow:0 8px 20px rgba(5,20,51,.2)"><div class="login-kicker">SWARNSHILP · IT ASSET INTELLIGENCE</div><h1 id="loginWelcome">Welcome to Swarnshilp</h1><p>Sign in with your account to continue.</p><form id="loginForm" method="post" action="/api/login"><label class="login-field"><span>Username</span><input name="username" required autocomplete="username" placeholder="Enter your username"></label><label class="login-field"><span>Password</span><input name="password" required type="password" autocomplete="current-password" placeholder="Enter your password"></label><div class="auth-error" id="loginError" role="alert" aria-live="polite"></div><button class="login-submit" type="submit">Sign in <span>→</span></button></form><button type="button" id="recoveryToggle" class="link-btn" aria-expanded="false" style="display:block;margin:15px auto 0">Forgot password?</button><section id="recoveryPanel" hidden class="panel" style="text-align:left;margin-top:14px;padding:16px"><h2 style="margin:0 0 8px;font-size:16px">Reset your password</h2><p style="font-size:12px;color:#758179;line-height:1.5">Answer all three questions exactly as you saved them. Use private answers that other people cannot easily guess.</p><form id="recoveryForm" method="post" action="/api/recovery/reset"><label class="login-field"><span>Username</span><input name="username" required maxlength="120" autocomplete="username"></label><label class="login-field"><span>Favourite animal</span><input name="animal" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>Favourite colour</span><input name="colour" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>Favourite food</span><input name="food" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>New password</span><input name="new_password" required type="password" maxlength="1024" autocomplete="new-password"></label><label class="login-field"><span>Confirm new password</span><input name="confirm_password" required type="password" maxlength="1024" autocomplete="new-password"></label><div id="recoveryStatus" class="auth-error" role="status" aria-live="polite"></div><button class="login-submit" type="submit">Reset password</button><button class="link-btn" id="recoveryCancel" type="button" style="display:block;margin:10px auto">Back to sign in</button></form></section><div class="login-security"><span>▣</span> Secure sign-in · Your account is protected</div><a class="login-portal-btn" href="/portal"><span>🎫</span> Raise an IT ticket without signing in</a><a class="login-apk-btn" href="/download/shree-it.apk" download="Shree-IT.apk"><span>🤖</span> Download Android App (.apk)</a></div><div class="login-footer" id="loginFooter">IT Asset Management</div></section></div></div><script>
+<div class="auth-gate" id="authGate"><div class="login-shell"><section class="login-visual"><div class="login-visual-brand"><span class="login-diamond">◇</span><img id="loginBrandLogo" class="login-brand-logo" alt="Shree" src="/static/icons/icon-192.png?v=3"><span id="loginVisualName">Swarnshilp</span></div><div class="jewel-art" aria-hidden="true"><svg viewBox="0 0 420 340" role="presentation"><path d="M100 80 Q210 300 320 80" fill="none" stroke="#c58b35" stroke-width="5"/><path d="M121 121 Q210 272 299 121" fill="none" stroke="#f1d38d" stroke-width="3"/><g fill="#fff9e9" stroke="#c58b35" stroke-width="3"><circle cx="132" cy="140" r="11"/><circle cx="160" cy="178" r="11"/><circle cx="190" cy="208" r="11"/><circle cx="210" cy="230" r="17"/><circle cx="230" cy="208" r="11"/><circle cx="260" cy="178" r="11"/><circle cx="288" cy="140" r="11"/><path d="M210 247l-18 31 18 29 18-29z"/></g><g fill="none" stroke="#f9f3df" stroke-width="4" stroke-linecap="round"><path d="M73 230q-20-45 5-86m-4 49q-33-15-37-43m41 24q28-35 56-31M347 230q20-45-5-86m4 49q33-15 37-43m-41 24q-28-35-56-31"/></g><g fill="#fff9e9"><circle cx="75" cy="139" r="7"/><circle cx="37" cy="150" r="6"/><circle cx="133" cy="162" r="6"/><circle cx="345" cy="139" r="7"/><circle cx="383" cy="150" r="6"/><circle cx="287" cy="162" r="6"/></g></svg></div><div class="login-dots" id="loginSlideDots"><i></i><i></i><i></i><i></i></div></section><section class="login-side"><div class="login-wordmark"><img id="loginWordmarkLogo" class="login-brand-logo" alt="Shree" src="/static/icons/icon-192.png?v=3"><span id="loginBrandName">Swarnshilp</span><span>◇</span></div><div class="login-form-wrap"><img id="loginCenterLogo" src="/static/icons/icon-192.png?v=3" alt="Shree" width="54" height="54" style="border-radius:13px;border:1.5px solid #b59e50;display:block;margin:0 auto 10px;box-shadow:0 8px 20px rgba(5,20,51,.2)"><div class="login-kicker">SWARNSHILP · IT ASSET INTELLIGENCE</div><h1 id="loginWelcome">Welcome to Swarnshilp</h1><p>Sign in with your account to continue.</p><form id="loginForm" method="post" action="/api/login"><label class="login-field"><span>Username</span><input name="username" required autocomplete="username" placeholder="Enter your username"></label><label class="login-field"><span>Password</span><input name="password" required type="password" autocomplete="current-password" placeholder="Enter your password"></label><div class="auth-error" id="loginError" role="alert" aria-live="polite"></div><button class="login-submit" type="submit">Sign in <span>→</span></button></form><button type="button" id="recoveryToggle" class="link-btn" aria-expanded="false" style="display:block;margin:15px auto 0">Forgot password?</button><section id="recoveryPanel" hidden class="panel" style="text-align:left;margin-top:14px;padding:16px"><h2 style="margin:0 0 8px;font-size:16px">Reset your password</h2><p style="font-size:12px;color:#758179;line-height:1.5">Answer all three questions exactly as you saved them. Use private answers that other people cannot easily guess.</p><form id="recoveryForm" method="post" action="/api/recovery/reset"><label class="login-field"><span>Username</span><input name="username" required maxlength="120" autocomplete="username"></label><label class="login-field"><span>Favourite animal</span><input name="animal" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>Favourite colour</span><input name="colour" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>Favourite food</span><input name="food" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>New password</span><input name="new_password" required type="password" maxlength="1024" autocomplete="new-password"></label><label class="login-field"><span>Confirm new password</span><input name="confirm_password" required type="password" maxlength="1024" autocomplete="new-password"></label><div id="recoveryStatus" class="auth-error" role="status" aria-live="polite"></div><button class="login-submit" type="submit">Reset password</button><button class="link-btn" id="recoveryCancel" type="button" style="display:block;margin:10px auto">Back to sign in</button></form></section><div class="login-security"><span>▣</span> Secure sign-in · Your account is protected</div><a class="login-portal-btn" href="/portal"><span>🏢</span> Self-Service Portal · Tickets, Visitor &amp; Gate Pass</a><a class="login-apk-btn" href="/download/shree-it.apk" download="Shree-IT.apk"><span>🤖</span> Download Android App (.apk)</a></div><div class="login-footer" id="loginFooter">IT Asset Management</div></section></div></div><script>
 (()=>{const form=document.getElementById('loginForm');if(!form)return;try{const sp=new URLSearchParams(location.search);const qv=sp.get('view');if(qv)window.__nsInitialView=qv;}catch(_){}if(location.search)history.replaceState(null,'',location.pathname+location.hash);form.method='post';form.action='/api/login';if(location.protocol!=='file:'){form.addEventListener('submit',async e=>{e.preventDefault();const btn=form.querySelector('button[type="submit"]'),error=document.getElementById('loginError'),data=Object.fromEntries(new FormData(form));btn.disabled=true;error.textContent='';try{const r=await fetch('/api/login',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'NorthstarIT'},body:JSON.stringify(data)}),body=await r.json().catch(()=>({}));if(!r.ok)throw new Error(body.error||'Sign-in could not be completed.');location.reload()}catch(err){error.textContent=err.message||'Unable to reach the sign-in service. Try again.'}finally{btn.disabled=false}})}const toggle=document.getElementById('recoveryToggle'),panel=document.getElementById('recoveryPanel'),recovery=document.getElementById('recoveryForm'),cancel=document.getElementById('recoveryCancel');toggle?.addEventListener('click',()=>{panel.hidden=!panel.hidden;toggle.setAttribute('aria-expanded',String(!panel.hidden))});cancel?.addEventListener('click',()=>{panel.hidden=true;toggle?.setAttribute('aria-expanded','false')});recovery?.addEventListener('submit',async e=>{e.preventDefault();const status=document.getElementById('recoveryStatus'),button=recovery.querySelector('button[type="submit"]'),d=Object.fromEntries(new FormData(recovery));status.textContent='';if(d.new_password!==d.confirm_password){status.textContent='Passwords do not match.';return}if(!d.new_password){status.textContent='Enter a new password.';return}button.disabled=true;try{const r=await fetch('/api/recovery/reset',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'NorthstarIT'},body:JSON.stringify({username:d.username,answers:[d.animal,d.colour,d.food],new_password:d.new_password,confirm_password:d.confirm_password})}),body=await r.json().catch(()=>({}));status.textContent=r.status===429?(body.message||'Too many attempts. Wait 15 minutes and try again.'):body.message||'If the account and answers match, the password was reset. Try signing in.';if(r.ok&&r.status!==429)recovery.reset()}catch(err){status.textContent='Unable to reach the recovery service. Try again.'}finally{button.disabled=false}})})();
 </script><div class="layout" id="appShell" style="display:none">
 <div class="mobile-sidebar-backdrop" id="mobileSidebarBackdrop" onclick="closeMobileSidebar()"></div>
-<aside class="sidebar"><div class="brand"><div class="brand-mark" style="background:#051433;padding:0;overflow:hidden;border:1.5px solid #b59e50"><img src="/static/icons/icon-192.png?v=3" alt="Shree" style="width:100%;height:100%;object-fit:cover;display:block"></div><div><div class="brand-name">Swarnshilp<span style="color:#f5c542">.</span></div><div class="brand-sub">SWARNSHILP · IT ASSET INTELLIGENCE</div></div><button type="button" class="mobile-drawer-close" id="mobileDrawerCloseBtn" aria-label="Close Menu" onclick="closeMobileSidebar()">✕</button></div><div class="org-label">Workspace</div><nav class="nav" id="mainNav"><button class="active" data-view="dashboard"><span class="ico">▦</span><span class="nav-label">Overview</span></button><button data-view="assets"><span class="ico">▤</span><span class="nav-label">Asset inventory</span></button><button data-view="datacenter"><span class="ico">▦</span><span class="nav-label">Data Center</span></button><button data-view="tickets"><span class="ico">✉</span><span class="nav-label" id="navTicketsLabel">IT help desk</span><span class="nav-badge" id="ticketBadge">3</span></button><button data-view="maintenance"><span class="ico">⚒</span><span class="nav-label">Maintenance & repairs</span><span class="nav-badge" style="background:#b78738">4</span></button><button data-view="ageing"><span class="ico">◷</span><span class="nav-label">Asset ageing & risk</span></button><button data-view="users"><span class="ico">♙</span><span class="nav-label">Users</span></button><button data-view="departments"><span class="ico">⌂</span><span class="nav-label">Departments</span></button><button data-view="factories"><span class="ico">🏭</span><span class="nav-label">Factories</span></button><button data-view="software"><span class="ico">▧</span><span class="nav-label">Software & licenses</span></button><button data-view="monitoring"><span class="ico">⌁</span><span class="nav-label">Network monitoring</span><span class="nav-badge">3</span></button><button data-view="networkmap"><span class="ico">🗺</span><span class="nav-label">Network Map</span></button><button data-view="snmp"><span class="ico">📊</span><span class="nav-label">SNMP bandwidth</span></button><button data-view="surveillance"><span class="ico">◉</span><span class="nav-label">Surveillance</span></button><button data-view="parts"><span class="ico">▣</span><span class="nav-label">Parts inventory</span></button><button data-view="reports"><span class="ico">▥</span><span class="nav-label">Reports</span></button></nav><button class="nav-customize" id="customizeModulesButton" type="button"><span class="ico">☷</span><span class="nav-label">Customize modules</span></button><div class="sidebar-bottom"><div class="org-label">System</div><nav class="nav"><button data-view="backups"><span class="ico">▣</span><span class="nav-label">Backup & restore</span></button><button data-view="settings"><span class="ico">⚙</span><span class="nav-label">Settings</span></button></nav><div class="help-card"><b>Need a hand?</b><p>Make asset management work the way your team does.</p><button onclick="showHelp()">Visit help center ↗</button><button type="button" style="margin-top:6px;display:block;width:100%" onclick="window.openPwaCertGuide?.()">📱 Install App &amp; SSL Cert</button><a id="sidebarApkDownloadBtn" href="/download/shree-it.apk" download="Shree-IT.apk" style="margin-top:6px;display:block;width:100%;text-align:center;text-decoration:none;background:#157a54;color:#fff;padding:7px 10px;border-radius:7px;font-size:10px;font-weight:700;box-sizing:border-box">🤖 Download Android App (.apk)</a></div><div class="profile sidebar-account"><div class="avatar">IT</div><div><div class="profile-name">Signed in</div><div class="profile-role">Account menu in top bar</div></div></div></div></aside>
+<aside class="sidebar"><div class="brand"><div class="brand-mark" style="background:#051433;padding:0;overflow:hidden;border:1.5px solid #b59e50"><img src="/static/icons/icon-192.png?v=3" alt="Shree" style="width:100%;height:100%;object-fit:cover;display:block"></div><div><div class="brand-name">Swarnshilp<span style="color:#f5c542">.</span></div><div class="brand-sub">SWARNSHILP · IT ASSET INTELLIGENCE</div></div><button type="button" class="mobile-drawer-close" id="mobileDrawerCloseBtn" aria-label="Close Menu" onclick="closeMobileSidebar()">✕</button></div><div class="org-label">Workspace</div><nav class="nav" id="mainNav"><button class="active" data-view="dashboard"><span class="ico">▦</span><span class="nav-label">Overview</span></button><button data-view="assets"><span class="ico">▤</span><span class="nav-label">Asset inventory</span></button><button data-view="datacenter"><span class="ico">▦</span><span class="nav-label">Data Center</span></button><button data-view="tickets"><span class="ico">✉</span><span class="nav-label" id="navTicketsLabel">IT help desk</span><span class="nav-badge" id="ticketBadge">3</span></button><button data-view="visitors"><span class="ico">🪪</span><span class="nav-label">Visitor Pass</span><span class="nav-badge" id="visitorBadge" style="display:none;background:#cb9034">0</span></button><button data-view="gatepass"><span class="ico">📦</span><span class="nav-label">Material Gate Pass</span><span class="nav-badge" id="gatepassBadge" style="display:none;background:#157a54">0</span></button><button data-view="maintenance"><span class="ico">⚒</span><span class="nav-label">Maintenance & repairs</span><span class="nav-badge" style="background:#b78738">4</span></button><button data-view="ageing"><span class="ico">◷</span><span class="nav-label">Asset ageing & risk</span></button><button data-view="users"><span class="ico">♙</span><span class="nav-label">Users</span></button><button data-view="departments"><span class="ico">⌂</span><span class="nav-label">Departments</span></button><button data-view="factories"><span class="ico">🏭</span><span class="nav-label">Factories</span></button><button data-view="software"><span class="ico">▧</span><span class="nav-label">Software & licenses</span></button><button data-view="monitoring"><span class="ico">⌁</span><span class="nav-label">Network monitoring</span><span class="nav-badge">3</span></button><button data-view="networkmap"><span class="ico">🗺</span><span class="nav-label">Network Map</span></button><button data-view="snmp"><span class="ico">📊</span><span class="nav-label">SNMP bandwidth</span></button><button data-view="surveillance"><span class="ico">◉</span><span class="nav-label">Surveillance</span></button><button data-view="parts"><span class="ico">▣</span><span class="nav-label">Parts inventory</span></button><button data-view="reports"><span class="ico">▥</span><span class="nav-label">Reports</span></button></nav><button class="nav-customize" id="customizeModulesButton" type="button"><span class="ico">☷</span><span class="nav-label">Customize modules</span></button><div class="sidebar-bottom"><div class="org-label">System</div><nav class="nav"><button data-view="backups"><span class="ico">▣</span><span class="nav-label">Backup & restore</span></button><button data-view="settings"><span class="ico">⚙</span><span class="nav-label">Settings</span></button></nav><div class="help-card"><b>Need a hand?</b><p>Make asset management work the way your team does.</p><button onclick="showHelp()">Visit help center ↗</button><button type="button" style="margin-top:6px;display:block;width:100%" onclick="window.openPwaCertGuide?.()">📱 Install App &amp; SSL Cert</button><a id="sidebarApkDownloadBtn" href="/download/shree-it.apk" download="Shree-IT.apk" style="margin-top:6px;display:block;width:100%;text-align:center;text-decoration:none;background:#157a54;color:#fff;padding:7px 10px;border-radius:7px;font-size:10px;font-weight:700;box-sizing:border-box">🤖 Download Android App (.apk)</a></div><div class="profile sidebar-account"><div class="avatar">IT</div><div><div class="profile-name">Signed in</div><div class="profile-role">Account menu in top bar</div></div></div></div></aside>
 <main class="main"><header class="topbar"><button type="button" class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle Navigation Menu" onclick="toggleMobileSidebar()"><span class="ico">☰</span></button><div class="crumb"><span id="companyCrumb">Swarnshilp</span>&nbsp; / &nbsp;<b id="crumb">Overview</b></div><select class="site-select" id="globalSite" aria-label="Select factory"><option value="All sites">All factories</option><option>ARG</option><option>ARB</option><option>ARC</option><option>ARF</option></select><div class="top-spacer"></div><div class="ns-top-notif-wrap" id="nsTopNotifWrap"><button type="button" class="ns-top-silent-btn" id="nsTopSilentBtn" title="Silent mode: mute ringtones &amp; screen popups while keeping notification dropdown &amp; history"><span id="nsTopSilentIcon">🔊</span><span class="ns-silent-lbl" id="nsTopSilentLabel">Alerts Live</span></button><button type="button" class="ns-top-notif-btn" id="nsTopNotifBtn" aria-expanded="false" aria-haspopup="true"><span>🔔</span><span class="ns-notif-lbl">Notifications</span><span class="ns-top-notif-badge" id="nsTopNotifBadge">0</span></button><div class="ns-notif-shade" id="nsTopNotifDropdown" role="region" aria-label="Notification dropdown"></div></div><label class="search"><span>⌕</span><input id="globalSearch" placeholder="Search assets, users..." aria-label="Search assets and users"><span style="font-size:9px">⌘ K</span></label><button class="top-btn" aria-label="Notifications" onclick="showNotifications()">♧<span class="notification-dot"></span></button><button class="top-btn" aria-label="Help" onclick="showHelp()">?</button><div class="profile-menu-wrap"><button class="top-profile" id="profileMenuButton" aria-label="Profile menu" aria-expanded="false" onclick="toggleProfileMenu()"><span class="top-avatar" id="topAvatar">U</span><span id="topProfileName">Account</span><span aria-hidden="true">⌄</span></button><div class="profile-menu" id="profileMenu" hidden><div class="profile-menu-heading"><b id="menuProfileName">Account</b><small id="menuProfileRole">User</small></div><button type="button" onclick="document.getElementById('profilePictureInput').click()">Change profile picture</button><button type="button" onclick="openPasswordSettings()">Change password</button><button type="button" class="profile-menu-logout" onclick="signOut()">Log out</button></div><input id="profilePictureInput" type="file" accept="image/png,image/jpeg,image/webp" hidden></div></header>
 <div class="content">
 <section class="view active" id="view-dashboard"><div class="page-head"><div><div class="eyebrow">IT overview · Live inventory</div><h1>IT overview <span style="font-size:20px">✳</span></h1><p>Here’s what’s happening across your IT estate today.</p></div><div class="head-actions"><button type="button" class="btn" id="ovCustomizeTilesBtn" onclick="openOverviewCustomizeModal()">⚙ &nbsp;Customize</button><button type="button" class="btn" onclick="openAssetExportChoicesModal('IT-overview')">↓ &nbsp;Export report</button><button class="btn primary" onclick="openModal()">＋ &nbsp;Add asset</button></div></div>
@@ -939,6 +941,164 @@
 
 <section class="view" id="view-monitoring"><div class="page-head"><div><div class="eyebrow">Network health · Inventory-derived status</div><h1>Network monitoring</h1><p>Shows recorded inventory status and devices found by the installed host scanner.</p></div><div class="head-actions"><span class="status warning" id="scannerConnectionBadge">Checking scanner…</span><button class="btn" onclick="showScannerSetup()">⚙ &nbsp;Scanner setup</button></div></div><div class="monitor-cards"><div class="panel monitor-tile"><div class="monitor-tile-top"><span>Marked online</span></div><div class="monitor-big" id="monitorOnline">0</div><div class="monitor-small">Based on inventory status</div></div><div class="panel monitor-tile"><div class="monitor-tile-top"><span>Recorded devices</span></div><div class="monitor-big" id="monitorTotal">0</div><div class="monitor-small">Live discovery from authorized network ranges</div></div><div class="panel monitor-tile"><div class="monitor-tile-top"><span>Offline / attention</span></div><div class="monitor-big" id="monitorOffline">0</div><div class="monitor-small">Manually recorded asset status</div></div></div><div class="panel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">Factory connectivity</div><div class="panel-sub">Counts are calculated from saved inventory records.</div></div><button class="link-btn" data-go="assets">Browse assets →</button></div><div class="table-wrap"><table><thead><tr><th>FACTORY</th><th>ASSETS</th><th>MARKED ONLINE</th><th>OFFLINE</th><th>STATUS</th></tr></thead><tbody id="monitorFactoryTable"></tbody></table></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">Attention list</div><div class="panel-sub">Assets recorded as offline or in maintenance.</div></div></div><div class="table-wrap"><table><thead><tr><th>ASSET</th><th>FACTORY</th><th>OWNER</th><th>STATUS</th></tr></thead><tbody id="monitorAlertsTable"></tbody></table></div></div></section>
 <section class="view" id="view-networkmap"></section>
+<style id="northstar-gate-css">
+.gate-filter-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;padding:12px 14px;background:#f7fbf8;border-bottom:1px solid #e6eee8}
+.gate-fcol{display:flex;flex-direction:column;gap:3px;min-width:125px}
+.gate-fcol label{font-size:9.5px;font-weight:800;color:#55665c;text-transform:uppercase;letter-spacing:.4px}
+.gate-preset-strip{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.gate-preset-btn{border:1px solid #d2e1d7;background:#fff;color:#273b30;border-radius:7px;padding:6px 9px;font-size:10.5px;font-weight:700;cursor:pointer}
+.gate-preset-btn.active{background:#157a54;color:#fff;border-color:#157a54}
+.gate-thumb-pair{display:flex;gap:6px;align-items:center}
+.gate-thumb{width:42px;height:42px;border-radius:8px;object-fit:cover;border:1.5px solid #cbd9d0;cursor:pointer;background:#f1f5f9;transition:transform .12s}
+.gate-thumb:hover{transform:scale(1.08);border-color:#157a54}
+.gate-dir-in{background:#dcfce7;color:#15803d;padding:3px 8px;border-radius:99px;font-size:10px;font-weight:800}
+.gate-dir-out{background:#fff7ed;color:#c2410c;padding:3px 8px;border-radius:99px;font-size:10px;font-weight:800}
+.gate-tabs{display:inline-flex;gap:6px;background:#f1f5f9;padding:4px;border-radius:10px;flex-wrap:wrap}
+.gate-tab-btn{border:0;background:transparent;color:#475569;font-size:11.5px;font-weight:800;padding:7px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.gate-tab-btn.active{background:#157a54;color:#fff;box-shadow:0 2px 6px rgba(21,122,84,.25)}
+.gate-badge-pending{background:#fef3c7;color:#b45309}
+.gate-badge-approved{background:#e0f2fe;color:#0369a1}
+.gate-badge-in{background:#dcfce7;color:#15803d}
+.gate-badge-out{background:#f1f5f9;color:#475569}
+.gate-badge-rejected{background:#fee2e2;color:#b91c1c}
+.gate-photo-box{border:1px dashed #b9cebf;border-radius:10px;padding:10px;background:#fafdfb;display:grid;gap:6px}
+.gate-photo-preview{width:78px;height:78px;object-fit:cover;border-radius:8px;border:1px solid #cbd9d0;display:none}
+@media(max-width:768px){
+  .gate-filter-bar{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .gate-filter-bar .gate-fcol{min-width:0}
+  .gate-filter-bar .gate-preset-strip{grid-column:1/-1}
+  .gate-filter-bar .gate-search-col{grid-column:1/-1}
+  #view-visitors table,#view-gatepass table{display:block}
+  #view-visitors thead,#view-gatepass thead{display:none}
+  #view-visitors tbody,#view-gatepass tbody{display:grid;gap:10px;padding:10px}
+  #view-visitors tbody tr,#view-gatepass tbody tr{display:grid;gap:6px;background:#fff;border:1px solid #dce6df;border-radius:12px;padding:12px;box-shadow:0 3px 10px rgba(15,23,42,.04);white-space:normal}
+  #view-visitors tbody td,#view-gatepass tbody td{padding:2px 0;border:0;white-space:normal}
+}
+</style>
+
+<section class="view" id="view-visitors">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow">Security · Approvals · Auto Time Logs</div>
+      <h1>Visitor Pass &amp; Gate Register</h1>
+      <p>Gate entries (with ID card &amp; visitor selfie photos), instant department/host approvals, notifications &amp; automatic Check-In / Check-Out timestamps.</p>
+    </div>
+    <div class="head-actions" style="flex-wrap:wrap">
+      <button type="button" class="btn" onclick="nsVisitorsModule.refresh()">↻ Refresh</button>
+      <button type="button" class="btn" onclick="nsVisitorsModule.exportCsv()">↓ Export CSV</button>
+      <button type="button" class="btn primary" id="visAddBtn" onclick="nsVisitorsModule.openCreateModal()">＋ &nbsp;New Visitor Entry</button>
+    </div>
+  </div>
+  <div class="grid-4" id="visitorKpis" style="margin-bottom:14px">
+    <div class="card metric"><div class="metric-top"><span>Pending approval</span><span class="metric-icon">⏳</span></div><div class="metric-value" id="visKpiPending">0</div><div class="metric-foot">Waiting for host / dept</div></div>
+    <div class="card metric"><div class="metric-top"><span>Approved / inside gate</span><span class="metric-icon">🟢</span></div><div class="metric-value" id="visKpiInside">0</div><div class="metric-foot">Approved or checked in</div></div>
+    <div class="card metric"><div class="metric-top"><span>Checked out</span><span class="metric-icon">🚪</span></div><div class="metric-value" id="visKpiOut">0</div><div class="metric-foot">Completed visits</div></div>
+    <div class="card metric"><div class="metric-top"><span>Filtered total</span><span class="metric-icon">🪪</span></div><div class="metric-value" id="visKpiTotal">0</div><div class="metric-foot" id="visScopeFoot">Scoped view</div></div>
+  </div>
+  <div class="panel">
+    <div class="gate-filter-bar" id="visFilterBar">
+      <div class="gate-preset-strip">
+        <button type="button" class="gate-preset-btn active" data-vpreset="today" onclick="nsVisitorsModule.setDayPreset('today')">Today</button>
+        <button type="button" class="gate-preset-btn" data-vpreset="yesterday" onclick="nsVisitorsModule.setDayPreset('yesterday')">Yesterday</button>
+        <button type="button" class="gate-preset-btn" data-vpreset="7d" onclick="nsVisitorsModule.setDayPreset('7d')">Last 7 Days</button>
+        <button type="button" class="gate-preset-btn" data-vpreset="all" onclick="nsVisitorsModule.setDayPreset('all')">All Days</button>
+      </div>
+      <div class="gate-fcol"><label>From Date &amp; Time</label><input type="datetime-local" class="filter-input" id="visFromDt" style="min-width:165px"></div>
+      <div class="gate-fcol"><label>To Date &amp; Time</label><input type="datetime-local" class="filter-input" id="visToDt" style="min-width:165px"></div>
+      <div class="gate-fcol"><label>Factory</label><select class="filter-select" id="visFactoryFilter"><option value="">All factories</option></select></div>
+      <div class="gate-fcol"><label>Department</label><select class="filter-select" id="visDeptFilter"><option value="">All departments</option></select></div>
+      <div class="gate-fcol"><label>Status</label><select class="filter-select" id="visStatusFilter"><option value="">All statuses</option><option>Pending</option><option>Approved</option><option>Checked In</option><option>Checked Out</option><option>Rejected</option></select></div>
+      <div class="gate-fcol gate-search-col" style="flex:1"><label>Search</label><input type="search" class="filter-input" id="visSearchInput" placeholder="Name, phone, host, purpose, token..."></div>
+      <button type="button" class="btn primary" onclick="nsVisitorsModule.refresh()">Apply</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>PASS ID &amp; AUTO TIME</th><th>PHOTOS (ID / SELFIE)</th><th>VISITOR &amp; ADDRESS</th><th>PURPOSE &amp; EXTRA</th><th>FACTORY / DEPT / TO MEET</th><th>STATUS &amp; LOGS</th><th>ACTIONS</th></tr></thead>
+        <tbody id="visitorPassTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="view" id="view-gatepass">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow">Material Inward · Outward · Challan &amp; Bill Archive</div>
+      <h1>Material Gate Pass Register</h1>
+      <p>Track factory Material Inward (IN) and Material Outward (OUT) with material photo, bill/challan photo, vehicle &amp; party details and automatic entry timestamps.</p>
+    </div>
+    <div class="head-actions" style="flex-wrap:wrap">
+      <button type="button" class="btn" onclick="nsGatePassModule.refresh()">↻ Refresh</button>
+      <button type="button" class="btn" onclick="nsGatePassModule.exportCsv()">↓ Export CSV</button>
+      <button type="button" class="btn primary" id="gpAddInBtn" onclick="nsGatePassModule.openCreateModal('IN')">📥 &nbsp;Material Inward (IN)</button>
+      <button type="button" class="btn" id="gpAddOutBtn" style="border-color:#f59e0b;color:#b45309;background:#fffbeb" onclick="nsGatePassModule.openCreateModal('OUT')">📤 &nbsp;Material Outward (OUT)</button>
+    </div>
+  </div>
+  <div style="margin-bottom:12px">
+    <div class="gate-tabs" id="gpDirectionTabs">
+      <button type="button" class="gate-tab-btn active" data-gpdir="ALL" onclick="nsGatePassModule.setDirectionTab('ALL')">📋 All Movements</button>
+      <button type="button" class="gate-tab-btn" data-gpdir="IN" onclick="nsGatePassModule.setDirectionTab('IN')">📥 Material Inward (IN)</button>
+      <button type="button" class="gate-tab-btn" data-gpdir="OUT" onclick="nsGatePassModule.setDirectionTab('OUT')">📤 Material Outward (OUT)</button>
+    </div>
+  </div>
+  <div class="grid-4" id="gatepassKpis" style="margin-bottom:14px">
+    <div class="card metric"><div class="metric-top"><span>Material Inward (IN)</span><span class="metric-icon">📥</span></div><div class="metric-value" id="gpKpiIn">0</div><div class="metric-foot">Received at factory gate</div></div>
+    <div class="card metric"><div class="metric-top"><span>Material Outward (OUT)</span><span class="metric-icon">📤</span></div><div class="metric-value" id="gpKpiOut">0</div><div class="metric-foot">Dispatched / sent out</div></div>
+    <div class="card metric"><div class="metric-top"><span>Returnable pending</span><span class="metric-icon">🔄</span></div><div class="metric-value" id="gpKpiRet">0</div><div class="metric-foot">Awaiting return confirmation</div></div>
+    <div class="card metric"><div class="metric-top"><span>Filtered records</span><span class="metric-icon">📦</span></div><div class="metric-value" id="gpKpiTotal">0</div><div class="metric-foot" id="gpScopeFoot">Scoped view</div></div>
+  </div>
+  <div class="panel">
+    <div class="gate-filter-bar" id="gpFilterBar">
+      <div class="gate-preset-strip">
+        <button type="button" class="gate-preset-btn active" data-gppreset="today" onclick="nsGatePassModule.setDayPreset('today')">Today</button>
+        <button type="button" class="gate-preset-btn" data-gppreset="yesterday" onclick="nsGatePassModule.setDayPreset('yesterday')">Yesterday</button>
+        <button type="button" class="gate-preset-btn" data-gppreset="7d" onclick="nsGatePassModule.setDayPreset('7d')">Last 7 Days</button>
+        <button type="button" class="gate-preset-btn" data-gppreset="all" onclick="nsGatePassModule.setDayPreset('all')">All Days</button>
+      </div>
+      <div class="gate-fcol"><label>From Date &amp; Time</label><input type="datetime-local" class="filter-input" id="gpFromDt" style="min-width:165px"></div>
+      <div class="gate-fcol"><label>To Date &amp; Time</label><input type="datetime-local" class="filter-input" id="gpToDt" style="min-width:165px"></div>
+      <div class="gate-fcol"><label>Factory</label><select class="filter-select" id="gpFactoryFilter"><option value="">All factories</option></select></div>
+      <div class="gate-fcol"><label>Department</label><select class="filter-select" id="gpDeptFilter"><option value="">All departments</option></select></div>
+      <div class="gate-fcol"><label>Status</label><select class="filter-select" id="gpStatusFilter"><option value="">All statuses</option><option>Logged</option><option>Verified</option><option>Returned</option><option>Dispatched</option></select></div>
+      <div class="gate-fcol gate-search-col" style="flex:1"><label>Search</label><input type="search" class="filter-input" id="gpSearchInput" placeholder="Material, party, challan no, person, vehicle..."></div>
+      <button type="button" class="btn primary" onclick="nsGatePassModule.refresh()">Apply</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>PASS ID &amp; DIR</th><th>MATERIAL / BILL PHOTO</th><th>MATERIAL DETAILS</th><th>PARTY / CHALLAN / VEHICLE</th><th>FACTORY / DEPT / FOR PERSON</th><th>AUTO TIME &amp; STATUS</th><th>ACTIONS</th></tr></thead>
+        <tbody id="gatePassTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Gate Entry Creation Modal (Visitor or Material) -->
+<div class="modal-backdrop" id="gateCreateModal" style="z-index:2620" onclick="if(event.target===this)closeGateCreateModal()">
+  <div class="modal form-modal" style="max-width:640px;width:calc(100% - 20px);max-height:90vh;overflow-y:auto">
+    <div class="modal-head"><h2 id="gateCreateTitle">New Gate Entry</h2><button type="button" class="close" onclick="closeGateCreateModal()">×</button></div>
+    <form id="gateCreateForm"></form>
+  </div>
+</div>
+
+<!-- Live Camera Selfie Modal -->
+<div class="modal-backdrop" id="gateCamModal" style="z-index:2700" onclick="if(event.target===this)closeGateCam()">
+  <div class="modal" style="max-width:420px;width:calc(100% - 20px);text-align:center">
+    <div class="modal-head"><h2>📷 Capture Visitor Photo / Selfie</h2><button type="button" class="close" onclick="closeGateCam()">×</button></div>
+    <video id="gateCamVideo" autoplay playsinline style="width:100%;max-height:280px;border-radius:12px;background:#0f172a;object-fit:cover"></video>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+      <button type="button" class="btn" onclick="closeGateCam()">Cancel</button>
+      <button type="button" class="btn primary" onclick="snapGateCamPhoto()">📸 Capture Photo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Image Preview Lightbox -->
+<div class="modal-backdrop" id="gateLightboxModal" style="z-index:2750" onclick="if(event.target===this)closeGateLightbox()">
+  <div class="modal" style="max-width:720px;width:calc(100% - 20px);text-align:center;padding:14px">
+    <div class="modal-head" style="margin-bottom:8px"><h2 id="gateLightboxTitle" style="font-size:15px">Photo Preview</h2><button type="button" class="close" onclick="closeGateLightbox()">×</button></div>
+    <img id="gateLightboxImg" alt="Photo" style="max-width:100%;max-height:74vh;border-radius:10px;border:1px solid #d5e2da">
+  </div>
+</div>
 
 <section class="view" id="view-maintenance"><div class="page-head"><div><div class="eyebrow">Service history & lifecycle care</div><h1>Maintenance & repairs</h1><p>Record what was serviced, what parts changed and cost — each service is added to the asset timeline.</p></div><div class="head-actions"><button class="btn" onclick="exportCsv('maintenance-history',maintenanceRecords)">↓ &nbsp;Export history</button></div></div><div class="grid-4"><div class="card metric"><div class="metric-top"><span>Service records</span><span class="metric-icon">⚒</span></div><div class="metric-value" id="serviceTotal">126</div><div class="metric-foot">All-time maintenance & repairs</div></div><div class="card metric"><div class="metric-top"><span>Due this month</span><span class="metric-icon">◷</span></div><div class="metric-value">9</div><div class="metric-foot"><span class="warn">3 overdue</span> · 6 upcoming</div></div><div class="card metric"><div class="metric-top"><span>Parts replaced</span><span class="metric-icon">⚙</span></div><div class="metric-value">38</div><div class="metric-foot">Parts tracked across service logs</div></div><div class="card metric"><div class="metric-top"><span>Repair spend · FY</span><span class="metric-icon">₹</span></div><div class="metric-value">₹1.84L</div><div class="metric-foot">Parts and labor recorded</div></div></div><div class="panel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">Maintenance due & aging assets</div><div class="panel-sub">Prioritize upcoming service and devices nearing replacement.</div></div><select class="filter-select"><option>All factories</option><option>ARG</option><option>ARB</option><option>ARC</option><option>ARF</option></select></div><div class="table-wrap"><table><thead><tr><th>ASSET</th><th>FACTORY</th><th>AGE</th><th>LAST MAINTENANCE</th><th>NEXT DUE</th><th>AGE / CONDITION</th></tr></thead><tbody id="maintenanceDue"></tbody></table></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">Service & repair history</div><div class="panel-sub">Every log is linked back to its asset record.</div></div><input class="filter-input" id="maintSearch" placeholder="Search asset, repair or technician..."></div><div class="table-wrap"><table><thead><tr><th>DATE</th><th>ASSET</th><th>SERVICE TYPE</th><th>WORK PERFORMED</th><th>PARTS REPLACED</th><th>COST</th><th>TECHNICIAN</th></tr></thead><tbody id="maintenanceTable"></tbody></table></div></div></section><section class="view" id="view-parts"><div class="page-head"><div><div class="eyebrow">Stores & component lifecycle</div><h1>Parts inventory</h1><p>Track new, repaired, refurbished and damaged parts, assignments and costs.</p></div><div class="head-actions"><button class="btn" onclick="exportPartsReport()">↓ &nbsp;Export</button><button class="btn" onclick="openPartAssignForm()">↗ &nbsp;Assign part</button><button class="btn primary" onclick="openPartForm()">＋ &nbsp;Add part / stock</button></div></div><div class="grid-4"><div class="card metric"><div class="metric-top"><span>Part types</span></div><div class="metric-value" id="partsSkuCount">0</div><div class="metric-foot">Distinct part records</div></div><div class="card metric"><div class="metric-top"><span>Good stock</span></div><div class="metric-value" id="partsGoodTotal">0</div><div class="metric-foot">New + repaired + refurbished</div></div><div class="card metric"><div class="metric-top"><span>Damaged stock</span></div><div class="metric-value" id="partsDamagedTotal">0</div><div class="metric-foot">Awaiting repair or disposal</div></div><div class="card metric"><div class="metric-top"><span>Assigned value</span></div><div class="metric-value" id="partsAssignedValue">₹0</div><div class="metric-foot" id="partsAssignedTotal">0 parts assigned</div></div><div class="card metric"><div class="metric-top"><span>Current stock value</span></div><div class="metric-value" id="partsStockValueMetric">₹0</div><div class="metric-foot">Available + damaged stock at unit cost</div></div></div><div class="panel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">Stock by part & factory</div><div class="panel-sub">Each row tracks quantities by condition and current factory.</div></div></div><div class="section-toolbar"><input class="filter-input" id="partsSearch" placeholder="Search part, SKU or category..."><select class="filter-select" id="partsFactoryFilter"><option value="">All factories</option></select><select class="filter-select" id="partsConditionFilter"><option value="">All conditions</option><option>New</option><option>Repaired</option><option>Refurbished</option><option>Damaged</option></select></div><div class="table-wrap"><table><thead><tr><th>PART / SKU</th><th>CATEGORY</th><th>FACTORY</th><th>NEW</th><th>REPAIRED</th><th>REFURBISHED</th><th>DAMAGED</th><th>ASSIGNED</th><th>UNIT COST</th><th>ACTIONS</th></tr></thead><tbody id="partsStockTable"></tbody></table></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">Assigned parts</div><div class="panel-sub">Factory, department and user-wise part assignment history. Assign from the maintenance form to automatically deduct good stock.</div></div></div><div class="section-toolbar"><select class="filter-select" id="partsAssignFactory"><option value="">All factories</option></select><select class="filter-select" id="partsAssignDept"><option value="">All departments</option></select><select class="filter-select" id="partsAssignUser"><option value="">All users</option></select></div><div class="table-wrap"><table><thead><tr><th>DATE</th><th>PART</th><th>QTY / CONDITION</th><th>FACTORY</th><th>DEPARTMENT</th><th>ASSIGNED TO</th><th>ASSET / WORK</th><th>COST</th><th></th></tr></thead><tbody id="partsAssignmentTable"></tbody></table></div></div></section><section class="view" id="view-reports"><div class="page-head"><div><div class="eyebrow">Reports from saved records</div><h1>Reports</h1><p>Export current hardware, people, software and maintenance records.</p></div><div class="head-actions"><button class="btn primary" onclick="exportCsv('IT-report',assets)">↓ &nbsp;Export asset report</button></div></div><div class="grid-4"><div class="card metric"><div class="metric-top"><span>Recorded assets</span></div><div class="metric-value" id="reportAssetCount">0</div><div class="metric-foot">Current inventory records</div></div><div class="card metric"><div class="metric-top"><span>Assigned hardware</span></div><div class="metric-value" id="reportAssignedCount">0</div><div class="metric-foot">Assets with an owner</div></div><div class="card metric"><div class="metric-top"><span>Software records</span></div><div class="metric-value" id="reportSoftwareCount">0</div><div class="metric-foot">Current software register</div></div><div class="card metric"><div class="metric-top"><span>Maintenance records</span></div><div class="metric-value" id="reportMaintenanceCount">0</div><div class="metric-foot">Saved repair and service entries</div></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">Available exports</div><div class="panel-sub">CSV files contain current stored records only.</div></div></div><div class="section-toolbar"><button class="btn" onclick="exportCsv('asset-register',assets)">Asset register CSV</button><button class="btn" onclick="exportCsv('users',users)">User list CSV</button><button class="btn" onclick="exportCsv('software-register',software)">Software CSV</button><button class="btn" onclick="exportCsv('maintenance-history',maintenanceRecords)">Maintenance CSV</button><button class="btn" onclick="exportCsv('tickets',tickets)">Ticket CSV</button></div></div></section>
 
@@ -965,15 +1125,27 @@
 function dcStatus(a){const interfaces=Array.isArray(a.networkInterfaces)?a.networkInterfaces:[],addresses=[a.ipAddress,a.ip_address,...interfaces.flatMap(n=>[n.ipAddress,n.ip_address,n.ip])].map(x=>String(x||'').trim()).filter(Boolean);if(!addresses.length)return'No IP';const candidates=[{status:a.ipStatus||a.ip_status||a.status,at:a.ipCheckedAt||a.ip_checked_at,priority:1},...interfaces.map(n=>({status:n.ipStatus||n.ip_status||n.status,at:n.ipCheckedAt||n.ip_checked_at,priority:0}))].map(x=>({...x,checked:Date.parse(x.at||''),state:String(x.status||'').trim().toLowerCase()})).filter(x=>Number.isFinite(x.checked)&&['online','offline','maintenance'].includes(x.state)).sort((x,y)=>y.checked-x.checked||y.priority-x.priority);if(!candidates.length)return'Not checked';const latest=candidates[0],age=Date.now()-latest.checked;if(age<0||age>90000)return'Stale';return latest.state==='online'?'Online':latest.state==='offline'?'Offline':'Maintenance'}function deviceStatusClass(status){return status==='Online'?'net-online':status==='Offline'?'net-offline':status==='Maintenance'?'maintenance':'net-unknown'}
 </script>
 <script>
-let serverMode=false,serverAdmin=false,serverProfile=null;const permissionModules=[['overview','Overview'],['assets','Asset inventory'],['data_center','Data Center'],['surveillance','Surveillance'],['tickets','IT help desk'],['maintenance','Maintenance & repairs'],['ageing','Asset ageing & risk'],['parts','Parts inventory'],['users','Users'],['departments','Departments'],['factories','Factories'],['software','Software & licenses'],['network','Network monitoring'],['snmp','SNMP bandwidth'],['notifications','Notifications'],['reports','Reports'],['valuation','Valuation'],['billing','Billing / Invoices']];
-const permissionViewMap={dashboard:'overview',assets:'assets',datacenter:'data_center',surveillance:'surveillance',tickets:'tickets',ticketing:'tickets',maintenance:'maintenance',ageing:'ageing',parts:'parts',users:'users',departments:'departments',factories:'factories',software:'software',monitoring:'network',networkmap:'network',snmp:'snmp',notifications:'notifications',reports:'reports',valuation:'valuation',billing:'billing'};
+let serverMode=false,serverAdmin=false,serverProfile=null;const permissionModules=[['overview','Overview'],['assets','Asset inventory'],['data_center','Data Center'],['surveillance','Surveillance'],['tickets','IT help desk'],['visitors','Visitor Pass'],['gatepass','Material Gate Pass'],['maintenance','Maintenance & repairs'],['ageing','Asset ageing & risk'],['parts','Parts inventory'],['users','Users'],['departments','Departments'],['factories','Factories'],['software','Software & licenses'],['network','Network monitoring'],['snmp','SNMP bandwidth'],['notifications','Notifications'],['reports','Reports'],['valuation','Valuation'],['billing','Billing / Invoices']];
+const permissionViewMap={dashboard:'overview',assets:'assets',datacenter:'data_center',surveillance:'surveillance',tickets:'tickets',ticketing:'tickets',visitors:'visitors',gatepass:'gatepass',maintenance:'maintenance',ageing:'ageing',parts:'parts',users:'users',departments:'departments',factories:'factories',software:'software',monitoring:'network',networkmap:'network',snmp:'snmp',notifications:'notifications',reports:'reports',valuation:'valuation',billing:'billing'};
+function gateAccessPermissionFields(user={},isNew=false){
+ const scope=String(user?.gate_scope||'dept').toLowerCase();
+ const selDepts=new Set((Array.isArray(user?.gate_departments)?user.gate_departments:[]).map(x=>String(x||'').trim()));
+ const deptNames=[...new Set((typeof depts!=='undefined'&&Array.isArray(depts)?depts:[]).map(d=>String(Array.isArray(d)?d[0]:d?.name||'').trim()).filter(Boolean))].sort();
+ return '<div class="form-section full" style="margin-top:6px">Visitor Pass &amp; Material Gate Pass Scope</div>'+
+  '<div class="field full form-note">Control whose Visitor Pass approvals &amp; Material Gate Pass logs this user can view/manage. Management &amp; Security Incharge see all departments &amp; factories; Department scope isolates visitors to own/selected departments and materials to the addressed person.</div>'+
+  '<div class="field"><label>Visitor / Gate Pass Scope</label><select name="gate_scope"><option value="dept"'+(scope==='dept'?' selected':'')+'>🏢 Department / Own Only</option><option value="management"'+(scope==='management'?' selected':'')+'>👔 Management (View All)</option><option value="security"'+(scope==='security'?' selected':'')+'>🛡️ Security Incharge (Full Gate View &amp; Check-In/Out)</option></select></div>'+
+  '<div class="field full"><label>Extra Department Access for Visitor Approval (Optional — own department is always included)</label><div style="display:flex;flex-wrap:wrap;gap:8px;padding:9px;border:1px solid #d5e2da;border-radius:10px;background:#f8fbf9">'+
+  (deptNames.length?deptNames.map(dn=>'<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:8px;background:#fff;border:1px solid #d5e2da;cursor:pointer"><input type="checkbox" name="gate_dept_perm" value="'+esc(dn)+'" '+(selDepts.has(dn)?'checked':'')+'> '+esc(dn)+'</label>').join(''):'<span class="ticket-meta">No departments configured yet.</span>')+
+  '</div></div>';
+}
+function gateDeptsFromForm(formEl){return formEl?[...formEl.querySelectorAll('input[name="gate_dept_perm"]:checked')].map(x=>x.value).filter(Boolean):[]}
 function effectiveModuleGrant(user,module,isNew=false){if(user?.role==='Administrator')return 'write';let p=user?.module_permissions;if(p&&typeof p==='object')return ['none','read','write'].includes(p[module])?p[module]:'none';if(user?.role==='Viewer')return 'read';if(user?.role==='IT Ticketing')return module==='tickets'?'write':'none';return isNew?'none':'write'}
 function setAllModulePerms(level){document.querySelectorAll('#recordForm select[name^="module_perm_"]').forEach(s=>{s.value=level})}
 function applyTicketDeskOnlyPreset(){document.querySelectorAll('#recordForm select[name^="module_perm_"]').forEach(s=>{s.value=(s.name==='module_perm_tickets'?'write':'none')});const allCb=document.querySelector('#recordForm [name="complaint_desks_all"]');if(allCb){allCb.checked=false;syncDeskPermCheckboxes()}showToast('Set Tickets to Read & write and hid all other modules. Now select allowed complaint department(s).')}
 function syncDeskPermCheckboxes(){const allCb=document.querySelector('#recordForm [name="complaint_desks_all"]');const boxes=[...document.querySelectorAll('#recordForm input[name="complaint_desk_perm"]')];if(!allCb)return;if(allCb.checked){boxes.forEach(b=>{b.checked=true})}boxes.forEach(b=>{b.onchange=()=>{if(!b.checked&&allCb.checked)allCb.checked=false;else if(boxes.length&&boxes.every(x=>x.checked))allCb.checked=true}})}
 function complaintDeskPermissionFields(user={},isNew=false){const desks=(typeof window.getComplaintDesks==='function')?window.getComplaintDesks():[{id:'it',name:'IT Department',icon:'💻'},{id:'plumber',name:'Plumber',icon:'🔧'},{id:'electrician',name:'Electrician',icon:'⚡'},{id:'admin',name:'Admin Dept',icon:'🏢'}];const raw=Array.isArray(user?.allowed_complaint_desks)?user.allowed_complaint_desks:null;const isAll=!raw||raw.includes('*')||raw.includes('all');return '<div class="form-section full" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:6px"><span>Complaint selector permissions (Department isolation)</span><button type="button" class="btn" style="padding:3px 9px;font-size:11px;border-color:#86efac;background:#f0fdf4;color:#157a54" onclick="applyTicketDeskOnlyPreset()">🎫 Desk-only access preset</button></div><div class="field full form-note">Restrict this account to specific complaint departments (e.g. only Plumber or only Admin Dept). Leave "All Complaint Desks" checked for full ticketing access.</div><div class="field full" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px;border:1px solid #d5e2da;border-radius:10px;background:#f8fbf9"><label style="display:inline-flex;align-items:center;gap:6px;font-weight:700;padding:5px 10px;border-radius:8px;background:#fff;border:1px solid #cbd5e1;cursor:pointer"><input type="checkbox" name="complaint_desks_all" '+(isAll?'checked':'')+' onchange="if(this.checked){document.querySelectorAll(\'#recordForm input[name=complaint_desk_perm]\').forEach(x=>x.checked=true)}else{document.querySelectorAll(\'#recordForm input[name=complaint_desk_perm]\').forEach(x=>x.checked=false)}"> 🌐 All Complaint Desks</label>'+desks.map(d=>{const chk=isAll||raw.includes(d.id);return '<label style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;background:#fff;border:1px solid #d5e2da;cursor:pointer"><input type="checkbox" name="complaint_desk_perm" value="'+esc(d.id)+'" '+(chk?'checked':'')+'> '+esc((d.icon||'🎫')+' '+d.name)+'</label>'}).join('')+'</div>'}
 function complaintDesksFromForm(formEl){if(!formEl)return ['*'];const allCb=formEl.querySelector('[name="complaint_desks_all"]');if(allCb?.checked)return ['*'];return [...formEl.querySelectorAll('input[name="complaint_desk_perm"]:checked')].map(x=>x.value).filter(Boolean)}
-function modulePermissionFields(user={},isNew=false){return '<div class="form-section full" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><span>Module permissions</span><span style="display:inline-flex;gap:6px"><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'none\')">All No access</button><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'read\')">All Read only</button><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'write\')">All Read &amp; write</button></span></div><div class="field full form-note">Choose what this account can see and change in each module. No access hides the module; Read only blocks changes; Read &amp; write allows changes. Administrator accounts always have full access.</div><div class="module-permission-grid field full">'+permissionModules.map(([id,label])=>'<label class="module-permission-item"><span>'+esc(label)+'</span><select name="module_perm_'+id+'"><option value="none"'+(effectiveModuleGrant(user,id,isNew)==='none'?' selected':'')+'>No access</option><option value="read"'+(effectiveModuleGrant(user,id,isNew)==='read'?' selected':'')+'>Read only</option><option value="write"'+(effectiveModuleGrant(user,id,isNew)==='write'?' selected':'')+'>Read &amp; write</option></select></label>').join('')+'</div>'+complaintDeskPermissionFields(user,isNew)}
+function modulePermissionFields(user={},isNew=false){return '<div class="form-section full" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><span>Module permissions</span><span style="display:inline-flex;gap:6px"><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'none\')">All No access</button><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'read\')">All Read only</button><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'write\')">All Read &amp; write</button></span></div><div class="field full form-note">Choose what this account can see and change in each module. No access hides the module; Read only blocks changes; Read &amp; write allows changes. Administrator accounts always have full access.</div><div class="module-permission-grid field full">'+permissionModules.map(([id,label])=>'<label class="module-permission-item"><span>'+esc(label)+'</span><select name="module_perm_'+id+'"><option value="none"'+(effectiveModuleGrant(user,id,isNew)==='none'?' selected':'')+'>No access</option><option value="read"'+(effectiveModuleGrant(user,id,isNew)==='read'?' selected':'')+'>Read only</option><option value="write"'+(effectiveModuleGrant(user,id,isNew)==='write'?' selected':'')+'>Read &amp; write</option></select></label>').join('')+'</div>'+complaintDeskPermissionFields(user,isNew)+gateAccessPermissionFields(user,isNew)}
 function permissionsFromForm(values){return Object.fromEntries(permissionModules.map(([id])=>[id,['none','read','write'].includes(values['module_perm_'+id])?values['module_perm_'+id]:'none']))}
 function currentModuleGrant(viewKey){if(!serverMode||serverAdmin)return 'write';let module=permissionViewMap[viewKey];return module?effectiveModuleGrant(serverProfile,module):'none'}
 function canAccessMod(mod,write=false){if(!serverMode||serverAdmin)return true;const g=effectiveModuleGrant(serverProfile,mod);return write?g==='write':(g==='read'||g==='write')}
@@ -1226,7 +1398,7 @@ async function saveRecord(e){
   if(hasAnyRec&&rec.some(v=>v.length<3||v.length>200))return showToast('Answer all three recovery questions with 3–200 characters each');
   if(serverMode&&!serverAdmin)return showToast('Administrator access is required to manage users & permissions');
   let access=['Administrator','IT Ticketing','Viewer'].includes(x.role)?x.role:'User';
-  let u={...old,...x,username,id:x.id?.trim()||username,name:String(x.name||'').trim(),role:access,enabled:x.enabled!=='false',module_permissions:permissionsFromForm(x),allowed_complaint_desks:complaintDesksFromForm(recordForm),department:x.dept||'',active:x.employment==='Active'?'Active':(x.employment||'Active'),assets:assets.filter(a=>a.owner===old.name||a.owner===x.name).length,software:old.software||0,source:'manual'};
+  let u={...old,...x,username,id:x.id?.trim()||username,name:String(x.name||'').trim(),role:access,enabled:x.enabled!=='false',module_permissions:permissionsFromForm(x),allowed_complaint_desks:complaintDesksFromForm(recordForm),gate_scope:['dept','management','security'].includes(x.gate_scope)?x.gate_scope:'dept',gate_departments:gateDeptsFromForm(recordForm),department:x.dept||'',active:x.employment==='Active'?'Active':(x.employment||'Active'),assets:assets.filter(a=>a.owner===old.name||a.owner===x.name).length,software:old.software||0,source:'manual'};
   if(hasAnyRec)u.hasRecoveryQuestions=true;
   delete u.password;delete u.password_confirm;delete u.recovery_animal;delete u.recovery_colour;delete u.recovery_food;
   let next=users.map(r=>({...r}));
@@ -7010,6 +7182,8 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
   let lastPulseNotifRev = '';
   let lastPulseSettingsRev = '';
   let lastPulseHistoryRev = '';
+let lastPulseVisitorRev = '';
+let lastPulseGatepassRev = '';
   let lastPulseMapRev = '';
   const nsLiveChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('northstar-live-sync') : null;
 
@@ -8160,6 +8334,18 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
         } else if(p.historyRev){
           lastPulseHistoryRev = p.historyRev;
         }
+        if(lastPulseVisitorRev && p.visitorRev && p.visitorRev !== lastPulseVisitorRev){
+          lastPulseVisitorRev = p.visitorRev;
+          window.nsVisitorsModule?.refresh?.({ alertIfNew: true });
+        } else if(p.visitorRev){
+          lastPulseVisitorRev = p.visitorRev;
+        }
+        if(lastPulseGatepassRev && p.gatepassRev && p.gatepassRev !== lastPulseGatepassRev){
+          lastPulseGatepassRev = p.gatepassRev;
+          window.nsGatePassModule?.refresh?.({ alertIfNew: true });
+        } else if(p.gatepassRev){
+          lastPulseGatepassRev = p.gatepassRev;
+        }
         if(lastPulseMapRev && p.mapRev && p.mapRev !== lastPulseMapRev){
           lastPulseMapRev = p.mapRev;
           window.nsNetworkMap?.refreshFromServer?.();
@@ -8734,6 +8920,18 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
           highlightRowSelector(`${isMr ? '#materialUserTable' : '#ticketTable'} tr[data-ticket-id="${CSS.escape(item.targetId)}"]`);
         }
       }
+      return;
+    }
+
+    if(item.kind === 'visitor' || item.targetView === 'visitors'){
+      if(typeof window.go === 'function') window.go('visitors');
+      window.nsVisitorsModule?.refresh?.({ highlightId: item.targetId || '' });
+      return;
+    }
+
+    if(item.kind === 'gatepass' || item.targetView === 'gatepass'){
+      if(typeof window.go === 'function') window.go('gatepass');
+      window.nsGatePassModule?.refresh?.({ tab: item.targetTab || '', highlightId: item.targetId || '' });
       return;
     }
 
@@ -9649,6 +9847,13 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     selectedFloorId: '',
     layers: { bg:true, zones:true, links:true, nodes:true, drawings:true },
     paletteSearch: '',
+    walkaround: false,
+    streetView: false,
+    svYaw: 0,
+    svPitch: 0,
+    svDepth: 400,
+    svZoneId: '',
+    waFilterCat: '',
     dirty: false,
     saving: false,
     undoStack: [],
@@ -9671,7 +9876,8 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
   }
 
   function formatCompass(deg){
-    const d = ((deg % 360) + 360) % 360;
+    const n = Number(deg) || 0;
+    const d = ((n % 360) + 360) % 360;
     const dirs = ['N','NE','E','SE','S','SW','W','NW'];
     const idx = Math.round(d / 45) % 8;
     return `${dirs[idx]} ${Math.round(d)}°`;
@@ -9775,25 +9981,28 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
   function renderStreetViewOverlayHtml(fl, diag){
     const nodes = fl.nodes || [];
     const zones = (fl.shapes || []).filter(s => s.shapeType === 'zone');
-    const curZone = zones.find(z => z.id === state.svZoneId) || zones[0] || { id:'zn-main', label:'Server Room & Floor MDF' };
-    const zoneNodes = nodes.filter(n => isPointInZone(n, curZone));
-    const otherZones = zones.filter(z => z.id !== curZone.id);
+    const useAll = state.svZoneId === 'all' || zones.length === 0;
+    const curZone = (!useAll && zones.find(z => z.id === state.svZoneId)) || zones[0] || { id:'all', label: fl.name || 'Floor View' };
+    const zoneNodes = useAll ? nodes : nodes.filter(n => isPointInZone(n, curZone));
+    const otherZones = zones.filter(z => useAll || z.id !== curZone.id);
 
     return `
       <div class="nm-streetview-overlay" id="nmStreetViewOverlay">
         <div class="nm-sv-topbar">
-          <div style="display:flex;align-items:center;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <span class="nm-sv-badge">🚶 360° Street View</span>
-            <span style="font-size:13px;font-weight:700;color:#f1f5f9">${esc(fl.name)} · <b>${esc(curZone.label || 'Room')}</b></span>
+            <span style="font-size:13px;font-weight:700;color:#f1f5f9">${esc(fl.name)} · <b>${esc(useAll ? 'All Floor Devices' : (curZone.label || 'Room'))}</b> (${zoneNodes.length} devices)</span>
             <span class="nm-sv-compass" id="nmSvCompassBadge">🧭 ${formatCompass(state.svYaw)}</span>
           </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <button type="button" class="btn" id="nmSvExitBtn" style="padding:4px 10px;font-size:11px;background:#334155;color:#fff;border-color:#475569">✕ Exit Street View</button>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            ${zones.length ? `<button type="button" class="btn" data-sv-zone="${useAll ? esc(zones[0].id) : 'all'}" style="padding:4px 9px;font-size:11px;background:#1e293b;color:#38bdf8;border-color:#0284c7">${useAll ? '📍 Room View' : '🌐 All Devices ('+nodes.length+')'}</button>` : ''}
+            <button type="button" class="btn" id="nmSvWalkBtn" style="padding:4px 9px;font-size:11px;background:#1e293b;color:#fff;border-color:#475569">🏢 Floors</button>
+            <button type="button" class="btn" id="nmSvExitBtn" style="padding:4px 10px;font-size:11px;background:#334155;color:#fff;border-color:#475569">✕ Exit</button>
           </div>
         </div>
 
-        <div class="nm-sv-scene" id="nmSvScene" title="Click and drag to look around 360°">
-          <div class="nm-sv-room-box" id="nmSvRoomBox" style="transform:translateZ(400px) rotateX(${state.svPitch}deg) rotateY(${state.svYaw}deg)">
+        <div class="nm-sv-scene" id="nmSvScene" title="Drag (or touch) to look around 360°">
+          <div class="nm-sv-room-box" id="nmSvRoomBox" style="transform:translateZ(${Math.round(state.svDepth || 400)}px) rotateX(${Number(state.svPitch) || 0}deg) rotateY(${Number(state.svYaw) || 0}deg)">
             <div class="nm-sv-floor-plane"></div>
             <div class="nm-sv-ceiling-plane"></div>
             <div class="nm-sv-wall-back"></div>
@@ -10153,14 +10362,19 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     const visibleFloors = diag.floors.filter(f => f.visible !== false);
     const gap = 110;
     const baseW = visibleFloors[0]?.width || 1390, baseH = visibleFloors[0]?.height || 390;
+    const stageW = Math.max(300, host.clientWidth || 680);
+    if(!ovCam.userAdjusted){
+      ovCam.zoom = +Math.min(0.46, Math.max(0.20, (stageW - 60) / (baseW * 1.12))).toFixed(2);
+      ovCam.panX = 0; ovCam.panY = 0;
+    }
 
     const slabsHtml = visibleFloors.map((fl, i) => {
       const z = ovCam.viewMode === '3d' ? ((visibleFloors.length - 1 - i) * -gap + (visibleFloors.length - 1)*gap/2) : 0;
       const svgContent = renderFloorSvgContent(fl, diag, { readonly: true });
       const activeFloorCheck = ovCam.viewMode === '2d' && fl.id !== (ovCam.floorId || diag.activeFloorId);
       if(activeFloorCheck) return '';
-      return `<div class="nm-floor-slab" style="width:${fl.width}px;height:${fl.height}px;margin-left:${-fl.width/2}px;margin-top:${-fl.height/2}px;transform:translate3d(0,0,${z}px)">
-        <div class="nm-slab-label">L${i+1} · ${esc(fl.name)}</div>
+      return `<div class="nm-floor-slab ${fl.id===(ovCam.floorId||diag.activeFloorId)?'is-active':''}" style="width:${fl.width}px;height:${fl.height}px;margin-left:${-fl.width/2}px;margin-top:${-fl.height/2}px;transform:translate3d(0,0,${z}px)">
+        <div class="nm-slab-label">L${i+1} · ${esc(fl.name)} (${(fl.nodes||[]).length})</div>
         <svg width="${fl.width}" height="${fl.height}" viewBox="0 0 ${fl.width} ${fl.height}" style="display:block">${svgContent}</svg>
       </div>`;
     }).join('');
@@ -10179,11 +10393,14 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
           <select class="filter-select" id="ovMapFactorySel" style="font-size:10.5px;padding:5px 8px">
             ${fList.map(fc => `<option value="${esc(fc)}" ${fc===ovCam.factory?'selected':''}>${esc(fc)}</option>`).join('')}
           </select>
+          <button type="button" class="btn" style="font-size:10.5px;padding:6px 9px" onclick="nsNetworkMap.openWalkaround(document.getElementById('ovMapFactorySel')?.value)" title="Floor-by-Floor Walkaround">🏢 Walkaround</button>
+          <button type="button" class="btn" style="font-size:10.5px;padding:6px 9px;color:#0284c7;border-color:#bae6fd;background:#f0f9ff" onclick="nsNetworkMap.openStreetView(document.getElementById('ovMapFactorySel')?.value)" title="360° Street View">🚶 Street View</button>
           <button type="button" class="btn primary" style="font-size:10.5px;padding:6px 10px" onclick="nsNetworkMap.openStudio(document.getElementById('ovMapFactorySel')?.value)">Open Map Studio →</button>
         </div>
       </div>
-      <div class="ns-ov-map-stage" id="ovMapStage" title="Drag to rotate / move · Scroll to zoom">
-        <div class="nm-world-stage" id="ovMapWorld" style="width:${baseW}px;height:${baseH}px;transform:${t3d}">
+      <div class="ns-ov-map-stage" id="ovMapStage" title="Drag to rotate (Shift+drag to pan) · Ctrl+Scroll or + / − to zoom · Page scrolls normally">
+        <div class="ns-ov-zoom-toast" id="ovZoomToast">Use Ctrl + Scroll or ＋ / − to zoom map</div>
+        <div class="nm-world-stage" id="ovMapWorld" style="transform:${t3d}">
           ${slabsHtml}
         </div>
         <div class="ns-ov-map-hud">
@@ -10192,32 +10409,66 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
           <button type="button" id="ovMapZoomOut">－</button>
           <button type="button" id="ovMapRotL">⟲ Rotate</button>
           <button type="button" id="ovMapRotR">⟳</button>
-          <button type="button" id="ovMapReset">Reset</button>
+          ${visibleFloors.map((fl, i) => `<button type="button" class="ov-floor-btn" data-ov-floor="${esc(fl.id)}" style="${ovCam.viewMode==='2d'&&ovCam.floorId===fl.id?'background:#157a54;color:#fff;border-color:#157a54':''}">L${i+1}</button>`).join('')}
+          <button type="button" id="ovMapReset">⊡ Fit / Reset</button>
         </div>
       </div>
     `;
 
     // Bind inline Overview preview interactions
-    host.querySelector('#ovMapFactorySel')?.addEventListener('change', e => { ovCam.factory = e.target.value; renderOverviewPreview(); });
+    host.querySelector('#ovMapFactorySel')?.addEventListener('change', e => { ovCam.factory = e.target.value; ovCam.userAdjusted = false; renderOverviewPreview(); });
     host.querySelector('#ovMapToggle3d')?.addEventListener('click', () => { ovCam.viewMode = ovCam.viewMode === '3d' ? '2d' : '3d'; renderOverviewPreview(); });
-    host.querySelector('#ovMapZoomIn')?.addEventListener('click', () => { ovCam.zoom = Math.min(1.6, +(ovCam.zoom + 0.08).toFixed(2)); renderOverviewPreview(); });
-    host.querySelector('#ovMapZoomOut')?.addEventListener('click', () => { ovCam.zoom = Math.max(0.16, +(ovCam.zoom - 0.08).toFixed(2)); renderOverviewPreview(); });
+    host.querySelector('#ovMapZoomIn')?.addEventListener('click', () => { ovCam.userAdjusted = true; ovCam.zoom = Math.min(1.6, +(ovCam.zoom + 0.08).toFixed(2)); renderOverviewPreview(); });
+    host.querySelector('#ovMapZoomOut')?.addEventListener('click', () => { ovCam.userAdjusted = true; ovCam.zoom = Math.max(0.16, +(ovCam.zoom - 0.08).toFixed(2)); renderOverviewPreview(); });
     host.querySelector('#ovMapRotL')?.addEventListener('click', () => { ovCam.yaw -= 18; ovCam.viewMode = '3d'; renderOverviewPreview(); });
     host.querySelector('#ovMapRotR')?.addEventListener('click', () => { ovCam.yaw += 18; ovCam.viewMode = '3d'; renderOverviewPreview(); });
-    host.querySelector('#ovMapReset')?.addEventListener('click', () => { ovCam.zoom=0.34; ovCam.pitch=52; ovCam.yaw=-28; ovCam.panX=0; ovCam.panY=0; ovCam.viewMode='3d'; renderOverviewPreview(); });
+    host.querySelectorAll('[data-ov-floor]').forEach(btn => btn.addEventListener('click', () => {
+      const fid = btn.dataset.ovFloor;
+      if(ovCam.viewMode === '2d' && ovCam.floorId === fid){
+        ovCam.viewMode = '3d';
+      } else {
+        ovCam.viewMode = '2d';
+        ovCam.floorId = fid;
+      }
+      renderOverviewPreview();
+    }));
+    host.querySelector('#ovMapReset')?.addEventListener('click', () => { ovCam.userAdjusted = false; ovCam.pitch=52; ovCam.yaw=-28; ovCam.panX=0; ovCam.panY=0; ovCam.viewMode='3d'; renderOverviewPreview(); });
 
     const stage = host.querySelector('#ovMapStage');
+    let ovZoomToastTimer = null;
     if(stage && !stage.dataset.bound){
       stage.dataset.bound = '1';
       stage.addEventListener('wheel', e => {
+        if(!e.ctrlKey && !e.metaKey){
+          // Allow dashboard page to scroll naturally! Show helpful Google-Maps-style hint
+          const zt = stage.querySelector('#ovZoomToast');
+          if(zt){
+            zt.classList.add('show');
+            clearTimeout(ovZoomToastTimer);
+            ovZoomToastTimer = setTimeout(() => zt.classList.remove('show'), 1400);
+          }
+          return;
+        }
         e.preventDefault();
-        ovCam.zoom = Math.max(0.16, Math.min(1.6, +(ovCam.zoom + (e.deltaY < 0 ? 0.05 : -0.05)).toFixed(2)));
+        ovCam.userAdjusted = true;
+        ovCam.zoom = Math.max(0.16, Math.min(1.6, +(ovCam.zoom + (e.deltaY < 0 ? 0.06 : -0.06)).toFixed(2)));
         const w = stage.querySelector('#ovMapWorld');
         if(w) w.style.transform = ovCam.viewMode === '3d' ? `translate3d(${ovCam.panX}px,${ovCam.panY}px,0px) scale(${ovCam.zoom}) rotateX(${ovCam.pitch}deg) rotateZ(${ovCam.yaw}deg)` : `translate3d(${ovCam.panX}px,${ovCam.panY}px,0px) scale(${ovCam.zoom})`;
       }, { passive:false });
       stage.addEventListener('mousedown', e => {
         if(e.target.closest('.ns-ov-map-hud')) return;
-        ovActiveDrag = { x: e.clientX, y: e.clientY, mode: e.shiftKey ? 'pan' : 'orbit', startYaw: ovCam.yaw, startPitch: ovCam.pitch, startPanX: ovCam.panX, startPanY: ovCam.panY };
+        const nodeEl = e.target.closest('[data-nm-type="node"]');
+        ovActiveDrag = { x: e.clientX, y: e.clientY, moved: false, nodeId: nodeEl?.dataset?.nmId || '', floorId: nodeEl?.dataset?.floorId || '', mode: e.shiftKey ? 'pan' : 'orbit', startYaw: ovCam.yaw, startPitch: ovCam.pitch, startPanX: ovCam.panX, startPanY: ovCam.panY };
+      });
+      stage.addEventListener('click', e => {
+        const nodeEl = e.target.closest('[data-nm-type="node"]');
+        if(nodeEl && ovActiveDrag?.moved !== true){
+          const flMatch = (diag.floors || []).find(f => f.id === nodeEl.dataset.floorId);
+          const nd = (flMatch?.nodes || []).find(n => n.id === nodeEl.dataset.nmId);
+          if(nd?.linkedAssetTag && typeof window.openAssetDetails === 'function'){
+            window.openAssetDetails(nd.linkedAssetTag);
+          }
+        }
       });
     }
   }
@@ -10356,7 +10607,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
               ${diag.floors.map((f, idx) => `<button type="button" class="nm-floor-pill ${f.id===fl.id?'active':''}" data-floor-pick="${esc(f.id)}">L${idx+1}: ${esc(f.name)}</button>`).join('')}
             </div>
 
-            <div class="nm-world-stage" id="nmWorldStage" style="width:${fl.width}px;height:${fl.height}px;transform:${t3d}">
+            <div class="nm-world-stage" id="nmWorldStage" style="transform:${t3d}">
               ${slabsHtml}
             </div>
 
@@ -10365,6 +10616,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
                 <button type="button" class="nm-gmap-btn" id="nmGmapZoomIn" title="Zoom in">＋</button>
                 <button type="button" class="nm-gmap-btn" id="nmGmapZoomOut" title="Zoom out">−</button>
               </div>
+              <button type="button" class="nm-gmap-single-btn" id="nmGmapFit" title="Center &amp; Fit Floors">⊡</button>
               <button type="button" class="nm-gmap-single-btn" id="nmGmapCompass" title="Reset Compass (North 0°)">🧭</button>
               <button type="button" class="nm-gmap-single-btn nm-pegman-btn ${state.streetView?'active':''}" id="nmGmapPegman" title="Google Street View 360°">🚶</button>
               <button type="button" class="nm-gmap-single-btn ${state.walkaround?'active':''}" id="nmGmapWalkaround" title="Floor Walkaround">🏢</button>
@@ -10728,11 +10980,19 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       state.zoom = Math.max(0.2, +(state.zoom / 1.2).toFixed(2));
       redrawWorldOnly();
     });
+    view.querySelector('#nmGmapFit')?.addEventListener('click', () => {
+      const vpel = view.querySelector('#nmViewport');
+      const vw = vpel?.clientWidth || 720;
+      state.zoom = +Math.min(1.0, Math.max(0.32, (vw - 80) / (fl.width || 1390))).toFixed(2);
+      state.panX = 0; state.panY = 0;
+      buildStudioMarkup();
+    });
     view.querySelector('#nmGmapCompass')?.addEventListener('click', () => {
       state.yaw = 0; state.pitch = 50; redrawWorldOnly();
     });
     view.querySelector('#nmWaCloseBtn')?.addEventListener('click', () => { state.walkaround = false; buildStudioMarkup(); });
     view.querySelector('#nmWaEnterStreetViewBtn')?.addEventListener('click', () => { state.streetView = true; buildStudioMarkup(); });
+    view.querySelector('#nmSvWalkBtn')?.addEventListener('click', () => { state.streetView = false; state.walkaround = true; buildStudioMarkup(); });
     view.querySelector('#nmSvExitBtn')?.addEventListener('click', () => { state.streetView = false; buildStudioMarkup(); });
 
     view.querySelector('#nmWaFloorPrev')?.addEventListener('click', () => {
@@ -10771,19 +11031,69 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       }
     }));
 
-    // Street view 360 mouse look
+    // Street view 360 mouse & touch look + wheel zoom
     const svScene = view.querySelector('#nmSvScene');
     if(svScene){
       svScene.addEventListener('mousedown', e => {
         if(e.target.closest('.nm-sv-placard,.nm-sv-waypoint-btn')) return;
         studioActiveOp = { kind:'svLook', sx:e.clientX, sy:e.clientY, yaw:state.svYaw, pitch:state.svPitch };
       });
+      svScene.addEventListener('wheel', e => {
+        e.preventDefault();
+        state.svDepth = Math.max(180, Math.min(720, (state.svDepth || 400) + (e.deltaY < 0 ? 35 : -35)));
+        const box = document.getElementById('nmSvRoomBox');
+        if(box) box.style.transform = `translateZ(${Math.round(state.svDepth)}px) rotateX(${state.svPitch}deg) rotateY(${state.svYaw}deg)`;
+      }, { passive:false });
+      let svTouch = null;
+      svScene.addEventListener('touchstart', e => {
+        if(e.touches.length === 1 && !e.target.closest('.nm-sv-placard,.nm-sv-waypoint-btn')){
+          svTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY, yaw: state.svYaw, pitch: state.svPitch };
+        }
+      }, { passive:true });
+      svScene.addEventListener('touchmove', e => {
+        if(!svTouch || e.touches.length !== 1) return;
+        e.preventDefault();
+        state.svYaw = svTouch.yaw + (e.touches[0].clientX - svTouch.x) * 0.38;
+        state.svPitch = Math.max(-35, Math.min(35, svTouch.pitch - (e.touches[0].clientY - svTouch.y) * 0.25));
+        const box = document.getElementById('nmSvRoomBox');
+        if(box) box.style.transform = `translateZ(${Math.round(state.svDepth || 400)}px) rotateX(${state.svPitch}deg) rotateY(${state.svYaw}deg)`;
+        const comp = document.getElementById('nmSvCompassBadge');
+        if(comp) comp.textContent = '🧭 ' + formatCompass(state.svYaw);
+      }, { passive:false });
+      svScene.addEventListener('touchend', () => { svTouch = null; });
     }
 
-    // Viewport mouse/drag/draw/orbit interaction
+    // Viewport mouse/drag/draw/orbit + mobile touch pan/pinch interaction
     const vp = view.querySelector('#nmViewport');
     if(vp && !vp.dataset.bound){
       vp.dataset.bound = '1';
+      let vpTouch = null;
+      vp.addEventListener('touchstart', e => {
+        if(e.target.closest('.nm-camera-hud,.nm-floor-badge,.nm-gmap-controls,.nm-walkaround-drawer,.nm-streetview-overlay')) return;
+        if(e.touches.length === 1){
+          vpTouch = { mode:'pan', x:e.touches[0].clientX, y:e.touches[0].clientY, panX:state.panX, panY:state.panY };
+        } else if(e.touches.length === 2){
+          const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+          vpTouch = { mode:'pinch', dist:d, zoom:state.zoom };
+        }
+      }, { passive:true });
+      vp.addEventListener('touchmove', e => {
+        if(!vpTouch) return;
+        if(vpTouch.mode === 'pan' && e.touches.length === 1){
+          e.preventDefault();
+          state.panX = vpTouch.panX + (e.touches[0].clientX - vpTouch.x);
+          state.panY = vpTouch.panY + (e.touches[0].clientY - vpTouch.y);
+          redrawWorldOnly();
+        } else if(e.touches.length === 2){
+          e.preventDefault();
+          const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+          if(vpTouch.dist > 10){
+            state.zoom = Math.max(0.20, Math.min(2.8, +(vpTouch.zoom * (d / vpTouch.dist)).toFixed(2)));
+            redrawWorldOnly();
+          }
+        }
+      }, { passive:false });
+      vp.addEventListener('touchend', () => { vpTouch = null; });
 
       vp.addEventListener('wheel', e => {
         e.preventDefault();
@@ -10933,6 +11243,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
   window.addEventListener('mousemove', e => {
     if(ovActiveDrag){
       const dx = e.clientX - ovActiveDrag.x, dy = e.clientY - ovActiveDrag.y;
+      if(Math.hypot(dx, dy) > 5) ovActiveDrag.moved = true;
       if(ovActiveDrag.mode === 'orbit' && ovCam.viewMode === '3d'){
         ovCam.yaw = ovActiveDrag.startYaw + dx * 0.35;
         ovCam.pitch = Math.max(15, Math.min(76, ovActiveDrag.startPitch - dy * 0.25));
@@ -10945,6 +11256,15 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     }
     const op = studioActiveOp;
     if(!op) return;
+    if(op.kind === 'svLook'){
+      state.svYaw = (Number(op.yaw) || 0) + (e.clientX - op.sx) * 0.38;
+      state.svPitch = Math.max(-35, Math.min(35, (Number(op.pitch) || 0) - (e.clientY - op.sy) * 0.25));
+      const box = document.getElementById('nmSvRoomBox');
+      if(box) box.style.transform = `translateZ(${Math.round(state.svDepth || 400)}px) rotateX(${state.svPitch}deg) rotateY(${state.svYaw}deg)`;
+      const comp = document.getElementById('nmSvCompassBadge');
+      if(comp) comp.textContent = '🧭 ' + formatCompass(state.svYaw);
+      return;
+    }
     if(op.kind === 'orbit'){
       state.yaw = op.yaw + (e.clientX - op.sx) * 0.4;
       state.pitch = Math.max(0, Math.min(75, op.pitch - (e.clientY - op.sy) * 0.3));
@@ -10990,7 +11310,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
   });
 
   window.addEventListener('mouseup', () => {
-    ovActiveDrag = null;
+    setTimeout(() => { ovActiveDrag = null; }, 20);
     if(!studioActiveOp) return;
     const kind = studioActiveOp.kind;
     const wasMutating = ['pen','drawShape','resizeShape','moveObj'].includes(kind);
@@ -11007,6 +11327,16 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     getDoc: () => mapDoc,
     getState: () => ({ ...state }),
     renderOverviewPreview,
+    openWalkaround(factoryCode){
+      state.walkaround = true;
+      state.streetView = false;
+      this.openStudio(factoryCode);
+    },
+    openStreetView(factoryCode){
+      state.streetView = true;
+      state.walkaround = false;
+      this.openStudio(factoryCode);
+    },
     openStudio(factoryCode){
       if(factoryCode) state.activeFactory = factoryCode;
       else {
@@ -13856,7 +14186,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
         window.nsNotifCenter?.refreshFromServer?.();
       });
 
-      // Instant notification event across all workers (tickets, critical device online/offline, etc.)
+      // Instant notification event across all workers (tickets, critical device online/offline, visitor/gatepass)
       sseSource.addEventListener('notification', function(e){
         try{
           const payload = JSON.parse(e.data);
@@ -13864,15 +14194,29 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
           window.nsNotifCenter?.refreshFromServer?.();
           if(ev.kind === 'ticket' || ev.kind === 'material_request' || ev.targetView === 'ticketing' || ev.targetView === 'tickets'){
             window.nsSoundEngine?.syncTicketsNow?.();
+          } else if(ev.kind === 'visitor' || ev.targetView === 'visitors'){
+            window.nsVisitorsModule?.refresh?.({ alertIfNew: true });
+          } else if(ev.kind === 'gatepass' || ev.targetView === 'gatepass'){
+            window.nsGatePassModule?.refresh?.({ alertIfNew: true });
           } else if(ev.kind === 'critical' || ev.kind === 'offline' || ev.kind === 'online'){
             window.nsSoundEngine?.syncAssetsNow?.();
           }
-          if(ev.title && ev.kind !== 'ticket' && ev.kind !== 'material_request'){
+          if(ev.title && ev.kind !== 'ticket' && ev.kind !== 'material_request' && ev.kind !== 'visitor' && ev.kind !== 'gatepass'){
             window.nsSoundEngine?.triggerEventAlert?.(ev.kind || 'info', ev.title, ev.body || '', ev.level || 'info', ev);
           }
         }catch(_){
           window.nsSoundEngine?.runPulseNow?.();
         }
+      });
+
+      sseSource.addEventListener('visitor', function(){
+        window.nsVisitorsModule?.refresh?.({ alertIfNew: true });
+        window.nsNotifCenter?.refreshFromServer?.();
+      });
+
+      sseSource.addEventListener('gatepass', function(){
+        window.nsGatePassModule?.refresh?.({ alertIfNew: true });
+        window.nsNotifCenter?.refreshFromServer?.();
       });
 
       // Instant asset status arrival from ping sweep
@@ -13973,6 +14317,730 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     }
   }, 800);
 
+})();
+</script>
+<script id="northstar-gate-modules">
+(() => {
+  const esc = (s) => (typeof window.safeEsc === 'function' ? window.safeEsc(s) : String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])));
+  const isSrv = () => (typeof serverMode !== 'undefined' && serverMode && typeof apiFetch === 'function' && location.protocol !== 'file:');
+
+  let visitorRows = [];
+  let gatepassRows = [];
+  let seenVisitorIds = new Set();
+  let seenGatepassIds = new Set();
+  let visBooted = false;
+  let gpBooted = false;
+  let activeDirectionTab = 'ALL';
+  let camStream = null;
+  let camCallback = null;
+
+  function toLocalInputStr(d){
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function fmtGateDt(iso){
+    if(!iso) return '—';
+    const d = new Date(iso);
+    if(Number.isNaN(d.getTime())) return esc(iso);
+    return d.toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true });
+  }
+
+  function applyDayPresetRange(preset, fromId, toId, btnAttr){
+    document.querySelectorAll(`[${btnAttr}]`).forEach(b => b.classList.toggle('active', b.getAttribute(btnAttr) === preset));
+    const fromEl = document.getElementById(fromId);
+    const toEl = document.getElementById(toId);
+    if(!fromEl || !toEl) return;
+    const now = new Date();
+    if(preset === 'all'){
+      fromEl.value = ''; toEl.value = '';
+      return;
+    }
+    const start = new Date(now);
+    const end = new Date(now);
+    if(preset === 'yesterday'){
+      start.setDate(start.getDate() - 1);
+      end.setDate(end.getDate() - 1);
+    } else if(preset === '7d'){
+      start.setDate(start.getDate() - 6);
+    }
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    fromEl.value = toLocalInputStr(start);
+    toEl.value = toLocalInputStr(end);
+  }
+
+  function isoFromLocalInput(val){
+    const s = String(val || '').trim();
+    if(!s) return '';
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? '' : d.toISOString();
+  }
+
+  async function compressImageFile(file, maxDim = 1280, quality = 0.82){
+    return new Promise((resolve, reject) => {
+      if(!file) return resolve('');
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Could not read photo'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => resolve(String(reader.result || ''));
+        img.onload = () => {
+          let w = img.width, h = img.height;
+          if(w > maxDim || h > maxDim){
+            if(w >= h){ h = Math.round(h * (maxDim / w)); w = maxDim; }
+            else { w = Math.round(w * (maxDim / h)); h = maxDim; }
+          }
+          const c = document.createElement('canvas');
+          c.width = w; c.height = h;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(c.toDataURL('image/jpeg', quality));
+        };
+        img.src = String(reader.result || '');
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  window.openGateLightbox = function(url, title){
+    const modal = document.getElementById('gateLightboxModal');
+    const img = document.getElementById('gateLightboxImg');
+    const tit = document.getElementById('gateLightboxTitle');
+    if(!modal || !img || !url) return;
+    img.src = url;
+    if(tit) tit.textContent = title || 'Photo Preview';
+    modal.classList.add('open');
+  };
+  window.closeGateLightbox = function(){
+    document.getElementById('gateLightboxModal')?.classList.remove('open');
+  };
+
+  window.openGateCam = async function(onSnap){
+    const modal = document.getElementById('gateCamModal');
+    const vid = document.getElementById('gateCamVideo');
+    if(!modal || !vid) return;
+    camCallback = onSnap;
+    try{
+      camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } }, audio: false });
+      vid.srcObject = camStream;
+      modal.classList.add('open');
+    }catch(err){
+      if(typeof showToast === 'function') showToast('Camera unavailable (' + (err?.message || 'permission needed') + '). Use file/camera upload button below.');
+    }
+  };
+  window.closeGateCam = function(){
+    if(camStream){
+      try{ camStream.getTracks().forEach(t => t.stop()); }catch(_){}
+      camStream = null;
+    }
+    const vid = document.getElementById('gateCamVideo');
+    if(vid) vid.srcObject = null;
+    document.getElementById('gateCamModal')?.classList.remove('open');
+  };
+  window.snapGateCamPhoto = function(){
+    const vid = document.getElementById('gateCamVideo');
+    if(!vid || !vid.videoWidth) return;
+    const c = document.createElement('canvas');
+    c.width = vid.videoWidth; c.height = vid.videoHeight;
+    c.getContext('2d').drawImage(vid, 0, 0);
+    const dataUrl = c.toDataURL('image/jpeg', 0.85);
+    const cb = camCallback;
+    window.closeGateCam();
+    if(typeof cb === 'function') cb(dataUrl);
+  };
+  window.closeGateCreateModal = function(){
+    document.getElementById('gateCreateModal')?.classList.remove('open');
+  };
+
+  function getFactoriesList(){
+    return (typeof window.factoryCodes === 'function' ? window.factoryCodes() : ['ARG', 'ARB', 'ARC', 'ARF']);
+  }
+  function getDeptsForFactory(fc){
+    if(typeof deptsForFactory === 'function') return deptsForFactory(fc, false);
+    const all = (typeof depts !== 'undefined' && Array.isArray(depts)) ? depts : [];
+    return [...new Set(all.filter(d => !fc || String(Array.isArray(d)?(d[6]||d[1]):d?.factory||'').toLowerCase() === fc.toLowerCase()).map(d => String(Array.isArray(d)?d[0]:d?.name||'').trim()).filter(Boolean))];
+  }
+  function getAllDeptNames(){
+    const all = (typeof depts !== 'undefined' && Array.isArray(depts)) ? depts : [];
+    return [...new Set(all.map(d => String(Array.isArray(d)?d[0]:d?.name||'').trim()).filter(Boolean))].sort();
+  }
+  function getUsersForFactoryDept(fc, deptName){
+    const all = (typeof users !== 'undefined' && Array.isArray(users)) ? users : [];
+    return all.filter(u => u && u.enabled !== false && String(u.active || 'Active').toLowerCase() !== 'inactive'
+      && (!fc || String(u.site || '').toLowerCase() === fc.toLowerCase())
+      && (!deptName || String(u.dept || u.department || '').toLowerCase() === deptName.toLowerCase()));
+  }
+
+  function fillGateFilterSelects(facSelId, deptSelId){
+    const fSel = document.getElementById(facSelId);
+    const dSel = document.getElementById(deptSelId);
+    const factories = getFactoriesList();
+    if(fSel){
+      const cur = fSel.value;
+      fSel.innerHTML = '<option value="">All factories</option>' + factories.map(fc => {
+        const lbl = typeof window.getFactoryDisplayName === 'function' ? `${fc} · ${window.getFactoryDisplayName(fc)}` : fc;
+        return `<option value="${esc(fc)}">${esc(lbl)}</option>`;
+      }).join('');
+      if(cur && factories.includes(cur)) fSel.value = cur;
+    }
+    if(dSel){
+      const cur = dSel.value;
+      const dn = getAllDeptNames();
+      dSel.innerHTML = '<option value="">All departments</option>' + dn.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join('');
+      if(cur && dn.includes(cur)) dSel.value = cur;
+    }
+  }
+
+  function normDeptMatch(allowedSet, targetDept){
+    const td = String(targetDept || '').trim().toLowerCase();
+    if(!td || !allowedSet.size) return false;
+    if(allowedSet.has(td)) return true;
+    const strip = s => s.replace(/\b(dept|department)\b/g, '').trim();
+    const tdn = strip(td);
+    for(const a of allowedSet){
+      if(strip(a) && tdn && strip(a) === tdn) return true;
+    }
+    return false;
+  }
+
+  function clientProfileScope(prof){
+    if(typeof serverAdmin !== 'undefined' && serverAdmin) return 'all';
+    if(prof?.role === 'Administrator') return 'all';
+    const sc = String(prof?.gate_scope || 'dept').toLowerCase();
+    return ['management', 'security', 'all'].includes(sc) ? sc : 'dept';
+  }
+
+  function visitorVisibleClient(row){
+    const prof = (typeof serverProfile !== 'undefined' && serverProfile) ? serverProfile : {};
+    if(clientProfileScope(prof) !== 'dept') return true;
+    const u = String(prof.username || prof.id || '').trim().toLowerCase();
+    const n = String(prof.name || '').trim().toLowerCase();
+    if((u && String(row.hostUsername||'').trim().toLowerCase() === u) || (n && String(row.hostName||'').trim().toLowerCase() === n)) return true;
+    const allowed = new Set([prof.dept, prof.department, ...(Array.isArray(prof.gate_departments) ? prof.gate_departments : [])].map(x => String(x||'').trim().toLowerCase()).filter(Boolean));
+    return normDeptMatch(allowed, row.department);
+  }
+
+  function gatepassVisibleClient(row){
+    const prof = (typeof serverProfile !== 'undefined' && serverProfile) ? serverProfile : {};
+    if(clientProfileScope(prof) !== 'dept') return true;
+    const u = String(prof.username || prof.id || '').trim().toLowerCase();
+    const n = String(prof.name || '').trim().toLowerCase();
+    if((u && String(row.forUsername||'').trim().toLowerCase() === u) || (n && String(row.forName||'').trim().toLowerCase() === n)) return true;
+    const explicit = new Set((Array.isArray(prof.gate_departments) ? prof.gate_departments : []).map(x => String(x||'').trim().toLowerCase()).filter(Boolean));
+    return normDeptMatch(explicit, row.department);
+  }
+
+  function filterRowsLocally(rows, fromVal, toVal, fac, dept, status, q, dir = ''){
+    const fMs = fromVal ? Date.parse(fromVal) : NaN;
+    const tMs = toVal ? Date.parse(toVal) : NaN;
+    const ql = String(q || '').trim().toLowerCase();
+    return rows.filter(r => {
+      if(dir && dir !== 'ALL' && r.direction !== dir) return false;
+      if(fac && r.factory !== fac) return false;
+      if(dept && String(r.department || '').toLowerCase() !== dept.toLowerCase()) return false;
+      if(status && r.status !== status) return false;
+      const cMs = Date.parse(r.createdAt || '');
+      if(Number.isFinite(fMs) && Number.isFinite(cMs) && cMs < fMs) return false;
+      if(Number.isFinite(tMs) && Number.isFinite(cMs) && cMs > tMs) return false;
+      if(ql && !JSON.stringify(r).toLowerCase().includes(ql)) return false;
+      return true;
+    });
+  }
+
+  function statusClassVisitor(st){
+    if(st === 'Approved') return 'gate-badge-approved';
+    if(st === 'Checked In') return 'gate-badge-in';
+    if(st === 'Checked Out') return 'gate-badge-out';
+    if(st === 'Rejected') return 'gate-badge-rejected';
+    return 'gate-badge-pending';
+  }
+
+  function renderVisitorTable(list, highlightId = ''){
+    const tbody = document.getElementById('visitorPassTableBody');
+    if(!tbody) return;
+    const canWrite = (typeof canAccessMod === 'function' ? canAccessMod('visitors', true) : true);
+    const prof = (typeof serverProfile !== 'undefined' && serverProfile) ? serverProfile : {};
+    const scope = clientProfileScope(prof);
+
+    const pendingCnt = list.filter(x => x.status === 'Pending').length;
+    const insideCnt = list.filter(x => x.status === 'Approved' || x.status === 'Checked In').length;
+    const outCnt = list.filter(x => x.status === 'Checked Out').length;
+    const elP = document.getElementById('visKpiPending'); if(elP) elP.textContent = pendingCnt;
+    const elI = document.getElementById('visKpiInside'); if(elI) elI.textContent = insideCnt;
+    const elO = document.getElementById('visKpiOut'); if(elO) elO.textContent = outCnt;
+    const elT = document.getElementById('visKpiTotal'); if(elT) elT.textContent = list.length;
+    const elS = document.getElementById('visScopeFoot');
+    if(elS) elS.textContent = scope === 'all' ? 'Admin / Full access' : (scope === 'management' ? 'Management · All depts' : (scope === 'security' ? 'Security Incharge · All depts' : `Dept: ${prof.dept || prof.department || 'Own'}`));
+    const badge = document.getElementById('visitorBadge');
+    if(badge){ badge.textContent = pendingCnt; badge.style.display = pendingCnt > 0 ? 'inline-block' : 'none'; }
+
+    const addBtn = document.getElementById('visAddBtn');
+    if(addBtn) addBtn.style.display = canWrite ? '' : 'none';
+
+    if(!list.length){
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No visitor records match the selected date/time or filters.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(v => {
+      const photosHtml = `<div class="gate-thumb-pair">
+        ${v.idCardPhoto ? `<img class="gate-thumb" src="${esc(v.idCardPhoto)}" alt="ID Card" title="View ID Card" onclick="openGateLightbox('${esc(v.idCardPhoto)}','ID Card · ${esc(v.visitorName)}')">` : '<span class="ticket-meta">No ID</span>'}
+        ${v.selfiePhoto ? `<img class="gate-thumb" src="${esc(v.selfiePhoto)}" alt="Selfie" title="View Visitor Selfie" onclick="openGateLightbox('${esc(v.selfiePhoto)}','Selfie · ${esc(v.visitorName)}')">` : '<span class="ticket-meta">No Selfie</span>'}
+      </div>`;
+      const actions = [];
+      if(canWrite && v.status === 'Pending'){
+        actions.push(`<button type="button" class="btn primary" style="padding:4px 9px;font-size:10px" onclick="nsVisitorsModule.decide('${esc(v.id)}','approve')">✓ Approve</button>`);
+        actions.push(`<button type="button" class="btn" style="padding:4px 9px;font-size:10px;color:#b91c1c;border-color:#fecaca" onclick="nsVisitorsModule.decide('${esc(v.id)}','reject')">✕ Reject</button>`);
+      }
+      if(canWrite && (v.status === 'Approved' || (v.status === 'Pending' && scope === 'security'))){
+        actions.push(`<button type="button" class="btn" style="padding:4px 9px;font-size:10px;background:#ecfdf5;border-color:#a7f3d0;color:#065f46" onclick="nsVisitorsModule.decide('${esc(v.id)}','checkin')">🟢 Check-In</button>`);
+      }
+      if(canWrite && v.status === 'Checked In'){
+        actions.push(`<button type="button" class="btn" style="padding:4px 9px;font-size:10px" onclick="nsVisitorsModule.decide('${esc(v.id)}','checkout')">🚪 Mark Exit</button>`);
+      }
+      if(scope === 'all' || scope === 'security'){
+        actions.push(`<button type="button" class="btn" style="padding:4px 7px;font-size:10px;color:#b53d38" title="Delete" onclick="nsVisitorsModule.remove('${esc(v.id)}')">🗑</button>`);
+      }
+      return `<tr data-visitor-id="${esc(v.id)}" style="${highlightId && highlightId === v.id ? 'background:#dcfce7' : ''}">
+        <td><b class="ticket-token">${esc(v.id)}</b><div class="ticket-meta">${fmtGateDt(v.createdAt)}</div><div class="ticket-meta">By: ${esc(v.enteredBy || 'Gate')}</div></td>
+        <td>${photosHtml}</td>
+        <td><b>${esc(v.visitorName)}</b>${v.visitorCount > 1 ? ` <span class="age-pill">+${v.visitorCount-1}</span>` : ''}${v.phone ? `<div class="ticket-meta">📞 ${esc(v.phone)}</div>` : ''}<div class="ticket-meta" style="max-width:200px;white-space:normal">${esc(v.address)}</div></td>
+        <td style="max-width:190px;white-space:normal"><b>${esc(v.purpose)}</b>${v.vehicleNo ? `<div class="ticket-meta">🚗 ${esc(v.vehicleNo)}</div>` : ''}${v.passNo ? `<div class="ticket-meta">Badge: ${esc(v.passNo)}</div>` : ''}${v.belongings ? `<div class="ticket-meta">Items: ${esc(v.belongings)}</div>` : ''}</td>
+        <td><b>${esc(v.factory)}</b> · ${esc(v.department)}<div class="ticket-meta">Meet: <b>${esc(v.hostName || '—')}</b></div></td>
+        <td><span class="status ${statusClassVisitor(v.status)}">${esc(v.status)}</span>
+          ${v.approvedBy ? `<div class="ticket-meta">By ${esc(v.approvedBy)}</div>` : ''}
+          ${v.checkedInAt ? `<div class="ticket-meta">In: ${fmtGateDt(v.checkedInAt)}</div>` : ''}
+          ${v.checkedOutAt ? `<div class="ticket-meta">Out: ${fmtGateDt(v.checkedOutAt)}</div>` : ''}
+        </td>
+        <td><div style="display:flex;flex-wrap:wrap;gap:5px">${actions.join('') || '<span class="ticket-meta">Logged</span>'}</div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderGatePassTable(list, highlightId = ''){
+    const tbody = document.getElementById('gatePassTableBody');
+    if(!tbody) return;
+    const canWrite = (typeof canAccessMod === 'function' ? canAccessMod('gatepass', true) : true);
+    const prof = (typeof serverProfile !== 'undefined' && serverProfile) ? serverProfile : {};
+    const scope = clientProfileScope(prof);
+
+    const inCnt = list.filter(x => x.direction === 'IN').length;
+    const outCnt = list.filter(x => x.direction === 'OUT').length;
+    const retCnt = list.filter(x => x.returnable && x.status !== 'Returned').length;
+    const e1 = document.getElementById('gpKpiIn'); if(e1) e1.textContent = inCnt;
+    const e2 = document.getElementById('gpKpiOut'); if(e2) e2.textContent = outCnt;
+    const e3 = document.getElementById('gpKpiRet'); if(e3) e3.textContent = retCnt;
+    const e4 = document.getElementById('gpKpiTotal'); if(e4) e4.textContent = list.length;
+    const eS = document.getElementById('gpScopeFoot');
+    if(eS) eS.textContent = scope === 'all' ? 'Admin / Full access' : (scope === 'management' ? 'Management · All depts' : (scope === 'security' ? 'Security Incharge · All entries' : `Addressed to: ${prof.name || prof.username}`));
+    const badge = document.getElementById('gatepassBadge');
+    if(badge){ badge.textContent = list.length; badge.style.display = list.length > 0 ? 'inline-block' : 'none'; }
+
+    const bIn = document.getElementById('gpAddInBtn'), bOut = document.getElementById('gpAddOutBtn');
+    if(bIn) bIn.style.display = canWrite ? '' : 'none';
+    if(bOut) bOut.style.display = canWrite ? '' : 'none';
+
+    if(!list.length){
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No material inward/outward entries match the current filters.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(g => {
+      const photosHtml = `<div class="gate-thumb-pair">
+        ${g.materialPhoto ? `<img class="gate-thumb" src="${esc(g.materialPhoto)}" alt="Material" title="View Material Photo" onclick="openGateLightbox('${esc(g.materialPhoto)}','Material · ${esc(g.materialName)}')">` : '<span class="ticket-meta">No Photo</span>'}
+        ${g.billPhoto ? `<img class="gate-thumb" src="${esc(g.billPhoto)}" alt="Bill/Challan" title="View Bill / Challan Photo" onclick="openGateLightbox('${esc(g.billPhoto)}','Bill / Challan · ${esc(g.challanNo || g.materialName)}')">` : '<span class="ticket-meta">No Bill</span>'}
+      </div>`;
+      const actions = [];
+      if(canWrite && g.status === 'Logged'){
+        actions.push(`<button type="button" class="btn primary" style="padding:4px 9px;font-size:10px" onclick="nsGatePassModule.setStatus('${esc(g.id)}','Verified')">✓ Verify / Received</button>`);
+      }
+      if(canWrite && g.returnable && g.status !== 'Returned'){
+        actions.push(`<button type="button" class="btn" style="padding:4px 9px;font-size:10px;border-color:#0284c7;color:#0369a1" onclick="nsGatePassModule.setStatus('${esc(g.id)}','Returned')">↩ Mark Returned</button>`);
+      }
+      if(scope === 'all' || scope === 'security'){
+        actions.push(`<button type="button" class="btn" style="padding:4px 7px;font-size:10px;color:#b53d38" title="Delete" onclick="nsGatePassModule.remove('${esc(g.id)}')">🗑</button>`);
+      }
+      return `<tr data-gatepass-id="${esc(g.id)}" style="${highlightId && highlightId === g.id ? 'background:#dcfce7' : ''}">
+        <td><b class="ticket-token">${esc(g.id)}</b><div style="margin-top:4px"><span class="${g.direction==='OUT'?'gate-dir-out':'gate-dir-in'}">${g.direction==='OUT'?'📤 OUTWARD':'📥 INWARD'}</span></div></td>
+        <td>${photosHtml}</td>
+        <td style="max-width:210px;white-space:normal"><b>${esc(g.materialName)}</b><div class="ticket-meta">${esc(g.materialType)} ${g.quantity ? `· <b>${esc(g.quantity)} ${esc(g.unit||'')}</b>` : ''}</div>${g.returnable ? '<span class="age-pill old" style="margin-top:3px">🔄 Returnable</span>' : ''}${g.remarks ? `<div class="ticket-meta">${esc(g.remarks)}</div>` : ''}</td>
+        <td><b>${esc(g.partyName || '—')}</b>${g.challanNo ? `<div class="ticket-meta">Bill/Challan: <b>${esc(g.challanNo)}</b></div>` : ''}${g.vehicleNo ? `<div class="ticket-meta">🚗 ${esc(g.vehicleNo)}</div>` : ''}</td>
+        <td><b>${esc(g.factory)}</b> · ${esc(g.department)}<div class="ticket-meta">For: <b>${esc(g.forName || '—')}</b></div><div class="ticket-meta">By: ${esc(g.enteredBy || 'Gate')}</div></td>
+        <td><div>${fmtGateDt(g.createdAt)}</div><div style="margin-top:4px"><span class="status ${g.status==='Verified'||g.status==='Returned'?'healthy':'open'}">${esc(g.status)}</span></div>${g.verifiedBy ? `<div class="ticket-meta">✓ ${esc(g.verifiedBy)}</div>` : ''}</td>
+        <td><div style="display:flex;flex-wrap:wrap;gap:5px">${actions.join('') || '<span class="ticket-meta">Logged</span>'}</div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  window.nsVisitorsModule = {
+    getRows: () => visitorRows.slice(),
+    setLocalSeed(rows){ visitorRows = Array.isArray(rows) ? rows : []; seenVisitorIds = new Set(visitorRows.map(x=>x.id)); visBooted = true; },
+    setDayPreset(p){ applyDayPresetRange(p, 'visFromDt', 'visToDt', 'data-vpreset'); this.refresh(); },
+    async refresh(opts = {}){
+      fillGateFilterSelects('visFactoryFilter', 'visDeptFilter');
+      const fac = document.getElementById('visFactoryFilter')?.value || '';
+      const dept = document.getElementById('visDeptFilter')?.value || '';
+      const status = document.getElementById('visStatusFilter')?.value || '';
+      const from = isoFromLocalInput(document.getElementById('visFromDt')?.value);
+      const to = isoFromLocalInput(document.getElementById('visToDt')?.value);
+      const q = document.getElementById('visSearchInput')?.value || '';
+      let rows = visitorRows;
+      if(isSrv()){
+        try{
+          const qs = new URLSearchParams();
+          if(fac) qs.set('factory', fac);
+          if(dept) qs.set('department', dept);
+          if(status) qs.set('status', status);
+          if(from) qs.set('from', from);
+          if(to) qs.set('to', to);
+          if(q) qs.set('q', q);
+          const res = await apiFetch('/api/visitors?' + qs.toString(), { cache: 'no-store' });
+          if(res && Array.isArray(res.visitors)){
+            rows = res.visitors;
+            visitorRows = rows;
+          }
+        }catch(_){ rows = []; }
+      } else {
+        rows = filterRowsLocally(visitorRows.filter(visitorVisibleClient), from, to, fac, dept, status, q);
+      }
+      if(!visBooted){
+        rows.forEach(x => seenVisitorIds.add(x.id));
+        visBooted = true;
+      } else if(opts.alertIfNew){
+        rows.forEach(x => {
+          if(!seenVisitorIds.has(x.id)){
+            seenVisitorIds.add(x.id);
+            if(x.status === 'Pending'){
+              window.nsSoundEngine?.triggerEventAlert?.('ticket', `Visitor Waiting: ${x.visitorName} (${x.id})`, `${x.purpose} · Meet ${x.hostName} (${x.department} · ${x.factory})`, 'info', { kind: 'visitor', targetView: 'visitors', targetId: x.id });
+            }
+          }
+        });
+      } else {
+        rows.forEach(x => seenVisitorIds.add(x.id));
+      }
+      renderVisitorTable(rows, opts.highlightId || '');
+    },
+    async decide(id, action){
+      if(isSrv()){
+        try{
+          const res = await apiFetch('/api/visitors/' + encodeURIComponent(id) + '/decision', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action })
+          });
+          if(res?.visitor){
+            visitorRows = visitorRows.map(v => v.id === id ? res.visitor : v);
+          }
+          if(typeof showToast === 'function') showToast('Visitor status updated');
+          await this.refresh();
+        }catch(err){ if(typeof showToast === 'function') showToast(err.message || 'Update failed'); }
+      } else {
+        const actor = (typeof serverProfile !== 'undefined' && serverProfile?.name) || 'User';
+        const now = new Date().toISOString();
+        visitorRows = visitorRows.map(v => {
+          if(v.id !== id) return v;
+          if(action === 'approve') return { ...v, status: 'Approved', approvedBy: actor, approvedAt: now };
+          if(action === 'reject') return { ...v, status: 'Rejected', approvedBy: actor, approvedAt: now };
+          if(action === 'checkin') return { ...v, status: 'Checked In', checkedInAt: now };
+          if(action === 'checkout') return { ...v, status: 'Checked Out', checkedOutAt: now };
+          return v;
+        });
+        this.refresh();
+      }
+    },
+    async remove(id){
+      if(!confirm('Delete visitor pass ' + id + '?')) return;
+      if(isSrv()){
+        try{
+          await apiFetch('/api/visitors/' + encodeURIComponent(id), { method: 'DELETE' });
+          await this.refresh();
+        }catch(err){ if(typeof showToast === 'function') showToast(err.message || 'Delete failed'); }
+      } else {
+        visitorRows = visitorRows.filter(x => x.id !== id);
+        this.refresh();
+      }
+    },
+    exportCsv(){
+      if(typeof exportCsv === 'function') exportCsv('visitor-pass-register', visitorRows);
+    },
+    openCreateModal(){
+      const modal = document.getElementById('gateCreateModal');
+      const title = document.getElementById('gateCreateTitle');
+      const form = document.getElementById('gateCreateForm');
+      if(!modal || !form) return;
+      const facts = getFactoriesList();
+      let selfieData = '', idData = '';
+      if(title) title.textContent = '🪪 New Visitor Pass Entry';
+      form.innerHTML = `<div class="form-grid">
+        <div class="field full" style="background:#eefcf4;border:1px solid #cce7d7;border-radius:8px;padding:8px 11px;font-size:11px;color:#0f5132">🕒 <b>Auto Entry Timestamp:</b> ${new Date().toLocaleString('en-IN')} (fetched automatically on save)</div>
+        <div class="field"><label>Factory *</label><select name="factory" id="gVisFac" required>${facts.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select></div>
+        <div class="field"><label>Department to Visit *</label><select name="department" id="gVisDept" required></select></div>
+        <div class="field"><label>Person / Host to Meet</label><select name="employee" id="gVisEmp"></select></div>
+        <div class="field"><label>Or Type Contact Name (Optional)</label><input name="hostName" placeholder="If not in list"></div>
+        <div class="field"><label>Visitor Full Name *</label><input name="visitorName" required placeholder="Full name"></div>
+        <div class="field"><label>Mobile / Phone</label><input name="phone" type="tel" placeholder="10-digit number"></div>
+        <div class="field full"><label>Company / Address *</label><input name="address" required placeholder="Company name & city/address"></div>
+        <div class="field"><label>Purpose of Visit *</label><select name="purpose" required><option>Official Meeting</option><option>Vendor / Maintenance Service</option><option>Delivery / Courier</option><option>Audit / Inspection</option><option>Interview</option><option>Client Visit</option><option>Other</option></select></div>
+        <div class="field"><label>Vehicle No. / Visitor Count</label><div style="display:flex;gap:6px"><input name="vehicleNo" placeholder="MH01..." style="flex:2"><input name="visitorCount" type="number" min="1" value="1" style="flex:1"></div></div>
+        <div class="field"><label>Pass / Badge No.</label><input name="passNo" placeholder="e.g. V-12"></div>
+        <div class="field"><label>Belongings / Tools Carried</label><input name="belongings" placeholder="Laptop, tool bag, etc."></div>
+        <div class="field gate-photo-box"><label>Visitor ID Card Photo</label><input type="file" id="gVisIdFile" accept="image/*" capture="environment"><img id="gVisIdPrev" class="gate-photo-preview"></div>
+        <div class="field gate-photo-box"><label>Visitor Selfie / Face Photo</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn" id="gVisCamBtn">📷 Camera Selfie</button><input type="file" id="gVisSelfieFile" accept="image/*" capture="user" style="flex:1;min-width:120px"></div><img id="gVisSelfiePrev" class="gate-photo-preview"></div>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn" onclick="closeGateCreateModal()">Cancel</button><button type="submit" class="btn primary">Submit &amp; Notify Host</button></div>`;
+      const syncDepts = () => {
+        const fc = form.querySelector('#gVisFac').value;
+        const dList = getDeptsForFactory(fc);
+        const dSel = form.querySelector('#gVisDept');
+        dSel.innerHTML = dList.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join('') || '<option value="General">General</option>';
+        syncEmps();
+      };
+      const syncEmps = () => {
+        const fc = form.querySelector('#gVisFac').value, dn = form.querySelector('#gVisDept').value;
+        const us = getUsersForFactoryDept(fc, dn);
+        form.querySelector('#gVisEmp').innerHTML = '<option value="">-- Any in dept --</option>' + us.map(u => `<option value="${esc(u.username||u.id)}">${esc(u.name)}</option>`).join('');
+      };
+      form.querySelector('#gVisFac').onchange = syncDepts;
+      form.querySelector('#gVisDept').onchange = syncEmps;
+      syncDepts();
+      form.querySelector('#gVisIdFile').onchange = async e => {
+        idData = await compressImageFile(e.target.files?.[0]);
+        const p = form.querySelector('#gVisIdPrev'); if(p && idData){ p.src = idData; p.style.display = 'block'; }
+      };
+      form.querySelector('#gVisSelfieFile').onchange = async e => {
+        selfieData = await compressImageFile(e.target.files?.[0]);
+        const p = form.querySelector('#gVisSelfiePrev'); if(p && selfieData){ p.src = selfieData; p.style.display = 'block'; }
+      };
+      form.querySelector('#gVisCamBtn').onclick = () => window.openGateCam(d => {
+        selfieData = d;
+        const p = form.querySelector('#gVisSelfiePrev'); if(p){ p.src = d; p.style.display = 'block'; }
+      });
+      form.onsubmit = async e => {
+        e.preventDefault();
+        const fdObj = Object.fromEntries(new FormData(form));
+        if(isSrv()){
+          try{
+            const res = await apiFetch('/api/visitors', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...fdObj, idCardDataUrl: idData, selfieDataUrl: selfieData })
+            });
+            window.closeGateCreateModal();
+            if(typeof showToast === 'function') showToast(`Visitor Pass ${res?.id || ''} created`);
+            await this.refresh();
+          }catch(err){ if(typeof showToast === 'function') showToast(err.message || 'Save failed'); }
+        } else {
+          const id = 'VIS' + String(visitorRows.length + 1).padStart(2, '0') + '/' + new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+          const empUser = (typeof users !== 'undefined' ? users : []).find(u => (u.username||u.id) === fdObj.employee);
+          visitorRows.unshift({
+            id, factory: fdObj.factory, department: fdObj.department, hostUsername: empUser?.username || '', hostName: empUser?.name || fdObj.hostName || fdObj.department,
+            visitorName: fdObj.visitorName, phone: fdObj.phone, address: fdObj.address, purpose: fdObj.purpose, vehicleNo: fdObj.vehicleNo, passNo: fdObj.passNo,
+            visitorCount: Number(fdObj.visitorCount || 1), belongings: fdObj.belongings, idCardPhoto: idData, selfiePhoto: selfieData,
+            status: 'Pending', enteredBy: (typeof serverProfile !== 'undefined' && serverProfile?.name) || 'Gate', createdAt: new Date().toISOString()
+          });
+          window.closeGateCreateModal();
+          this.refresh();
+        }
+      };
+      modal.classList.add('open');
+    }
+  };
+
+  window.nsGatePassModule = {
+    getRows: () => gatepassRows.slice(),
+    setLocalSeed(rows){ gatepassRows = Array.isArray(rows) ? rows : []; seenGatepassIds = new Set(gatepassRows.map(x=>x.id)); gpBooted = true; },
+    setDirectionTab(dir){
+      activeDirectionTab = ['IN', 'OUT', 'ALL'].includes(dir) ? dir : 'ALL';
+      document.querySelectorAll('#gpDirectionTabs [data-gpdir]').forEach(b => b.classList.toggle('active', b.dataset.gpdir === activeDirectionTab));
+      this.refresh();
+    },
+    setDayPreset(p){ applyDayPresetRange(p, 'gpFromDt', 'gpToDt', 'data-gppreset'); this.refresh(); },
+    async refresh(opts = {}){
+      if(opts.tab) this.setDirectionTab(opts.tab);
+      fillGateFilterSelects('gpFactoryFilter', 'gpDeptFilter');
+      const fac = document.getElementById('gpFactoryFilter')?.value || '';
+      const dept = document.getElementById('gpDeptFilter')?.value || '';
+      const status = document.getElementById('gpStatusFilter')?.value || '';
+      const from = isoFromLocalInput(document.getElementById('gpFromDt')?.value);
+      const to = isoFromLocalInput(document.getElementById('gpToDt')?.value);
+      const q = document.getElementById('gpSearchInput')?.value || '';
+      let rows = gatepassRows;
+      if(isSrv()){
+        try{
+          const qs = new URLSearchParams();
+          if(activeDirectionTab !== 'ALL') qs.set('direction', activeDirectionTab);
+          if(fac) qs.set('factory', fac);
+          if(dept) qs.set('department', dept);
+          if(status) qs.set('status', status);
+          if(from) qs.set('from', from);
+          if(to) qs.set('to', to);
+          if(q) qs.set('q', q);
+          const res = await apiFetch('/api/gate-passes?' + qs.toString(), { cache: 'no-store' });
+          if(res && Array.isArray(res.passes)){
+            rows = res.passes;
+            gatepassRows = rows;
+          }
+        }catch(_){ rows = []; }
+      } else {
+        rows = filterRowsLocally(gatepassRows.filter(gatepassVisibleClient), from, to, fac, dept, status, q, activeDirectionTab);
+      }
+      if(!gpBooted){
+        rows.forEach(x => seenGatepassIds.add(x.id));
+        gpBooted = true;
+      } else if(opts.alertIfNew){
+        rows.forEach(x => {
+          if(!seenGatepassIds.has(x.id)){
+            seenGatepassIds.add(x.id);
+            window.nsSoundEngine?.triggerEventAlert?.('ticket', `Material ${x.direction}: ${x.materialName} (${x.id})`, `For ${x.forName} (${x.department} · ${x.factory})`, 'info', { kind: 'gatepass', targetView: 'gatepass', targetTab: x.direction, targetId: x.id });
+          }
+        });
+      } else {
+        rows.forEach(x => seenGatepassIds.add(x.id));
+      }
+      renderGatePassTable(rows, opts.highlightId || '');
+    },
+    async setStatus(id, status){
+      if(isSrv()){
+        try{
+          await apiFetch('/api/gate-passes/' + encodeURIComponent(id) + '/status', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status })
+          });
+          if(typeof showToast === 'function') showToast('Material status updated to ' + status);
+          await this.refresh();
+        }catch(err){ if(typeof showToast === 'function') showToast(err.message || 'Update failed'); }
+      } else {
+        const actor = (typeof serverProfile !== 'undefined' && serverProfile?.name) || 'User';
+        gatepassRows = gatepassRows.map(g => g.id === id ? { ...g, status, verifiedBy: actor, verifiedAt: new Date().toISOString() } : g);
+        this.refresh();
+      }
+    },
+    async remove(id){
+      if(!confirm('Delete material gate pass ' + id + '?')) return;
+      if(isSrv()){
+        try{
+          await apiFetch('/api/gate-passes/' + encodeURIComponent(id), { method: 'DELETE' });
+          await this.refresh();
+        }catch(err){ if(typeof showToast === 'function') showToast(err.message || 'Delete failed'); }
+      } else {
+        gatepassRows = gatepassRows.filter(x => x.id !== id);
+        this.refresh();
+      }
+    },
+    exportCsv(){
+      if(typeof exportCsv === 'function') exportCsv('material-gate-register', gatepassRows);
+    },
+    openCreateModal(dir = 'IN'){
+      const modal = document.getElementById('gateCreateModal');
+      const title = document.getElementById('gateCreateTitle');
+      const form = document.getElementById('gateCreateForm');
+      if(!modal || !form) return;
+      const facts = getFactoriesList();
+      let matData = '', billData = '';
+      if(title) title.textContent = dir === 'OUT' ? '📤 Material Outward (OUT) Entry' : '📥 Material Inward (IN) Entry';
+      form.innerHTML = `<div class="form-grid">
+        <div class="field full" style="background:#eefcf4;border:1px solid #cce7d7;border-radius:8px;padding:8px 11px;font-size:11px;color:#0f5132">🕒 <b>Auto Date &amp; Time:</b> ${new Date().toLocaleString('en-IN')} · Direction: <b>${dir === 'OUT' ? '📤 Material Outward (OUT)' : '📥 Material Inward (IN)'}</b></div>
+        <div class="field"><label>Direction *</label><select name="direction"><option value="IN" ${dir==='IN'?'selected':''}>📥 Material Inward (IN)</option><option value="OUT" ${dir==='OUT'?'selected':''}>📤 Material Outward (OUT)</option></select></div>
+        <div class="field"><label>Factory *</label><select name="factory" id="gGpFac" required>${facts.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select></div>
+        <div class="field"><label>Department *</label><select name="department" id="gGpDept" required></select></div>
+        <div class="field"><label>For Person / Employee</label><select name="employee" id="gGpEmp"></select></div>
+        <div class="field"><label>Material Type *</label><select name="materialType" required><option>Raw Material / Gold / Bullion</option><option>Machinery / Tools</option><option>IT Hardware / Electronics</option><option>Electrical / Plumbing</option><option>Consumables / Packaging</option><option>Finished Goods</option><option>Documents / Parcel</option><option>Scrap / Waste</option><option>Other</option></select></div>
+        <div class="field"><label>Material Name / Item *</label><input name="materialName" required placeholder="Exact material name &amp; description"></div>
+        <div class="field"><label>Quantity &amp; Unit</label><div style="display:flex;gap:6px"><input name="quantity" placeholder="e.g. 5" style="flex:1"><select name="unit" style="flex:1"><option>Pcs</option><option>Kg</option><option>Grams</option><option>Boxes</option><option>Sets</option><option>Rolls</option><option>Liters</option><option>Meters</option></select></div></div>
+        <div class="field"><label>Vendor / Party Name</label><input name="partyName" placeholder="Supplier or receiver"></div>
+        <div class="field"><label>Challan / Invoice / Bill No.</label><input name="challanNo" placeholder="Optional reference"></div>
+        <div class="field"><label>Vehicle No.</label><input name="vehicleNo" placeholder="Optional"></div>
+        <div class="field"><label>Or Type Recipient Name</label><input name="forName" placeholder="If not in dropdown"></div>
+        <div class="field"><label style="display:flex;align-items:center;gap:7px;margin-top:16px"><input type="checkbox" name="returnable" value="true"> 🔄 Returnable Material (track return)</label></div>
+        <div class="field full"><label>Remarks</label><input name="remarks" placeholder="Any notes for security or receiver"></div>
+        <div class="field gate-photo-box"><label>Material Photo</label><input type="file" id="gGpMatFile" accept="image/*" capture="environment"><img id="gGpMatPrev" class="gate-photo-preview"></div>
+        <div class="field gate-photo-box"><label>Bill / Challan Photo</label><input type="file" id="gGpBillFile" accept="image/*" capture="environment"><img id="gGpBillPrev" class="gate-photo-preview"></div>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn" onclick="closeGateCreateModal()">Cancel</button><button type="submit" class="btn primary">Save Gate Pass</button></div>`;
+      const syncDepts = () => {
+        const fc = form.querySelector('#gGpFac').value;
+        const dList = getDeptsForFactory(fc);
+        form.querySelector('#gGpDept').innerHTML = dList.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join('') || '<option value="General">General</option>';
+        syncEmps();
+      };
+      const syncEmps = () => {
+        const fc = form.querySelector('#gGpFac').value, dn = form.querySelector('#gGpDept').value;
+        const us = getUsersForFactoryDept(fc, dn);
+        form.querySelector('#gGpEmp').innerHTML = '<option value="">-- Any in dept --</option>' + us.map(u => `<option value="${esc(u.username||u.id)}">${esc(u.name)}</option>`).join('');
+      };
+      form.querySelector('#gGpFac').onchange = syncDepts;
+      form.querySelector('#gGpDept').onchange = syncEmps;
+      syncDepts();
+      form.querySelector('#gGpMatFile').onchange = async e => {
+        matData = await compressImageFile(e.target.files?.[0]);
+        const p = form.querySelector('#gGpMatPrev'); if(p && matData){ p.src = matData; p.style.display = 'block'; }
+      };
+      form.querySelector('#gGpBillFile').onchange = async e => {
+        billData = await compressImageFile(e.target.files?.[0]);
+        const p = form.querySelector('#gGpBillPrev'); if(p && billData){ p.src = billData; p.style.display = 'block'; }
+      };
+      form.onsubmit = async e => {
+        e.preventDefault();
+        const fdObj = Object.fromEntries(new FormData(form));
+        fdObj.returnable = !!form.querySelector('[name="returnable"]')?.checked;
+        if(isSrv()){
+          try{
+            const res = await apiFetch('/api/gate-passes', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...fdObj, materialDataUrl: matData, billDataUrl: billData })
+            });
+            window.closeGateCreateModal();
+            if(typeof showToast === 'function') showToast(`Material Pass ${res?.id || ''} logged`);
+            await this.refresh();
+          }catch(err){ if(typeof showToast === 'function') showToast(err.message || 'Save failed'); }
+        } else {
+          const isOut = fdObj.direction === 'OUT';
+          const id = (isOut ? 'MOUT' : 'MIN') + String(gatepassRows.length + 1).padStart(2, '0') + '/' + new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+          const empUser = (typeof users !== 'undefined' ? users : []).find(u => (u.username||u.id) === fdObj.employee);
+          gatepassRows.unshift({
+            id, direction: fdObj.direction, factory: fdObj.factory, department: fdObj.department, forUsername: empUser?.username || '', forName: empUser?.name || fdObj.forName || fdObj.department,
+            materialType: fdObj.materialType, materialName: fdObj.materialName, quantity: fdObj.quantity, unit: fdObj.unit, returnable: !!fdObj.returnable,
+            partyName: fdObj.partyName, challanNo: fdObj.challanNo, vehicleNo: fdObj.vehicleNo, remarks: fdObj.remarks,
+            materialPhoto: matData, billPhoto: billData, status: 'Logged', enteredBy: (typeof serverProfile !== 'undefined' && serverProfile?.name) || 'Gate', createdAt: new Date().toISOString()
+          });
+          window.closeGateCreateModal();
+          this.refresh();
+        }
+      };
+      modal.classList.add('open');
+    }
+  };
+
+  // Hook filters change listeners + window.go
+  ['visFactoryFilter', 'visDeptFilter', 'visStatusFilter', 'visFromDt', 'visToDt'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', () => window.nsVisitorsModule.refresh());
+  });
+  document.getElementById('visSearchInput')?.addEventListener('input', () => window.nsVisitorsModule.refresh());
+  ['gpFactoryFilter', 'gpDeptFilter', 'gpStatusFilter', 'gpFromDt', 'gpToDt'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', () => window.nsGatePassModule.refresh());
+  });
+  document.getElementById('gpSearchInput')?.addEventListener('input', () => window.nsGatePassModule.refresh());
+
+  if(typeof window.go === 'function'){
+    const prevGoGate = window.go;
+    window.go = function(key){
+      const r = prevGoGate.apply(this, arguments);
+      if(key === 'visitors'){
+        const cr = document.getElementById('crumb'); if(cr) cr.textContent = 'Visitor Pass';
+        window.nsVisitorsModule.refresh();
+      }
+      if(key === 'gatepass'){
+        const cr = document.getElementById('crumb'); if(cr) cr.textContent = 'Material Gate Pass';
+        window.nsGatePassModule.refresh();
+      }
+      return r;
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      if(isSrv()){
+        if(typeof canAccessMod !== 'function' || canAccessMod('visitors')) window.nsVisitorsModule.refresh();
+        if(typeof canAccessMod !== 'function' || canAccessMod('gatepass')) window.nsGatePassModule.refresh();
+      }
+    }, 600);
+  });
 })();
 </script>
 </body>

@@ -94,6 +94,7 @@ LOGIN_DUMMY_HASH = generate_password_hash("not-a-real-login-password")
 # means that a newly configured account has no module access.
 MODULE_IDS = (
     "overview", "assets", "data_center", "surveillance", "tickets",
+    "visitors", "gatepass",
     "maintenance", "ageing", "parts", "users", "departments", "factories",
     "software", "network", "snmp", "notifications", "reports", "valuation", "billing",
 )
@@ -103,6 +104,8 @@ MODULE_DATA_KEYS = {
     "data_center": ("assets", "camera_streams", "camera_profiles"),
     "surveillance": ("assets", "camera_streams", "camera_profiles"),
     "tickets": ("departments",),
+    "visitors": ("departments", "manual_users"),
+    "gatepass": ("departments", "manual_users"),
     "maintenance": ("assets", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "departments"),
     "ageing": ("assets", "maintenance"),
     "parts": ("assets", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "departments"),
@@ -119,6 +122,7 @@ MODULE_DATA_KEYS = {
 }
 MODULE_API_PATHS = {
     "/api/invoices": "billing", "/api/tickets": "tickets",
+    "/api/visitors": "visitors", "/api/gate-passes": "gatepass",
     "/api/camera-profiles": "surveillance", "/api/camera-streams": "surveillance",
     "/api/cctv-media-auth": "surveillance",
     "/api/network-scans": "network", "/api/network-scan": "network",
@@ -175,6 +179,79 @@ def ticket_desk_allowed(profile, desk_id):
     if allowed is None:
         return True
     return _slug_desk_id(desk_id, fallback="it") in allowed
+
+
+def gate_scope_for(profile):
+    if not isinstance(profile, dict) or profile.get("role") == "Administrator":
+        return "all"
+    sc = str(profile.get("gate_scope") or "dept").strip().lower()
+    if sc in ("management", "security", "all"):
+        return sc
+    return "dept"
+
+
+def is_gate_security_or_admin(profile):
+    return isinstance(profile, dict) and (profile.get("role") == "Administrator" or gate_scope_for(profile) == "security")
+
+
+def user_allowed_gate_depts(profile):
+    out = set()
+    if not isinstance(profile, dict):
+        return out
+    for val in (profile.get("dept"), profile.get("department")):
+        s = str(val or "").strip().casefold()
+        if s:
+            out.add(s)
+    g_depts = profile.get("gate_departments")
+    if isinstance(g_depts, list):
+        for item in g_depts:
+            s = str(item or "").strip().casefold()
+            if s:
+                out.add(s)
+    return out
+
+
+def _dept_matches(allowed_set, target_dept):
+    td = str(target_dept or "").strip().casefold()
+    if not td or not allowed_set:
+        return False
+    if "*" in allowed_set or "all" in allowed_set or td in allowed_set:
+        return True
+    td_norm = re.sub(r"\b(dept|department)\b", "", td).strip()
+    for a in allowed_set:
+        a_norm = re.sub(r"\b(dept|department)\b", "", a).strip()
+        if a_norm and td_norm and a_norm == td_norm:
+            return True
+    return False
+
+
+def visitor_row_visible(row, profile, is_admin=False):
+    if is_admin or gate_scope_for(profile) in ("all", "management", "security"):
+        return True
+    if not isinstance(profile, dict):
+        return False
+    uname = str(profile.get("username") or "").strip().casefold()
+    pname = str(profile.get("name") or "").strip().casefold()
+    r_host_u = str(row.get("hostUsername") or "").strip().casefold()
+    r_host_n = str(row.get("hostName") or "").strip().casefold()
+    if (uname and r_host_u and r_host_u == uname) or (pname and r_host_n and r_host_n == pname):
+        return True
+    return _dept_matches(user_allowed_gate_depts(profile), row.get("department"))
+
+
+def gatepass_row_visible(row, profile, is_admin=False):
+    if is_admin or gate_scope_for(profile) in ("all", "management", "security"):
+        return True
+    if not isinstance(profile, dict):
+        return False
+    uname = str(profile.get("username") or "").strip().casefold()
+    pname = str(profile.get("name") or "").strip().casefold()
+    r_for_u = str(row.get("forUsername") or "").strip().casefold()
+    r_for_n = str(row.get("forName") or "").strip().casefold()
+    if (uname and r_for_u and r_for_u == uname) or (pname and r_for_n and r_for_n == pname):
+        return True
+    explicit_depts = {str(x or "").strip().casefold() for x in (profile.get("gate_departments") or []) if str(x or "").strip()}
+    return _dept_matches(explicit_depts, row.get("department"))
 
 
 def data_key_module(key):
@@ -296,6 +373,10 @@ def signed_in(fn):
             session["profile"]["allowed_complaint_desks"] = account["allowed_complaint_desks"]
         else:
             session["profile"].pop("allowed_complaint_desks", None)
+        g_scope = str(account.get("gate_scope") or "dept").strip().lower()
+        session["profile"]["gate_scope"] = g_scope if g_scope in ("dept", "management", "security") else "dept"
+        g_depts = account.get("gate_departments")
+        session["profile"]["gate_departments"] = [str(x).strip() for x in g_depts if str(x).strip()] if isinstance(g_depts, list) else []
         session["profile"]["role"] = account.get("role", "User")
         session["is_admin"] = session["profile"]["role"] == "Administrator"
         return fn(*args, **kwargs)
@@ -1539,11 +1620,19 @@ def _pulse_versions(conn, include_internal=False):
           COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='notifications'), '0'),
           COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='notification_history'), '0'),
           COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='network_map'), '0'),
-          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='tile_configs'), '0')
+          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='tile_configs'), '0'),
+          COALESCE((SELECT extract(epoch FROM max(updated_at))::text FROM visitor_passes), '0'),
+          (SELECT count(*)::bigint FROM visitor_passes),
+          COALESCE((SELECT extract(epoch FROM max(updated_at))::text FROM material_gate_passes), '0'),
+          (SELECT count(*)::bigint FROM material_gate_passes)
     """).fetchone()
     ticket_rev = f"{row[0]}:{row[1]}:{row[2]}"
+    visitor_rev = f"{row[9]}:{row[10]}"
+    gatepass_rev = f"{row[11]}:{row[12]}"
     out = {
         "ticketRev": ticket_rev,
+        "visitorRev": visitor_rev,
+        "gatepassRev": gatepass_rev,
         "settingsRev": str(row[3] or "0"),
         "serverTime": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
@@ -1587,8 +1676,9 @@ def _broadcast_live_stream_event(event_type="pulse", data=None):
                 if is_public:
                     # Never expose internal device alerts, IPs, or private metadata to public /portal stream
                     ev_kind = str(msg["data"].get("kind") or "")
-                    if msg["type"] == "ticket" or (msg["type"] == "notification" and ev_kind in ("ticket", "material_request")):
-                        pub_msg = {"type": "ticket", "timestamp": msg["timestamp"], "data": {"action": "refresh"}}
+                    if msg["type"] in ("ticket", "visitor", "gatepass") or (msg["type"] == "notification" and ev_kind in ("ticket", "material_request", "visitor", "gatepass")):
+                        pub_type = msg["type"] if msg["type"] in ("ticket", "visitor", "gatepass") else ev_kind
+                        pub_msg = {"type": pub_type, "timestamp": msg["timestamp"], "data": {"action": "refresh"}}
                         q.put_nowait(pub_msg)
                 else:
                     q.put_nowait(msg)
@@ -1678,6 +1768,9 @@ def _record_notification_event(conn, item):
         "deviceSubtype": str(item.get("deviceSubtype") or "")[:60],
         "transitionStatus": str(item.get("transitionStatus") or "")[:20],
         "complaintDesk": _slug_desk_id(item.get("complaintDesk") or "it", fallback="it")[:40],
+        "targetDepartment": str(item.get("targetDepartment") or "")[:120],
+        "targetUsername": str(item.get("targetUsername") or "")[:120],
+        "targetHostName": str(item.get("targetHostName") or "")[:120],
         "createdAt": str(item.get("createdAt") or now_iso)[:40],
     }
     doc["events"] = [ev] + doc["events"]
@@ -1828,6 +1921,8 @@ def get_notification_history():
     who = session.get("profile") or {}
     is_adm = bool(session.get("is_admin"))
     can_tickets = is_adm or module_access(who, "tickets")
+    can_visitors = is_adm or module_access(who, "visitors")
+    can_gatepass = is_adm or module_access(who, "gatepass")
     can_devices = is_adm or any(module_access(who, m) for m in ("assets", "network", "notifications", "overview", "surveillance", "data_center"))
     visible = []
     unread_count = 0
@@ -1835,6 +1930,20 @@ def get_notification_history():
         ev_kind = str(ev.get("kind") or "")
         if ev_kind in ("ticket", "material_request"):
             if not can_tickets or not ticket_desk_allowed(who, ev.get("complaintDesk") or "it"):
+                continue
+        elif ev_kind == "visitor":
+            if not can_visitors or not visitor_row_visible({
+                "department": ev.get("targetDepartment") or "",
+                "hostUsername": ev.get("targetUsername") or "",
+                "hostName": ev.get("targetHostName") or "",
+            }, who, is_adm):
+                continue
+        elif ev_kind == "gatepass":
+            if not can_gatepass or not gatepass_row_visible({
+                "department": ev.get("targetDepartment") or "",
+                "forUsername": ev.get("targetUsername") or "",
+                "forName": ev.get("targetHostName") or "",
+            }, who, is_adm):
                 continue
         elif ev_kind in ("online", "offline", "critical") or ev.get("targetTag"):
             if not can_devices:
@@ -2384,6 +2493,10 @@ def login():
             profile["module_permissions"] = local_user.get("module_permissions") if isinstance(local_user.get("module_permissions"), dict) else module_permissions_for(profile)
             if isinstance(local_user.get("allowed_complaint_desks"), list):
                 profile["allowed_complaint_desks"] = local_user["allowed_complaint_desks"]
+            g_sc = str(local_user.get("gate_scope") or "dept").strip().lower()
+            profile["gate_scope"] = g_sc if g_sc in ("dept", "management", "security") else "dept"
+            g_dp = local_user.get("gate_departments")
+            profile["gate_departments"] = [str(x).strip() for x in g_dp if str(x).strip()] if isinstance(g_dp, list) else []
             sid = secrets.token_urlsafe(32)
             auth_ver = int(local_user.get("auth_version", 0) or 0)
             with db() as conn:
@@ -3178,11 +3291,11 @@ def get_data():
             manuals = out.pop("manual_users", [])
             if "manual_users" in allowed:
                 out["users"] = [
-                    {k: v for k, v in u.items() if k not in ("password_hash", "recovery_answer_hashes", "module_permissions", "allowed_complaint_desks")}
+                    {k: v for k, v in u.items() if k not in ("password_hash", "recovery_answer_hashes", "module_permissions", "allowed_complaint_desks", "gate_scope", "gate_departments")}
                     | {"source": "manual", "hasRecoveryQuestions": bool(u.get("recovery_answer_hashes"))}
                     for u in manuals
                 ]
-            elif any(k in allowed for k in ("assets", "departments", "maintenance", "parts_inventory", "invoices", "software")) or module_access(who, "tickets") or module_access(who, "notifications"):
+            elif any(k in allowed for k in ("assets", "departments", "maintenance", "parts_inventory", "invoices", "software")) or module_access(who, "tickets") or module_access(who, "visitors") or module_access(who, "gatepass") or module_access(who, "notifications"):
                 out["users"] = [{k: v for k, v in u.items() if k in ("username", "name", "email", "dept", "department", "subdept", "site", "role", "enabled", "active", "employment")} | {"source": "manual"} for u in manuals]
             else:
                 out["users"] = [{k: v for k, v in who.items() if k in ("username", "name", "email", "dept", "department", "site", "role")}]
@@ -3296,9 +3409,24 @@ def save_data():
                                 user["allowed_complaint_desks"] = prior["allowed_complaint_desks"]
                             else:
                                 user.pop("allowed_complaint_desks", None)
+                            if "gate_scope" in prior:
+                                user["gate_scope"] = prior["gate_scope"]
+                            else:
+                                user.pop("gate_scope", None)
+                            if "gate_departments" in prior:
+                                user["gate_departments"] = prior["gate_departments"]
+                            else:
+                                user.pop("gate_departments", None)
                             user["role"] = prior.get("role", "User") if prior else "User"
                             user["enabled"] = prior.get("enabled", True) if prior else True
                         else:
+                            raw_gscope = str(user.get("gate_scope") or "dept").strip().lower()
+                            user["gate_scope"] = raw_gscope if raw_gscope in ("dept", "management", "security") else "dept"
+                            raw_gdepts = user.get("gate_departments")
+                            if isinstance(raw_gdepts, list):
+                                user["gate_departments"] = [str(x).strip()[:120] for x in raw_gdepts[:60] if str(x).strip()]
+                            else:
+                                user["gate_departments"] = []
                             if "allowed_complaint_desks" in user:
                                 raw_desks = user.get("allowed_complaint_desks")
                                 if isinstance(raw_desks, list):
@@ -4820,6 +4948,622 @@ def save_tile_configs():
         )
         _pg_emit_notify(conn, "pulse", {"source": "tile_configs", "rev": existing["rev"]})
     return jsonify(ok=True, **existing)
+
+
+# ======================== VISITOR PASS & MATERIAL GATE PASS ========================
+
+VISITOR_STATUSES = ("Pending", "Approved", "Checked In", "Checked Out", "Rejected")
+GATEPASS_STATUSES = ("Logged", "Verified", "Returned", "Dispatched")
+
+
+def _next_gate_id(conn, table, prefix):
+    clean_pref = re.sub(r"[^A-Z0-9]", "", str(prefix or "GP").strip().upper())[:6] or "GP"
+    token_date = datetime.now().strftime("%d-%m-%Y")
+    conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (f"{table}:{clean_pref}:{token_date}",))
+    rows = conn.execute(f"SELECT id FROM {table} WHERE id LIKE %s", (f"{clean_pref}%/{token_date}",)).fetchall()
+    max_seq = 0
+    pat = re.compile(rf"^{re.escape(clean_pref)}(\d+)/")
+    for (gid,) in rows:
+        m = pat.match(str(gid or ""))
+        if m:
+            max_seq = max(max_seq, int(m.group(1)))
+    return f"{clean_pref}{max_seq + 1:02d}/{token_date}", datetime.now().strftime("%Y%m%d")
+
+
+def _detect_valid_image_bytes(data):
+    if not data or len(data) > 5 * 1024 * 1024:
+        return None
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return ".jpg"
+    if len(data) >= 12 and data.startswith(b"RIFF") and data[8:12] == b"WEBP":
+        return ".webp"
+    return None
+
+
+def _save_gate_image(file_storage, data_url, category, entry_id, slot):
+    raw = None
+    if file_storage is not None and getattr(file_storage, "filename", ""):
+        raw = file_storage.stream.read(5 * 1024 * 1024 + 1)
+    elif isinstance(data_url, str) and data_url.startswith("data:image/") and ";base64," in data_url:
+        try:
+            b64_part = data_url.split(";base64,", 1)[1]
+            raw = base64.b64decode(b64_part, validate=True)
+        except Exception:
+            return None, "Invalid captured image format."
+    if raw is None:
+        return "", None
+    ext = _detect_valid_image_bytes(raw)
+    if not ext:
+        return None, f"{slot} photo must be a valid PNG, JPG, or WebP image under 5 MB."
+    date_dir = datetime.now().strftime("%Y%m%d")
+    target_dir = UPLOAD_DIR / category / date_dir
+    target_dir.mkdir(parents=True, exist_ok=True)
+    safe_id = re.sub(r"[^A-Za-z0-9_-]", "-", str(entry_id))[:40]
+    fname = f"{safe_id}-{slot}-{uuid.uuid4().hex[:12]}{ext}"
+    (target_dir / fname).write_bytes(raw)
+    return f"{category}/{date_dir}/{fname}", None
+
+
+def _resolve_portal_employee(conn, factory, department, emp_key, fallback_name=""):
+    row = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
+    users = row[0] if row and isinstance(row[0], list) else []
+    key_str = str(emp_key or "").strip()
+    if key_str:
+        matched = next((
+            u for u in users if isinstance(u, dict)
+            and hashlib.sha256((APP_SECRET + "|" + str(u.get("username") or u.get("id") or "").casefold() + "|" + str(u.get("dept") or u.get("department") or "").casefold() + "|" + str(u.get("site") or "").casefold()).encode()).hexdigest() == key_str
+            and u.get("enabled", True) and str(u.get("active", "Active")).lower() != "inactive"
+        ), None)
+        if matched:
+            return str(matched.get("username") or matched.get("id") or "").strip(), str(matched.get("name") or "").strip()
+        # Allow direct username/name match for signed-in calls
+        matched2 = next((
+            u for u in users if isinstance(u, dict)
+            and (str(u.get("username") or "").casefold() == key_str.casefold() or str(u.get("name") or "").casefold() == key_str.casefold())
+            and (not factory or str(u.get("site") or "").casefold() == factory.casefold())
+        ), None)
+        if matched2:
+            return str(matched2.get("username") or matched2.get("id") or "").strip(), str(matched2.get("name") or "").strip()
+    return "", str(fallback_name or "").strip()[:120]
+
+
+def _visitor_json(r, include_private=True, public_token=""):
+    def _media_url(rel):
+        if not rel:
+            return ""
+        if include_private:
+            return "/api/gate-media/" + quote(rel, safe="/")
+        if public_token:
+            return "/api/public/gate-media/" + quote(rel, safe="/") + "?token=" + quote(public_token, safe="")
+        return ""
+    item = {
+        "id": r[0], "factory": r[2], "visitorName": r[3],
+        "purpose": r[6], "department": r[7], "hostUsername": r[8] if include_private else "",
+        "hostName": r[9], "vehicleNo": r[10], "passNo": r[11], "visitorCount": int(r[12] or 1),
+        "belongings": r[13], "status": r[16], "enteredBy": r[17], "approvedBy": r[18],
+        "approvedAt": r[19].isoformat() if r[19] else "",
+        "checkedInAt": r[20].isoformat() if r[20] else "",
+        "checkedOutAt": r[21].isoformat() if r[21] else "",
+        "decisionNote": r[22],
+        "createdAt": r[23].isoformat() if r[23] else "",
+        "updatedAt": r[24].isoformat() if r[24] else "",
+        "idCardPhoto": _media_url(r[14]),
+        "selfiePhoto": _media_url(r[15]),
+    }
+    if include_private:
+        item["phone"] = r[4]
+        item["address"] = r[5]
+    elif public_token:
+        item["phone"] = r[4]
+        item["address"] = r[5]
+    return item
+
+
+def _gatepass_json(r, include_private=True, public_token=""):
+    def _media_url(rel):
+        if not rel:
+            return ""
+        if include_private:
+            return "/api/gate-media/" + quote(rel, safe="/")
+        if public_token:
+            return "/api/public/gate-media/" + quote(rel, safe="/") + "?token=" + quote(public_token, safe="")
+        return ""
+    return {
+        "id": r[0], "direction": r[2], "factory": r[3], "materialType": r[4], "materialName": r[5],
+        "quantity": r[6], "unit": r[7], "returnable": bool(r[8]), "partyName": r[9],
+        "challanNo": r[10], "vehicleNo": r[11], "remarks": r[12], "department": r[13],
+        "forUsername": r[14] if include_private else "", "forName": r[15],
+        "materialPhoto": _media_url(r[16]), "billPhoto": _media_url(r[17]),
+        "status": r[18], "enteredBy": r[19], "verifiedBy": r[20],
+        "verifiedAt": r[21].isoformat() if r[21] else "",
+        "createdAt": r[22].isoformat() if r[22] else "",
+        "updatedAt": r[23].isoformat() if r[23] else "",
+    }
+
+
+def _parse_dt_bound(raw_val):
+    s = str(raw_val or "").strip()
+    if not s:
+        return None
+    try:
+        if len(s) == 10:
+            return datetime.fromisoformat(s + "T00:00:00+00:00")
+        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _build_gate_where(args, alias=""):
+    clauses = []
+    params = []
+    if args.get("factory") and args.get("factory") != "All sites":
+        clauses.append(f"factory = %s")
+        params.append(str(args.get("factory"))[:80])
+    if args.get("department"):
+        clauses.append(f"lower(department) = lower(%s)")
+        params.append(str(args.get("department"))[:120])
+    if args.get("status"):
+        clauses.append(f"status = %s")
+        params.append(str(args.get("status"))[:40])
+    if args.get("direction") in ("IN", "OUT"):
+        clauses.append(f"direction = %s")
+        params.append(str(args.get("direction")))
+    dt_from = _parse_dt_bound(args.get("from"))
+    if dt_from is not None:
+        clauses.append("created_at >= %s")
+        params.append(dt_from)
+    dt_to = _parse_dt_bound(args.get("to"))
+    if dt_to is not None:
+        clauses.append("created_at <= %s")
+        params.append(dt_to)
+    sql = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+    return sql, params
+
+
+VISITOR_COLS = "id,tracking_token_hash,factory,visitor_name,phone,address,purpose,department,host_username,host_name,vehicle_no,pass_no,visitor_count,belongings,id_card_photo,selfie_photo,status,entered_by,approved_by,approved_at,checked_in_at,checked_out_at,decision_note,created_at,updated_at"
+GATEPASS_COLS = "id,tracking_token_hash,direction,factory,material_type,material_name,quantity,unit,returnable,party_name,challan_no,vehicle_no,remarks,department,for_username,for_name,material_photo,bill_photo,status,entered_by,verified_by,verified_at,created_at,updated_at"
+
+
+def _token_map_from_request():
+    raw = request.headers.get("X-Gate-Tokens") or request.args.get("tokens") or ""
+    if not raw or len(raw) > 8192:
+        return {}
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            return {str(k)[:60]: str(v)[:100] for k, v in list(parsed.items())[:80] if v}
+    except Exception:
+        pass
+    return {}
+
+
+@app.get("/api/public/gate-media/<path:rel_path>")
+def public_gate_media(rel_path):
+    token = str(request.args.get("token") or "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9_-]{30,80}", token):
+        abort(403)
+    parts = Path(rel_path).parts
+    if len(parts) != 3 or parts[0] not in ("visitors", "gatepass") or Path(parts[2]).name != parts[2]:
+        abort(404)
+    thash = hashlib.sha256(token.encode()).hexdigest()
+    norm_rel = f"{parts[0]}/{parts[1]}/{parts[2]}"
+    with db() as conn:
+        if parts[0] == "visitors":
+            row = conn.execute("SELECT 1 FROM visitor_passes WHERE tracking_token_hash=%s AND (id_card_photo=%s OR selfie_photo=%s)", (thash, norm_rel, norm_rel)).fetchone()
+        else:
+            row = conn.execute("SELECT 1 FROM material_gate_passes WHERE tracking_token_hash=%s AND (material_photo=%s OR bill_photo=%s)", (thash, norm_rel, norm_rel)).fetchone()
+    if not row:
+        abort(403)
+    return send_from_directory(UPLOAD_DIR / parts[0] / parts[1], parts[2], as_attachment=False)
+
+
+@app.get("/api/gate-media/<path:rel_path>")
+@signed_in
+def signed_in_gate_media(rel_path):
+    who = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    parts = Path(rel_path).parts
+    if len(parts) != 3 or parts[0] not in ("visitors", "gatepass") or Path(parts[2]).name != parts[2]:
+        abort(404)
+    norm_rel = f"{parts[0]}/{parts[1]}/{parts[2]}"
+    with db() as conn:
+        if parts[0] == "visitors":
+            if not is_adm and not module_access(who, "visitors"):
+                abort(403)
+            row = conn.execute(f"SELECT {VISITOR_COLS} FROM visitor_passes WHERE id_card_photo=%s OR selfie_photo=%s", (norm_rel, norm_rel)).fetchone()
+            if not row:
+                abort(404)
+            if not visitor_row_visible(_visitor_json(row), who, is_adm):
+                abort(403)
+        else:
+            if not is_adm and not module_access(who, "gatepass"):
+                abort(403)
+            row = conn.execute(f"SELECT {GATEPASS_COLS} FROM material_gate_passes WHERE material_photo=%s OR bill_photo=%s", (norm_rel, norm_rel)).fetchone()
+            if not row:
+                abort(404)
+            if not gatepass_row_visible(_gatepass_json(row), who, is_adm):
+                abort(403)
+    return send_from_directory(UPLOAD_DIR / parts[0] / parts[1], parts[2], as_attachment=False)
+
+
+@app.get("/api/public/visitors")
+def list_public_visitors():
+    sql_where, params = _build_gate_where(request.args)
+    q = str(request.args.get("q") or "").strip().lower()
+    tok_map = _token_map_from_request()
+    with db() as conn:
+        rows = conn.execute(f"SELECT {VISITOR_COLS} FROM visitor_passes {sql_where} ORDER BY created_at DESC LIMIT 120", params).fetchall()
+    out = []
+    for r in rows:
+        cand_tok = tok_map.get(r[0], "")
+        matched_tok = cand_tok if (cand_tok and hashlib.sha256(cand_tok.encode()).hexdigest() == r[1]) else ""
+        item = _visitor_json(r, include_private=False, public_token=matched_tok)
+        if q and q not in " ".join([item["id"], item["visitorName"], item["department"], item["hostName"], item["purpose"], item["factory"], item["vehicleNo"]]).lower():
+            continue
+        out.append(item)
+    return jsonify(visitors=out)
+
+
+@app.post("/api/public/visitors")
+def create_public_visitor():
+    return _create_visitor_impl(is_public=True)
+
+
+@app.post("/api/public/visitors/<path:visitor_id>/checkin-out")
+def public_visitor_checkin_out(visitor_id):
+    body = request.get_json(silent=True) or {}
+    action = str(body.get("action") or "").strip().lower()
+    guard = str(body.get("enteredBy") or "Security Gate").strip()[:80] or "Security Gate"
+    if action not in ("checkin", "checkout"):
+        return jsonify(error="Invalid gate action."), 400
+    with db() as conn:
+        row = conn.execute(f"SELECT {VISITOR_COLS} FROM visitor_passes WHERE id=%s FOR UPDATE", (visitor_id,)).fetchone()
+        if not row:
+            return jsonify(error="Visitor pass not found."), 404
+        cur_status = row[16]
+        if action == "checkin":
+            if cur_status != "Approved":
+                return jsonify(error="Host approval is required before Check-In."), 400
+            conn.execute("UPDATE visitor_passes SET status='Checked In', checked_in_at=now(), updated_at=now(), entered_by=%s WHERE id=%s", (guard, visitor_id))
+        else:
+            if cur_status not in ("Approved", "Checked In"):
+                return jsonify(error="Visitor must be checked in first."), 400
+            conn.execute("UPDATE visitor_passes SET status='Checked Out', checked_out_at=now(), updated_at=now() WHERE id=%s", (visitor_id,))
+        updated = conn.execute(f"SELECT {VISITOR_COLS} FROM visitor_passes WHERE id=%s", (visitor_id,)).fetchone()
+        _pg_emit_notify(conn, "visitor", {"action": action, "id": visitor_id, "status": updated[16]})
+    return jsonify(ok=True, visitor=_visitor_json(updated, include_private=False))
+
+
+def _create_visitor_impl(is_public=True):
+    is_multi = bool(request.content_type and "multipart/form-data" in request.content_type)
+    body = request.form if is_multi else (request.get_json(silent=True) or {})
+    factory = str(body.get("factory") or "").strip()[:80]
+    visitor_name = str(body.get("visitorName") or "").strip()[:120]
+    phone = str(body.get("phone") or "").strip()[:40]
+    address = str(body.get("address") or "").strip()[:400]
+    purpose = str(body.get("purpose") or "").strip()[:300]
+    department = str(body.get("department") or "").strip()[:120]
+    emp_key = str(body.get("employee") or body.get("hostUsername") or "").strip()[:140]
+    host_manual = str(body.get("hostName") or "").strip()[:120]
+    vehicle_no = str(body.get("vehicleNo") or "").strip()[:40]
+    pass_no = str(body.get("passNo") or "").strip()[:40]
+    belongings = str(body.get("belongings") or "").strip()[:240]
+    entered_by = str(body.get("enteredBy") or ("Security Gate" if is_public else (session.get("profile") or {}).get("name") or "User")).strip()[:80]
+    try:
+        visitor_count = max(1, min(100, int(body.get("visitorCount") or 1)))
+    except (TypeError, ValueError):
+        visitor_count = 1
+    if not visitor_name or not address or not purpose or not factory or not department:
+        return jsonify(error="Fill Visitor Name, Address, Purpose, Factory, and Department."), 400
+    tracking_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(tracking_token.encode()).hexdigest()
+    with db() as conn:
+        if is_public:
+            recent = conn.execute("SELECT count(*) FROM visitor_passes WHERE created_at > now() - interval '10 minutes'").fetchone()[0]
+            if recent >= 60:
+                return jsonify(error="Too many gate entries submitted in 10 minutes. Try shortly."), 429
+        host_username, host_name = _resolve_portal_employee(conn, factory, department, emp_key, fallback_name=host_manual)
+        if not host_name:
+            host_name = department + " Desk"
+        vid, _ = _next_gate_id(conn, "visitor_passes", "VIS")
+        id_file = request.files.get("idCardPhoto") if is_multi else None
+        sf_file = request.files.get("selfiePhoto") if is_multi else None
+        id_rel, err1 = _save_gate_image(id_file, body.get("idCardDataUrl"), "visitors", vid, "id")
+        if err1:
+            return jsonify(error=err1), 400
+        sf_rel, err2 = _save_gate_image(sf_file, body.get("selfieDataUrl"), "visitors", vid, "selfie")
+        if err2:
+            return jsonify(error=err2), 400
+        conn.execute(
+            "INSERT INTO visitor_passes(id,tracking_token_hash,factory,visitor_name,phone,address,purpose,department,host_username,host_name,vehicle_no,pass_no,visitor_count,belongings,id_card_photo,selfie_photo,status,entered_by) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'Pending',%s)",
+            (vid, token_hash, factory, visitor_name, phone, address, purpose, department, host_username, host_name, vehicle_no, pass_no, visitor_count, belongings, id_rel, sf_rel, entered_by),
+        )
+        _record_notification_event(conn, {
+            "eventKey": f"visitor:{vid}",
+            "kind": "visitor",
+            "level": "info",
+            "title": f"Visitor Waiting: {visitor_name} ({vid})",
+            "body": f"{purpose} · Meet {host_name} ({department} · {factory})",
+            "factory": factory,
+            "targetView": "visitors",
+            "targetId": vid,
+            "targetDepartment": department,
+            "targetUsername": host_username,
+            "targetHostName": host_name,
+        })
+        _pg_emit_notify(conn, "visitor", {"action": "create", "id": vid, "department": department, "hostUsername": host_username})
+        created = conn.execute(f"SELECT {VISITOR_COLS} FROM visitor_passes WHERE id=%s", (vid,)).fetchone()
+    return jsonify(ok=True, id=vid, tracking_token=tracking_token, visitor=_visitor_json(created, include_private=not is_public, public_token=tracking_token if is_public else "")), 201
+
+
+@app.get("/api/visitors")
+@signed_in
+def list_visitors():
+    who = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    if not is_adm and not module_access(who, "visitors"):
+        abort(403)
+    sql_where, params = _build_gate_where(request.args)
+    q = str(request.args.get("q") or "").strip().lower()
+    with db() as conn:
+        rows = conn.execute(f"SELECT {VISITOR_COLS} FROM visitor_passes {sql_where} ORDER BY created_at DESC LIMIT 400", params).fetchall()
+    out = []
+    for r in rows:
+        item = _visitor_json(r, include_private=True)
+        if not visitor_row_visible(item, who, is_adm):
+            continue
+        if q and q not in " ".join([item["id"], item["visitorName"], item["phone"], item["address"], item["department"], item["hostName"], item["purpose"], item["factory"], item["vehicleNo"]]).lower():
+            continue
+        out.append(item)
+    return jsonify(visitors=out, gateScope=gate_scope_for(who), canApprove=is_adm or module_access(who, "visitors", write=True))
+
+
+@app.post("/api/visitors")
+@signed_in
+def create_visitor_signed_in():
+    who = session.get("profile") or {}
+    if not session.get("is_admin") and not module_access(who, "visitors", write=True):
+        return jsonify(error="Write permission for Visitor Pass is required."), 403
+    return _create_visitor_impl(is_public=False)
+
+
+@app.post("/api/visitors/<path:visitor_id>/decision")
+@signed_in
+def decide_visitor(visitor_id):
+    who = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    if not is_adm and not module_access(who, "visitors", write=True):
+        return jsonify(error="Write permission for Visitor Pass is required."), 403
+    body = request.get_json(silent=True) or {}
+    action = str(body.get("action") or "").strip().lower()
+    note = str(body.get("note") or "").strip()[:300]
+    if action not in ("approve", "reject", "checkin", "checkout"):
+        return jsonify(error="Invalid action."), 400
+    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    with db() as conn:
+        row = conn.execute(f"SELECT {VISITOR_COLS} FROM visitor_passes WHERE id=%s FOR UPDATE", (visitor_id,)).fetchone()
+        if not row:
+            return jsonify(error="Visitor pass not found."), 404
+        cur = _visitor_json(row, include_private=True)
+        if not visitor_row_visible(cur, who, is_adm):
+            return jsonify(error="You can only manage visitors for your department."), 403
+        if action in ("approve", "reject"):
+            new_st = "Approved" if action == "approve" else "Rejected"
+            conn.execute("UPDATE visitor_passes SET status=%s, approved_by=%s, approved_at=now(), decision_note=%s, updated_at=now() WHERE id=%s", (new_st, actor, note, visitor_id))
+            _record_notification_event(conn, {
+                "eventKey": f"visitor:{visitor_id}:{new_st.lower()}",
+                "kind": "visitor",
+                "level": "ok" if action == "approve" else "warning",
+                "title": f"Visitor {new_st}: {cur['visitorName']} ({visitor_id})",
+                "body": f"{new_st} by {actor} · {cur['department']} ({cur['factory']})",
+                "factory": cur["factory"],
+                "targetView": "visitors",
+                "targetId": visitor_id,
+                "targetDepartment": cur["department"],
+                "targetUsername": cur["hostUsername"],
+                "targetHostName": cur["hostName"],
+            })
+        elif action == "checkin":
+            if cur["status"] not in ("Approved", "Pending"):
+                return jsonify(error="Cannot check in from current status."), 400
+            if cur["status"] == "Pending" and not is_adm and gate_scope_for(who) != "security":
+                conn.execute("UPDATE visitor_passes SET status='Checked In', approved_by=%s, approved_at=COALESCE(approved_at,now()), checked_in_at=now(), decision_note=%s, updated_at=now() WHERE id=%s", (actor, note or cur["decisionNote"], visitor_id))
+            else:
+                conn.execute("UPDATE visitor_passes SET status='Checked In', checked_in_at=now(), decision_note=COALESCE(NULLIF(%s,''), decision_note), updated_at=now() WHERE id=%s", (note, visitor_id))
+        else:
+            conn.execute("UPDATE visitor_passes SET status='Checked Out', checked_out_at=now(), updated_at=now() WHERE id=%s", (visitor_id,))
+        updated = conn.execute(f"SELECT {VISITOR_COLS} FROM visitor_passes WHERE id=%s", (visitor_id,)).fetchone()
+        _pg_emit_notify(conn, "visitor", {"action": action, "id": visitor_id, "status": updated[16]})
+    return jsonify(ok=True, visitor=_visitor_json(updated, include_private=True))
+
+
+@app.delete("/api/visitors/<path:visitor_id>")
+@signed_in
+def delete_visitor(visitor_id):
+    who = session.get("profile") or {}
+    if not session.get("is_admin") and not is_gate_security_or_admin(who):
+        return jsonify(error="Administrator or Security Incharge access required."), 403
+    with db() as conn:
+        row = conn.execute("DELETE FROM visitor_passes WHERE id=%s RETURNING id_card_photo, selfie_photo", (visitor_id,)).fetchone()
+        if not row:
+            abort(404)
+        for rel in row:
+            if rel:
+                try:
+                    p = (UPLOAD_DIR / rel).resolve()
+                    if p.is_relative_to((UPLOAD_DIR / "visitors").resolve()):
+                        p.unlink(missing_ok=True)
+                except Exception:
+                    pass
+        _pg_emit_notify(conn, "visitor", {"action": "delete", "id": visitor_id})
+    return jsonify(ok=True)
+
+
+@app.get("/api/public/gate-passes")
+def list_public_gate_passes():
+    sql_where, params = _build_gate_where(request.args)
+    q = str(request.args.get("q") or "").strip().lower()
+    tok_map = _token_map_from_request()
+    with db() as conn:
+        rows = conn.execute(f"SELECT {GATEPASS_COLS} FROM material_gate_passes {sql_where} ORDER BY created_at DESC LIMIT 120", params).fetchall()
+    out = []
+    for r in rows:
+        cand_tok = tok_map.get(r[0], "")
+        matched_tok = cand_tok if (cand_tok and hashlib.sha256(cand_tok.encode()).hexdigest() == r[1]) else ""
+        item = _gatepass_json(r, include_private=False, public_token=matched_tok)
+        if q and q not in " ".join([item["id"], item["materialName"], item["materialType"], item["partyName"], item["challanNo"], item["department"], item["forName"], item["factory"], item["vehicleNo"]]).lower():
+            continue
+        out.append(item)
+    return jsonify(passes=out)
+
+
+@app.post("/api/public/gate-passes")
+def create_public_gate_pass():
+    return _create_gatepass_impl(is_public=True)
+
+
+def _create_gatepass_impl(is_public=True):
+    is_multi = bool(request.content_type and "multipart/form-data" in request.content_type)
+    body = request.form if is_multi else (request.get_json(silent=True) or {})
+    direction = "OUT" if str(body.get("direction") or "").strip().upper() == "OUT" else "IN"
+    factory = str(body.get("factory") or "").strip()[:80]
+    material_type = str(body.get("materialType") or "").strip()[:80]
+    material_name = str(body.get("materialName") or "").strip()[:200]
+    quantity = str(body.get("quantity") or "").strip()[:40]
+    unit = str(body.get("unit") or "Pcs").strip()[:24] or "Pcs"
+    returnable = str(body.get("returnable") or "").strip().lower() in ("1", "true", "yes", "on")
+    party_name = str(body.get("partyName") or "").strip()[:140]
+    challan_no = str(body.get("challanNo") or "").strip()[:80]
+    vehicle_no = str(body.get("vehicleNo") or "").strip()[:40]
+    remarks = str(body.get("remarks") or "").strip()[:400]
+    department = str(body.get("department") or "").strip()[:120]
+    emp_key = str(body.get("employee") or body.get("forUsername") or "").strip()[:140]
+    for_manual = str(body.get("forName") or "").strip()[:120]
+    entered_by = str(body.get("enteredBy") or ("Security Gate" if is_public else (session.get("profile") or {}).get("name") or "User")).strip()[:80]
+    if not factory or not material_type or not material_name or not department:
+        return jsonify(error="Select Factory, Material Type, Material Name, and Department."), 400
+    tracking_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(tracking_token.encode()).hexdigest()
+    init_status = "Dispatched" if direction == "OUT" and not returnable else "Logged"
+    with db() as conn:
+        if is_public:
+            recent = conn.execute("SELECT count(*) FROM material_gate_passes WHERE created_at > now() - interval '10 minutes'").fetchone()[0]
+            if recent >= 60:
+                return jsonify(error="Too many material entries submitted in 10 minutes."), 429
+        for_username, for_name = _resolve_portal_employee(conn, factory, department, emp_key, fallback_name=for_manual)
+        if not for_name:
+            for_name = department + " Team"
+        gid, _ = _next_gate_id(conn, "material_gate_passes", "MOUT" if direction == "OUT" else "MIN")
+        mat_file = request.files.get("materialPhoto") if is_multi else None
+        bill_file = request.files.get("billPhoto") if is_multi else None
+        mat_rel, err1 = _save_gate_image(mat_file, body.get("materialDataUrl"), "gatepass", gid, "material")
+        if err1:
+            return jsonify(error=err1), 400
+        bill_rel, err2 = _save_gate_image(bill_file, body.get("billDataUrl"), "gatepass", gid, "bill")
+        if err2:
+            return jsonify(error=err2), 400
+        conn.execute(
+            "INSERT INTO material_gate_passes(id,tracking_token_hash,direction,factory,material_type,material_name,quantity,unit,returnable,party_name,challan_no,vehicle_no,remarks,department,for_username,for_name,material_photo,bill_photo,status,entered_by) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (gid, token_hash, direction, factory, material_type, material_name, quantity, unit, returnable, party_name, challan_no, vehicle_no, remarks, department, for_username, for_name, mat_rel, bill_rel, init_status, entered_by),
+        )
+        dir_word = "Outward (OUT)" if direction == "OUT" else "Inward (IN)"
+        _record_notification_event(conn, {
+            "eventKey": f"gatepass:{gid}",
+            "kind": "gatepass",
+            "level": "info",
+            "title": f"Material {dir_word}: {material_name} ({gid})",
+            "body": f"For {for_name} ({department} · {factory}){' · Challan ' + challan_no if challan_no else ''}",
+            "factory": factory,
+            "targetView": "gatepass",
+            "targetTab": direction,
+            "targetId": gid,
+            "targetDepartment": department,
+            "targetUsername": for_username,
+            "targetHostName": for_name,
+        })
+        _pg_emit_notify(conn, "gatepass", {"action": "create", "id": gid, "direction": direction, "forUsername": for_username})
+        created = conn.execute(f"SELECT {GATEPASS_COLS} FROM material_gate_passes WHERE id=%s", (gid,)).fetchone()
+    return jsonify(ok=True, id=gid, tracking_token=tracking_token, gatePass=_gatepass_json(created, include_private=not is_public, public_token=tracking_token if is_public else "")), 201
+
+
+@app.get("/api/gate-passes")
+@signed_in
+def list_gate_passes():
+    who = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    if not is_adm and not module_access(who, "gatepass"):
+        abort(403)
+    sql_where, params = _build_gate_where(request.args)
+    q = str(request.args.get("q") or "").strip().lower()
+    with db() as conn:
+        rows = conn.execute(f"SELECT {GATEPASS_COLS} FROM material_gate_passes {sql_where} ORDER BY created_at DESC LIMIT 500", params).fetchall()
+    out = []
+    for r in rows:
+        item = _gatepass_json(r, include_private=True)
+        if not gatepass_row_visible(item, who, is_adm):
+            continue
+        if q and q not in " ".join([item["id"], item["materialName"], item["materialType"], item["partyName"], item["challanNo"], item["department"], item["forName"], item["factory"], item["vehicleNo"], item["remarks"]]).lower():
+            continue
+        out.append(item)
+    return jsonify(passes=out, gateScope=gate_scope_for(who), canWrite=is_adm or module_access(who, "gatepass", write=True))
+
+
+@app.post("/api/gate-passes")
+@signed_in
+def create_gatepass_signed_in():
+    who = session.get("profile") or {}
+    if not session.get("is_admin") and not module_access(who, "gatepass", write=True):
+        return jsonify(error="Write permission for Material Gate Pass is required."), 403
+    return _create_gatepass_impl(is_public=False)
+
+
+@app.post("/api/gate-passes/<path:pass_id>/status")
+@signed_in
+def update_gatepass_status(pass_id):
+    who = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    if not is_adm and not module_access(who, "gatepass", write=True):
+        return jsonify(error="Write permission for Material Gate Pass is required."), 403
+    body = request.get_json(silent=True) or {}
+    new_st = str(body.get("status") or "Verified").strip()
+    if new_st not in GATEPASS_STATUSES:
+        return jsonify(error="Invalid status."), 400
+    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    with db() as conn:
+        row = conn.execute(f"SELECT {GATEPASS_COLS} FROM material_gate_passes WHERE id=%s FOR UPDATE", (pass_id,)).fetchone()
+        if not row:
+            return jsonify(error="Material gate pass not found."), 404
+        cur = _gatepass_json(row, include_private=True)
+        if not gatepass_row_visible(cur, who, is_adm):
+            return jsonify(error="You can only update material entries assigned to you or your scope."), 403
+        conn.execute("UPDATE material_gate_passes SET status=%s, verified_by=%s, verified_at=now(), updated_at=now() WHERE id=%s", (new_st, actor, pass_id))
+        updated = conn.execute(f"SELECT {GATEPASS_COLS} FROM material_gate_passes WHERE id=%s", (pass_id,)).fetchone()
+        _pg_emit_notify(conn, "gatepass", {"action": "status", "id": pass_id, "status": new_st})
+    return jsonify(ok=True, gatePass=_gatepass_json(updated, include_private=True))
+
+
+@app.delete("/api/gate-passes/<path:pass_id>")
+@signed_in
+def delete_gatepass(pass_id):
+    who = session.get("profile") or {}
+    if not session.get("is_admin") and not is_gate_security_or_admin(who):
+        return jsonify(error="Administrator or Security Incharge access required."), 403
+    with db() as conn:
+        row = conn.execute("DELETE FROM material_gate_passes WHERE id=%s RETURNING material_photo, bill_photo", (pass_id,)).fetchone()
+        if not row:
+            abort(404)
+        for rel in row:
+            if rel:
+                try:
+                    p = (UPLOAD_DIR / rel).resolve()
+                    if p.is_relative_to((UPLOAD_DIR / "gatepass").resolve()):
+                        p.unlink(missing_ok=True)
+                except Exception:
+                    pass
+        _pg_emit_notify(conn, "gatepass", {"action": "delete", "id": pass_id})
+    return jsonify(ok=True)
 
 
 @app.errorhandler(413)

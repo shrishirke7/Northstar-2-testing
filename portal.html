@@ -81,6 +81,26 @@ tr:hover td{background:#fafdfb}
 .queue-scope-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;background:#eefcf4;color:#147852;border:1px solid #cce7d7;margin-top:6px}
 #portalLiveToastStack{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:360px;pointer-events:none}
 .portal-live-toast{pointer-events:auto;background:#ffffff;border:1px solid #cce3d4;border-left:4px solid #16845d;border-radius:10px;padding:11px 14px;box-shadow:0 12px 28px rgba(15,23,42,.16);font-size:12.5px;color:#1b2620}
+.portal-mode-bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0 4px}
+.portal-mode-btn{background:#f3f7f4;color:#273b30;border:1.5px solid #d4e3da;border-radius:11px;padding:11px 12px;font-weight:800;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:.15s;text-align:center}
+.portal-mode-btn:hover{border-color:#16845d;background:#edf9f1}
+.portal-mode-btn.active{background:#167c56;color:#fff;border-color:#167c56;box-shadow:0 6px 16px rgba(22,124,86,.22)}
+.pg-dir-bar{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.pg-dir-btn{padding:12px 14px;border-radius:12px;border:1.5px solid #d4e3da;background:#fff;color:#1e2d24;font-weight:800;font-size:13.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s}
+.pg-dir-btn.in.active{background:#ecfdf5;border-color:#15803d;color:#14532d;box-shadow:0 4px 12px rgba(21,128,61,.14)}
+.pg-dir-btn.out.active{background:#fff7ed;border-color:#ea580c;color:#9a3412;box-shadow:0 4px 12px rgba(234,88,12,.14)}
+.pg-photo-box{border:1px dashed #b9cebf;border-radius:10px;padding:10px;background:#fafdfb;display:grid;gap:6px}
+.pg-photo-prev{width:76px;height:76px;border-radius:8px;object-fit:cover;border:1px solid #cbd9d0;display:none}
+.pg-thumb{width:38px;height:38px;border-radius:7px;object-fit:cover;border:1px solid #cbd9d0;cursor:pointer}
+.pg-preset-strip{display:flex;gap:5px;flex-wrap:wrap;grid-column:1/-1}
+.pg-preset-btn{border:1px solid #d4e3da;background:#fff;color:#273b30;border-radius:7px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer}
+.pg-preset-btn.active{background:#167c56;color:#fff;border-color:#167c56}
+.pg-modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.58);display:none;align-items:center;justify-content:center;z-index:9998;padding:14px}
+.pg-modal-bg.open{display:flex}
+.pg-modal-card{background:#fff;border-radius:16px;padding:18px;max-width:460px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.pg-badge{display:inline-flex;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:800}
+.pg-badge.pending{background:#fef3c7;color:#b45309}.pg-badge.approved{background:#e0f2fe;color:#0369a1}.pg-badge.in{background:#dcfce7;color:#15803d}.pg-badge.out{background:#f1f5f9;color:#475569}.pg-badge.rejected{background:#fee2e2;color:#b91c1c}
+.portal-panel-stack{display:grid;gap:18px}.portal-panel-stack.hidden{display:none!important}
 html,body{overflow-x:hidden;max-width:100%}
 @media(max-width:900px){.grid-3,.mat-box.active{grid-template-columns:1fr}.grid-2{grid-template-columns:1fr}.card{padding:18px}}
 @media(max-width:768px){
@@ -98,15 +118,18 @@ html,body{overflow-x:hidden;max-width:100%}
   .desk-pill span{display:inline;white-space:normal;word-break:normal;overflow-wrap:break-word}
   .filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:stretch}
   .filters>b{grid-column:1/-1}
-  .filters select,.filters input[type="search"],.filters button{width:100%;min-width:0;box-sizing:border-box}
-  .filters input[type="search"]{grid-column:1/-1}
+  .filters input,.filters select,.filters button{width:100%;min-width:0;box-sizing:border-box}
+  .filters input[type="search"],.pg-preset-strip{grid-column:1/-1}
+  .pg-photo-box input[type="file"]{max-width:100%;min-width:0;box-sizing:border-box;overflow:hidden}
+  #portalMainModes{grid-template-columns:1fr!important;gap:7px}
+  .pg-dir-bar{grid-template-columns:1fr}
   .portal-tab{flex:1 1 140px;justify-content:center;font-size:12px;padding:9px 10px;text-align:center}
   .table-scroll{overflow-x:visible;border:0;margin-top:10px}
-  #publicTable,#publicTable tbody,#publicTable tr,#publicTable td{display:block;width:100%;min-width:0!important;box-sizing:border-box}
-  #publicTable thead{display:none}
-  #publicTable tbody tr{background:#ffffff;border:1px solid #d5e2da;border-radius:14px;padding:12px 13px;margin-bottom:10px;box-shadow:0 3px 12px rgba(22,36,28,.06)}
+  #publicTable,#publicTable tbody,#publicTable tr,#publicTable td,#pubVisTable,#pubVisTable tbody,#pubVisTable tr,#pubVisTable td,#pubGpTable,#pubGpTable tbody,#pubGpTable tr,#pubGpTable td{display:block;width:100%;min-width:0!important;box-sizing:border-box}
+  #publicTable thead,#pubVisTable thead,#pubGpTable thead{display:none}
+  #publicTable tbody tr,#pubVisTable tbody tr,#pubGpTable tbody tr{background:#ffffff;border:1px solid #d5e2da;border-radius:14px;padding:12px 13px;margin-bottom:10px;box-shadow:0 3px 12px rgba(22,36,28,.06)}
   #publicTable tbody tr.portal-empty-row{text-align:center;padding:18px}
-  #publicTable tbody td{border:0!important;padding:4px 0!important;white-space:normal!important;word-break:break-word;min-width:0!important;font-size:13px;line-height:1.4}
+  #publicTable tbody td,#pubVisTable tbody td,#pubGpTable tbody td{border:0!important;padding:4px 0!important;white-space:normal!important;word-break:break-word;min-width:0!important;font-size:13px;line-height:1.4}
   #publicTable tbody td[data-label]{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;padding:4px 0!important}
   #publicTable tbody td[data-label]::before{content:attr(data-label) ':';font-size:11px;font-weight:800;color:#5a6961;text-transform:uppercase;letter-spacing:.4px;flex-shrink:0}
   #portalLiveToastStack{top:calc(12px + env(safe-area-inset-top,0px));left:10px;right:10px;bottom:auto;max-width:none}
@@ -116,20 +139,28 @@ html,body{overflow-x:hidden;max-width:100%}
 <body>
 <div id="portalLiveToastStack" aria-live="polite"></div>
 <main class="wrap">
-  <section class="card" style="border-top:4px solid #16845d">
+  <section class="card" style="border-top:4px solid #16845d;padding-bottom:16px">
     <div class="top-bar">
       <div style="display:flex;align-items:center;gap:14px">
         <img src="/static/icons/icon-192.png?v=3" alt="Shree" width="46" height="46" style="border-radius:11px;border:1.5px solid #b59e50;flex-shrink:0;box-shadow:0 4px 12px rgba(5,20,51,.18)">
         <div>
-          <div class="eyebrow" id="portalEyebrow">SWARNSHILP · IT HELP DESK &amp; MATERIAL REQUESTS</div>
+          <div class="eyebrow" id="portalEyebrow">SWARNSHILP · HELP DESK, VISITOR &amp; GATE PASS</div>
           <h1 id="portalMainHeading" style="margin-top:2px">📝 Raise a support ticket or material request</h1>
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <a class="button muted" id="portalApkDownloadBtn" href="/download/shree-it.apk" download="Shree-IT.apk" style="background:#f0fdf4;color:#157a54;border:1px solid #bbf7d0">🤖 Android App (.apk)</a>
-        <a class="button muted" id="portalSignInBtn" href="/">Sign in to Swarnshilp IT ↗</a>
+        <a class="button muted" id="portalSignInBtn" href="/">Sign in to Swarnshilp ↗</a>
       </div>
     </div>
+    <div class="portal-mode-bar" id="portalMainModes" role="tablist">
+      <button type="button" class="portal-mode-btn active" data-pmode="tickets" onclick="switchPortalMainMode('tickets')">🎫 Support &amp; Material Tickets</button>
+      <button type="button" class="portal-mode-btn" data-pmode="visitor" onclick="switchPortalMainMode('visitor')">🪪 Visitor Pass Entry (Gate)</button>
+      <button type="button" class="portal-mode-btn" data-pmode="gatepass" onclick="switchPortalMainMode('gatepass')">📦 Material Gate Pass (IN / OUT)</button>
+    </div>
+  </section>
+
+  <section class="card" id="portalTicketFormCard">
     <p class="sub" style="margin-bottom:14px">Select your Factory, Department and Employee name, pick a category and describe the issue. You can also upload screenshots and track live progress below.</p>
 
     <form id="ticketForm">
@@ -218,7 +249,7 @@ html,body{overflow-x:hidden;max-width:100%}
     </section>
   </section>
 
-  <section class="card">
+  <section class="card" id="portalTicketQueueCard">
     <div class="top-bar" style="margin-bottom:10px">
       <div>
         <h2 style="margin:0" id="liveQueueHeading">🌐 Live Tickets &amp; Material Request Status</h2>
@@ -251,7 +282,203 @@ html,body{overflow-x:hidden;max-width:100%}
       </table>
     </div>
   </section>
+
+  <!-- VISITOR GATE ENTRY (NO LOGIN FOR SECURITY) -->
+  <div id="portalVisitorSection" class="portal-panel-stack hidden">
+    <section class="card">
+      <div class="top-bar" style="margin-bottom:8px">
+        <div>
+          <h2 style="margin:0">🪪 Security Gate · New Visitor Pass Entry</h2>
+          <p class="sub" style="margin-top:3px">Without login gate registration. Host / concerned department receives instant alert for approval.</p>
+        </div>
+        <span class="queue-scope-pill" id="pubVisLiveClock">🕒 Auto Timestamp Active</span>
+      </div>
+      <form id="pubVisitorForm">
+        <div class="grid-3">
+          <div class="field"><label>Factory *</label><select id="pubVisFac" required><option value="">Select factory</option></select></div>
+          <div class="field"><label>Department to Visit *</label><select id="pubVisDept" required disabled><option value="">Select factory first</option></select></div>
+          <div class="field"><label>Person / Host to Meet</label><select id="pubVisEmp" disabled><option value="">Select department first</option></select></div>
+        </div>
+        <div class="grid-3">
+          <div class="field"><label>Visitor Full Name *</label><input id="pubVisName" required placeholder="Complete full name"></div>
+          <div class="field"><label>Mobile / Phone</label><input id="pubVisPhone" type="tel" placeholder="10-digit mobile number"></div>
+          <div class="field"><label>Or Type Host Name (if general)</label><input id="pubVisHostManual" placeholder="Optional contact person"></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label>Company / Full Address *</label><input id="pubVisAddr" required placeholder="Company name, city / complete address"></div>
+          <div class="field"><label>Purpose of Visit *</label><select id="pubVisPurpose" required><option>Official Meeting</option><option>Vendor / Maintenance Service</option><option>Delivery / Courier</option><option>Audit / Inspection</option><option>Interview</option><option>Client Visit</option><option>Other</option></select></div>
+        </div>
+        <div class="grid-3">
+          <div class="field"><label>Vehicle No. (optional)</label><input id="pubVisVehicle" placeholder="MH01 AB 1234"></div>
+          <div class="field"><label>Visitor Count / Pass No.</label><div style="display:flex;gap:6px"><input id="pubVisCount" type="number" min="1" value="1" style="flex:1"><input id="pubVisPassNo" placeholder="Badge #" style="flex:1"></div></div>
+          <div class="field"><label>Belongings / Entered By Guard</label><div style="display:flex;gap:6px"><input id="pubVisItems" placeholder="Laptop / Bag" style="flex:1"><input id="pubVisGuard" placeholder="Guard Name" style="flex:1"></div></div>
+        </div>
+        <div class="grid-2">
+          <div class="field pg-photo-box">
+            <label>Visitor ID Card Photo</label>
+            <input type="file" id="pubVisIdInput" accept="image/*" capture="environment">
+            <img id="pubVisIdPrev" class="pg-photo-prev" alt="ID Preview">
+          </div>
+          <div class="field pg-photo-box">
+            <label>Visitor Selfie / Face Picture</label>
+            <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
+              <button type="button" class="muted" id="pubVisCamBtn" style="padding:8px 12px">📷 Live Selfie Camera</button>
+              <input type="file" id="pubVisSelfieInput" accept="image/*" capture="user" style="flex:1;min-width:130px">
+            </div>
+            <img id="pubVisSelfiePrev" class="pg-photo-prev" alt="Selfie Preview">
+          </div>
+        </div>
+        <div class="message error hidden" id="pubVisErr" role="alert"></div>
+        <div class="message hidden" id="pubVisOk"></div>
+        <div class="actions">
+          <button type="submit" id="pubVisSubmitBtn" style="min-width:220px;justify-content:center">🪪 Submit Visitor Entry &amp; Request Approval</button>
+          <span class="small">Date &amp; time are captured automatically on submission.</span>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="top-bar" style="margin-bottom:10px">
+        <div>
+          <h2 style="margin:0">🛂 Live Visitor Approval &amp; Gate Log</h2>
+          <p class="sub" style="margin-top:3px">Updates live when host / department approves entry. Security can mark Check-In and Exit below.</p>
+        </div>
+        <button type="button" class="muted" onclick="loadPublicVisitors()">↻ Refresh</button>
+      </div>
+      <div class="filters">
+        <div class="pg-preset-strip">
+          <button type="button" class="pg-preset-btn active" data-pvpreset="today" onclick="setPubVisPreset('today')">Today</button>
+          <button type="button" class="pg-preset-btn" data-pvpreset="yesterday" onclick="setPubVisPreset('yesterday')">Yesterday</button>
+          <button type="button" class="pg-preset-btn" data-pvpreset="7d" onclick="setPubVisPreset('7d')">Last 7 Days</button>
+          <button type="button" class="pg-preset-btn" data-pvpreset="all" onclick="setPubVisPreset('all')">All Days</button>
+        </div>
+        <input type="datetime-local" id="pvFromDt" title="From Date & Time">
+        <input type="datetime-local" id="pvToDt" title="To Date & Time">
+        <select id="pvFacFilter"><option value="">All factories</option></select>
+        <select id="pvDeptFilter"><option value="">All departments</option></select>
+        <select id="pvStatusFilter"><option value="">All statuses</option><option>Pending</option><option>Approved</option><option>Checked In</option><option>Checked Out</option><option>Rejected</option></select>
+        <input type="search" id="pvSearch" placeholder="Search visitor, host, token...">
+      </div>
+      <div class="table-scroll">
+        <table id="pubVisTable">
+          <thead><tr><th>PASS ID &amp; TIME</th><th>VISITOR</th><th>PURPOSE &amp; PHOTOS</th><th>FACTORY / DEPT / HOST</th><th>STATUS &amp; GATE ACTION</th></tr></thead>
+          <tbody id="pubVisRows"><tr><td colspan="5">Loading visitors…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- MATERIAL GATE PASS INWARD / OUTWARD (NO LOGIN FOR SECURITY) -->
+  <div id="portalGatepassSection" class="portal-panel-stack hidden">
+    <section class="card">
+      <div class="top-bar" style="margin-bottom:8px">
+        <div>
+          <h2 style="margin:0">📦 Security Gate · Material Gate Pass Register</h2>
+          <p class="sub" style="margin-top:3px">Record Material Inward (IN) arriving at factory or Material Outward (OUT) leaving factory — no login required.</p>
+        </div>
+        <span class="queue-scope-pill" id="pubGpLiveClock">🕒 Auto Timestamp Active</span>
+      </div>
+      <div class="pg-dir-bar">
+        <button type="button" class="pg-dir-btn in active" data-pgdir="IN" onclick="setPubGpDirection('IN')">📥 Material Inward Entry (Factory IN)</button>
+        <button type="button" class="pg-dir-btn out" data-pgdir="OUT" onclick="setPubGpDirection('OUT')">📤 Material Outward Entry (Factory OUT)</button>
+      </div>
+      <form id="pubGpForm">
+        <input type="hidden" id="pubGpDir" value="IN">
+        <div class="grid-3">
+          <div class="field"><label>Factory *</label><select id="pubGpFac" required><option value="">Select factory</option></select></div>
+          <div class="field"><label>Department *</label><select id="pubGpDept" required disabled><option value="">Select factory first</option></select></div>
+          <div class="field"><label>For Employee / Recipient</label><select id="pubGpEmp" disabled><option value="">Select department first</option></select></div>
+        </div>
+        <div class="grid-3">
+          <div class="field"><label>Material Type *</label><select id="pubGpType" required><option>Raw Material / Gold / Bullion</option><option>Machinery / Tools</option><option>IT Hardware / Electronics</option><option>Electrical / Plumbing</option><option>Consumables / Packaging</option><option>Finished Goods</option><option>Documents / Parcel</option><option>Scrap / Waste</option><option>Other</option></select></div>
+          <div class="field"><label>Material / Item Name *</label><input id="pubGpMatName" required placeholder="Exact material name & details"></div>
+          <div class="field"><label>Quantity &amp; Unit</label><div style="display:flex;gap:6px"><input id="pubGpQty" placeholder="Qty (e.g. 5)" style="flex:1"><select id="pubGpUnit" style="flex:1"><option>Pcs</option><option>Kg</option><option>Grams</option><option>Boxes</option><option>Sets</option><option>Rolls</option><option>Liters</option><option>Meters</option></select></div></div>
+        </div>
+        <div class="grid-3">
+          <div class="field"><label>Vendor / Party Name</label><input id="pubGpParty" placeholder="Supplier or destination party"></div>
+          <div class="field"><label>Bill / Challan / Invoice No.</label><input id="pubGpChallan" placeholder="Challan or bill number"></div>
+          <div class="field"><label>Vehicle No. / Type Recipient Name</label><div style="display:flex;gap:6px"><input id="pubGpVehicle" placeholder="Vehicle #" style="flex:1"><input id="pubGpForManual" placeholder="Recipient name" style="flex:1"></div></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label>Remarks &amp; Entered By Guard</label><div style="display:flex;gap:6px"><input id="pubGpRemarks" placeholder="Notes / condition..." style="flex:2"><input id="pubGpGuard" placeholder="Guard Name" style="flex:1"></div></div>
+          <div class="field" style="justify-content:center;padding-top:16px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="pubGpReturnable" style="width:auto"> 🔄 Returnable Material (item will come back / go back)</label>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="field pg-photo-box">
+            <label>Material Photo</label>
+            <input type="file" id="pubGpMatPhotoInput" accept="image/*" capture="environment">
+            <img id="pubGpMatPrev" class="pg-photo-prev" alt="Material Preview">
+          </div>
+          <div class="field pg-photo-box">
+            <label>Bill / Challan Photo</label>
+            <input type="file" id="pubGpBillPhotoInput" accept="image/*" capture="environment">
+            <img id="pubGpBillPrev" class="pg-photo-prev" alt="Bill Preview">
+          </div>
+        </div>
+        <div class="message error hidden" id="pubGpErr" role="alert"></div>
+        <div class="message hidden" id="pubGpOk"></div>
+        <div class="actions">
+          <button type="submit" id="pubGpSubmitBtn" style="min-width:220px;justify-content:center">📦 Submit Material Gate Entry</button>
+          <span class="small">Auto date &amp; time recorded automatically on save.</span>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="top-bar" style="margin-bottom:10px">
+        <div>
+          <h2 style="margin:0">📋 Material Inward / Outward Gate Log</h2>
+          <p class="sub" style="margin-top:3px">Filter by IN / OUT, day/date/time range, Factory &amp; Department.</p>
+        </div>
+        <button type="button" class="muted" onclick="loadPublicGatePasses()">↻ Refresh</button>
+      </div>
+      <div class="portal-tabs" id="pubGpListTabs">
+        <button type="button" class="portal-tab active" data-pglist="ALL" onclick="setPubGpListTab('ALL')">📋 All Movements</button>
+        <button type="button" class="portal-tab" data-pglist="IN" onclick="setPubGpListTab('IN')">📥 Inward (IN)</button>
+        <button type="button" class="portal-tab" data-pglist="OUT" onclick="setPubGpListTab('OUT')">📤 Outward (OUT)</button>
+      </div>
+      <div class="filters">
+        <div class="pg-preset-strip">
+          <button type="button" class="pg-preset-btn active" data-pgpreset="today" onclick="setPubGpPreset('today')">Today</button>
+          <button type="button" class="pg-preset-btn" data-pgpreset="yesterday" onclick="setPubGpPreset('yesterday')">Yesterday</button>
+          <button type="button" class="pg-preset-btn" data-pgpreset="7d" onclick="setPubGpPreset('7d')">Last 7 Days</button>
+          <button type="button" class="pg-preset-btn" data-pgpreset="all" onclick="setPubGpPreset('all')">All Days</button>
+        </div>
+        <input type="datetime-local" id="pgFromDt" title="From Date & Time">
+        <input type="datetime-local" id="pgToDt" title="To Date & Time">
+        <select id="pgFacFilter"><option value="">All factories</option></select>
+        <select id="pgDeptFilter"><option value="">All departments</option></select>
+        <input type="search" id="pgSearch" placeholder="Search material, party, challan, for...">
+      </div>
+      <div class="table-scroll">
+        <table id="pubGpTable">
+          <thead><tr><th>PASS ID &amp; DIR</th><th>MATERIAL &amp; PHOTOS</th><th>PARTY / CHALLAN</th><th>FACTORY / DEPT / FOR PERSON</th><th>AUTO TIME &amp; STATUS</th></tr></thead>
+          <tbody id="pubGpRows"><tr><td colspan="5">Loading material passes…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
 </main>
+
+<div class="pg-modal-bg" id="pubCamModal" onclick="if(event.target===this)closePubCam()">
+  <div class="pg-modal-card" style="text-align:center">
+    <h3 style="margin:0 0 10px">📷 Take Visitor Selfie</h3>
+    <video id="pubCamVideo" autoplay playsinline style="width:100%;max-height:260px;border-radius:10px;background:#0f172a;object-fit:cover"></video>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+      <button type="button" class="muted" onclick="closePubCam()">Cancel</button>
+      <button type="button" onclick="snapPubCam()">📸 Capture Photo</button>
+    </div>
+  </div>
+</div>
+
+<div class="pg-modal-bg" id="pubLightboxModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="pg-modal-card" style="max-width:680px;text-align:center">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b id="pubLbTitle">Photo Preview</b><button type="button" class="muted" style="padding:4px 9px" onclick="document.getElementById('pubLightboxModal').classList.remove('open')">✕</button></div>
+    <img id="pubLbImg" alt="Preview" style="max-width:100%;max-height:70vh;border-radius:10px">
+  </div>
+</div>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -366,9 +593,11 @@ function syncDeskActiveData(){
   const cName = CURRENT_PORTAL_COMPANY || 'Swarnshilp';
   const ey = $('portalEyebrow'), mh = $('portalMainHeading');
   const dShort = dk.id === 'it' ? 'IT' : dk.name;
-  if(ey) ey.textContent = cName.toUpperCase() + ' · ' + dShort.toUpperCase() + ' HELP DESK & MATERIAL REQUESTS';
-  if(mh) mh.textContent = dk.id === 'it' ? '📝 Raise a support ticket or material request' : ('📝 Raise a ' + dk.name + ' ticket or request');
-  document.title = cName + ' · ' + dShort + ' Help Desk & Request Portal';
+  if(!window.__portalMainMode || window.__portalMainMode === 'tickets'){
+    if(ey) ey.textContent = cName.toUpperCase() + ' · ' + dShort.toUpperCase() + ' HELP DESK & MATERIAL REQUESTS';
+    if(mh) mh.textContent = dk.id === 'it' ? '📝 Raise a support ticket or material request' : ('📝 Raise a ' + dk.name + ' ticket or request');
+    document.title = cName + ' · ' + dShort + ' Help Desk & Request Portal';
+  }
 }
 
 function renderComplaintDesks(){
@@ -918,6 +1147,14 @@ async function pollPublicPulse(){
       } else if(p.settingsRev){
         lastPortalSettingsRev = p.settingsRev;
       }
+      if(window.__lastPortalVisRev && p.visitorRev && p.visitorRev !== window.__lastPortalVisRev){
+        window.__lastPortalVisRev = p.visitorRev;
+        window.loadPublicVisitors?.();
+      } else if(p.visitorRev){ window.__lastPortalVisRev = p.visitorRev; }
+      if(window.__lastPortalGpRev && p.gatepassRev && p.gatepassRev !== window.__lastPortalGpRev){
+        window.__lastPortalGpRev = p.gatepassRev;
+        window.loadPublicGatePasses?.();
+      } else if(p.gatepassRev){ window.__lastPortalGpRev = p.gatepassRev; }
     }
   }catch(_){}
   const delay = document.hidden ? 4000 : 1000;
@@ -1002,6 +1239,8 @@ async function load(){
         if(typeof loadPublicTickets === 'function') loadPublicTickets({ silent: false }).catch(()=>{});
       };
       pubEs.addEventListener('ticket', onRefresh);
+      pubEs.addEventListener('visitor', function(){ window.loadPublicVisitors?.(); });
+      pubEs.addEventListener('gatepass', function(){ window.loadPublicGatePasses?.(); });
       pubEs.addEventListener('pulse', function(){
         if(typeof pollPublicPulse === 'function') pollPublicPulse();
       });
@@ -1016,6 +1255,430 @@ async function load(){
   document.addEventListener('visibilitychange', function(){
     if(!document.hidden && !pubEs) connectPublicSse();
   });
+})();
+</script>
+<script id="portal-gate-logic">
+(function(){
+  const TK_KEY = 'ns-gate-tokens';
+  let pubVisIdData = '', pubVisSelfieData = '', pubGpMatData = '', pubGpBillData = '';
+  let pubCamStream = null, pubCamCb = null;
+  let pubGpListDir = 'ALL';
+  let curMainMode = 'tickets';
+
+  function getTokMap(){
+    try{ return JSON.parse(localStorage.getItem(TK_KEY) || '{}') || {}; }catch(_){ return {}; }
+  }
+  function saveTok(id, tok){
+    if(!id || !tok) return;
+    const m = getTokMap();
+    m[id] = tok;
+    const keys = Object.keys(m);
+    if(keys.length > 80) delete m[keys[0]];
+    try{ localStorage.setItem(TK_KEY, JSON.stringify(m)); }catch(_){}
+  }
+
+  function htm(v){ return String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function fmtPubDt(iso){
+    if(!iso) return '—';
+    const d = new Date(iso);
+    if(Number.isNaN(d.getTime())) return htm(iso);
+    return d.toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true });
+  }
+  function toLocalInput(d){
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+  function setPreset(preset, fId, tId, attr){
+    document.querySelectorAll(`[${attr}]`).forEach(b => b.classList.toggle('active', b.getAttribute(attr) === preset));
+    const fe = $(fId), te = $(tId);
+    if(!fe || !te) return;
+    if(preset === 'all'){ fe.value = ''; te.value = ''; return; }
+    const now = new Date(), s = new Date(now), e = new Date(now);
+    if(preset === 'yesterday'){ s.setDate(s.getDate() - 1); e.setDate(e.getDate() - 1); }
+    else if(preset === '7d'){ s.setDate(s.getDate() - 6); }
+    s.setHours(0,0,0,0); e.setHours(23,59,59,999);
+    fe.value = toLocalInput(s); te.value = toLocalInput(e);
+  }
+  function toIsoOrEmpty(val){
+    if(!val) return '';
+    const d = new Date(val);
+    return Number.isNaN(d.getTime()) ? '' : d.toISOString();
+  }
+
+  async function compressPubPhoto(file, maxDim = 1280){
+    return new Promise(res => {
+      if(!file) return res('');
+      const r = new FileReader();
+      r.onerror = () => res('');
+      r.onload = () => {
+        const img = new Image();
+        img.onerror = () => res(String(r.result || ''));
+        img.onload = () => {
+          let w = img.width, h = img.height;
+          if(w > maxDim || h > maxDim){
+            if(w >= h){ h = Math.round(h * (maxDim / w)); w = maxDim; }
+            else { w = Math.round(w * (maxDim / h)); h = maxDim; }
+          }
+          const c = document.createElement('canvas'); c.width = w; c.height = h;
+          c.getContext('2d').drawImage(img, 0, 0, w, h);
+          res(c.toDataURL('image/jpeg', 0.82));
+        };
+        img.src = String(r.result || '');
+      };
+      r.readAsDataURL(file);
+    });
+  }
+
+  window.openPubLightbox = function(url, title){
+    if(!url) return;
+    $('pubLbImg').src = url;
+    $('pubLbTitle').textContent = title || 'Photo Preview';
+    $('pubLightboxModal').classList.add('open');
+  };
+  window.closePubCam = function(){
+    if(pubCamStream){ try{ pubCamStream.getTracks().forEach(t => t.stop()); }catch(_){} pubCamStream = null; }
+    $('pubCamVideo').srcObject = null;
+    $('pubCamModal').classList.remove('open');
+  };
+  window.snapPubCam = function(){
+    const v = $('pubCamVideo');
+    if(!v || !v.videoWidth) return;
+    const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext('2d').drawImage(v, 0, 0);
+    const d = c.toDataURL('image/jpeg', 0.85);
+    const cb = pubCamCb;
+    window.closePubCam();
+    if(typeof cb === 'function') cb(d);
+  };
+
+  window.switchPortalMainMode = function(mode){
+    curMainMode = ['tickets', 'visitor', 'gatepass'].includes(mode) ? mode : 'tickets';
+    window.__portalMainMode = curMainMode;
+    document.querySelectorAll('#portalMainModes [data-pmode]').forEach(b => b.classList.toggle('active', b.dataset.pmode === curMainMode));
+    $('portalTicketFormCard')?.classList.toggle('hidden', curMainMode !== 'tickets');
+    $('portalTicketQueueCard')?.classList.toggle('hidden', curMainMode !== 'tickets');
+    $('portalVisitorSection')?.classList.toggle('hidden', curMainMode !== 'visitor');
+    $('portalGatepassSection')?.classList.toggle('hidden', curMainMode !== 'gatepass');
+    const h = $('portalMainHeading'), eb = $('portalEyebrow');
+    if(curMainMode === 'visitor'){
+      if(h) h.textContent = '🪪 Visitor Pass & Gate Entry';
+      if(eb) eb.textContent = (data.companyName || 'SWARNSHILP').toUpperCase() + ' · SECURITY VISITOR REGISTER';
+      window.loadPublicVisitors();
+    } else if(curMainMode === 'gatepass'){
+      if(h) h.textContent = '📦 Material Gate Pass (Inward / Outward)';
+      if(eb) eb.textContent = (data.companyName || 'SWARNSHILP').toUpperCase() + ' · MATERIAL MOVEMENT REGISTER';
+      window.loadPublicGatePasses();
+    } else {
+      if(typeof syncDeskActiveData === 'function') syncDeskActiveData();
+    }
+  };
+
+  function cascadeFactoryDeptEmp(facId, deptId, empId){
+    const fc = $(facId)?.value || '';
+    const ds = (data.departments || []).filter(d => !fc || d.factory === fc);
+    const uniqueD = [...new Set(ds.map(d => d.name))];
+    const dEl = $(deptId), eEl = $(empId);
+    if(!dEl) return;
+    const prevD = dEl.value;
+    dEl.innerHTML = '<option value="">' + (fc ? 'Select department' : 'Select factory first') + '</option>' + uniqueD.map(n => `<option value="${htm(n)}">${htm(n)}</option>`).join('');
+    dEl.disabled = !fc;
+    if(prevD && uniqueD.includes(prevD)) dEl.value = prevD;
+    const fillEmps = () => {
+      const dn = dEl.value || '';
+      const es = (data.employees || []).filter(e => (!fc || e.factory === fc) && (!dn || e.department === dn));
+      if(eEl){
+        eEl.innerHTML = '<option value="">' + (dn ? '-- Select employee (or type below) --' : 'Select department first') + '</option>' + es.map(e => `<option value="${htm(e.key)}">${htm(e.name)}</option>`).join('');
+        eEl.disabled = !dn;
+      }
+    };
+    dEl.onchange = fillEmps;
+    fillEmps();
+  }
+
+  window.syncPortalGateDropdowns = function(){
+    const facts = (data.factories || []).map(f => ({
+      code: f.code,
+      label: ((f.description && String(f.description).trim()) || (f.name && f.name !== f.code ? f.name : '')) ? f.code + ' · ' + ((f.description && String(f.description).trim()) || f.name) : f.code
+    }));
+    const fillF = (id, firstLbl) => {
+      const el = $(id); if(!el) return;
+      const cur = el.value;
+      el.innerHTML = `<option value="">${firstLbl}</option>` + facts.map(f => `<option value="${htm(f.code)}">${htm(f.label)}</option>`).join('');
+      if(cur && facts.some(f => f.code === cur)) el.value = cur;
+    };
+    fillF('pubVisFac', 'Select factory');
+    fillF('pvFacFilter', 'All factories');
+    fillF('pubGpFac', 'Select factory');
+    fillF('pgFacFilter', 'All factories');
+
+    const allDepts = [...new Set((data.departments || []).map(d => d.name))].sort();
+    ['pvDeptFilter', 'pgDeptFilter'].forEach(id => {
+      const el = $(id); if(!el) return;
+      const cur = el.value;
+      el.innerHTML = '<option value="">All departments</option>' + allDepts.map(n => `<option value="${htm(n)}">${htm(n)}</option>`).join('');
+      if(cur && allDepts.includes(cur)) el.value = cur;
+    });
+
+    cascadeFactoryDeptEmp('pubVisFac', 'pubVisDept', 'pubVisEmp');
+    cascadeFactoryDeptEmp('pubGpFac', 'pubGpDept', 'pubGpEmp');
+  };
+
+  $('pubVisFac')?.addEventListener('change', () => cascadeFactoryDeptEmp('pubVisFac', 'pubVisDept', 'pubVisEmp'));
+  $('pubGpFac')?.addEventListener('change', () => cascadeFactoryDeptEmp('pubGpFac', 'pubGpDept', 'pubGpEmp'));
+
+  $('pubVisIdInput')?.addEventListener('change', async e => {
+    pubVisIdData = await compressPubPhoto(e.target.files?.[0]);
+    if(pubVisIdData){ $('pubVisIdPrev').src = pubVisIdData; $('pubVisIdPrev').style.display = 'block'; }
+  });
+  $('pubVisSelfieInput')?.addEventListener('change', async e => {
+    pubVisSelfieData = await compressPubPhoto(e.target.files?.[0]);
+    if(pubVisSelfieData){ $('pubVisSelfiePrev').src = pubVisSelfieData; $('pubVisSelfiePrev').style.display = 'block'; }
+  });
+  $('pubVisCamBtn')?.addEventListener('click', async () => {
+    try{
+      pubCamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } }, audio: false });
+      $('pubCamVideo').srcObject = pubCamStream;
+      pubCamCb = d => { pubVisSelfieData = d; $('pubVisSelfiePrev').src = d; $('pubVisSelfiePrev').style.display = 'block'; };
+      $('pubCamModal').classList.add('open');
+    }catch(_){ alert('Camera unavailable — please use the file / camera input button next to it.'); }
+  });
+
+  $('pubGpMatPhotoInput')?.addEventListener('change', async e => {
+    pubGpMatData = await compressPubPhoto(e.target.files?.[0]);
+    if(pubGpMatData){ $('pubGpMatPrev').src = pubGpMatData; $('pubGpMatPrev').style.display = 'block'; }
+  });
+  $('pubGpBillPhotoInput')?.addEventListener('change', async e => {
+    pubGpBillData = await compressPubPhoto(e.target.files?.[0]);
+    if(pubGpBillData){ $('pubGpBillPrev').src = pubGpBillData; $('pubGpBillPrev').style.display = 'block'; }
+  });
+
+  window.setPubVisPreset = p => { setPreset(p, 'pvFromDt', 'pvToDt', 'data-pvpreset'); window.loadPublicVisitors(); };
+  window.setPubGpPreset = p => { setPreset(p, 'pgFromDt', 'pgToDt', 'data-pgpreset'); window.loadPublicGatePasses(); };
+  window.setPubGpDirection = dir => {
+    const d = dir === 'OUT' ? 'OUT' : 'IN';
+    $('pubGpDir').value = d;
+    document.querySelectorAll('[data-pgdir]').forEach(b => b.classList.toggle('active', b.dataset.pgdir === d));
+  };
+  window.setPubGpListTab = dir => {
+    pubGpListDir = ['IN', 'OUT', 'ALL'].includes(dir) ? dir : 'ALL';
+    document.querySelectorAll('#pubGpListTabs [data-pglist]').forEach(b => b.classList.toggle('active', b.dataset.pglist === pubGpListDir));
+    window.loadPublicGatePasses();
+  };
+
+  function visStatusClass(st){
+    if(st === 'Approved') return 'approved';
+    if(st === 'Checked In') return 'in';
+    if(st === 'Checked Out') return 'out';
+    if(st === 'Rejected') return 'rejected';
+    return 'pending';
+  }
+
+  window.loadPublicVisitors = async function(){
+    try{
+      const qs = new URLSearchParams();
+      if($('pvFacFilter')?.value) qs.set('factory', $('pvFacFilter').value);
+      if($('pvDeptFilter')?.value) qs.set('department', $('pvDeptFilter').value);
+      if($('pvStatusFilter')?.value) qs.set('status', $('pvStatusFilter').value);
+      const f = toIsoOrEmpty($('pvFromDt')?.value), t = toIsoOrEmpty($('pvToDt')?.value);
+      if(f) qs.set('from', f); if(t) qs.set('to', t);
+      if($('pvSearch')?.value) qs.set('q', $('pvSearch').value);
+      const r = await fetch('/api/public/visitors?' + qs.toString(), {
+        cache: 'no-store',
+        headers: { 'X-Requested-With': 'NorthstarIT', 'X-Gate-Tokens': JSON.stringify(getTokMap()) }
+      });
+      if(!r.ok) return;
+      const body = await r.json();
+      const rows = Array.isArray(body.visitors) ? body.visitors : [];
+      const tb = $('pubVisRows');
+      if(!tb) return;
+      if(!rows.length){ tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:18px;color:#6c7d72">No visitor entries found for selected filters.</td></tr>'; return; }
+      tb.innerHTML = rows.map(v => {
+        const btns = [];
+        if(v.status === 'Approved') btns.push(`<button type="button" style="padding:5px 10px;font-size:11px" onclick="pubVisitorAction('${htm(v.id)}','checkin')">🟢 Mark Check-In</button>`);
+        if(v.status === 'Checked In') btns.push(`<button type="button" class="muted" style="padding:5px 10px;font-size:11px" onclick="pubVisitorAction('${htm(v.id)}','checkout')">🚪 Mark Exit</button>`);
+        const thumbs = `${v.idCardPhoto?`<img class="pg-thumb" src="${htm(v.idCardPhoto)}" alt="ID" onclick="openPubLightbox('${htm(v.idCardPhoto)}','ID · ${htm(v.visitorName)}')">`:''} ${v.selfiePhoto?`<img class="pg-thumb" src="${htm(v.selfiePhoto)}" alt="Selfie" onclick="openPubLightbox('${htm(v.selfiePhoto)}','Selfie · ${htm(v.visitorName)}')">`:''}`;
+        return `<tr>
+          <td><b class="token">${htm(v.id)}</b><div class="small">${fmtPubDt(v.createdAt)}</div></td>
+          <td><b>${htm(v.visitorName)}</b>${v.visitorCount>1?` (+${v.visitorCount-1})`:''}${v.vehicleNo?`<div class="small">🚗 ${htm(v.vehicleNo)}</div>`:''}${v.passNo?`<div class="small">Pass: ${htm(v.passNo)}</div>`:''}</td>
+          <td><b>${htm(v.purpose)}</b><div style="display:flex;gap:5px;margin-top:4px">${thumbs}</div></td>
+          <td><b>${htm(v.factory)}</b> · ${htm(v.department)}<div class="small">Meet: <b>${htm(v.hostName)}</b></div></td>
+          <td><span class="pg-badge ${visStatusClass(v.status)}">${htm(v.status)}</span>
+            ${v.approvedBy?`<div class="small">By: ${htm(v.approvedBy)}</div>`:''}
+            ${v.checkedInAt?`<div class="small">In: ${fmtPubDt(v.checkedInAt)}</div>`:''}
+            ${v.checkedOutAt?`<div class="small">Out: ${fmtPubDt(v.checkedOutAt)}</div>`:''}
+            <div style="margin-top:5px">${btns.join(' ')}</div>
+          </td>
+        </tr>`;
+      }).join('');
+    }catch(_){}
+  };
+
+  window.pubVisitorAction = async function(id, action){
+    try{
+      const guard = $('pubVisGuard')?.value || 'Security Gate';
+      const r = await fetch('/api/public/visitors/' + encodeURIComponent(id) + '/checkin-out', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'NorthstarIT' },
+        body: JSON.stringify({ action, enteredBy: guard })
+      });
+      if(!r.ok){ const e = await r.json().catch(()=>({})); alert(e.error || 'Action failed'); return; }
+      await window.loadPublicVisitors();
+    }catch(_){}
+  };
+
+  window.loadPublicGatePasses = async function(){
+    try{
+      const qs = new URLSearchParams();
+      if(pubGpListDir !== 'ALL') qs.set('direction', pubGpListDir);
+      if($('pgFacFilter')?.value) qs.set('factory', $('pgFacFilter').value);
+      if($('pgDeptFilter')?.value) qs.set('department', $('pgDeptFilter').value);
+      const f = toIsoOrEmpty($('pgFromDt')?.value), t = toIsoOrEmpty($('pgToDt')?.value);
+      if(f) qs.set('from', f); if(t) qs.set('to', t);
+      if($('pgSearch')?.value) qs.set('q', $('pgSearch').value);
+      const r = await fetch('/api/public/gate-passes?' + qs.toString(), {
+        cache: 'no-store',
+        headers: { 'X-Requested-With': 'NorthstarIT', 'X-Gate-Tokens': JSON.stringify(getTokMap()) }
+      });
+      if(!r.ok) return;
+      const body = await r.json();
+      const rows = Array.isArray(body.passes) ? body.passes : [];
+      const tb = $('pubGpRows');
+      if(!tb) return;
+      if(!rows.length){ tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:18px;color:#6c7d72">No material entries found for selected filters.</td></tr>'; return; }
+      tb.innerHTML = rows.map(g => {
+        const thumbs = `${g.materialPhoto?`<img class="pg-thumb" src="${htm(g.materialPhoto)}" alt="Mat" onclick="openPubLightbox('${htm(g.materialPhoto)}','${htm(g.materialName)}')">`:''} ${g.billPhoto?`<img class="pg-thumb" src="${htm(g.billPhoto)}" alt="Bill" onclick="openPubLightbox('${htm(g.billPhoto)}','Bill · ${htm(g.challanNo||g.materialName)}')">`:''}`;
+        return `<tr>
+          <td><b class="token">${htm(g.id)}</b><div style="margin-top:3px"><span class="pg-badge ${g.direction==='OUT'?'pending':'in'}">${g.direction==='OUT'?'📤 OUTWARD':'📥 INWARD'}</span></div></td>
+          <td><b>${htm(g.materialName)}</b><div class="small">${htm(g.materialType)} ${g.quantity?`· <b>${htm(g.quantity)} ${htm(g.unit||'')}</b>`:''}${g.returnable?' · 🔄 Returnable':''}</div><div style="display:flex;gap:5px;margin-top:4px">${thumbs}</div></td>
+          <td><b>${htm(g.partyName || '—')}</b>${g.challanNo?`<div class="small">Challan/Bill: ${htm(g.challanNo)}</div>`:''}${g.vehicleNo?`<div class="small">🚗 ${htm(g.vehicleNo)}</div>`:''}</td>
+          <td><b>${htm(g.factory)}</b> · ${htm(g.department)}<div class="small">For: <b>${htm(g.forName)}</b></div></td>
+          <td><div>${fmtPubDt(g.createdAt)}</div><span class="pg-badge ${g.status==='Verified'||g.status==='Returned'?'in':'approved'}" style="margin-top:4px">${htm(g.status)}</span></td>
+        </tr>`;
+      }).join('');
+    }catch(_){}
+  };
+
+  $('pubVisitorForm')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const err = $('pubVisErr'), ok = $('pubVisOk'), btn = $('pubVisSubmitBtn');
+    err.classList.add('hidden'); ok.classList.add('hidden');
+    btn.disabled = true;
+    try{
+      const r = await fetch('/api/public/visitors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'NorthstarIT' },
+        body: JSON.stringify({
+          factory: $('pubVisFac').value,
+          department: $('pubVisDept').value,
+          employee: $('pubVisEmp').value,
+          hostName: $('pubVisHostManual').value.trim(),
+          visitorName: $('pubVisName').value.trim(),
+          phone: $('pubVisPhone').value.trim(),
+          address: $('pubVisAddr').value.trim(),
+          purpose: $('pubVisPurpose').value,
+          vehicleNo: $('pubVisVehicle').value.trim(),
+          visitorCount: $('pubVisCount').value || 1,
+          passNo: $('pubVisPassNo').value.trim(),
+          belongings: $('pubVisItems').value.trim(),
+          enteredBy: $('pubVisGuard').value.trim() || 'Security Gate',
+          idCardDataUrl: pubVisIdData,
+          selfieDataUrl: pubVisSelfieData
+        })
+      });
+      const res = await r.json().catch(()=>({}));
+      if(!r.ok) throw Error(res.error || 'Could not submit visitor entry.');
+      saveTok(res.id, res.tracking_token);
+      ok.innerHTML = `✅ Visitor Pass <b>${htm(res.id)}</b> logged! Notification sent to <b>${htm(res.visitor?.hostName || 'Department')}</b> for approval.`;
+      ok.classList.remove('hidden');
+      pubVisIdData = ''; pubVisSelfieData = '';
+      $('pubVisIdPrev').style.display = 'none'; $('pubVisSelfiePrev').style.display = 'none';
+      $('pubVisName').value = ''; $('pubVisPhone').value = ''; $('pubVisAddr').value = ''; $('pubVisVehicle').value = ''; $('pubVisPassNo').value = ''; $('pubVisItems').value = ''; $('pubVisIdInput').value = ''; $('pubVisSelfieInput').value = '';
+      await window.loadPublicVisitors();
+    }catch(ex){
+      err.textContent = ex.message;
+      err.classList.remove('hidden');
+    }finally{
+      btn.disabled = false;
+    }
+  });
+
+  $('pubGpForm')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const err = $('pubGpErr'), ok = $('pubGpOk'), btn = $('pubGpSubmitBtn');
+    err.classList.add('hidden'); ok.classList.add('hidden');
+    btn.disabled = true;
+    try{
+      const r = await fetch('/api/public/gate-passes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'NorthstarIT' },
+        body: JSON.stringify({
+          direction: $('pubGpDir').value,
+          factory: $('pubGpFac').value,
+          department: $('pubGpDept').value,
+          employee: $('pubGpEmp').value,
+          forName: $('pubGpForManual').value.trim(),
+          materialType: $('pubGpType').value,
+          materialName: $('pubGpMatName').value.trim(),
+          quantity: $('pubGpQty').value.trim(),
+          unit: $('pubGpUnit').value,
+          returnable: $('pubGpReturnable').checked,
+          partyName: $('pubGpParty').value.trim(),
+          challanNo: $('pubGpChallan').value.trim(),
+          vehicleNo: $('pubGpVehicle').value.trim(),
+          remarks: $('pubGpRemarks').value.trim(),
+          enteredBy: $('pubGpGuard').value.trim() || 'Security Gate',
+          materialDataUrl: pubGpMatData,
+          billDataUrl: pubGpBillData
+        })
+      });
+      const res = await r.json().catch(()=>({}));
+      if(!r.ok) throw Error(res.error || 'Could not log material gate pass.');
+      saveTok(res.id, res.tracking_token);
+      ok.innerHTML = `✅ Material Pass <b>${htm(res.id)}</b> (${htm(res.gatePass?.direction)}) logged &amp; <b>${htm(res.gatePass?.forName)}</b> notified!`;
+      ok.classList.remove('hidden');
+      pubGpMatData = ''; pubGpBillData = '';
+      $('pubGpMatPrev').style.display = 'none'; $('pubGpBillPrev').style.display = 'none';
+      $('pubGpMatName').value = ''; $('pubGpQty').value = ''; $('pubGpParty').value = ''; $('pubGpChallan').value = ''; $('pubGpVehicle').value = ''; $('pubGpRemarks').value = ''; $('pubGpReturnable').checked = false; $('pubGpMatPhotoInput').value = ''; $('pubGpBillPhotoInput').value = '';
+      await window.loadPublicGatePasses();
+    }catch(ex){
+      err.textContent = ex.message;
+      err.classList.remove('hidden');
+    }finally{
+      btn.disabled = false;
+    }
+  });
+
+  ['pvFacFilter', 'pvDeptFilter', 'pvStatusFilter', 'pvFromDt', 'pvToDt'].forEach(id => $(id)?.addEventListener('change', () => window.loadPublicVisitors()));
+  $('pvSearch')?.addEventListener('input', () => window.loadPublicVisitors());
+  ['pgFacFilter', 'pgDeptFilter', 'pgFromDt', 'pgToDt'].forEach(id => $(id)?.addEventListener('change', () => window.loadPublicGatePasses()));
+  $('pgSearch')?.addEventListener('input', () => window.loadPublicGatePasses());
+
+  if(typeof load === 'function'){
+    const origLoad = load;
+    load = async function(){
+      await origLoad.apply(this, arguments);
+      window.syncPortalGateDropdowns();
+    };
+  }
+  if(typeof refreshPortalOptions === 'function'){
+    const origRPO = refreshPortalOptions;
+    refreshPortalOptions = async function(){
+      await origRPO.apply(this, arguments);
+      window.syncPortalGateDropdowns();
+    };
+  }
+
+  setInterval(() => {
+    const t = '🕒 Auto: ' + new Date().toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true });
+    if($('pubVisLiveClock')) $('pubVisLiveClock').textContent = t;
+    if($('pubGpLiveClock')) $('pubGpLiveClock').textContent = t;
+  }, 1000);
+
+  setTimeout(() => {
+    window.syncPortalGateDropdowns();
+    const qTab = new URLSearchParams(location.search).get('tab') || location.hash.replace('#','');
+    if(qTab === 'visitor' || qTab === 'visitors') window.switchPortalMainMode('visitor');
+    else if(qTab === 'gatepass' || qTab === 'material') window.switchPortalMainMode('gatepass');
+  }, 120);
 })();
 </script>
 </body>

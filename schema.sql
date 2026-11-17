@@ -59,3 +59,65 @@ CREATE TABLE IF NOT EXISTS user_sessions (
   client_ip text NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS user_sessions_user_idx ON user_sessions(username);
+CREATE TABLE IF NOT EXISTS visitor_passes (
+  id text PRIMARY KEY,
+  tracking_token_hash text NOT NULL DEFAULT '',
+  factory text NOT NULL DEFAULT '',
+  visitor_name text NOT NULL,
+  phone text NOT NULL DEFAULT '',
+  address text NOT NULL DEFAULT '',
+  purpose text NOT NULL DEFAULT '',
+  department text NOT NULL DEFAULT '',
+  host_username text NOT NULL DEFAULT '',
+  host_name text NOT NULL DEFAULT '',
+  vehicle_no text NOT NULL DEFAULT '',
+  pass_no text NOT NULL DEFAULT '',
+  visitor_count integer NOT NULL DEFAULT 1,
+  belongings text NOT NULL DEFAULT '',
+  id_card_photo text NOT NULL DEFAULT '',
+  selfie_photo text NOT NULL DEFAULT '',
+  status text NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending','Approved','Checked In','Checked Out','Rejected')),
+  entered_by text NOT NULL DEFAULT 'Security Gate',
+  approved_by text NOT NULL DEFAULT '',
+  approved_at timestamptz,
+  checked_in_at timestamptz,
+  checked_out_at timestamptz,
+  decision_note text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS visitor_passes_created_idx ON visitor_passes(created_at DESC);
+CREATE INDEX IF NOT EXISTS visitor_passes_dept_idx ON visitor_passes(department);
+CREATE INDEX IF NOT EXISTS visitor_passes_factory_idx ON visitor_passes(factory);
+CREATE INDEX IF NOT EXISTS visitor_passes_status_idx ON visitor_passes(status);
+
+CREATE TABLE IF NOT EXISTS material_gate_passes (
+  id text PRIMARY KEY,
+  tracking_token_hash text NOT NULL DEFAULT '',
+  direction text NOT NULL CHECK (direction IN ('IN','OUT')),
+  factory text NOT NULL DEFAULT '',
+  material_type text NOT NULL DEFAULT '',
+  material_name text NOT NULL,
+  quantity text NOT NULL DEFAULT '',
+  unit text NOT NULL DEFAULT 'Pcs',
+  returnable boolean NOT NULL DEFAULT false,
+  party_name text NOT NULL DEFAULT '',
+  challan_no text NOT NULL DEFAULT '',
+  vehicle_no text NOT NULL DEFAULT '',
+  remarks text NOT NULL DEFAULT '',
+  department text NOT NULL DEFAULT '',
+  for_username text NOT NULL DEFAULT '',
+  for_name text NOT NULL DEFAULT '',
+  material_photo text NOT NULL DEFAULT '',
+  bill_photo text NOT NULL DEFAULT '',
+  status text NOT NULL DEFAULT 'Logged' CHECK (status IN ('Logged','Verified','Returned','Dispatched')),
+  entered_by text NOT NULL DEFAULT 'Security Gate',
+  verified_by text NOT NULL DEFAULT '',
+  verified_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS material_gate_created_idx ON material_gate_passes(created_at DESC);
+CREATE INDEX IF NOT EXISTS material_gate_dir_idx ON material_gate_passes(direction);
+CREATE INDEX IF NOT EXISTS material_gate_factory_idx ON material_gate_passes(factory);
+CREATE INDEX IF NOT EXISTS material_gate_dept_idx ON material_gate_passes(department);
