@@ -30,7 +30,7 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./backups:/backups
-      - ./secrets/nginx.crt:/app/secrets/nginx.crt:ro
+      - ./secrets:/app/secrets:ro
       - /run/northstar-updater:/run/northstar-updater
     depends_on:
       db:
@@ -108,6 +108,16 @@ services:
     volumes:
       - go2rtc_data:/config
     networks: [internal]
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    networks: [internal]
+    profiles:
+      - tunnel
 
 networks:
   internal:
