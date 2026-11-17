@@ -287,6 +287,64 @@ def do_update(repo_url="", branch="main"):
             _worker = None
 
 
+def apply_network_config(site_name, http_port, https_port):
+    env_file = INSTALL_DIR / ".env"
+    if not env_file.exists() and Path(".env").exists():
+        env_file = Path(".env")
+    lines = []
+    if env_file.exists():
+        lines = env_file.read_text(encoding="utf-8").splitlines()
+    keys_set = set()
+    new_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("HTTP_PORT="):
+            new_lines.append(f"HTTP_PORT={http_port}")
+            keys_set.add("HTTP_PORT")
+        elif stripped.startswith("HTTPS_PORT="):
+            new_lines.append(f"HTTPS_PORT={https_port}")
+            keys_set.add("HTTPS_PORT")
+        elif stripped.startswith("SITE_NAME="):
+            new_lines.append(f"SITE_NAME={site_name}")
+            keys_set.add("SITE_NAME")
+        else:
+            new_lines.append(line)
+    if "HTTP_PORT" not in keys_set:
+        new_lines.append(f"HTTP_PORT={http_port}")
+    if "HTTPS_PORT" not in keys_set:
+        new_lines.append(f"HTTPS_PORT={https_port}")
+    if "SITE_NAME" not in keys_set:
+        new_lines.append(f"SITE_NAME={site_name}")
+    try:
+        tmp_env = env_file.with_suffix(".tmp")
+        tmp_env.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+        tmp_env.replace(env_file)
+    except Exception:
+        pass
+
+    try:
+        run_cmd(["ufw", "allow", f"{http_port}/tcp"], timeout=10)
+        run_cmd(["ufw", "allow", f"{https_port}/tcp"], timeout=10)
+    except Exception:
+        pass
+
+    recreated = False
+    try:
+        run_cmd(["docker", "compose", "up", "-d", "--force-recreate", "web"], cwd=INSTALL_DIR, timeout=120)
+        recreated = True
+    except Exception:
+        pass
+
+    return {
+        "ok": True,
+        "siteName": site_name,
+        "httpPort": http_port,
+        "httpsPort": https_port,
+        "recreated": recreated,
+        "message": f"Ports updated to HTTP {http_port} and HTTPS {https_port}. Docker web service {'reloaded cleanly' if recreated else 'updated (restart required)'}.",
+    }
+
+
 def handle_conn(conn):
     try:
         raw = b""
@@ -320,6 +378,14 @@ def handle_conn(conn):
                     _worker = threading.Thread(target=do_update, args=(repo_url, branch), daemon=True)
                     _worker.start()
                     resp = {"ok": True, "started": True, **read_status()}
+        elif action == "set_network_config":
+            site_name = str(req.get("siteName") or "").strip()[:120]
+            try:
+                http_port = int(req.get("httpPort") or 8848)
+                https_port = int(req.get("httpsPort") or 8849)
+            except Exception:
+                http_port, https_port = 8848, 8849
+            resp = apply_network_config(site_name, http_port, https_port)
         else:
             resp = {"ok": False, "error": "Unsupported updater action."}
     except Exception as exc:

@@ -3742,6 +3742,62 @@ def software_update_config():
     return jsonify(ok=True, repoUrl=repo_url, branch=branch)
 
 
+@app.get("/api/admin/network-config")
+@administrator
+def admin_get_network_config():
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
+    cfg = row[0] if row and isinstance(row[0], dict) else {}
+    return jsonify(
+        ok=True,
+        siteName=str(cfg.get("siteName") or ""),
+        httpPort=int(cfg.get("httpPort") or 8848),
+        httpsPort=int(cfg.get("httpsPort") or 8849),
+        updaterAvailable=bool(UPDATER_SOCK_PATH.exists()),
+    )
+
+
+@app.post("/api/admin/network-config")
+@administrator
+def admin_save_network_config():
+    body = request.get_json(silent=True) or {}
+    site_name = str(body.get("siteName") or "").strip()[:120]
+    try:
+        http_port = int(body.get("httpPort") or 8848)
+        https_port = int(body.get("httpsPort") or 8849)
+    except (ValueError, TypeError):
+        return jsonify(error="Port numbers must be valid numbers between 1 and 65535."), 400
+
+    if not (1 <= http_port <= 65535 and 1 <= https_port <= 65535):
+        return jsonify(error="Port numbers must be between 1 and 65535."), 400
+    if http_port == https_port:
+        return jsonify(error="HTTP port and HTTPS port must be different."), 400
+
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='settings' FOR UPDATE").fetchone()
+        cfg = dict(row[0]) if row and isinstance(row[0], dict) else {}
+        cfg["siteName"] = site_name
+        cfg["httpPort"] = http_port
+        cfg["httpsPort"] = https_port
+        conn.execute("INSERT INTO app_state(key,value) VALUES('settings',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(cfg),))
+
+    ipc_res = _updater_ipc({
+        "action": "set_network_config",
+        "siteName": site_name,
+        "httpPort": http_port,
+        "httpsPort": https_port,
+    }, timeout=60)
+
+    return jsonify(
+        ok=True,
+        siteName=site_name,
+        httpPort=http_port,
+        httpsPort=https_port,
+        dockerApplied=bool(ipc_res.get("ok")),
+        dockerMessage=ipc_res.get("message") or ("Settings saved in database. Restart containers or updater to apply to Docker." if not ipc_res.get("ok") else "Docker ports updated."),
+    )
+
+
 @app.post("/api/admin/software-update/check")
 @administrator
 def software_update_check():
