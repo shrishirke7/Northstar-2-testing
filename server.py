@@ -2838,11 +2838,11 @@ def public_portal_options():
     departments = rows["departments"] if isinstance(rows["departments"], list) else []
     settings = rows["settings"] if isinstance(rows["settings"], dict) else {}
     ticketing_cfg = normalize_ticketing_settings(settings)
-    factories = [{"code": str(f.get("code", "")).strip(), "name": str(f.get("name", "")).strip()}
+    factories = [{"code": str(f.get("code", "")).strip(), "name": str(f.get("name", "")).strip(), "description": str(f.get("description", "")).strip()}
                  for f in settings.get("factories", []) if isinstance(f, dict) and f.get("code")]
     for code in ("ARG", "ARB", "ARC", "ARF"):
         if not any(f["code"].casefold() == code.casefold() for f in factories):
-            factories.append({"code": code, "name": code})
+            factories.append({"code": code, "name": code, "description": ""})
     depts = []
     for item in departments:
         if isinstance(item, list) and len(item) > 6:
