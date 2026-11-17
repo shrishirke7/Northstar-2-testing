@@ -148,6 +148,35 @@ def module_access(profile, module, write=False):
     return grant == "write" if write else grant in ("read", "write")
 
 
+def _slug_desk_id(raw_val, fallback="it"):
+    s = re.sub(r"[^a-z0-9-]+", "-", str(raw_val or "").strip().lower()).strip("-")[:40]
+    return s or fallback
+
+
+def allowed_complaint_desks_for(profile):
+    if not isinstance(profile, dict) or profile.get("role") == "Administrator":
+        return None
+    raw = profile.get("allowed_complaint_desks")
+    if not isinstance(raw, list):
+        return None
+    cleaned = []
+    for item in raw:
+        v = str(item or "").strip().lower()
+        if v in ("*", "all"):
+            return None
+        slug = _slug_desk_id(v, fallback="")
+        if slug and slug not in cleaned:
+            cleaned.append(slug)
+    return set(cleaned)
+
+
+def ticket_desk_allowed(profile, desk_id):
+    allowed = allowed_complaint_desks_for(profile)
+    if allowed is None:
+        return True
+    return _slug_desk_id(desk_id, fallback="it") in allowed
+
+
 def data_key_module(key):
     if key == "assets": return "assets"
     if key == "departments": return "departments"
@@ -263,6 +292,10 @@ def signed_in(fn):
             session["profile"]["module_permissions"] = account["module_permissions"]
         else:
             session["profile"].pop("module_permissions", None)
+        if isinstance(account.get("allowed_complaint_desks"), list):
+            session["profile"]["allowed_complaint_desks"] = account["allowed_complaint_desks"]
+        else:
+            session["profile"].pop("allowed_complaint_desks", None)
         session["profile"]["role"] = account.get("role", "User")
         session["is_admin"] = session["profile"]["role"] == "Administrator"
         return fn(*args, **kwargs)
@@ -1359,9 +1392,14 @@ DEFAULT_SOUND_ALERTS = {
 }
 
 
-def normalize_sound_state(state):
+def normalize_sound_state(state, username=None):
     raw = state if isinstance(state, dict) else {}
     saved_cfg = raw.get("soundAlerts") if isinstance(raw.get("soundAlerts"), dict) else {}
+    if username:
+        ukey = str(username or "").strip().casefold()
+        user_map = raw.get("userSoundAlerts") if isinstance(raw.get("userSoundAlerts"), dict) else {}
+        if ukey and isinstance(user_map.get(ukey), dict):
+            saved_cfg = user_map[ukey]
     merged = json.loads(json.dumps(DEFAULT_SOUND_ALERTS))
     if "masterEnabled" in saved_cfg:
         merged["masterEnabled"] = bool(saved_cfg.get("masterEnabled"))
@@ -1428,7 +1466,8 @@ def get_notification_rules():
         asset_row = conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone()
         assets = asset_row[0] if asset_row else []
     history = [{k: item.get(k) for k in ("id", "rule", "asset", "tag", "category", "status", "channel", "recipient", "state", "createdAt", "error")} for item in state.get("queue", [])[-100:]]
-    sound_alerts, sound_library = normalize_sound_state(state)
+    username_key = str((session.get("profile") or {}).get("username") or "").strip().casefold()
+    sound_alerts, sound_library = normalize_sound_state(state, username=username_key)
     return jsonify(rules=state.get("rules", []), history=history, channels=_notification_channel_status(),
                    soundAlerts=sound_alerts, soundLibrary=sound_library,
                    users=[{"username": u.get("username") or u.get("id", ""), "name": u.get("name") or u.get("username") or u.get("id", ""), "email": u.get("email", ""), "phone": u.get("phone") or u.get("phone_number", "")} for u in users],
@@ -1438,10 +1477,11 @@ def get_notification_rules():
 @app.get("/api/notifications/sounds")
 @signed_in
 def get_notification_sounds():
+    username_key = str((session.get("profile") or {}).get("username") or "").strip().casefold()
     with db() as conn:
         row = conn.execute("SELECT value FROM app_state WHERE key='notifications'").fetchone()
         state = row[0] if row else {}
-    sound_alerts, sound_library = normalize_sound_state(state)
+    sound_alerts, sound_library = normalize_sound_state(state, username=username_key)
     return jsonify(soundAlerts=sound_alerts, soundLibrary=sound_library)
 
 
@@ -1465,6 +1505,7 @@ def save_notification_sounds():
                 return jsonify(error="Only audio files (.mp3, .wav, .ogg, .m4a, .webm) are accepted as ringtones."), 400
             if len(durl) > 3_500_000:
                 return jsonify(error="Each custom ringtone must be 2.5 MB or smaller."), 400
+    username_key = str((session.get("profile") or {}).get("username") or "").strip().casefold() or "_default"
     sound_alerts, sound_library = normalize_sound_state({
         "soundAlerts": body.get("soundAlerts", {}),
         "soundLibrary": body.get("soundLibrary", []),
@@ -1472,15 +1513,19 @@ def save_notification_sounds():
     with db() as conn:
         current = conn.execute("SELECT value FROM app_state WHERE key='notifications' FOR UPDATE").fetchone()
         state = dict(current[0]) if current and isinstance(current[0], dict) else {"rules": [], "queue": []}
-        state["soundAlerts"] = sound_alerts
+        user_sounds = dict(state.get("userSoundAlerts") or {}) if isinstance(state.get("userSoundAlerts"), dict) else {}
+        user_sounds[username_key] = sound_alerts
+        state["userSoundAlerts"] = user_sounds
+        if session.get("is_admin") or not state.get("soundAlerts"):
+            state["soundAlerts"] = sound_alerts
         if "soundLibrary" in body:
             state["soundLibrary"] = sound_library
         else:
             _, existing_lib = normalize_sound_state(state)
             state["soundLibrary"] = existing_lib
         conn.execute("INSERT INTO app_state(key,value) VALUES('notifications',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(state),))
-        _pg_emit_notify(conn, "pulse", {"source": "sounds"})
-    return jsonify(ok=True, soundAlerts=state["soundAlerts"], soundLibrary=state["soundLibrary"])
+        _pg_emit_notify(conn, "pulse", {"source": "sounds", "username": username_key})
+    return jsonify(ok=True, soundAlerts=sound_alerts, soundLibrary=state["soundLibrary"])
 
 
 def _pulse_versions(conn, include_internal=False):
@@ -1632,6 +1677,7 @@ def _record_notification_event(conn, item):
         "deviceType": str(item.get("deviceType") or "")[:60],
         "deviceSubtype": str(item.get("deviceSubtype") or "")[:60],
         "transitionStatus": str(item.get("transitionStatus") or "")[:20],
+        "complaintDesk": _slug_desk_id(item.get("complaintDesk") or "it", fallback="it")[:40],
         "createdAt": str(item.get("createdAt") or now_iso)[:40],
     }
     doc["events"] = [ev] + doc["events"]
@@ -1779,9 +1825,20 @@ def get_notification_history():
     cleared_before = str(user_reads.get("clearedBefore") or "")
     silent_mode = bool(doc["silent"].get(username, False))
 
+    who = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    can_tickets = is_adm or module_access(who, "tickets")
+    can_devices = is_adm or any(module_access(who, m) for m in ("assets", "network", "notifications", "overview", "surveillance", "data_center"))
     visible = []
     unread_count = 0
     for ev in doc["events"]:
+        ev_kind = str(ev.get("kind") or "")
+        if ev_kind in ("ticket", "material_request"):
+            if not can_tickets or not ticket_desk_allowed(who, ev.get("complaintDesk") or "it"):
+                continue
+        elif ev_kind in ("online", "offline", "critical") or ev.get("targetTag"):
+            if not can_devices:
+                continue
         eid = str(ev.get("id") or "")
         created = str(ev.get("createdAt") or "")
         if eid in cleared_ids or (cleared_before and created and created <= cleared_before):
@@ -1894,20 +1951,22 @@ def live_alerts_feed():
     with db() as conn:
         if want_sounds:
             notif_row = conn.execute("SELECT value FROM app_state WHERE key='notifications'").fetchone()
-            sound_alerts, sound_library = normalize_sound_state(notif_row[0] if notif_row else {})
+            sound_alerts, sound_library = normalize_sound_state(notif_row[0] if notif_row else {}, username=who.get("username"))
             out["soundAlerts"] = sound_alerts
             out["soundLibrary"] = sound_library
             out["includeSounds"] = bool(sound_library)
         if want_tickets and can_tickets:
             t_rows = conn.execute(
-                "SELECT id,kind,display_name,department,factory,primary_category,sub_category,status,created_at,updated_at FROM tickets ORDER BY created_at DESC LIMIT 40"
+                "SELECT id,kind,display_name,department,factory,primary_category,sub_category,status,created_at,updated_at,complaint_desk FROM tickets ORDER BY created_at DESC LIMIT 80"
             ).fetchall()
             out["latestTickets"] = [
                 {"id": r[0], "kind": r[1], "name": r[2], "dept": r[3], "site": r[4], "primary": r[5], "sub": r[6],
                  "status": r[7], "created": r[8].isoformat(timespec="seconds") if r[8] else "",
-                 "updated": r[9].isoformat(timespec="seconds") if r[9] else ""}
+                 "updated": r[9].isoformat(timespec="seconds") if r[9] else "",
+                 "complaintDesk": r[10] or "it"}
                 for r in t_rows
-            ]
+                if ticket_desk_allowed(who, r[10] or "it")
+            ][:40]
         if want_devices and can_devices:
             a_row = conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone()
             a_list = a_row[0] if a_row and isinstance(a_row[0], list) else []
@@ -2323,6 +2382,8 @@ def login():
         if valid_local:
             profile = {"username": str(local_user["username"]).lower(), "name": local_user.get("name") or local_user["username"], "email": local_user.get("email", ""), "dept": local_user.get("dept", ""), "site": local_user.get("site", ""), "role": local_user.get("role", "User"), "profile_picture": local_user.get("profile_picture", ""), "groups": []}
             profile["module_permissions"] = local_user.get("module_permissions") if isinstance(local_user.get("module_permissions"), dict) else module_permissions_for(profile)
+            if isinstance(local_user.get("allowed_complaint_desks"), list):
+                profile["allowed_complaint_desks"] = local_user["allowed_complaint_desks"]
             sid = secrets.token_urlsafe(32)
             auth_ver = int(local_user.get("auth_version", 0) or 0)
             with db() as conn:
@@ -2538,9 +2599,86 @@ DEFAULT_MATERIAL_CATEGORIES = [
 ]
 
 
-def normalize_ticketing_settings(settings_val):
-    settings = settings_val if isinstance(settings_val, dict) else {}
-    raw_tree = settings.get("ticketCategoryTree")
+DEFAULT_COMPLAINT_DESKS = [
+    {
+        "id": "it",
+        "name": "IT Department",
+        "icon": "💻",
+        "tokenPrefix": "IT",
+        "allowMaterialRequest": True,
+        "categories": DEFAULT_TICKET_CATEGORY_TREE,
+        "materialCategories": DEFAULT_MATERIAL_CATEGORIES,
+    },
+    {
+        "id": "plumber",
+        "name": "Plumber",
+        "icon": "🔧",
+        "tokenPrefix": "PLM",
+        "allowMaterialRequest": True,
+        "categories": [
+            {
+                "id": "cat-plm-water",
+                "name": "Water Supply / Pipeline",
+                "icon": "🚰",
+                "subcategories": ["Pipe Leakage", "Tap / Valve Repair", "Water Tank / Motor", "Low Water Pressure", "Other Plumbing"],
+            },
+            {
+                "id": "cat-plm-drain",
+                "name": "Drainage / Washroom",
+                "icon": "🚿",
+                "subcategories": ["Blocked Drain", "Flush / Cistern Issue", "Basin / Sink Leakage", "RO / Drinking Water"],
+            },
+        ],
+        "materialCategories": ["Pipes & Fittings", "Taps & Valves", "Sealants & Adhesive", "Sanitary Hardware", "Other Plumbing Material"],
+    },
+    {
+        "id": "electrician",
+        "name": "Electrician",
+        "icon": "⚡",
+        "tokenPrefix": "ELC",
+        "allowMaterialRequest": True,
+        "categories": [
+            {
+                "id": "cat-elc-power",
+                "name": "Power / Lighting",
+                "icon": "💡",
+                "subcategories": ["Tube Light / Bulb", "Power Socket / Switch", "MCB / DB Trip", "Fan / Exhaust", "Power Outage"],
+            },
+            {
+                "id": "cat-elc-equip",
+                "name": "Electrical Panel / AC / UPS",
+                "icon": "🔌",
+                "subcategories": ["Panel Wiring", "AC Electrical Point", "Inverter / Generator", "Earthing / Voltage"],
+            },
+        ],
+        "materialCategories": ["Switches & Sockets", "MCB / Breakers", "LED Lights & Drivers", "Wires & Cables", "Other Electrical Material"],
+    },
+    {
+        "id": "admin",
+        "name": "Admin Dept",
+        "icon": "🏢",
+        "tokenPrefix": "ADM",
+        "allowMaterialRequest": True,
+        "categories": [
+            {
+                "id": "cat-adm-fac",
+                "name": "Facility / Housekeeping",
+                "icon": "🧹",
+                "subcategories": ["Cleaning / Housekeeping", "Furniture / Chair / Desk", "Door / Lock / Glass", "AC Cooling / Vent", "Pest Control"],
+            },
+            {
+                "id": "cat-adm-ops",
+                "name": "Admin / Security / Canteen",
+                "icon": "🪪",
+                "subcategories": ["ID Card / Access Pass", "Canteen / Pantry", "Parking / Transport", "Stationery / Courier", "Other Admin Request"],
+            },
+        ],
+        "materialCategories": ["Office Stationery", "Furniture / Fittings", "Housekeeping Supplies", "Security Badges", "Other Admin Material"],
+    },
+]
+
+
+def _normalize_category_tree_items(raw_tree, default_tree, legacy_cats=None):
     clean_tree = []
     seen_names = set()
     if isinstance(raw_tree, list):
@@ -2563,16 +2701,18 @@ def normalize_ticketing_settings(settings_val):
                     subs.append(sname)
             clean_tree.append({"id": cid, "name": name, "icon": icon, "subcategories": subs or ["Other"]})
     if not clean_tree:
-        clean_tree = json.loads(json.dumps(DEFAULT_TICKET_CATEGORY_TREE))
+        clean_tree = json.loads(json.dumps(default_tree))
         seen_names = {c["name"].casefold() for c in clean_tree}
-        legacy_cats = settings.get("ticketCategories")
         if isinstance(legacy_cats, list):
-            for idx,cname in enumerate(legacy_cats[:40]):
+            for idx, cname in enumerate(legacy_cats[:40]):
                 s = str(cname or "").strip()[:80]
                 if s and s.casefold() not in seen_names:
                     seen_names.add(s.casefold())
                     clean_tree.append({"id": f"cat-custom-{idx + 1}", "name": s, "icon": "🎫", "subcategories": ["General Issue", "Other"]})
-    raw_mat = settings.get("materialRequestCategories")
+    return clean_tree
+
+
+def _normalize_material_cats(raw_mat, default_mat):
     mat_cats = []
     if isinstance(raw_mat, list):
         seen_mat = set()
@@ -2581,16 +2721,83 @@ def normalize_ticketing_settings(settings_val):
             if ms and ms.casefold() not in seen_mat:
                 seen_mat.add(ms.casefold())
                 mat_cats.append(ms)
-    if not mat_cats:
-        mat_cats = list(DEFAULT_MATERIAL_CATEGORIES)
+    return mat_cats or list(default_mat)
+
+
+def normalize_ticketing_settings(settings_val):
+    settings = settings_val if isinstance(settings_val, dict) else {}
+    clean_tree = _normalize_category_tree_items(
+        settings.get("ticketCategoryTree"),
+        DEFAULT_TICKET_CATEGORY_TREE,
+        settings.get("ticketCategories"),
+    )
+    mat_cats = _normalize_material_cats(settings.get("materialRequestCategories"), DEFAULT_MATERIAL_CATEGORIES)
     priority = str(settings.get("defaultTicketPriority") or "Normal").strip()
     if priority not in ("Normal", "Low", "High", "Urgent"):
         priority = "Normal"
+    show_all_desks = bool(settings.get("showAllDesksOnPortal", False))
+
+    raw_desks = settings.get("complaintDesks")
+    clean_desks = []
+    seen_desk_ids = set()
+    used_prefixes = set()
+    if isinstance(raw_desks, list) and len(raw_desks) > 0:
+        for idx, dk in enumerate(raw_desks[:30]):
+            if not isinstance(dk, dict):
+                continue
+            dname = str(dk.get("name") or "").strip()[:80]
+            if not dname:
+                continue
+            did = _slug_desk_id(dk.get("id") or dname, fallback=f"desk-{idx + 1}")
+            if did in seen_desk_ids:
+                did = f"{did}-{idx + 1}"[:40]
+            seen_desk_ids.add(did)
+            raw_pref = re.sub(r"[^A-Z0-9]", "", str(dk.get("tokenPrefix") or "").strip().upper())[:5]
+            if not raw_pref:
+                raw_pref = re.sub(r"[^A-Z0-9]", "", dname.upper())[:3] or "TK"
+            pref = raw_pref
+            if pref in used_prefixes:
+                pref = (raw_pref[:3] + str(idx + 1))[:5]
+            used_prefixes.add(pref)
+            icon = str(dk.get("icon") or "🎫").strip()[:12] or "🎫"
+            cats = _normalize_category_tree_items(
+                dk.get("categories") or dk.get("ticketCategoryTree"),
+                [{"id": f"cat-{did}-1", "name": f"{dname} Issue", "icon": icon, "subcategories": ["General Issue", "Urgent Repair", "Other"]}],
+            )
+            dmats = _normalize_material_cats(
+                dk.get("materialCategories"),
+                [f"{dname} Material", "Other Material"],
+            )
+            clean_desks.append({
+                "id": did,
+                "name": dname,
+                "icon": icon,
+                "tokenPrefix": pref,
+                "allowMaterialRequest": bool(dk.get("allowMaterialRequest", True)),
+                "categories": cats,
+                "materialCategories": dmats,
+            })
+    if not clean_desks:
+        clean_desks = json.loads(json.dumps(DEFAULT_COMPLAINT_DESKS))
+
+    # Sync IT (or first) desk categories when top-level ticketCategoryTree is explicitly edited without complaintDesks,
+    # or vice versa keep top-level fields synced with 'it' desk for legacy consumers.
+    it_desk = next((d for d in clean_desks if d["id"] == "it"), None)
+    if it_desk:
+        if "complaintDesks" in settings and isinstance(settings.get("complaintDesks"), list):
+            clean_tree = json.loads(json.dumps(it_desk["categories"]))
+            mat_cats = list(it_desk["materialCategories"])
+        else:
+            it_desk["categories"] = json.loads(json.dumps(clean_tree))
+            it_desk["materialCategories"] = list(mat_cats)
+
     return {
         "ticketCategoryTree": clean_tree,
         "ticketCategories": [c["name"] for c in clean_tree],
         "materialRequestCategories": mat_cats,
         "defaultTicketPriority": priority,
+        "complaintDesks": clean_desks,
+        "showAllDesksOnPortal": show_all_desks,
     }
 
 
@@ -2687,25 +2894,40 @@ def public_ticket_list():
     kind = request.args.get("kind", "IT help desk")
     if kind not in ("IT help desk", "Material request", "all"):
         return jsonify(error="Choose IT help desk or Material request."), 400
+    req_desk = str(request.args.get("desk") or "").strip().lower()
     with db() as conn:
-        if kind == "all":
-            rows = conn.execute("""
-                SELECT t.id,t.kind,t.display_name,t.department,t.factory,t.primary_category,t.sub_category,
-                       t.description,t.attachments,t.assigned_to,t.status,t.eta,t.note,t.created_at,t.updated_at,
-                       COALESCE((SELECT min(e.created_at) FROM ticket_events e WHERE e.ticket_id=t.id
-                                 AND e.event_type='updated' AND e.detail ~ '(^|; )status: (Resolved|Closed)(;|$)'), t.updated_at),
-                       t.material
-                FROM tickets t ORDER BY t.created_at DESC LIMIT 5000
-            """).fetchall()
+        srow = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
+        ticketing_cfg = normalize_ticketing_settings(srow[0] if srow else {})
+        show_all_desks = bool(ticketing_cfg.get("showAllDesksOnPortal", False))
+        desks = ticketing_cfg.get("complaintDesks") or []
+        valid_ids = {d["id"] for d in desks}
+        default_desk = desks[0]["id"] if desks else "it"
+        if show_all_desks and (not req_desk or req_desk == "all"):
+            desk_filter = None
+        elif req_desk and req_desk in valid_ids:
+            desk_filter = req_desk
+        elif req_desk == "all" and not show_all_desks:
+            desk_filter = default_desk
         else:
-            rows = conn.execute("""
-                SELECT t.id,t.kind,t.display_name,t.department,t.factory,t.primary_category,t.sub_category,
-                       t.description,t.attachments,t.assigned_to,t.status,t.eta,t.note,t.created_at,t.updated_at,
-                       COALESCE((SELECT min(e.created_at) FROM ticket_events e WHERE e.ticket_id=t.id
-                                 AND e.event_type='updated' AND e.detail ~ '(^|; )status: (Resolved|Closed)(;|$)'), t.updated_at),
-                       t.material
-                FROM tickets t WHERE t.kind=%s ORDER BY t.created_at DESC LIMIT 5000
-            """, (kind,)).fetchall()
+            desk_filter = default_desk if not show_all_desks else None
+
+        clauses = []
+        params = []
+        if kind != "all":
+            clauses.append("t.kind=%s")
+            params.append(kind)
+        if desk_filter is not None:
+            clauses.append("COALESCE(NULLIF(t.complaint_desk,''),'it')=%s")
+            params.append(desk_filter)
+        where_sql = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+        rows = conn.execute(f"""
+            SELECT t.id,t.kind,t.display_name,t.department,t.factory,t.primary_category,t.sub_category,
+                   t.description,t.attachments,t.assigned_to,t.status,t.eta,t.note,t.created_at,t.updated_at,
+                   COALESCE((SELECT min(e.created_at) FROM ticket_events e WHERE e.ticket_id=t.id
+                             AND e.event_type='updated' AND e.detail ~ '(^|; )status: (Resolved|Closed)(;|$)'), t.updated_at),
+                   t.material, COALESCE(NULLIF(t.complaint_desk,''),'it')
+            FROM tickets t {where_sql} ORDER BY t.created_at DESC LIMIT 5000
+        """, params).fetchall()
         repair_map = repair_map_from_conn(conn)
         issued_map = issued_parts_map_from_conn(conn)
     now = datetime.now(timezone.utc)
@@ -2722,8 +2944,9 @@ def public_ticket_list():
                        "description":r[7],"material":r[16] or "","photos":photos,"assigned":r[9],"status":r[10],
                        "eta":r[11].isoformat(timespec="minutes") if r[11] else "","note":r[12],
                        "created":r[13].isoformat(timespec="minutes"),"durationMinutes":duration,
-                       "repair":repair_map.get(r[0]),"issuedParts":issued_map.get(r[0], [])})
-    return jsonify(tickets=result)
+                       "repair":repair_map.get(r[0]),"issuedParts":issued_map.get(r[0], []),
+                       "complaintDesk":r[17] or "it"})
+    return jsonify(tickets=result, showAllDesksOnPortal=show_all_desks, activeDesk=desk_filter or "all")
 
 
 @app.get("/api/public/ticket-attachment")
@@ -2745,19 +2968,21 @@ def public_ticket_attachment():
     return send_from_directory(UPLOAD_DIR / parts[0] / parts[1], parts[2], as_attachment=False)
 
 
-def _next_ticket_id(conn):
+def _next_ticket_id(conn, prefix="IT"):
+    clean_pref = re.sub(r"[^A-Z0-9]", "", str(prefix or "IT").strip().upper())[:5] or "IT"
     token_date = datetime.now().strftime("%d-%m-%Y")
-    conn.execute("SELECT pg_advisory_xact_lock(hashtext(CURRENT_DATE::text))")
+    conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (f"{clean_pref}:{token_date}",))
     rows = conn.execute(
-        "SELECT id FROM tickets WHERE created_at::date=CURRENT_DATE OR id LIKE %s",
-        (f"IT%/{token_date}",),
+        "SELECT id FROM tickets WHERE id LIKE %s",
+        (f"{clean_pref}%/{token_date}",),
     ).fetchall()
     max_seq = 0
+    pat = re.compile(rf"^{re.escape(clean_pref)}(\d+)/")
     for (tid,) in rows:
-        m = re.match(r"^IT(\d+)/", str(tid or ""))
+        m = pat.match(str(tid or ""))
         if m:
             max_seq = max(max_seq, int(m.group(1)))
-    return f"IT{max_seq + 1:02d}/{token_date}", token_date
+    return f"{clean_pref}{max_seq + 1:02d}/{token_date}", token_date
 
 
 @app.post("/api/public/tickets")
@@ -2772,6 +2997,7 @@ def create_public_ticket():
     description = str(body.get("description", "")).strip()[:5000]
     material = str(body.get("material", "")).strip()[:500]
     kind = "Material request" if body.get("kind") == "Material request" else "IT help desk"
+    req_desk = _slug_desk_id(body.get("complaintDesk") or "it", fallback="it")
     if not all((factory, department, employee_key, description, sub)):
         return jsonify(error="Select your factory, department, name and issue category, then describe the issue."), 400
     files = [f for f in request.files.getlist("files") if f and f.filename] if is_multipart else []
@@ -2786,6 +3012,13 @@ def create_public_ticket():
             return jsonify(error="Too many requests from this network. Please try again in a few minutes."), 429
         state = {key: (conn.execute("SELECT value FROM app_state WHERE key=%s", (key,)).fetchone() or ([],))[0]
                  for key in ("manual_users", "departments", "settings")}
+        ticketing_cfg = normalize_ticketing_settings(state["settings"])
+        desks = ticketing_cfg.get("complaintDesks") or []
+        desk_obj = next((d for d in desks if d["id"] == req_desk), None)
+        if not desk_obj:
+            return jsonify(error="The selected complaint department is no longer available. Refresh the portal."), 400
+        if kind == "Material request" and not desk_obj.get("allowMaterialRequest", True):
+            return jsonify(error=f"Material requests are not enabled for {desk_obj['name']}."), 400
         users = state["manual_users"] if isinstance(state["manual_users"], list) else []
         user = next((u for u in users if isinstance(u, dict)
                      and hashlib.sha256((APP_SECRET + "|" + str(u.get("username") or u.get("id") or "").casefold() + "|" + str(u.get("dept") or u.get("department") or "").casefold() + "|" + str(u.get("site") or "").casefold()).encode()).hexdigest() == employee_key
@@ -2804,7 +3037,7 @@ def create_public_ticket():
         if not dept_exists or not factory_exists:
             return jsonify(error="The selected factory or department is no longer available. Refresh the portal."), 400
         remote = request.remote_addr or "127.0.0.1"
-        ticket_id, token_date = _next_ticket_id(conn)
+        ticket_id, token_date = _next_ticket_id(conn, prefix=desk_obj.get("tokenPrefix", "IT"))
         tracking_token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(tracking_token.encode()).hexdigest()
         username = "public-" + token_hash[:24]
@@ -2817,22 +3050,24 @@ def create_public_ticket():
                 stored = f"{ticket_id.replace('/', '-')}-{uuid.uuid4().hex}{ext}"
                 f.save(ticket_dir / stored)
                 saved.append({"name": secure_filename(f.filename), "path": f"tickets/{token_date}/{stored}"})
-        conn.execute("INSERT INTO tickets(id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments,public_token_hash) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s)",
-                     (ticket_id, kind, username, str(user.get("name") or "")[:120], department, factory, remote, primary, sub, description, material, json.dumps(saved), token_hash))
+        conn.execute("INSERT INTO tickets(id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments,public_token_hash,complaint_desk) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s)",
+                     (ticket_id, kind, username, str(user.get("name") or "")[:120], department, factory, remote, primary, sub, description, material, json.dumps(saved), token_hash, desk_obj["id"]))
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,'Public portal','created',%s)", (ticket_id, description[:500]))
         is_mr = (kind == "Material request")
+        desk_label = desk_obj.get("name") or "IT"
         _record_notification_event(conn, {
             "eventKey": f"ticket:{ticket_id}",
             "kind": "material_request" if is_mr else "ticket",
             "level": "info",
-            "title": f"{'New Material Request' if is_mr else 'New IT Ticket'}: {ticket_id}",
+            "title": f"{'New Material Request' if is_mr else f'New {desk_label} Ticket'}: {ticket_id}",
             "body": f"{str(user.get('name') or username)} · {sub or primary} ({factory or '-'})",
             "factory": factory,
             "targetView": "ticketing",
             "targetTab": "materials" if is_mr else "tickets",
             "targetId": ticket_id,
+            "complaintDesk": desk_obj["id"],
         })
-    return jsonify(id=ticket_id, tracking_token=tracking_token), 201
+    return jsonify(id=ticket_id, tracking_token=tracking_token, complaintDesk=desk_obj["id"]), 201
 
 
 @app.post("/api/public/tickets/status")
@@ -2943,7 +3178,7 @@ def get_data():
             manuals = out.pop("manual_users", [])
             if "manual_users" in allowed:
                 out["users"] = [
-                    {k: v for k, v in u.items() if k not in ("password_hash", "recovery_answer_hashes", "module_permissions")}
+                    {k: v for k, v in u.items() if k not in ("password_hash", "recovery_answer_hashes", "module_permissions", "allowed_complaint_desks")}
                     | {"source": "manual", "hasRecoveryQuestions": bool(u.get("recovery_answer_hashes"))}
                     for u in manuals
                 ]
@@ -3057,8 +3292,28 @@ def save_data():
                                 user["module_permissions"] = prior["module_permissions"]
                             else:
                                 user.pop("module_permissions", None)
+                            if "allowed_complaint_desks" in prior:
+                                user["allowed_complaint_desks"] = prior["allowed_complaint_desks"]
+                            else:
+                                user.pop("allowed_complaint_desks", None)
                             user["role"] = prior.get("role", "User") if prior else "User"
                             user["enabled"] = prior.get("enabled", True) if prior else True
+                        else:
+                            if "allowed_complaint_desks" in user:
+                                raw_desks = user.get("allowed_complaint_desks")
+                                if isinstance(raw_desks, list):
+                                    clean_desks = []
+                                    for dk in raw_desks[:40]:
+                                        dks = str(dk or "").strip().lower()
+                                        if dks in ("*", "all"):
+                                            clean_desks = ["*"]
+                                            break
+                                        slug = _slug_desk_id(dks, fallback="")
+                                        if slug and slug not in clean_desks:
+                                            clean_desks.append(slug)
+                                    user["allowed_complaint_desks"] = clean_desks
+                                else:
+                                    user.pop("allowed_complaint_desks", None)
                         old_ip = str(prior.get("ip_address", prior.get("ipAddress", ""))).strip()
                         new_ip = str(user.get("ip_address", user.get("ipAddress", ""))).strip()
                         if prior and old_ip == new_ip:
@@ -3116,10 +3371,10 @@ def save_data():
 
 
 def ticket_json(row):
-    return {"id":row[0],"kind":row[1],"username":row[2],"name":row[3],"dept":row[4],"site":row[5],"ip":str(row[6] or ""),"primary":row[7],"sub":row[8],"description":row[9],"material":row[10],"files":row[11],"assigned":row[12],"status":row[13],"eta":row[14].isoformat(timespec="minutes") if row[14] else "","note":row[15],"updated":row[16].isoformat(timespec="minutes") if row[16] else ""}
+    return {"id":row[0],"kind":row[1],"username":row[2],"name":row[3],"dept":row[4],"site":row[5],"ip":str(row[6] or ""),"primary":row[7],"sub":row[8],"description":row[9],"material":row[10],"files":row[11],"assigned":row[12],"status":row[13],"eta":row[14].isoformat(timespec="minutes") if row[14] else "","note":row[15],"updated":row[16].isoformat(timespec="minutes") if row[16] else "","complaintDesk":(row[17] if len(row) > 17 and row[17] else "it")}
 
 
-TICKET_COLUMNS = "id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments,assigned_to,status,eta,note,updated_at"
+TICKET_COLUMNS = "id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments,assigned_to,status,eta,note,updated_at,COALESCE(NULLIF(complaint_desk,''),'it')"
 
 
 INVOICE_UPLOAD_DIR = UPLOAD_DIR / "invoices"
@@ -3265,19 +3520,30 @@ def delete_invoice(invoice_id):
 @app.get("/api/tickets")
 @signed_in
 def list_tickets():
+    profile = session.get("profile", {})
+    req_desk = str(request.args.get("desk") or "").strip().lower()
     with db() as conn:
         rows = conn.execute(f"SELECT {TICKET_COLUMNS} FROM tickets ORDER BY created_at DESC LIMIT 1000").fetchall()
         repair_map = repair_map_from_conn(conn)
         issued_map = issued_parts_map_from_conn(conn)
-    return jsonify(tickets=[{**ticket_json(r), "repair": repair_map.get(r[0]), "issuedParts": issued_map.get(r[0], [])} for r in rows])
+    filtered = []
+    for r in rows:
+        desk_id = (r[17] if len(r) > 17 and r[17] else "it")
+        if not session.get("is_admin") and not ticket_desk_allowed(profile, desk_id):
+            continue
+        if req_desk and req_desk != "all" and _slug_desk_id(desk_id, "it") != _slug_desk_id(req_desk, "it"):
+            continue
+        filtered.append({**ticket_json(r), "repair": repair_map.get(r[0]), "issuedParts": issued_map.get(r[0], [])})
+    return jsonify(tickets=filtered)
 
 
 @app.put("/api/tickets/settings")
 @ticket_manager
 def update_ticket_settings():
     profile = session.get("profile", {})
-    if not session.get("is_admin") and profile.get("role") != "IT Ticketing" and not module_access(profile, "settings", write=True):
-        return jsonify(error="Ticketing backend or administrator access is required."), 403
+    unrestricted = allowed_complaint_desks_for(profile) is None
+    if not session.get("is_admin") and not ((profile.get("role") == "IT Ticketing" and unrestricted) or module_access(profile, "settings", write=True)):
+        return jsonify(error="Administrator or unrestricted ticketing manager access is required."), 403
     body = request.get_json(force=True) or {}
     if not isinstance(body, dict):
         return jsonify(error="Invalid ticketing settings payload."), 400
@@ -3285,12 +3551,16 @@ def update_ticket_settings():
         row = conn.execute("SELECT value FROM app_state WHERE key='settings' FOR UPDATE").fetchone()
         settings_val = dict(row[0]) if row and isinstance(row[0], dict) else {}
         merged = dict(settings_val)
-        for key in ("ticketCategoryTree", "ticketCategories", "materialRequestCategories", "defaultTicketPriority"):
+        for key in ("ticketCategoryTree", "ticketCategories", "materialRequestCategories", "defaultTicketPriority", "complaintDesks", "showAllDesksOnPortal"):
             if key in body:
                 merged[key] = body[key]
+        # Avoid stale top-level IT fields overriding explicit complaintDesks edit unless caller omitted complaintDesks
+        if "complaintDesks" in body and "ticketCategoryTree" not in body:
+            merged.pop("ticketCategoryTree", None)
         normalized = normalize_ticketing_settings(merged)
         settings_val.update(normalized)
         conn.execute("INSERT INTO app_state(key,value) VALUES('settings',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(settings_val),))
+        _pg_emit_notify(conn, "pulse", {"source": "settings"})
     return jsonify(ok=True, settings=normalized)
 
 
@@ -3338,9 +3608,11 @@ def issue_material_for_ticket(ticket_id):
     actor = str(profile.get("name") or profile.get("username") or "IT")[:120]
     issue_date = datetime.now().strftime("%Y-%m-%d")
     with db() as conn:
-        t_row = conn.execute("SELECT id,display_name,department,factory,material,sub_category FROM tickets WHERE id=%s FOR UPDATE", (ticket_id,)).fetchone()
+        t_row = conn.execute("SELECT id,display_name,department,factory,material,sub_category,COALESCE(NULLIF(complaint_desk,''),'it') FROM tickets WHERE id=%s FOR UPDATE", (ticket_id,)).fetchone()
         if not t_row:
             abort(404)
+        if not session.get("is_admin") and not ticket_desk_allowed(profile, t_row[6]):
+            return jsonify(error="You do not have access to this complaint department's tickets."), 403
         inv_row = conn.execute("SELECT value FROM app_state WHERE key='parts_inventory' FOR UPDATE").fetchone()
         asgn_row = conn.execute("SELECT value FROM app_state WHERE key='parts_assignments' FOR UPDATE").fetchone()
         inv_list = list(inv_row[0]) if inv_row and isinstance(inv_row[0], list) else []
@@ -3420,10 +3692,13 @@ def issue_material_for_ticket(ticket_id):
 @app.get("/api/tickets/<path:ticket_id>/attachments/<path:filename>")
 @signed_in
 def ticket_attachment(ticket_id, filename):
+    profile = session.get("profile", {})
     with db() as conn:
-        row = conn.execute("SELECT username,attachments FROM tickets WHERE id=%s", (ticket_id,)).fetchone()
+        row = conn.execute("SELECT username,attachments,COALESCE(NULLIF(complaint_desk,''),'it') FROM tickets WHERE id=%s", (ticket_id,)).fetchone()
     if not row:
         abort(404)
+    if not session.get("is_admin") and not ticket_desk_allowed(profile, row[2]):
+        abort(403)
     match = next((item for item in row[1] if Path(item.get("path", "")).name == filename), None)
     if not match:
         abort(404)
@@ -3444,9 +3719,23 @@ def create_ticket():
     if len(files) > 5:
         return jsonify(error="Attach up to five screenshots"), 400
     profile = session["profile"]
+    allowed_desks = allowed_complaint_desks_for(profile)
+    req_desk_raw = form.get("complaintDesk")
+    if req_desk_raw:
+        req_desk = _slug_desk_id(req_desk_raw, fallback="it")
+    elif allowed_desks is not None and len(allowed_desks) > 0:
+        req_desk = sorted(allowed_desks)[0]
+    else:
+        req_desk = "it"
+    if not session.get("is_admin") and not ticket_desk_allowed(profile, req_desk):
+        return jsonify(error="You are not permitted to create tickets for this complaint department."), 403
     remote = request.remote_addr
     with db() as conn:
-        ticket_id, token_date = _next_ticket_id(conn)
+        srow = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
+        ticketing_cfg = normalize_ticketing_settings(srow[0] if srow else {})
+        desks = ticketing_cfg.get("complaintDesks") or []
+        desk_obj = next((d for d in desks if d["id"] == req_desk), None) or (desks[0] if desks else {"id": req_desk, "name": "IT", "tokenPrefix": "IT"})
+        ticket_id, token_date = _next_ticket_id(conn, prefix=desk_obj.get("tokenPrefix", "IT"))
         ticket_dir = UPLOAD_DIR / "tickets" / token_date
         ticket_dir.mkdir(parents=True, exist_ok=True)
         saved = []
@@ -3459,21 +3748,23 @@ def create_ticket():
             stored = f"{ticket_id.replace('/', '-')}-{uuid.uuid4().hex}{ext}"
             f.save(ticket_dir / stored)
             saved.append({"name":secure_filename(f.filename),"path":f"tickets/{token_date}/{stored}"})
-        conn.execute("INSERT INTO tickets(id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb)", (ticket_id,kind,profile["username"],profile["name"],profile.get("department", ""),profile.get("site", ""),remote,primary,sub,description,form.get("material", ""),json.dumps(saved)))
+        conn.execute("INSERT INTO tickets(id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments,complaint_desk) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s)", (ticket_id,kind,profile["username"],profile["name"],profile.get("department", ""),profile.get("site", ""),remote,primary,sub,description,form.get("material", ""),json.dumps(saved),desk_obj["id"]))
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'created',%s)", (ticket_id,profile["username"],description[:500]))
         is_mr = (kind == "Material request")
+        desk_label = desk_obj.get("name") or "IT"
         _record_notification_event(conn, {
             "eventKey": f"ticket:{ticket_id}",
             "kind": "material_request" if is_mr else "ticket",
             "level": "info",
-            "title": f"{'New Material Request' if is_mr else 'New IT Ticket'}: {ticket_id}",
+            "title": f"{'New Material Request' if is_mr else f'New {desk_label} Ticket'}: {ticket_id}",
             "body": f"{profile.get('name') or profile['username']} · {sub or primary} ({profile.get('site', '-')})",
             "factory": profile.get("site", ""),
             "targetView": "ticketing",
             "targetTab": "materials" if is_mr else "tickets",
             "targetId": ticket_id,
+            "complaintDesk": desk_obj["id"],
         })
-    return jsonify(id=ticket_id), 201
+    return jsonify(id=ticket_id, complaintDesk=desk_obj["id"]), 201
 
 
 @app.patch("/api/tickets/<path:ticket_id>")
@@ -3491,13 +3782,19 @@ def update_ticket(ticket_id):
     if "eta" in body and body["eta"] not in (None, "") and len(str(body["eta"])) > 40:
         return jsonify(error="Invalid ETA."), 400
     assignments = ", ".join(f"{column}=%s" for column,_ in fields)
+    profile = session.get("profile", {})
     with db() as conn:
+        t_row = conn.execute("SELECT COALESCE(NULLIF(complaint_desk,''),'it') FROM tickets WHERE id=%s", (ticket_id,)).fetchone()
+        if not t_row:
+            abort(404)
+        if not session.get("is_admin") and not ticket_desk_allowed(profile, t_row[0]):
+            return jsonify(error="You do not have access to this complaint department's tickets."), 403
         cur = conn.execute(f"UPDATE tickets SET {assignments}, updated_at=now() WHERE id=%s RETURNING id", [v for _,v in fields]+[ticket_id])
         if not cur.fetchone():
             abort(404)
         detail = "; ".join(f"{k}: {v}" for k,v in body.items() if k in allowed)[:1000]
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'updated',%s)", (ticket_id,session["profile"]["username"],detail))
-        _pg_emit_notify(conn, "ticket", {"action": "update", "ticketId": ticket_id})
+        _pg_emit_notify(conn, "ticket", {"action": "update", "ticketId": ticket_id, "complaintDesk": t_row[0]})
     return jsonify(ok=True)
 
 
@@ -3508,22 +3805,32 @@ def add_ticket_worklog(ticket_id):
     detail = str(body.get("detail", "")).strip()
     if not detail or len(detail) > 3000:
         return jsonify(error="Enter a work update (up to 3000 characters)."), 400
-    actor = str(session.get("profile", {}).get("name") or session["profile"].get("username", "IT"))[:120]
+    profile = session.get("profile", {})
+    actor = str(profile.get("name") or profile.get("username", "IT"))[:120]
     with db() as conn:
+        t_row = conn.execute("SELECT COALESCE(NULLIF(complaint_desk,''),'it') FROM tickets WHERE id=%s", (ticket_id,)).fetchone()
+        if not t_row:
+            abort(404)
+        if not session.get("is_admin") and not ticket_desk_allowed(profile, t_row[0]):
+            return jsonify(error="You do not have access to this complaint department's tickets."), 403
         row = conn.execute("UPDATE tickets SET note=%s,updated_at=now() WHERE id=%s RETURNING id", (detail, ticket_id)).fetchone()
         if not row:
             abort(404)
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'worklog',%s)", (ticket_id, actor, detail))
-        _pg_emit_notify(conn, "ticket", {"action": "worklog", "ticketId": ticket_id})
+        _pg_emit_notify(conn, "ticket", {"action": "worklog", "ticketId": ticket_id, "complaintDesk": t_row[0]})
     return jsonify(ok=True)
 
 
 @app.get("/api/tickets/<path:ticket_id>/worklog")
 @ticket_manager
 def list_ticket_worklog(ticket_id):
+    profile = session.get("profile", {})
     with db() as conn:
-        if not conn.execute("SELECT 1 FROM tickets WHERE id=%s", (ticket_id,)).fetchone():
+        t_row = conn.execute("SELECT COALESCE(NULLIF(complaint_desk,''),'it') FROM tickets WHERE id=%s", (ticket_id,)).fetchone()
+        if not t_row:
             abort(404)
+        if not session.get("is_admin") and not ticket_desk_allowed(profile, t_row[0]):
+            abort(403)
         rows = conn.execute("SELECT actor,detail,created_at FROM ticket_events WHERE ticket_id=%s AND event_type IN ('created','updated','worklog') ORDER BY created_at DESC LIMIT 100", (ticket_id,)).fetchall()
     return jsonify(events=[{"actor":r[0],"detail":r[1],"created":r[2].isoformat(timespec="minutes")} for r in rows])
 
@@ -3532,12 +3839,12 @@ def _can_delete_tickets():
     profile = session.get("profile") or {}
     if session.get("is_admin") or profile.get("role") == "IT Ticketing":
         return True
-    if not isinstance(profile.get("module_permissions"), dict) and module_access(profile, "tickets", write=True):
+    if module_access(profile, "tickets", write=True):
         return True
     return False
 
 
-def _delete_tickets_tx(conn, raw_ids):
+def _delete_tickets_tx(conn, raw_ids, profile=None, is_admin=False):
     ids = []
     seen = set()
     for x in (raw_ids or []):
@@ -3547,13 +3854,15 @@ def _delete_tickets_tx(conn, raw_ids):
             ids.append(s)
     if not ids:
         return []
-    rows = conn.execute("SELECT id, attachments FROM tickets WHERE id = ANY(%s)", (ids,)).fetchall()
+    rows = conn.execute("SELECT id, attachments, COALESCE(NULLIF(complaint_desk,''),'it') FROM tickets WHERE id = ANY(%s)", (ids,)).fetchall()
+    if not is_admin and profile is not None:
+        rows = [r for r in rows if ticket_desk_allowed(profile, r[2])]
     if not rows:
         return []
     deleted_ids = [r[0] for r in rows]
     tickets_root = (UPLOAD_DIR / "tickets").resolve()
     files_to_remove = []
-    for _, atts in rows:
+    for _, atts, _ in rows:
         for item in (atts or []):
             rel = str(item.get("path", "") if isinstance(item, dict) else "").strip()
             if not rel:
@@ -3580,8 +3889,15 @@ def _delete_tickets_tx(conn, raw_ids):
 def delete_ticket(ticket_id):
     if not _can_delete_tickets():
         return jsonify(error="Ticketing backend or administrator access is required to delete tickets."), 403
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
     with db() as conn:
-        deleted = _delete_tickets_tx(conn, [ticket_id])
+        t_row = conn.execute("SELECT COALESCE(NULLIF(complaint_desk,''),'it') FROM tickets WHERE id=%s", (ticket_id,)).fetchone()
+        if not t_row:
+            abort(404)
+        if not is_adm and not ticket_desk_allowed(profile, t_row[0]):
+            return jsonify(error="You do not have access to delete this complaint department's ticket."), 403
+        deleted = _delete_tickets_tx(conn, [ticket_id], profile=profile, is_admin=is_adm)
     if not deleted:
         abort(404)
     return jsonify(ok=True, deletedIds=deleted, deleted=len(deleted))
@@ -3596,8 +3912,10 @@ def bulk_delete_tickets():
     ids = body.get("ids") if isinstance(body, dict) else None
     if not isinstance(ids, list) or not ids or len(ids) > 500:
         return jsonify(error="Select between 1 and 500 tickets or material requests to delete."), 400
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
     with db() as conn:
-        deleted = _delete_tickets_tx(conn, ids)
+        deleted = _delete_tickets_tx(conn, ids, profile=profile, is_admin=is_adm)
     return jsonify(ok=True, deletedIds=deleted, deleted=len(deleted))
 
 

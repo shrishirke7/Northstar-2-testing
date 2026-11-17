@@ -155,21 +155,72 @@ public class AlertMonitorService extends Service {
             String rawHist = fetchJson(origin + "/api/notifications/history", origin);
             if (rawHist == null) return;
             JSONObject obj = new JSONObject(rawHist);
-            if (obj.optBoolean("silentMode", false)) return;
             JSONArray events = obj.optJSONArray("events");
             if (events == null || events.length() == 0) return;
             JSONObject latest = events.optJSONObject(0);
-            if (latest == null || latest.optBoolean("read", false)) return;
-
+            if (latest == null) return;
             String id = latest.optString("id", "");
+            if (id.isEmpty() || id.equals(lastAlertId)) return;
+            lastAlertId = id;
+
+            if (obj.optBoolean("silentMode", false)) return;
+            if (latest.optBoolean("read", false)) return;
+
             String title = latest.optString("title", "Shree IT Alert");
             String body = latest.optString("body", "New IT update received");
+            String kind = latest.optString("kind", "").trim().toLowerCase(java.util.Locale.ROOT);
+            String devType = latest.optString("deviceType", "").trim().toLowerCase(java.util.Locale.ROOT);
+            String devSub = latest.optString("deviceSubtype", "").trim().toLowerCase(java.util.Locale.ROOT);
+
+            // Sync mute rules (per device type & event category) with logged-in user's server config
+            try {
+                String rawSounds = fetchJson(origin + "/api/notifications/sounds", origin);
+                if (rawSounds != null) {
+                    JSONObject sObj = new JSONObject(rawSounds);
+                    JSONObject soundAlerts = sObj.optJSONObject("soundAlerts");
+                    if (soundAlerts != null) {
+                        JSONObject evMap = soundAlerts.optJSONObject("events");
+                        String evKey = "material_request".equals(kind) ? "ticket" : kind;
+                        if (evMap != null && !evKey.isEmpty()) {
+                            JSONObject evRule = evMap.optJSONObject(evKey);
+                            if (evRule != null && !evRule.optBoolean("enabled", true)) {
+                                return;
+                            }
+                        }
+                        JSONObject devRules = soundAlerts.optJSONObject("deviceRules");
+                        boolean isDeviceEv = !devType.isEmpty() || !devSub.isEmpty()
+                                || "online".equals(kind) || "offline".equals(kind) || "critical".equals(kind);
+                        boolean anyMatched = false;
+                        if (devRules != null) {
+                            String hay = (devSub + " " + devType + " " + title + " " + body).toLowerCase(java.util.Locale.ROOT);
+                            java.util.Iterator<String> keys = devRules.keys();
+                            while (keys.hasNext()) {
+                                String rk = keys.next();
+                                JSONObject rule = devRules.optJSONObject(rk);
+                                if (rule == null || rk == null || rk.trim().isEmpty()) continue;
+                                String kn = rk.trim().toLowerCase(java.util.Locale.ROOT);
+                                boolean matched = kn.equals(devSub) || kn.equals(devType)
+                                        || java.util.regex.Pattern.compile("(?:^|[^a-z0-9])" + java.util.regex.Pattern.quote(kn) + "(?:$|[^a-z0-9])")
+                                                .matcher(hay).find();
+                                if (matched) {
+                                    anyMatched = true;
+                                    if (rule.optBoolean("silent", false)) {
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                        if (isDeviceEv && !anyMatched && soundAlerts.optBoolean("defaultNewTypeSilent", false)) {
+                            return;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+
             String targetView = latest.optString("targetView", "notifications");
             String targetId = latest.optString("targetId", "");
-            if (!id.isEmpty() && !id.equals(lastAlertId)) {
-                lastAlertId = id;
-                NotificationHelper.showAlert(this, title, body, targetView, targetId);
-            }
+            NotificationHelper.showAlert(this, title, body, targetView, targetId);
         } catch (Exception ignored) {
         }
     }

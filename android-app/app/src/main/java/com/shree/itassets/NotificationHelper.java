@@ -71,7 +71,9 @@ public final class NotificationHelper {
                 : new Notification.Builder(ctx);
         b.setContentTitle("Shree IT Connected")
                 .setContentText("Real-time alert monitor is active")
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_stat_shree)
+                .setColor(android.graphics.Color.parseColor("#051433"))
+                .setLargeIcon(android.graphics.BitmapFactory.decodeResource(ctx.getResources(), R.mipmap.ic_launcher))
                 .setOngoing(true)
                 .setContentIntent(pi);
         if (Build.VERSION.SDK_INT < 26) {
@@ -99,7 +101,9 @@ public final class NotificationHelper {
         b.setContentTitle(title == null || title.isEmpty() ? "Shree IT Alert" : title)
                 .setContentText(body == null ? "" : body)
                 .setStyle(new Notification.BigTextStyle().bigText(body == null ? "" : body))
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_stat_shree)
+                .setColor(android.graphics.Color.parseColor("#051433"))
+                .setLargeIcon(android.graphics.BitmapFactory.decodeResource(ctx.getResources(), R.mipmap.ic_launcher))
                 .setAutoCancel(true)
                 .setContentIntent(pi);
         if (Build.VERSION.SDK_INT < 26) {

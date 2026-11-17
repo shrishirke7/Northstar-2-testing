@@ -21,12 +21,15 @@ CREATE TABLE IF NOT EXISTS tickets (
   eta timestamptz,
   note text NOT NULL DEFAULT '',
   public_token_hash text,
+  complaint_desk text NOT NULL DEFAULT 'it',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS public_token_hash text;
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS complaint_desk text NOT NULL DEFAULT 'it';
 CREATE INDEX IF NOT EXISTS tickets_created_at_idx ON tickets(created_at DESC);
 CREATE INDEX IF NOT EXISTS tickets_username_idx ON tickets(username);
+CREATE INDEX IF NOT EXISTS tickets_desk_idx ON tickets(complaint_desk);
 CREATE TABLE IF NOT EXISTS ticket_events (
   id bigserial PRIMARY KEY,
   ticket_id text NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,

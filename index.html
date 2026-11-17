@@ -18,7 +18,7 @@
 <style>
 .status.net-online{background:#e8f2ff;color:#1687d9}.status.net-offline{background:#fff0ee;color:#d85752}.status.net-unknown{background:#fff5d6;color:#9b7300}
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
-:root{--ink:#19231f;--muted:#818b87;--line:#e9ece9;--canvas:#f6f7f6;--green:#157a54;--mint:#e7f4ed;--lime:#c6ed58;--white:#fff;--red:#d85752;--amber:#cb9034;--nav:#17251e;--shadow:0 12px 35px #18271e0b}*{box-sizing:border-box}body{margin:0;background:var(--canvas);font-family:'DM Sans',sans-serif;color:var(--ink);font-size:13px}button,input,select{font:inherit}button{cursor:pointer}.layout{display:flex;min-height:100vh}.sidebar{width:238px;background:var(--nav);color:#fff;padding:23px 15px;position:fixed;inset:0 auto 0 0;display:flex;flex-direction:column;z-index:10}.brand{display:flex;align-items:center;gap:11px;padding:0 11px 28px}.brand-mark{width:35px;height:35px;border-radius:12px;background:var(--lime);display:grid;place-items:center;color:#203226;font-weight:900;font-size:18px}.brand-name{font:800 16px 'Manrope',sans-serif;letter-spacing:-.5px}.brand-sub{font-size:10px;color:#9ba9a0;margin-top:2px}.org-label{font-size:10px;color:#8b9a90;padding:8px 12px 10px;text-transform:uppercase;letter-spacing:1px;font-weight:700}.nav{display:grid;gap:4px}.nav button{border:0;background:transparent;color:#b2bdb6;text-align:left;display:flex;align-items:center;gap:12px;border-radius:10px;padding:10px 12px;transition:.16s}.nav button:hover{background:#ffffff0c;color:white}.nav button.active{background:#ffffff17;color:#fff;font-weight:700}.nav .ico{width:17px;text-align:center;font-size:15px;opacity:.9}.nav-badge{margin-left:auto;font-size:10px;border-radius:20px;padding:3px 7px;background:#dc7468;color:#fff}.sidebar-bottom{margin-top:auto}.help-card{background:#22332a;border:1px solid #34463b;border-radius:13px;padding:13px;margin:0 5px 15px}.help-card b{font-size:12px}.help-card p{font-size:11px;color:#a0ada4;line-height:1.55;margin:6px 0 10px}.help-card button{border:0;background:#ffffff14;color:#fff;padding:7px 10px;border-radius:7px;font-size:10px}.profile{border-top:1px solid #ffffff19;padding:15px 8px 0;display:flex;align-items:center;gap:9px}.avatar{width:31px;height:31px;display:grid;place-items:center;border-radius:50%;background:#dcebdc;color:#285237;font-weight:800;font-size:11px}.profile-name{font-weight:700;font-size:11px}.profile-role{font-size:10px;color:#99a59d;margin-top:2px}.profile-dots{margin-left:auto;color:#9ba59f}.main{margin-left:238px;width:calc(100% - 238px);min-height:100vh}.topbar{height:67px;background:#ffffffd9;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 34px;gap:15px;position:sticky;top:0;z-index:5;backdrop-filter:blur(12px)}.crumb{font-size:12px;color:#939d98}.crumb b{color:#28332d}.site-select{border:1px solid var(--line);border-radius:8px;background:white;padding:8px 10px;font-size:11px;color:#455149}.top-spacer{flex:1}.search{width:235px;border:1px solid var(--line);background:#fafbfa;border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px;color:#929b96}.search input{border:0;outline:none;background:transparent;width:100%;font-size:11px}.top-btn{border:1px solid var(--line);background:white;border-radius:8px;width:33px;height:33px;color:#455149;position:relative}.notification-dot{position:absolute;right:6px;top:5px;width:6px;height:6px;border-radius:50%;background:#e27062;border:1px solid white}.content{padding:28px 34px 40px;max-width:1500px;margin:auto}.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px}.eyebrow{font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:1.35px;font-weight:800;margin-bottom:7px}.page-head h1{font:800 25px 'Manrope',sans-serif;letter-spacing:-.9px;margin:0}.page-head p{margin:6px 0 0;color:var(--muted);font-size:12px}.head-actions{display:flex;gap:8px}.btn{border:1px solid var(--line);background:#fff;color:#344239;border-radius:8px;padding:9px 12px;font-size:11px;font-weight:700;box-shadow:0 2px 4px #141f1905}.btn:hover{border-color:#bac7bf}.btn.primary{background:var(--green);color:#fff;border-color:var(--green)}.btn.lime{background:var(--lime);border-color:var(--lime);color:#21301f}.site-strip{display:flex;gap:8px;margin-bottom:17px}.site-chip{padding:7px 11px;border:1px solid var(--line);background:#fff;border-radius:8px;color:#77817b;font-size:10px;font-weight:700}.site-chip b{margin-left:6px;color:#303c34}.site-chip.selected{border-color:#aed3bc;background:#edf7f0;color:var(--green)}.ticket-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.ticket-choice{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--line);border-radius:22px;background:#fff;font-size:11px;font-weight:700;margin:0 8px 0 0}.ticket-choice input{accent-color:var(--green)}.ticket-subcats{background:#f0fbf3;border:1px solid #c7ecd1;border-radius:9px;padding:12px 14px;margin:12px 0}.ticket-subcats-title{font-size:10px;font-weight:800;color:var(--green);margin-bottom:9px}.ticket-meta{font-size:10px;color:#829087}.ticket-identity{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;background:#f8faf8;border:1px solid var(--line);border-radius:9px;padding:12px;margin:13px 0}.ticket-identity span{font-size:9px;color:#89948d;display:block;margin-bottom:4px}.ticket-identity b{font-size:11px}.ticket-description{min-height:88px;resize:vertical}.ticket-table th{background:#effaf2;color:#278552;font-size:10px}.ticket-table td{font-size:10px;vertical-align:top}.ticket-token{color:var(--green);font-weight:800}.ticket-user{font-weight:700;color:#303b34}.ticket-filter-strip{background:#f7f9fb;border:1px solid var(--line);border-radius:9px;padding:10px 12px;display:flex;gap:8px;align-items:center;margin:12px 0}.ticket-edit{border:1px solid var(--line);border-radius:6px;padding:5px 6px;background:#fff;font-size:9px;max-width:130px}.ticket-note-input{width:142px}.auth-gate{display:none;position:fixed;inset:0;z-index:90;background:#f5f7f5;align-items:center;justify-content:center;padding:18px}.auth-card{width:min(410px,100%);background:white;border:1px solid var(--line);border-radius:15px;padding:26px;box-shadow:0 20px 60px #19251d16}.auth-card h2{font:800 20px Manrope;margin:14px 0 5px}.auth-card p{font-size:11px;color:#818c84;line-height:1.6;margin:0 0 16px}.auth-error{color:#c34f47;font-size:11px;min-height:16px;margin-top:8px}.status.in-progress{background:#eaf1ff;color:#5476b0}.status.closed{background:#eff1ef;color:#707a73}.status.resolved{background:#e8f5ec;color:#288153}.status.open{background:#fff6e7;color:#b9852d}.ticket-actions{display:flex;gap:5px}.ticket-ip-table td{padding:7px 10px}.sla-late{color:var(--red);font-weight:700}.ticket-dim{color:#909b94}.ip-row{display:flex;align-items:center;gap:6px}.ticket-empty{padding:25px;text-align:center;color:#88948c}.category-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px}.category-card{padding:12px 13px;cursor:pointer;transition:.15s}.category-card:hover{border-color:#aacdb7;transform:translateY(-1px)}.category-card .cat-title{font-size:10px;color:#748079;font-weight:600}.category-card .cat-count{font:800 20px Manrope;margin:7px 0 3px}.category-card .cat-meta{font-size:9px;color:#939b96}.category-card .cat-icon{float:right;color:#47815b;background:#edf5ef;border-radius:7px;padding:5px}.age-pill{display:inline-flex;padding:4px 7px;background:#f2f4f2;border-radius:6px;color:#56635a;font-size:9px;font-weight:700}.age-pill.old{background:#fff3e6;color:#ad7628}.grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:14px}.card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}.metric{padding:15px 16px 14px;position:relative;overflow:hidden}.metric-top{display:flex;justify-content:space-between;align-items:center;color:#748079;font-size:10px;font-weight:600}.metric-icon{width:28px;height:28px;border-radius:8px;background:#f1f5f2;display:grid;place-items:center;color:#52705d;font-size:14px}.metric-value{font:800 26px 'Manrope',sans-serif;letter-spacing:-1px;margin:10px 0 5px}.metric-foot{font-size:10px;color:#929b96}.up{color:var(--green);font-weight:700}.warn{color:var(--amber);font-weight:700}.red{color:var(--red);font-weight:700}.dashboard-grid{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(260px,1fr);gap:14px;margin-bottom:14px}.panel{background:white;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}.panel-head{display:flex;align-items:center;justify-content:space-between;padding:15px 17px;border-bottom:1px solid #f0f2f0}.panel-title{font:700 13px 'Manrope',sans-serif}.panel-sub{font-size:10px;color:#949c97;margin-top:4px}.link-btn{border:0;background:transparent;color:var(--green);font-size:10px;font-weight:700}.chart-wrap{padding:14px 17px 11px}.chart-legend{display:flex;gap:16px;font-size:10px;color:#77817a}.legend-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px}.chart{height:154px;width:100%;overflow:visible}.chart text{font-family:'DM Sans';font-size:9px;fill:#9aa49d}.chart .gridline{stroke:#eef1ee;stroke-width:1}.chart .area{fill:url(#areaFill)}.chart .line{fill:none;stroke:#24805a;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}.chart .line2{fill:none;stroke:#d3a14f;stroke-width:1.8;stroke-dasharray:4 4}.health-wrap{padding:15px 17px}.health-score{display:flex;align-items:center;gap:15px}.ring{width:85px;height:85px;position:relative;display:grid;place-items:center}.ring svg{transform:rotate(-90deg)}.ring strong{position:absolute;font:800 19px 'Manrope',sans-serif}.health-desc b{font-size:12px}.health-desc p{font-size:10px;line-height:1.55;color:#89938d;margin:4px 0 0}.health-list{margin-top:17px;display:grid;gap:10px}.health-row{display:grid;grid-template-columns:1fr auto;align-items:center;font-size:10px;color:#68756c}.health-row b{font-size:10px;color:#344239}.mini-bar{grid-column:1/3;height:4px;background:#eef2ef;border-radius:4px;margin-top:-5px;overflow:hidden}.mini-bar i{display:block;height:100%;border-radius:4px;background:#46936a}.mini-bar .amber-fill{background:#d6a64f}.mini-bar .red-fill{background:#db7970}.bottom-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(270px,1fr);gap:14px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap}th{text-align:left;font-size:9px;color:#929b95;font-weight:700;letter-spacing:.35px;padding:11px 15px;background:#fcfdfc;border-bottom:1px solid #eef0ee}td{padding:10px 15px;border-bottom:1px solid #f0f2f0;font-size:10px;color:#455148}tr:last-child td{border:0}.asset-cell{display:flex;align-items:center;gap:8px}.device-icon{width:25px;height:25px;border-radius:7px;background:#eef4f0;display:grid;place-items:center;font-size:12px}.asset-name{font-weight:700;color:#2c3930}.asset-id{font-size:9px;color:#99a19b;margin-top:2px}.status{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border-radius:20px;font-size:9px;font-weight:700}.status:before{content:'';height:5px;width:5px;border-radius:50%;background:currentColor}.status.online,.status.healthy{background:#e8f5ec;color:#288153}.status.offline,.status.critical{background:#fff0ee;color:#d15e52}.status.warning{background:#fff6e7;color:#b9852d}.status.maintenance{background:#eef1f6;color:#64748b}.alert-list{padding:3px 15px 8px}.alert-item{padding:12px 0;display:flex;gap:9px;border-bottom:1px solid #f0f2f0}.alert-item:last-child{border:0}.alert-mark{width:23px;height:23px;flex:none;border-radius:7px;background:#fff1eb;color:#cb684a;display:grid;place-items:center;font-size:11px}.alert-item:nth-child(2) .alert-mark{background:#fff6e8;color:#bd8b32}.alert-item:nth-child(3) .alert-mark{background:#edf5ee;color:#418658}.alert-text{font-size:10px;line-height:1.5;color:#566259}.alert-text b{color:#303d34}.alert-time{font-size:9px;color:#a0a7a2;margin-top:3px}.section-toolbar{display:flex;gap:8px;padding:13px 15px;border-bottom:1px solid #eef0ee;align-items:center}.filter-input{border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:10px;min-width:180px;outline:none}.filter-select{border:1px solid var(--line);border-radius:7px;padding:8px 10px;background:#fff;font-size:10px;color:#67736a}.toolbar-spacer{flex:1}.view{display:none}.view.active{display:block}.kpis{display:flex;gap:9px;margin-bottom:14px}.kpi-pill{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-size:10px;color:#78837c}.kpi-pill b{font-size:12px;color:#344239;margin-left:5px}.dept-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.dept-card{padding:16px}.dept-top{display:flex;justify-content:space-between;align-items:center}.dept-code{background:#eaf3ed;color:#397653;padding:6px 8px;border-radius:7px;font-size:10px;font-weight:800}.dept-card h3{font:700 13px 'Manrope',sans-serif;margin:11px 0 5px}.dept-card p{margin:0;color:#929b95;font-size:10px}.dept-stats{display:flex;gap:20px;margin-top:14px}.dept-stats strong{font-size:14px;display:block}.dept-stats span{font-size:9px;color:#929b95}.user-row{display:flex;align-items:center;gap:8px}.user-avatar{width:25px;height:25px;display:grid;place-items:center;background:#f0eee9;border-radius:50%;font-size:9px;font-weight:800;color:#586257}.user-name{font-weight:700;color:#303b34}.user-email{font-size:9px;color:#98a099}.software-icon{width:27px;height:27px;display:grid;place-items:center;border-radius:7px;background:#edf3fc;color:#5376a9;font-weight:800;font-size:10px}.monitor-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}.monitor-tile{padding:15px}.monitor-tile-top{display:flex;justify-content:space-between;color:#7b857e;font-size:10px}.monitor-big{font:800 23px 'Manrope',sans-serif;margin:10px 0 4px}.monitor-small{font-size:10px;color:#939c96}.spark{height:30px;display:flex;align-items:end;gap:3px;margin-top:13px}.spark i{flex:1;background:#b8d9c3;border-radius:3px 3px 0 0}.spark i:last-child{background:#398b5c}.site-overview{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.site-tile{border:1px solid var(--line);border-radius:9px;padding:12px}.site-tile-head{display:flex;align-items:center;justify-content:space-between;font-weight:800;font-size:11px}.site-live{display:inline-flex;align-items:center;gap:5px;color:var(--green);font-size:9px;font-weight:700}.site-live i{width:6px;height:6px;border-radius:50%;background:#4ca66b}.site-tile p{font-size:9px;color:#8c968f;margin:8px 0 0}.site-tile strong{color:#364239}.empty-state{padding:38px;text-align:center;color:#89938d;font-size:11px}.modal-backdrop{position:fixed;inset:0;background:#16231dc0;display:none;align-items:center;justify-content:center;z-index:30;padding:16px}.modal-backdrop.open{display:flex}.modal{width:min(520px,100%);background:white;border-radius:14px;padding:22px;box-shadow:0 20px 60px #0003}.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.modal-head h2{font:800 18px 'Manrope',sans-serif;margin:0}.close{border:0;background:#f1f3f1;width:28px;height:28px;border-radius:7px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:grid;gap:5px}.field.full{grid-column:1/-1}.field label{font-size:10px;font-weight:700;color:#69756d}.field input,.field select{border:1px solid var(--line);border-radius:7px;padding:9px;font-size:11px;outline:none}.field input:focus,.field select:focus,.filter-input:focus{border-color:#7fac8d}.modal-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}.toast{position:fixed;right:22px;bottom:22px;background:#1d3024;color:white;padding:12px 16px;border-radius:9px;box-shadow:0 8px 28px #15241d33;z-index:40;font-size:11px;transform:translateY(10px);opacity:0;transition:.22s;pointer-events:none}.toast.show{transform:translateY(0);opacity:1}.mobile-menu{display:none}
+:root{--ink:#19231f;--muted:#818b87;--line:#e9ece9;--canvas:#f6f7f6;--green:#157a54;--mint:#e7f4ed;--lime:#c6ed58;--white:#fff;--red:#d85752;--amber:#cb9034;--nav:#17251e;--shadow:0 12px 35px #18271e0b}*{box-sizing:border-box}body{margin:0;background:var(--canvas);font-family:'DM Sans',sans-serif;color:var(--ink);font-size:13px}button,input,select{font:inherit}button{cursor:pointer}.layout{display:flex;min-height:100vh}.sidebar{width:238px;background:var(--nav);color:#fff;padding:23px 15px;position:fixed;inset:0 auto 0 0;display:flex;flex-direction:column;z-index:10}.brand{display:flex;align-items:center;gap:11px;padding:0 11px 28px}.brand>div:not(.brand-mark){min-width:0;flex:1}.brand-mark{width:35px;height:35px;min-width:35px;min-height:35px;aspect-ratio:1/1;flex-shrink:0;border-radius:12px;background:var(--lime);display:grid;place-items:center;color:#203226;font-weight:900;font-size:18px}.brand-name{font:800 16px 'Manrope',sans-serif;letter-spacing:-.5px}.brand-sub{font-size:10px;color:#9ba9a0;margin-top:2px}.org-label{font-size:10px;color:#8b9a90;padding:8px 12px 10px;text-transform:uppercase;letter-spacing:1px;font-weight:700}.nav{display:grid;gap:4px}.nav button{border:0;background:transparent;color:#b2bdb6;text-align:left;display:flex;align-items:center;gap:12px;border-radius:10px;padding:10px 12px;transition:.16s}.nav button:hover{background:#ffffff0c;color:white}.nav button.active{background:#ffffff17;color:#fff;font-weight:700}.nav .ico{width:17px;text-align:center;font-size:15px;opacity:.9}.nav-badge{margin-left:auto;font-size:10px;border-radius:20px;padding:3px 7px;background:#dc7468;color:#fff}.sidebar-bottom{margin-top:auto}.help-card{background:#22332a;border:1px solid #34463b;border-radius:13px;padding:13px;margin:0 5px 15px}.help-card b{font-size:12px}.help-card p{font-size:11px;color:#a0ada4;line-height:1.55;margin:6px 0 10px}.help-card button{border:0;background:#ffffff14;color:#fff;padding:7px 10px;border-radius:7px;font-size:10px}.profile{border-top:1px solid #ffffff19;padding:15px 8px 0;display:flex;align-items:center;gap:9px}.avatar{width:31px;height:31px;display:grid;place-items:center;border-radius:50%;background:#dcebdc;color:#285237;font-weight:800;font-size:11px}.profile-name{font-weight:700;font-size:11px}.profile-role{font-size:10px;color:#99a59d;margin-top:2px}.profile-dots{margin-left:auto;color:#9ba59f}.main{margin-left:238px;width:calc(100% - 238px);min-height:100vh}.topbar{height:67px;background:#ffffffd9;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 34px;gap:15px;position:sticky;top:0;z-index:5;backdrop-filter:blur(12px)}.crumb{font-size:12px;color:#939d98}.crumb b{color:#28332d}.site-select{border:1px solid var(--line);border-radius:8px;background:white;padding:8px 10px;font-size:11px;color:#455149}.top-spacer{flex:1}.search{width:235px;border:1px solid var(--line);background:#fafbfa;border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px;color:#929b96}.search input{border:0;outline:none;background:transparent;width:100%;font-size:11px}.top-btn{border:1px solid var(--line);background:white;border-radius:8px;width:33px;height:33px;color:#455149;position:relative}.notification-dot{position:absolute;right:6px;top:5px;width:6px;height:6px;border-radius:50%;background:#e27062;border:1px solid white}.content{padding:28px 34px 40px;max-width:1500px;margin:auto}.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px}.eyebrow{font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:1.35px;font-weight:800;margin-bottom:7px}.page-head h1{font:800 25px 'Manrope',sans-serif;letter-spacing:-.9px;margin:0}.page-head p{margin:6px 0 0;color:var(--muted);font-size:12px}.head-actions{display:flex;gap:8px}.btn{border:1px solid var(--line);background:#fff;color:#344239;border-radius:8px;padding:9px 12px;font-size:11px;font-weight:700;box-shadow:0 2px 4px #141f1905}.btn:hover{border-color:#bac7bf}.btn.primary{background:var(--green);color:#fff;border-color:var(--green)}.btn.lime{background:var(--lime);border-color:var(--lime);color:#21301f}.site-strip{display:flex;gap:8px;margin-bottom:17px}.site-chip{padding:7px 11px;border:1px solid var(--line);background:#fff;border-radius:8px;color:#77817b;font-size:10px;font-weight:700}.site-chip b{margin-left:6px;color:#303c34}.site-chip.selected{border-color:#aed3bc;background:#edf7f0;color:var(--green)}.ticket-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.ticket-choice{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--line);border-radius:22px;background:#fff;font-size:11px;font-weight:700;margin:0 8px 0 0}.ticket-choice input{accent-color:var(--green)}.ticket-subcats{background:#f0fbf3;border:1px solid #c7ecd1;border-radius:9px;padding:12px 14px;margin:12px 0}.ticket-subcats-title{font-size:10px;font-weight:800;color:var(--green);margin-bottom:9px}.ticket-meta{font-size:10px;color:#829087}.ticket-identity{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;background:#f8faf8;border:1px solid var(--line);border-radius:9px;padding:12px;margin:13px 0}.ticket-identity span{font-size:9px;color:#89948d;display:block;margin-bottom:4px}.ticket-identity b{font-size:11px}.ticket-description{min-height:88px;resize:vertical}.ticket-table th{background:#effaf2;color:#278552;font-size:10px}.ticket-table td{font-size:10px;vertical-align:top}.ticket-token{color:var(--green);font-weight:800}.ticket-user{font-weight:700;color:#303b34}.ticket-filter-strip{background:#f7f9fb;border:1px solid var(--line);border-radius:9px;padding:10px 12px;display:flex;gap:8px;align-items:center;margin:12px 0}.ticket-edit{border:1px solid var(--line);border-radius:6px;padding:5px 6px;background:#fff;font-size:9px;max-width:130px}.ticket-note-input{width:142px}.auth-gate{display:none;position:fixed;inset:0;z-index:90;background:#f5f7f5;align-items:center;justify-content:center;padding:18px}.auth-card{width:min(410px,100%);background:white;border:1px solid var(--line);border-radius:15px;padding:26px;box-shadow:0 20px 60px #19251d16}.auth-card h2{font:800 20px Manrope;margin:14px 0 5px}.auth-card p{font-size:11px;color:#818c84;line-height:1.6;margin:0 0 16px}.auth-error{color:#c34f47;font-size:11px;min-height:16px;margin-top:8px}.status.in-progress{background:#eaf1ff;color:#5476b0}.status.closed{background:#eff1ef;color:#707a73}.status.resolved{background:#e8f5ec;color:#288153}.status.open{background:#fff6e7;color:#b9852d}.ticket-actions{display:flex;gap:5px}.ticket-ip-table td{padding:7px 10px}.sla-late{color:var(--red);font-weight:700}.ticket-dim{color:#909b94}.ip-row{display:flex;align-items:center;gap:6px}.ticket-empty{padding:25px;text-align:center;color:#88948c}.category-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px}.category-card{padding:12px 13px;cursor:pointer;transition:.15s}.category-card:hover{border-color:#aacdb7;transform:translateY(-1px)}.category-card .cat-title{font-size:10px;color:#748079;font-weight:600}.category-card .cat-count{font:800 20px Manrope;margin:7px 0 3px}.category-card .cat-meta{font-size:9px;color:#939b96}.category-card .cat-icon{float:right;color:#47815b;background:#edf5ef;border-radius:7px;padding:5px}.age-pill{display:inline-flex;padding:4px 7px;background:#f2f4f2;border-radius:6px;color:#56635a;font-size:9px;font-weight:700}.age-pill.old{background:#fff3e6;color:#ad7628}.grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:14px}.card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}.metric{padding:15px 16px 14px;position:relative;overflow:hidden}.metric-top{display:flex;justify-content:space-between;align-items:center;color:#748079;font-size:10px;font-weight:600}.metric-icon{width:28px;height:28px;border-radius:8px;background:#f1f5f2;display:grid;place-items:center;color:#52705d;font-size:14px}.metric-value{font:800 26px 'Manrope',sans-serif;letter-spacing:-1px;margin:10px 0 5px}.metric-foot{font-size:10px;color:#929b96}.up{color:var(--green);font-weight:700}.warn{color:var(--amber);font-weight:700}.red{color:var(--red);font-weight:700}.dashboard-grid{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(260px,1fr);gap:14px;margin-bottom:14px}.panel{background:white;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}.panel-head{display:flex;align-items:center;justify-content:space-between;padding:15px 17px;border-bottom:1px solid #f0f2f0}.panel-title{font:700 13px 'Manrope',sans-serif}.panel-sub{font-size:10px;color:#949c97;margin-top:4px}.link-btn{border:0;background:transparent;color:var(--green);font-size:10px;font-weight:700}.chart-wrap{padding:14px 17px 11px}.chart-legend{display:flex;gap:16px;font-size:10px;color:#77817a}.legend-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px}.chart{height:154px;width:100%;overflow:visible}.chart text{font-family:'DM Sans';font-size:9px;fill:#9aa49d}.chart .gridline{stroke:#eef1ee;stroke-width:1}.chart .area{fill:url(#areaFill)}.chart .line{fill:none;stroke:#24805a;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}.chart .line2{fill:none;stroke:#d3a14f;stroke-width:1.8;stroke-dasharray:4 4}.health-wrap{padding:15px 17px}.health-score{display:flex;align-items:center;gap:15px}.ring{width:85px;height:85px;position:relative;display:grid;place-items:center}.ring svg{transform:rotate(-90deg)}.ring strong{position:absolute;font:800 19px 'Manrope',sans-serif}.health-desc b{font-size:12px}.health-desc p{font-size:10px;line-height:1.55;color:#89938d;margin:4px 0 0}.health-list{margin-top:17px;display:grid;gap:10px}.health-row{display:grid;grid-template-columns:1fr auto;align-items:center;font-size:10px;color:#68756c}.health-row b{font-size:10px;color:#344239}.mini-bar{grid-column:1/3;height:4px;background:#eef2ef;border-radius:4px;margin-top:-5px;overflow:hidden}.mini-bar i{display:block;height:100%;border-radius:4px;background:#46936a}.mini-bar .amber-fill{background:#d6a64f}.mini-bar .red-fill{background:#db7970}.bottom-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(270px,1fr);gap:14px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap}th{text-align:left;font-size:9px;color:#929b95;font-weight:700;letter-spacing:.35px;padding:11px 15px;background:#fcfdfc;border-bottom:1px solid #eef0ee}td{padding:10px 15px;border-bottom:1px solid #f0f2f0;font-size:10px;color:#455148}tr:last-child td{border:0}.asset-cell{display:flex;align-items:center;gap:8px}.device-icon{width:25px;height:25px;border-radius:7px;background:#eef4f0;display:grid;place-items:center;font-size:12px}.asset-name{font-weight:700;color:#2c3930}.asset-id{font-size:9px;color:#99a19b;margin-top:2px}.status{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border-radius:20px;font-size:9px;font-weight:700}.status:before{content:'';height:5px;width:5px;border-radius:50%;background:currentColor}.status.online,.status.healthy{background:#e8f5ec;color:#288153}.status.offline,.status.critical{background:#fff0ee;color:#d15e52}.status.warning{background:#fff6e7;color:#b9852d}.status.maintenance{background:#eef1f6;color:#64748b}.alert-list{padding:3px 15px 8px}.alert-item{padding:12px 0;display:flex;gap:9px;border-bottom:1px solid #f0f2f0}.alert-item:last-child{border:0}.alert-mark{width:23px;height:23px;flex:none;border-radius:7px;background:#fff1eb;color:#cb684a;display:grid;place-items:center;font-size:11px}.alert-item:nth-child(2) .alert-mark{background:#fff6e8;color:#bd8b32}.alert-item:nth-child(3) .alert-mark{background:#edf5ee;color:#418658}.alert-text{font-size:10px;line-height:1.5;color:#566259}.alert-text b{color:#303d34}.alert-time{font-size:9px;color:#a0a7a2;margin-top:3px}.section-toolbar{display:flex;gap:8px;padding:13px 15px;border-bottom:1px solid #eef0ee;align-items:center}.filter-input{border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:10px;min-width:180px;outline:none}.filter-select{border:1px solid var(--line);border-radius:7px;padding:8px 10px;background:#fff;font-size:10px;color:#67736a}.toolbar-spacer{flex:1}.view{display:none}.view.active{display:block}.kpis{display:flex;gap:9px;margin-bottom:14px}.kpi-pill{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-size:10px;color:#78837c}.kpi-pill b{font-size:12px;color:#344239;margin-left:5px}.dept-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.dept-card{padding:16px}.dept-top{display:flex;justify-content:space-between;align-items:center}.dept-code{background:#eaf3ed;color:#397653;padding:6px 8px;border-radius:7px;font-size:10px;font-weight:800}.dept-card h3{font:700 13px 'Manrope',sans-serif;margin:11px 0 5px}.dept-card p{margin:0;color:#929b95;font-size:10px}.dept-stats{display:flex;gap:20px;margin-top:14px}.dept-stats strong{font-size:14px;display:block}.dept-stats span{font-size:9px;color:#929b95}.user-row{display:flex;align-items:center;gap:8px}.user-avatar{width:25px;height:25px;display:grid;place-items:center;background:#f0eee9;border-radius:50%;font-size:9px;font-weight:800;color:#586257}.user-name{font-weight:700;color:#303b34}.user-email{font-size:9px;color:#98a099}.software-icon{width:27px;height:27px;display:grid;place-items:center;border-radius:7px;background:#edf3fc;color:#5376a9;font-weight:800;font-size:10px}.monitor-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}.monitor-tile{padding:15px}.monitor-tile-top{display:flex;justify-content:space-between;color:#7b857e;font-size:10px}.monitor-big{font:800 23px 'Manrope',sans-serif;margin:10px 0 4px}.monitor-small{font-size:10px;color:#939c96}.spark{height:30px;display:flex;align-items:end;gap:3px;margin-top:13px}.spark i{flex:1;background:#b8d9c3;border-radius:3px 3px 0 0}.spark i:last-child{background:#398b5c}.site-overview{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.site-tile{border:1px solid var(--line);border-radius:9px;padding:12px}.site-tile-head{display:flex;align-items:center;justify-content:space-between;font-weight:800;font-size:11px}.site-live{display:inline-flex;align-items:center;gap:5px;color:var(--green);font-size:9px;font-weight:700}.site-live i{width:6px;height:6px;border-radius:50%;background:#4ca66b}.site-tile p{font-size:9px;color:#8c968f;margin:8px 0 0}.site-tile strong{color:#364239}.empty-state{padding:38px;text-align:center;color:#89938d;font-size:11px}.modal-backdrop{position:fixed;inset:0;background:#16231dc0;display:none;align-items:center;justify-content:center;z-index:30;padding:16px}.modal-backdrop.open{display:flex}.modal{width:min(520px,100%);background:white;border-radius:14px;padding:22px;box-shadow:0 20px 60px #0003}.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.modal-head h2{font:800 18px 'Manrope',sans-serif;margin:0}.close{border:0;background:#f1f3f1;width:28px;height:28px;border-radius:7px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:grid;gap:5px}.field.full{grid-column:1/-1}.field label{font-size:10px;font-weight:700;color:#69756d}.field input,.field select{border:1px solid var(--line);border-radius:7px;padding:9px;font-size:11px;outline:none}.field input:focus,.field select:focus,.filter-input:focus{border-color:#7fac8d}.modal-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}.toast{position:fixed;right:22px;bottom:22px;background:#1d3024;color:white;padding:12px 16px;border-radius:9px;box-shadow:0 8px 28px #15241d33;z-index:40;font-size:11px;transform:translateY(10px);opacity:0;transition:.22s;pointer-events:none}.toast.show{transform:translateY(0);opacity:1}.mobile-menu{display:none}
 @media(max-width:1100px){.content{padding:24px}.topbar{padding:0 24px}.grid-4{grid-template-columns:repeat(2,1fr)}.dept-grid{grid-template-columns:repeat(2,1fr)}.dashboard-grid,.bottom-grid{grid-template-columns:1fr}.site-overview{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:680px){.sidebar{width:70px;padding:18px 9px}.brand{padding:0 7px 25px}.brand-name,.brand-sub,.org-label,.nav-label,.nav-badge,.help-card,.profile-name,.profile-role,.profile-dots{display:none}.brand-mark{width:36px}.nav button{justify-content:center;padding:11px 7px}.nav .ico{font-size:17px}.profile{justify-content:center;padding:14px 0 0}.main{margin-left:70px;width:calc(100% - 70px)}.topbar{height:58px;padding:0 13px;gap:8px}.crumb{display:none}.site-select{max-width:110px;font-size:10px;padding:7px}.search{width:min(42vw,190px)}.topbar .top-spacer{flex:1}.content{padding:20px 14px}.page-head{align-items:flex-start;gap:12px;flex-direction:column}.page-head h1{font-size:22px}.head-actions{width:100%}.head-actions .btn{flex:1}.grid-4{gap:8px}.metric{padding:12px}.metric-value{font-size:22px}.metric-top{font-size:9px}.metric-foot{font-size:9px}.site-strip{overflow:auto}.dashboard-grid,.bottom-grid{gap:10px}.monitor-cards{grid-template-columns:1fr}.category-grid{grid-template-columns:repeat(3,1fr)}.dept-grid{grid-template-columns:1fr}.site-overview{grid-template-columns:1fr 1fr}.kpis{overflow:auto}.section-toolbar{flex-wrap:wrap}.filter-input{min-width:100%;flex:1}.toolbar-spacer{display:none}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.ticket-form-grid{grid-template-columns:1fr}.ticket-identity{grid-template-columns:repeat(2,1fr)}.ticket-filter-strip{flex-wrap:wrap}.panel-head{padding:13px}.chart-wrap{padding:10px}.site-chip{white-space:nowrap}}
 .settings-panel{margin-bottom:14px}.settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;padding:16px 18px}.settings-toggle,.check-row{display:flex;align-items:center;gap:9px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:12px;color:var(--ink)}.settings-toggle input,.check-row input{accent-color:var(--green)}.settings-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start;margin-bottom:14px}.settings-panel{margin-bottom:14px;min-width:0}.settings-cat-row{display:grid;grid-template-columns:24px 1fr auto;gap:8px 12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);font-size:12px}.settings-cat-row.dragging{opacity:.45;background:#f2faf5}.settings-cat-subgrid{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}[data-module-access="read"] .head-actions .primary,[data-module-access="read"] .row-actions button,[data-module-access="read"] #invoiceAdd,[data-module-access="read"] #vendorAdd,[data-module-access="read"] #vendorAddTop,[data-module-access="read"] #saveFactoryOrderBtn,[data-module-access="read"] #ticketFormCard,[data-module-access="read"] #ticketingBackendButton,[data-module-access="read"] button[onclick*="add" i],[data-module-access="read"] button[onclick*="edit" i],[data-module-access="read"] button[onclick*="delete" i],[data-module-access="read"] button[onclick*="remove" i],[data-module-access="read"] button[onclick*="openModal" i],[data-module-access="read"] button[onclick*="openPart" i],[data-module-access="read"] button[onclick*="openFaulty" i],[data-module-access="read"] button[onclick*="openRepair" i],[data-module-access="read"] button[onclick*="openMaintenance" i],[data-module-access="read"] button[onclick*="movePart" i],[data-module-access="read"] button[onclick*="returnPart" i],[data-module-access="read"] button[onclick*="rename" i],[data-module-access="read"] button[onclick*="promptCreatePartGroup" i]{display:none!important}.settings-list{padding:8px 18px 16px}.settings-list-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:12px}.settings-list-row button{border:0;background:none;color:#ba5b51;cursor:pointer}.settings-panel .field{display:grid;gap:6px;margin:12px 18px;font-size:11px;color:var(--muted)}.settings-panel .field input,.settings-panel .field select{padding:9px;border:1px solid var(--line);border-radius:8px}.settings-panel>.check-row{margin:0 18px 16px}@media(max-width:800px){.settings-columns{grid-template-columns:1fr}}.login-brand-logo[hidden]{display:none!important}.login-brand-logo{max-width:170px;max-height:58px;object-fit:contain}.login-wordmark #loginBrandName{font:italic 42px Georgia,serif;color:#9a651a;margin:4px auto auto}.login-wordmark .login-brand-logo{display:block;margin:0 auto 8px;max-width:210px;max-height:72px}.login-visual.photo-mode{background-size:cover;background-position:center}.login-dots button{width:9px;height:9px;border:0;border-radius:50%;padding:0;background:#ffffff80;cursor:pointer}.login-dots button.active{width:29px;border-radius:8px;background:#fff}.login-brand-slides-preview{display:flex;gap:8px;flex-wrap:wrap;min-height:40px;align-items:center}.login-brand-thumb{position:relative;width:74px;height:54px;border:1px solid var(--line);border-radius:8px;overflow:hidden}.login-brand-thumb img{width:100%;height:100%;object-fit:cover}.login-brand-thumb button{position:absolute;right:3px;top:3px;border:0;border-radius:50%;background:#17251ecc;color:white;width:20px;height:20px;cursor:pointer}.profile-menu-wrap{position:relative}.top-profile{height:36px;border:1px solid var(--line);border-radius:20px;background:#fff;display:flex;align-items:center;gap:8px;padding:3px 10px 3px 4px;color:#344239;font-size:11px;font-weight:700}.top-avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:#dcebdc;color:#285237;font-weight:800}.top-avatar img{width:100%;height:100%;object-fit:cover}.profile-menu{position:absolute;right:0;top:44px;width:220px;padding:7px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 35px #17251e22;z-index:30}.profile-menu[hidden]{display:none}.profile-menu-heading{padding:10px 11px;border-bottom:1px solid var(--line);display:grid;gap:3px}.profile-menu-heading small{color:var(--muted);font-size:10px}.profile-menu button{display:block;width:100%;border:0;background:#fff;text-align:left;padding:10px 11px;border-radius:7px;color:var(--ink);font-size:11px}.profile-menu button:hover{background:#f2f6f3}.profile-menu button.profile-menu-logout{color:#b53d38;border-top:1px solid var(--line);border-radius:0 0 7px 7px}@media(max-width:650px){.top-profile #topProfileName{display:none}.topbar{gap:6px}.top-profile{padding-right:6px}}.login-visual-brand,.login-wordmark{display:none!important}.login-footer{visibility:hidden}#view-assets .table-wrap{overscroll-behavior-x:contain}#view-assets table{table-layout:fixed}#view-assets th{position:relative}#view-assets td{overflow:hidden;text-overflow:ellipsis}.asset-col-resize{position:absolute;right:-3px;top:0;width:8px;height:100%;cursor:col-resize;touch-action:none;z-index:2}.asset-col-resize:after{content:"";position:absolute;left:3px;top:25%;height:50%;border-left:2px solid transparent}.asset-col-resize:hover:after,.asset-col-resizing .asset-col-resize:after{border-color:#16815a}.asset-col-resizing{cursor:col-resize!important;user-select:none!important}/* Asset form: wider, evenly rounded modal and interface rows that stay inside it. */
@@ -524,6 +524,10 @@
     z-index: 9990;
     box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.08);
   }
+  #appShell[style*="none"] ~ #mobileBottomNav,
+  body:not(.ns-authenticated) #mobileBottomNav {
+    display: none !important;
+  }
   .mb-nav-item {
     flex: 1;
     display: flex;
@@ -923,7 +927,7 @@
     <div style="font-size:11px;font-weight:700;color:#157a54;background:#eefcf4;padding:4px 10px;border-radius:20px;border:1px solid #ccebd7" id="tfFactoryTotalBadge">0 Factories Active</div>
   </div>
   <div class="val-tiles-grid" id="tfFactoryTilesGrid"></div>
-</div><div class="panel" id="ticketFormCard" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">✎ &nbsp;Submit a new IT ticket / material request</div><div class="panel-sub">Your mapped employee, department and factory details are filled in automatically.</div></div><span class="status warning" id="identityStatus">Signed in</span></div><div style="padding:16px 18px 18px"><div style="font-size:10px;font-weight:700;color:#707d74;margin-bottom:8px">REQUEST TYPE</div><label class="ticket-choice"><input type="radio" name="requestKind" value="IT help desk" checked> 🧰 IT issue / help desk</label><label class="ticket-choice"><input type="radio" name="requestKind" value="Material request"> 📦 IT material request</label><div style="font-size:10px;font-weight:700;color:#707d74;margin:12px 0 7px">PRIMARY CATEGORY</div><div id="primaryCategories"><label class="ticket-choice"><input type="radio" name="primaryCategory" value="ERP / Software / Manufacturing" checked> 📊 ERP / Software / Manufacturing</label><label class="ticket-choice"><input type="radio" name="primaryCategory" value="Network / Hardware"> 🖥️ Network / Hardware</label></div><div class="ticket-subcats"><div class="ticket-subcats-title">Select sub-category</div><div id="ticketSubcats" style="display:flex;flex-wrap:wrap;gap:7px"></div></div><div class="ticket-identity"><div><span>YOUR NAME</span><b id="ticketIdentityName">Suneel Maurya</b></div><div><span>DEPARTMENT</span><b id="ticketIdentityDept">INDO OFFICE</b></div><div><span>FACTORY / LOCATION</span><b id="ticketIdentitySite">ARG</b></div><div><span>DEVICE IP · MAPPED</span><b id="ticketIdentityIp">192.168.130.3</b></div></div><form id="ticketForm"><div class="ticket-form-grid"><div class="field full" id="materialFields" style="display:none"><label>Requested item / quantity / justification</label><input name="material" placeholder="e.g. USB-C dock · qty 2 · required for new workstations"></div><div class="field full"><label>Describe your issue in detail *</label><textarea class="filter-input ticket-description" name="description" required placeholder="Describe the problem, what you were trying to do, and any error message..."></textarea></div><div class="field full"><label>Attach screenshots (up to 3)</label><input id="ticketFiles" type="file" accept="image/*" multiple class="filter-input"><div id="ticketFileNames" class="ticket-meta"></div></div></div><div style="display:flex;gap:8px;align-items:center;margin-top:12px"><span class="ticket-meta">A ticket number will be generated automatically.</span><button class="btn primary" style="margin-left:auto;min-width:210px">↥ &nbsp;Submit IT ticket</button></div></form></div></div><div class="ns-section-tabs" id="ticketsSectionTabs"><button type="button" class="ns-sec-tab active" data-ticket-tab="IT help desk" onclick="switchTicketsTab('IT help desk')">🧰 IT Support Tickets <span class="ns-tab-badge" id="tabItTicketsCount">0</span></button><button type="button" class="ns-sec-tab" data-ticket-tab="Material request" onclick="switchTicketsTab('Material request')">📦 IT Material Requests &amp; Parts Status <span class="ns-tab-badge" id="tabMatReqCount">0</span></button></div><div class="panel" id="ticketsQueuePanel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">🌐 &nbsp;Live IT Support Tickets Queue</div><div class="panel-sub">All IT help-desk issues (Material Requests are tracked separately in the Material Requests tab).</div></div><button class="btn" onclick="renderTickets();showToast('Ticket list refreshed')">↻ &nbsp;Refresh</button></div><div style="padding:0 15px 14px"><div class="ticket-filter-strip"><span class="ticket-meta" style="font-weight:700">FILTER</span><select class="filter-select" id="ticketKindFilter" style="display:none"><option value="">All tickets & requests</option><option>IT help desk</option><option>Material request</option></select><select class="filter-select" id="ticketStatusFilter"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select><select class="filter-select" id="ticketCategoryFilter"><option value="">All categories</option><option>ERP / Software / Manufacturing</option><option>Network / Hardware</option></select><select class="filter-select" id="ticketSiteFilter"><option value="">All factories</option><option>ARG</option><option>ARB</option><option>ARC</option><option>ARF</option></select><input class="filter-input" id="ticketSearch" placeholder="Search ticket, user or issue..." style="min-width:180px"></div><div class="table-wrap"><table class="ticket-table"><thead><tr><th>TICKET</th><th>USER · DEPT · FACTORY</th><th>CATEGORY / SUB</th><th>ISSUE</th><th>ASSIGNED TO</th><th>STATUS</th><th>ETA</th><th>NOTE / REMARK</th><th>UPDATED</th></tr></thead><tbody id="ticketTable"></tbody></table></div></div></div><div class="panel" id="materialRequestsPanel" style="display:none;margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">📦 &nbsp;IT Material Requests &amp; Parts Inventory Status</div><div class="panel-sub">Track every hardware/material request separately and verify parts issued against it from Parts Inventory.</div></div><button class="btn" onclick="renderTickets();showToast('Material request list refreshed')">↻ &nbsp;Refresh</button></div><div style="padding:0 15px 14px"><div class="ticket-filter-strip"><span class="ticket-meta" style="font-weight:700">FILTER MATERIAL REQUESTS</span><select class="filter-select" id="mrUserStatusFilter" onchange="renderTickets()"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select><select class="filter-select" id="mrUserSiteFilter" onchange="renderTickets()"><option value="">All factories</option></select><input class="filter-input" id="mrUserSearch" placeholder="Search request ID, item, user..." style="min-width:200px" oninput="renderTickets()"></div><div class="table-wrap"><table class="ticket-table"><thead><tr><th>REQUEST ID</th><th>REQUESTER · DEPT · FACTORY</th><th>CATEGORY</th><th>REQUESTED ITEM &amp; REASON</th><th>ASSIGNED TO</th><th>STATUS</th><th>PARTS INVENTORY FULFILLMENT</th><th>ETA &amp; UPDATED</th></tr></thead><tbody id="materialUserTable"></tbody></table></div></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">How auto-identification works</div><div class="panel-sub">Manual IP mapping previews the flow; secure login and user accounts are managed by your administrator.</div></div><button class="link-btn" onclick="openIpManager()">Manage mappings →</button></div><div class="health-wrap"><div class="site-overview"><div class="site-tile"><div class="site-tile-head">1 · Map workstation IP</div><p>Admin registers a trusted device IP against a user, department and factory.</p></div><div class="site-tile"><div class="site-tile-head">2 · Verify identity</div><p>Users sign in with their local application account.</p></div><div class="site-tile"><div class="site-tile-head">3 · Open request link</div><p>Signed-in users get their mapped name, department and site prefilled in the issue form.</p></div><div class="site-tile"><div class="site-tile-head">4 · Track to closure</div><p>IT updates assignee, status, work notes and expected completion time in the live queue.</p></div></div></div></div></section><section class="view" id="view-ticketing"><div class="page-head"><div><div class="eyebrow">IT operations · Backend workbench</div><h1>Ticketing backend &amp; settings</h1><p>Manage IT Tickets, fulfill Material Requests from Parts Inventory, and configure dynamic Categories &amp; Sub-categories.</p></div><div class="head-actions"><button class="btn" onclick="refreshServerTickets().then(()=>renderTicketingBackend())">↻ &nbsp;Refresh</button></div></div><div class="ns-section-tabs" id="ticketingBackendTabs"><button type="button" class="ns-sec-tab active" data-backend-tab="tickets" onclick="switchTicketingBackendTab('tickets')">🎫 IT Support Tickets <span class="ns-tab-badge" id="beItTicketsBadge">0</span></button><button type="button" class="ns-sec-tab" data-backend-tab="materials" onclick="switchTicketingBackendTab('materials')">📦 Material Requests &amp; Parts Issue <span class="ns-tab-badge" id="beMatReqBadge">0</span></button><button type="button" class="ns-sec-tab" data-backend-tab="settings" onclick="switchTicketingBackendTab('settings')">⚙ Ticketing Settings &amp; Categories</button></div><div class="panel" id="ticketingTabTickets"><div class="section-toolbar"><input class="filter-input" id="ticketingSearch" placeholder="Search ticket, user or issue"><select class="filter-select" id="ticketingKind" style="display:none"><option value="IT help desk">IT help desk</option></select><select class="filter-select" id="ticketingCatFilter" onchange="renderTicketingBackend()"><option value="">All primary categories</option></select><select class="filter-select" id="ticketingStatus"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select></div><div id="beTicketBulkBar" class="ns-bulk-bar"><div id="beTicketBulkSummary"><b>0</b> tickets selected</div><div class="ns-bulk-actions"><button type="button" class="btn" onclick="clearTicketingSelection('tickets')">Clear selection</button><button type="button" class="btn danger" onclick="bulkDeleteTicketingRecords('tickets')">🗑 &nbsp;Delete selected (<span id="beTicketBulkCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="beTicketSelectAll" aria-label="Select all visible IT tickets"></th><th>TICKET / CREATED</th><th>REQUESTER / FACTORY / DEPT</th><th>ISSUE</th><th>ASSIGN TO</th><th>STATUS</th><th>ETA</th><th>WORK UPDATE</th><th>ACTIONS</th></tr></thead><tbody id="ticketingTable"></tbody></table></div></div><div class="panel" id="ticketingTabMaterials" style="display:none"><div class="section-toolbar"><input class="filter-input" id="beMrSearch" placeholder="Search request ID, item, requester..." oninput="renderTicketingBackend()"><select class="filter-select" id="beMrSite" onchange="renderTicketingBackend()"><option value="">All factories</option></select><select class="filter-select" id="beMrStatus" onchange="renderTicketingBackend()"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select></div><div id="beMrBulkBar" class="ns-bulk-bar"><div id="beMrBulkSummary"><b>0</b> material requests selected</div><div class="ns-bulk-actions"><button type="button" class="btn" onclick="clearTicketingSelection('materials')">Clear selection</button><button type="button" class="btn danger" onclick="bulkDeleteTicketingRecords('materials')">🗑 &nbsp;Delete selected (<span id="beMrBulkCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="beMrSelectAll" aria-label="Select all visible material requests"></th><th>REQUEST / CREATED</th><th>REQUESTER / FACTORY / DEPT</th><th>CATEGORY &amp; ITEM NEEDED</th><th>ASSIGN / STATUS / ETA</th><th>PARTS INVENTORY ISSUED</th><th>FULFILL FROM INVENTORY / WORK</th></tr></thead><tbody id="ticketingMaterialTable"></tbody></table></div></div><div id="ticketingTabSettings" style="display:none"></div></section><section class="view" id="view-users"><div class="page-head"><div><div class="eyebrow">People · Access · Security</div><h1>People, users &amp; access</h1><p>Manage employees, sign-in accounts, module permissions, and account recovery.</p></div><div class="head-actions"><button class="btn" type="button" onclick="exportEmployeeRegister()">↓ &nbsp;Export employee register</button><button class="btn primary" onclick="addUser()">＋ &nbsp;Add user / administrator</button></div></div><div class="kpis"><div class="kpi-pill">Active users <b>0</b></div><div class="kpi-pill">With assigned assets <b>0</b></div><div class="kpi-pill">No assigned devices <b>0</b></div><div class="kpi-pill">Login accounts <b>0</b></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="userSearch" placeholder="⌕  Search name, email or employee ID..."><select class="filter-select" id="userDeptFilter"><option value="">All departments</option></select><select class="filter-select" id="userSiteFilter"><option value="">All factories</option></select><select class="filter-select" id="userEmploymentFilter"><option value="">All employment statuses</option><option>Active</option><option>On leave</option><option>Inactive</option></select></div><div class="table-wrap"><table><thead><tr><th>EMPLOYEE</th><th>EMPLOYEE ID / LOGIN</th><th>DATE OF BIRTH</th><th>DEPARTMENT</th><th>FACTORY</th><th>IP / NETWORK STATUS</th><th>ASSETS</th><th>SOFTWARE</th><th>LAST ACTIVE</th><th>ROLE &amp; ACCESS</th></tr></thead><tbody id="userTable"></tbody></table></div></div>
+</div><div class="panel" id="ticketFormCard" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">✎ &nbsp;Submit a new support ticket / material request</div><div class="panel-sub">Choose complaint department &amp; issue category. Your mapped employee, department and factory details are filled in automatically.</div></div><span class="status warning" id="identityStatus">Signed in</span></div><div style="padding:16px 18px 18px"><div id="helpdeskDeskSelectorWrap" style="margin-bottom:12px;padding:10px 12px;border:1px solid #d5e5dc;border-radius:10px;background:#f7fbf8"><div style="font-size:10px;font-weight:800;color:#145b40;margin-bottom:7px;letter-spacing:.4px">COMPLAINT DEPARTMENT / SERVICE DESK *</div><div id="helpdeskDeskPills" style="display:flex;flex-wrap:wrap;gap:7px"></div></div><div style="font-size:10px;font-weight:700;color:#707d74;margin-bottom:8px">REQUEST TYPE</div><label class="ticket-choice"><input type="radio" name="requestKind" value="IT help desk" checked> <span id="hdKindServiceLabel">🧰 Service / Complaint Ticket</span></label><label class="ticket-choice" id="hdKindMaterialWrap"><input type="radio" name="requestKind" value="Material request"> <span id="hdKindMaterialLabel">📦 Material Request</span></label><div style="font-size:10px;font-weight:700;color:#707d74;margin:12px 0 7px">PRIMARY CATEGORY</div><div id="primaryCategories"><label class="ticket-choice"><input type="radio" name="primaryCategory" value="ERP / Software / Manufacturing" checked> 📊 ERP / Software / Manufacturing</label><label class="ticket-choice"><input type="radio" name="primaryCategory" value="Network / Hardware"> 🖥️ Network / Hardware</label></div><div class="ticket-subcats"><div class="ticket-subcats-title">Select sub-category</div><div id="ticketSubcats" style="display:flex;flex-wrap:wrap;gap:7px"></div></div><div class="ticket-identity"><div><span>YOUR NAME</span><b id="ticketIdentityName">Suneel Maurya</b></div><div><span>DEPARTMENT</span><b id="ticketIdentityDept">INDO OFFICE</b></div><div><span>FACTORY / LOCATION</span><b id="ticketIdentitySite">ARG</b></div><div><span>DEVICE IP · MAPPED</span><b id="ticketIdentityIp">192.168.130.3</b></div></div><form id="ticketForm"><div class="ticket-form-grid"><div class="field full" id="materialFields" style="display:none"><label>Requested item / quantity / justification</label><input name="material" placeholder="e.g. USB-C dock · qty 2 · required for new workstations"></div><div class="field full"><label>Describe your issue in detail *</label><textarea class="filter-input ticket-description" name="description" required placeholder="Describe the problem, what you were trying to do, and any error message..."></textarea></div><div class="field full"><label>Attach screenshots (up to 3)</label><input id="ticketFiles" type="file" accept="image/*" multiple class="filter-input"><div id="ticketFileNames" class="ticket-meta"></div></div></div><div style="display:flex;gap:8px;align-items:center;margin-top:12px"><span class="ticket-meta">A ticket number will be generated automatically.</span><button class="btn primary" style="margin-left:auto;min-width:210px">↥ &nbsp;Submit IT ticket</button></div></form></div></div><div class="ns-section-tabs" id="ticketsSectionTabs"><button type="button" class="ns-sec-tab active" data-ticket-tab="IT help desk" onclick="switchTicketsTab('IT help desk')">🧰 IT Support Tickets <span class="ns-tab-badge" id="tabItTicketsCount">0</span></button><button type="button" class="ns-sec-tab" data-ticket-tab="Material request" onclick="switchTicketsTab('Material request')">📦 IT Material Requests &amp; Parts Status <span class="ns-tab-badge" id="tabMatReqCount">0</span></button></div><div class="panel" id="ticketsQueuePanel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title" id="hdLiveQueueTitle">🌐 &nbsp;Live Support Tickets Queue</div><div class="panel-sub" id="hdLiveQueueSub">Support tickets (Material Requests are tracked separately in the Material Requests tab).</div></div><button class="btn" onclick="renderTickets();showToast('Ticket list refreshed')">↻ &nbsp;Refresh</button></div><div style="padding:0 15px 14px"><div class="ticket-filter-strip"><span class="ticket-meta" style="font-weight:700">FILTER</span><select class="filter-select" id="ticketDeskFilter"><option value="">All allowed departments</option></select><select class="filter-select" id="ticketKindFilter" style="display:none"><option value="">All tickets & requests</option><option>IT help desk</option><option>Material request</option></select><select class="filter-select" id="ticketStatusFilter"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select><select class="filter-select" id="ticketCategoryFilter"><option value="">All categories</option><option>ERP / Software / Manufacturing</option><option>Network / Hardware</option></select><select class="filter-select" id="ticketSiteFilter"><option value="">All factories</option><option>ARG</option><option>ARB</option><option>ARC</option><option>ARF</option></select><input class="filter-input" id="ticketSearch" placeholder="Search ticket, user or issue..." style="min-width:180px"></div><div class="table-wrap"><table class="ticket-table"><thead><tr><th>TICKET</th><th>USER · DEPT · FACTORY</th><th>CATEGORY / SUB</th><th>ISSUE</th><th>ASSIGNED TO</th><th>STATUS</th><th>ETA</th><th>NOTE / REMARK</th><th>UPDATED</th></tr></thead><tbody id="ticketTable"></tbody></table></div></div></div><div class="panel" id="materialRequestsPanel" style="display:none;margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">📦 &nbsp;IT Material Requests &amp; Parts Inventory Status</div><div class="panel-sub">Track every hardware/material request separately and verify parts issued against it from Parts Inventory.</div></div><button class="btn" onclick="renderTickets();showToast('Material request list refreshed')">↻ &nbsp;Refresh</button></div><div style="padding:0 15px 14px"><div class="ticket-filter-strip"><span class="ticket-meta" style="font-weight:700">FILTER MATERIAL REQUESTS</span><select class="filter-select" id="mrUserStatusFilter" onchange="renderTickets()"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select><select class="filter-select" id="mrUserSiteFilter" onchange="renderTickets()"><option value="">All factories</option></select><input class="filter-input" id="mrUserSearch" placeholder="Search request ID, item, user..." style="min-width:200px" oninput="renderTickets()"></div><div class="table-wrap"><table class="ticket-table"><thead><tr><th>REQUEST ID</th><th>REQUESTER · DEPT · FACTORY</th><th>CATEGORY</th><th>REQUESTED ITEM &amp; REASON</th><th>ASSIGNED TO</th><th>STATUS</th><th>PARTS INVENTORY FULFILLMENT</th><th>ETA &amp; UPDATED</th></tr></thead><tbody id="materialUserTable"></tbody></table></div></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">How auto-identification works</div><div class="panel-sub">Manual IP mapping previews the flow; secure login and user accounts are managed by your administrator.</div></div><button class="link-btn" onclick="openIpManager()">Manage mappings →</button></div><div class="health-wrap"><div class="site-overview"><div class="site-tile"><div class="site-tile-head">1 · Map workstation IP</div><p>Admin registers a trusted device IP against a user, department and factory.</p></div><div class="site-tile"><div class="site-tile-head">2 · Verify identity</div><p>Users sign in with their local application account.</p></div><div class="site-tile"><div class="site-tile-head">3 · Open request link</div><p>Signed-in users get their mapped name, department and site prefilled in the issue form.</p></div><div class="site-tile"><div class="site-tile-head">4 · Track to closure</div><p>IT updates assignee, status, work notes and expected completion time in the live queue.</p></div></div></div></div></section><section class="view" id="view-ticketing"><div class="page-head"><div><div class="eyebrow">IT operations · Backend workbench</div><h1>Ticketing backend &amp; settings</h1><p>Manage IT Tickets, fulfill Material Requests from Parts Inventory, and configure dynamic Categories &amp; Sub-categories.</p></div><div class="head-actions"><button class="btn" onclick="refreshServerTickets().then(()=>renderTicketingBackend())">↻ &nbsp;Refresh</button></div></div><div class="ns-section-tabs" id="ticketingBackendTabs"><button type="button" class="ns-sec-tab active" data-backend-tab="tickets" onclick="switchTicketingBackendTab('tickets')">🎫 IT Support Tickets <span class="ns-tab-badge" id="beItTicketsBadge">0</span></button><button type="button" class="ns-sec-tab" data-backend-tab="materials" onclick="switchTicketingBackendTab('materials')">📦 Material Requests &amp; Parts Issue <span class="ns-tab-badge" id="beMatReqBadge">0</span></button><button type="button" class="ns-sec-tab" data-backend-tab="settings" onclick="switchTicketingBackendTab('settings')">⚙ Ticketing Settings &amp; Categories</button></div><div class="panel" id="ticketingTabTickets"><div class="section-toolbar"><input class="filter-input" id="ticketingSearch" placeholder="Search ticket, user or issue"><select class="filter-select" id="ticketingDeskFilter" onchange="renderTicketingBackend()"><option value="">All allowed desks</option></select><select class="filter-select" id="ticketingKind" style="display:none"><option value="IT help desk">IT help desk</option></select><select class="filter-select" id="ticketingCatFilter" onchange="renderTicketingBackend()"><option value="">All primary categories</option></select><select class="filter-select" id="ticketingStatus"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select></div><div id="beTicketBulkBar" class="ns-bulk-bar"><div id="beTicketBulkSummary"><b>0</b> tickets selected</div><div class="ns-bulk-actions"><button type="button" class="btn" onclick="clearTicketingSelection('tickets')">Clear selection</button><button type="button" class="btn danger" onclick="bulkDeleteTicketingRecords('tickets')">🗑 &nbsp;Delete selected (<span id="beTicketBulkCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="beTicketSelectAll" aria-label="Select all visible IT tickets"></th><th>TICKET / CREATED</th><th>REQUESTER / FACTORY / DEPT</th><th>ISSUE</th><th>ASSIGN TO</th><th>STATUS</th><th>ETA</th><th>WORK UPDATE</th><th>ACTIONS</th></tr></thead><tbody id="ticketingTable"></tbody></table></div></div><div class="panel" id="ticketingTabMaterials" style="display:none"><div class="section-toolbar"><input class="filter-input" id="beMrSearch" placeholder="Search request ID, item, requester..." oninput="renderTicketingBackend()"><select class="filter-select" id="beMrSite" onchange="renderTicketingBackend()"><option value="">All factories</option></select><select class="filter-select" id="beMrStatus" onchange="renderTicketingBackend()"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select></div><div id="beMrBulkBar" class="ns-bulk-bar"><div id="beMrBulkSummary"><b>0</b> material requests selected</div><div class="ns-bulk-actions"><button type="button" class="btn" onclick="clearTicketingSelection('materials')">Clear selection</button><button type="button" class="btn danger" onclick="bulkDeleteTicketingRecords('materials')">🗑 &nbsp;Delete selected (<span id="beMrBulkCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="beMrSelectAll" aria-label="Select all visible material requests"></th><th>REQUEST / CREATED</th><th>REQUESTER / FACTORY / DEPT</th><th>CATEGORY &amp; ITEM NEEDED</th><th>ASSIGN / STATUS / ETA</th><th>PARTS INVENTORY ISSUED</th><th>FULFILL FROM INVENTORY / WORK</th></tr></thead><tbody id="ticketingMaterialTable"></tbody></table></div></div><div id="ticketingTabSettings" style="display:none"></div></section><section class="view" id="view-users"><div class="page-head"><div><div class="eyebrow">People · Access · Security</div><h1>People, users &amp; access</h1><p>Manage employees, sign-in accounts, module permissions, and account recovery.</p></div><div class="head-actions"><button class="btn" type="button" onclick="exportEmployeeRegister()">↓ &nbsp;Export employee register</button><button class="btn primary" onclick="addUser()">＋ &nbsp;Add user / administrator</button></div></div><div class="kpis"><div class="kpi-pill">Active users <b>0</b></div><div class="kpi-pill">With assigned assets <b>0</b></div><div class="kpi-pill">No assigned devices <b>0</b></div><div class="kpi-pill">Login accounts <b>0</b></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="userSearch" placeholder="⌕  Search name, email or employee ID..."><select class="filter-select" id="userDeptFilter"><option value="">All departments</option></select><select class="filter-select" id="userSiteFilter"><option value="">All factories</option></select><select class="filter-select" id="userEmploymentFilter"><option value="">All employment statuses</option><option>Active</option><option>On leave</option><option>Inactive</option></select></div><div class="table-wrap"><table><thead><tr><th>EMPLOYEE</th><th>EMPLOYEE ID / LOGIN</th><th>DATE OF BIRTH</th><th>DEPARTMENT</th><th>FACTORY</th><th>IP / NETWORK STATUS</th><th>ASSETS</th><th>SOFTWARE</th><th>LAST ACTIVE</th><th>ROLE &amp; ACCESS</th></tr></thead><tbody id="userTable"></tbody></table></div></div>
 <div class="settings-columns" style="margin-top:14px">
  <div class="panel settings-panel" id="userSecurityPasswordPanel"><div class="panel-head"><div><div class="panel-title">Change local account password</div><div class="panel-sub">Applies to your signed-in Northstar account.</div></div><button type="button" class="btn" onclick="signOutAllDevices()" style="color:#b53d38">Sign out all devices</button></div><form id="changePasswordForm" method="post" action="/api/account/password" class="form-grid" style="padding:16px 18px"><label class="field">Current password<input name="current_password" type="password" autocomplete="current-password" required></label><label class="field">New password<input name="new_password" type="password" autocomplete="new-password" required></label><label class="field">Confirm new password<input name="confirm_password" type="password" autocomplete="new-password" required></label><div class="field" style="align-self:end"><button class="btn primary">Update password</button></div><div id="passwordChangeStatus" class="form-note field full" aria-live="polite">Enter any password of your choice.</div></form></div>
  <div class="panel settings-panel" id="userSecurityRecoveryPanel"><div class="panel-head"><div><div class="panel-title">Password recovery questions</div><div class="panel-sub">Save private answers for account recovery. Answers are hashed and never displayed.</div></div></div><form id="recoveryAnswersForm" method="post" action="/api/account/recovery-answers" class="form-grid" style="padding:16px 18px"><label class="field">Current password<input name="current_password" type="password" autocomplete="current-password" required></label><label class="field">Favourite animal<input name="animal" required minlength="3" maxlength="200" autocomplete="off"></label><label class="field">Favourite colour<input name="colour" required minlength="3" maxlength="200" autocomplete="off"></label><label class="field">Favourite food<input name="food" required minlength="3" maxlength="200" autocomplete="off"></label><div class="field" style="align-self:end"><button class="btn primary" type="submit">Save recovery answers</button></div><div id="recoveryAnswersStatus" class="form-note field full" aria-live="polite">Use answers that are hard for others to guess.</div></form></div>
@@ -964,7 +968,11 @@ let serverMode=false,serverAdmin=false,serverProfile=null;const permissionModule
 const permissionViewMap={dashboard:'overview',assets:'assets',datacenter:'data_center',surveillance:'surveillance',tickets:'tickets',ticketing:'tickets',maintenance:'maintenance',ageing:'ageing',parts:'parts',users:'users',departments:'departments',factories:'factories',software:'software',monitoring:'network',networkmap:'network',snmp:'snmp',notifications:'notifications',reports:'reports',valuation:'valuation',billing:'billing'};
 function effectiveModuleGrant(user,module,isNew=false){if(user?.role==='Administrator')return 'write';let p=user?.module_permissions;if(p&&typeof p==='object')return ['none','read','write'].includes(p[module])?p[module]:'none';if(user?.role==='Viewer')return 'read';if(user?.role==='IT Ticketing')return module==='tickets'?'write':'none';return isNew?'none':'write'}
 function setAllModulePerms(level){document.querySelectorAll('#recordForm select[name^="module_perm_"]').forEach(s=>{s.value=level})}
-function modulePermissionFields(user={},isNew=false){return '<div class="form-section full" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><span>Module permissions</span><span style="display:inline-flex;gap:6px"><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'none\')">All No access</button><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'read\')">All Read only</button><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'write\')">All Read &amp; write</button></span></div><div class="field full form-note">Choose what this account can see and change in each module. No access hides the module; Read only blocks changes; Read &amp; write allows changes. Administrator accounts always have full access.</div><div class="module-permission-grid field full">'+permissionModules.map(([id,label])=>'<label class="module-permission-item"><span>'+esc(label)+'</span><select name="module_perm_'+id+'"><option value="none"'+(effectiveModuleGrant(user,id,isNew)==='none'?' selected':'')+'>No access</option><option value="read"'+(effectiveModuleGrant(user,id,isNew)==='read'?' selected':'')+'>Read only</option><option value="write"'+(effectiveModuleGrant(user,id,isNew)==='write'?' selected':'')+'>Read &amp; write</option></select></label>').join('')+'</div>'}
+function applyTicketDeskOnlyPreset(){document.querySelectorAll('#recordForm select[name^="module_perm_"]').forEach(s=>{s.value=(s.name==='module_perm_tickets'?'write':'none')});const allCb=document.querySelector('#recordForm [name="complaint_desks_all"]');if(allCb){allCb.checked=false;syncDeskPermCheckboxes()}showToast('Set Tickets to Read & write and hid all other modules. Now select allowed complaint department(s).')}
+function syncDeskPermCheckboxes(){const allCb=document.querySelector('#recordForm [name="complaint_desks_all"]');const boxes=[...document.querySelectorAll('#recordForm input[name="complaint_desk_perm"]')];if(!allCb)return;if(allCb.checked){boxes.forEach(b=>{b.checked=true})}boxes.forEach(b=>{b.onchange=()=>{if(!b.checked&&allCb.checked)allCb.checked=false;else if(boxes.length&&boxes.every(x=>x.checked))allCb.checked=true}})}
+function complaintDeskPermissionFields(user={},isNew=false){const desks=(typeof window.getComplaintDesks==='function')?window.getComplaintDesks():[{id:'it',name:'IT Department',icon:'💻'},{id:'plumber',name:'Plumber',icon:'🔧'},{id:'electrician',name:'Electrician',icon:'⚡'},{id:'admin',name:'Admin Dept',icon:'🏢'}];const raw=Array.isArray(user?.allowed_complaint_desks)?user.allowed_complaint_desks:null;const isAll=!raw||raw.includes('*')||raw.includes('all');return '<div class="form-section full" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:6px"><span>Complaint selector permissions (Department isolation)</span><button type="button" class="btn" style="padding:3px 9px;font-size:11px;border-color:#86efac;background:#f0fdf4;color:#157a54" onclick="applyTicketDeskOnlyPreset()">🎫 Desk-only access preset</button></div><div class="field full form-note">Restrict this account to specific complaint departments (e.g. only Plumber or only Admin Dept). Leave "All Complaint Desks" checked for full ticketing access.</div><div class="field full" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px;border:1px solid #d5e2da;border-radius:10px;background:#f8fbf9"><label style="display:inline-flex;align-items:center;gap:6px;font-weight:700;padding:5px 10px;border-radius:8px;background:#fff;border:1px solid #cbd5e1;cursor:pointer"><input type="checkbox" name="complaint_desks_all" '+(isAll?'checked':'')+' onchange="if(this.checked){document.querySelectorAll(\'#recordForm input[name=complaint_desk_perm]\').forEach(x=>x.checked=true)}else{document.querySelectorAll(\'#recordForm input[name=complaint_desk_perm]\').forEach(x=>x.checked=false)}"> 🌐 All Complaint Desks</label>'+desks.map(d=>{const chk=isAll||raw.includes(d.id);return '<label style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;background:#fff;border:1px solid #d5e2da;cursor:pointer"><input type="checkbox" name="complaint_desk_perm" value="'+esc(d.id)+'" '+(chk?'checked':'')+'> '+esc((d.icon||'🎫')+' '+d.name)+'</label>'}).join('')+'</div>'}
+function complaintDesksFromForm(formEl){if(!formEl)return ['*'];const allCb=formEl.querySelector('[name="complaint_desks_all"]');if(allCb?.checked)return ['*'];return [...formEl.querySelectorAll('input[name="complaint_desk_perm"]:checked')].map(x=>x.value).filter(Boolean)}
+function modulePermissionFields(user={},isNew=false){return '<div class="form-section full" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><span>Module permissions</span><span style="display:inline-flex;gap:6px"><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'none\')">All No access</button><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'read\')">All Read only</button><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'write\')">All Read &amp; write</button></span></div><div class="field full form-note">Choose what this account can see and change in each module. No access hides the module; Read only blocks changes; Read &amp; write allows changes. Administrator accounts always have full access.</div><div class="module-permission-grid field full">'+permissionModules.map(([id,label])=>'<label class="module-permission-item"><span>'+esc(label)+'</span><select name="module_perm_'+id+'"><option value="none"'+(effectiveModuleGrant(user,id,isNew)==='none'?' selected':'')+'>No access</option><option value="read"'+(effectiveModuleGrant(user,id,isNew)==='read'?' selected':'')+'>Read only</option><option value="write"'+(effectiveModuleGrant(user,id,isNew)==='write'?' selected':'')+'>Read &amp; write</option></select></label>').join('')+'</div>'+complaintDeskPermissionFields(user,isNew)}
 function permissionsFromForm(values){return Object.fromEntries(permissionModules.map(([id])=>[id,['none','read','write'].includes(values['module_perm_'+id])?values['module_perm_'+id]:'none']))}
 function currentModuleGrant(viewKey){if(!serverMode||serverAdmin)return 'write';let module=permissionViewMap[viewKey];return module?effectiveModuleGrant(serverProfile,module):'none'}
 function canAccessMod(mod,write=false){if(!serverMode||serverAdmin)return true;const g=effectiveModuleGrant(serverProfile,mod);return write?g==='write':(g==='read'||g==='write')}
@@ -986,6 +994,13 @@ function applyModuleAccess(profile=serverProfile){
  }
  let ticketing=document.getElementById('ticketingBackendButton');
  if(ticketing)ticketing.style.display=(admin||effectiveModuleGrant(profile,'tickets')==='write')?'':'none';
+ const deskRestricted = !admin && Array.isArray(profile?.allowed_complaint_desks) && !profile.allowed_complaint_desks.includes('*') && !profile.allowed_complaint_desks.includes('all');
+ const beSetTab = document.querySelector('#ticketingBackendTabs [data-backend-tab="settings"]');
+ if(beSetTab) beSetTab.style.display = deskRestricted ? 'none' : '';
+ const mbAssets = document.getElementById('mbNavAssets');
+ if(mbAssets) mbAssets.style.display = (admin || effectiveModuleGrant(profile,'assets')!=='none') ? '' : 'none';
+ const mbTickets = document.getElementById('mbNavTickets');
+ if(mbTickets) mbTickets.style.display = (admin || effectiveModuleGrant(profile,'tickets')!=='none') ? '' : 'none';
  const viewSettings=document.getElementById('view-settings');
  if(viewSettings){
   const upBtn=viewSettings.querySelector('.page-head .btn.primary');if(upBtn)upBtn.style.display=admin?'':'none';
@@ -1050,7 +1065,7 @@ function renderSoftware(){const q=(document.getElementById('softwareSearch')?.va
 function renderLifecycle(){let rows=assets.slice(0,6);document.getElementById('lifecycleTable').innerHTML=rows.map(a=>'<tr><td><div class="asset-name">'+esc(a.name)+'</div><div class="asset-id">'+esc(a.tag)+'</div></td><td>'+esc(categoryLabel(a))+'</td><td>'+a.site+'</td><td><span class="age-pill'+(parseInt(ageLabel(a))>=5?' old':'')+'">'+ageLabel(a)+'</span></td><td>'+esc(a.warranty||'Not recorded')+'</td><td>'+esc(a.lastMaintenance||'Not recorded')+'</td></tr>').join('')}function maintenanceCountForAsset(a){return maintenanceRecords.filter(r=>String(r.tag||r.assetTag||'').toLowerCase()===String(a.tag||'').toLowerCase()).length}function maintenanceRisk(n){return n===0?{label:'Healthy',score:0,cls:'healthy'}:n===1?{label:'Low',score:1,cls:'healthy'}:n===2?{label:'Medium',score:2,cls:'warning'}:{label:'High',score:3,cls:'open'}}function ageYears(date){if(!date)return null;let d=new Date(date+'T00:00:00');if(Number.isNaN(d.getTime())||d>new Date())return null;return Math.floor((Date.now()-d.getTime())/(365.2425*86400000))}function renderAssetAgeing(){let body=document.getElementById('assetAgeingTable');if(!body)return;let ys=[...new Set(assets.map(a=>String(a.purchaseDate||'').slice(0,4)).filter(y=>/^\d{4}$/.test(y)))].sort((a,b)=>b.localeCompare(a)),sel=document.getElementById('ageYear'),oldYear=sel.value;sel.innerHTML='<option value="">All years</option>'+ys.map(y=>'<option>'+y+'</option>').join('');if(ys.includes(oldYear))sel.value=oldYear;let counts={Healthy:0,Low:0,Medium:0,High:0};for(const a of assets)counts[maintenanceRisk(maintenanceCountForAsset(a)).label]++;for(const [k,id] of Object.entries({Healthy:'ageHealthyCount',Low:'ageLowCount',Medium:'ageMediumCount',High:'ageHighCount'}))document.getElementById(id).textContent=counts[k];let q=document.getElementById('ageSearch').value.toLowerCase(),yr=sel.value,from=document.getElementById('ageFrom').value,to=document.getElementById('ageTo').value,risk=document.getElementById('ageRisk').value,sort=document.getElementById('ageSort').value,site=document.getElementById('globalSite')?.value||'All sites';let rows=assets.map(a=>({...a,_count:maintenanceCountForAsset(a),_risk:maintenanceRisk(maintenanceCountForAsset(a))})).filter(a=>{let d=a.purchaseDate||'',hay=[a.name,a.tag,a.owner,a.site].join(' ').toLowerCase();return(!q||hay.includes(q))&&(!yr||d.startsWith(yr))&&(!from||d>=from)&&(!to||d<=to)&&(!risk||a._risk.label===risk)&&(site==='All sites'||a.site===site)});rows.sort((a,b)=>{let x=a.purchaseDate||'',y=b.purchaseDate||'';if(!x)return 1;if(!y)return -1;return sort==='newest'?y.localeCompare(x):x.localeCompare(y)});body.innerHTML=rows.map(a=>{let n=ageYears(a.purchaseDate),age=n===null?'Not recorded':n+' year'+(n===1?'':'s');return '<tr><td><b>'+esc(a.name||'Unnamed asset')+'</b><div class="asset-id">'+esc(a.tag||'')+' · '+esc(a.owner||'Unassigned')+'</div></td><td>'+esc(a.site||'—')+'</td><td>'+esc(a.purchaseDate||'Not recorded')+'</td><td><span class="age-pill'+(n!==null&&n>=5?' old':'')+'">'+age+'</span></td><td>'+a._count+'</td><td><span class="status '+a._risk.cls+'">'+a._risk.label+' · '+a._risk.score+'</span></td></tr>'}).join('')||'<tr><td colspan="6" class="empty-state">No assets match these filters.</td></tr>'}function exportAssetAgeing(){exportCsv('asset-ageing-risk',assets.map(a=>{let n=maintenanceCountForAsset(a),r=maintenanceRisk(n);return{name:a.name,tag:a.tag,site:a.site,purchaseDate:a.purchaseDate||'',ageYears:ageYears(a.purchaseDate)??'',maintenanceCount:n,risk:r.label,riskScore:r.score}}))}function resolve(r){let a=assets.find(x=>x.tag===(r.tag||r.assetTag));return{assetType:r.assetType||a?.type||"",assetName:r.assetName||a?.name||r.tag||r.assetTag||"",factory:r.factory||r.site||a?.site||"",department:r.department||r.dept||a?.dept||"",owner:r.owner||r.user||a?.owner||"Unassigned"}}function resolved(r){return resolve(r)}function renderMaintenance(){let sum=(tag)=>assets.find(x=>x.tag===tag);document.getElementById('maintenanceDue').innerHTML=assets.slice(0,7).map(x=>'<tr><td><b>'+esc(x.name)+'</b><div class="asset-id">'+esc(x.tag)+'</div></td><td>'+x.site+'</td><td><span class="age-pill'+(parseInt(ageLabel(x))>=5?' old':'')+'">'+ageLabel(x)+'</span></td><td>'+esc(x.lastMaintenance||'Not recorded')+'</td><td>'+(x.nextDue||'Not scheduled')+'</td><td><span class="status '+(parseInt(ageLabel(x))>=5?'warning':'healthy')+'">'+(parseInt(ageLabel(x))>=5?'Refresh review':'Working')+'</span></td></tr>').join('');let q=(document.getElementById('maintSearch')?.value||'').toLowerCase();let rows=maintenanceRecords.filter(r=>Object.values(r).join(' ').toLowerCase().includes(q));window.filteredMaintenanceRows=rows.map(r=>({...r,...resolved(r),totalCost:Number(r.partCost||0)+Number(r.laborCost||r.laborActual||r.laborEstimate||0)+Number(r.otherCost||0)}));document.getElementById('maintenanceTable').innerHTML=rows.map(r=>{let x=sum(r.tag);return '<tr><td>'+r.date+'</td><td><b>'+esc(x?.name||r.tag)+'</b><div class="asset-id">'+esc(r.tag)+'</div></td><td><span class="status '+(r.type==='Repair'?'warning':'healthy')+'">'+esc(r.type)+'</span></td><td>'+esc(r.work)+'</td><td>'+esc(r.parts)+'</td><td>₹'+(Number(r.partCost||0)+Number(r.laborCost||r.laborActual||r.laborEstimate||0)+Number(r.otherCost||0)).toLocaleString('en-IN')+'</td><td>'+esc(r.technician)+'</td></tr>'}).join('')}const renderMaintenanceOriginal=renderMaintenance;renderMaintenance=function(){renderMaintenanceOriginal();renderAssetAgeing()};function openMaintenance(){if(document.body.classList.contains('viewer-mode')||!canAccessMod('maintenance',true))return showToast('Read & write access on Maintenance is required');if(!assets.length){showToast('Add an asset before logging maintenance');return}let sel=document.getElementById('maintAssetSelect');sel.innerHTML=assets.map(x=>'<option value="'+esc(x.tag)+'">'+esc(x.tag+' · '+x.name)+'</option>').join('');document.getElementById('maintenanceModal').classList.add('open')}function closeMaintenance(){document.getElementById('maintenanceModal').classList.remove('open')}
 document.getElementById('maintenanceModal').addEventListener('click',e=>{if(e.target.id==='maintenanceModal')closeMaintenance()});document.getElementById('maintenanceForm').addEventListener('submit',e=>{e.preventDefault();if(document.body.classList.contains('viewer-mode')||!canAccessMod('maintenance',true))return showToast('Read & write access on Maintenance is required');let d=Object.fromEntries(new FormData(e.target)),x=assets.find(a=>a.tag===d.assetTag);maintenanceRecords.unshift({...d,partCost:Number(d.partCost||0),laborCost:Number(d.laborCost||0)});if(x){x.lastMaintenance=d.date;x.nextDue=d.nextDue||'Not scheduled'}document.getElementById('serviceTotal').textContent=Number(document.getElementById('serviceTotal').textContent)+1;renderMaintenance();renderAssets();renderLifecycle();e.target.reset();saveAdminData();closeMaintenance();showToast('Service record saved to asset history')});
 function go(key){let module=permissionViewMap[key];if(serverMode&&!serverAdmin&&module&&effectiveModuleGrant(serverProfile,module)==='none'){showToast('You do not have access to this module.');return}if(serverMode&&!serverAdmin&&!module&&!['settings'].includes(key)){showToast('Administrator access is required.');return}document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));let el=document.getElementById('view-'+key);if(!el)return;el.classList.add('active');document.querySelectorAll('.sidebar .nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===key));let names={dashboard:'Overview',assets:'Asset inventory',ageing:'Asset ageing & risk',users:'Users',departments:'Departments',factories:'Factories',software:'Software & licenses',monitoring:'Network monitoring',snmp:'SNMP bandwidth monitoring',notifications:'Notifications',reports:'Reports',datacenter:'Data Center',surveillance:'Surveillance',settings:'Settings',maintenance:'Maintenance & repairs',tickets:'IT help desk',ticketing:'Ticketing backend',backups:'Backup & restore',parts:'Parts inventory',valuation:'Valuation',billing:'Billing / Invoices'};document.getElementById('crumb').textContent=names[key]||key;if(key==='dashboard'){renderDashboard();if(serverMode)refreshIpStatusData()}if(key==='datacenter')renderDatacenter();if(key==='surveillance')renderSurveillance();if(key==='factories')window.renderFactoryRows?.();if(key==='departments')window.renderDepts?.();if(key==='snmp')window.loadSnmpModule?.();if(key==='settings')window.loadSoftwareUpdateStatus?.();applyReadOnlyControls();window.enhanceAllModuleTiles?.();window.scrollTo(0,0)}
-document.querySelector('.sidebar').addEventListener('click',e=>{let b=e.target.closest('button[data-view]');if(b)go(b.dataset.view)});document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));document.getElementById('globalSite').addEventListener('change',e=>{document.querySelectorAll('.site-chip').forEach(c=>c.classList.toggle('selected',c.dataset.site===e.target.value));renderAssets();renderDashboard()});document.getElementById('siteChips').addEventListener('click',e=>{let c=e.target.closest('.site-chip');if(c){document.querySelectorAll('.site-chip').forEach(x=>x.classList.toggle('selected',x===c));document.getElementById('globalSite').value=c.dataset.site;renderAssets();renderDashboard()}});['assetSearch','typeFilter','deptFilter','statusFilter','networkSubtypeFilter','assetFactoryFilter'].forEach(id=>document.getElementById(id).addEventListener('input',renderAssets));['userSearch','userDeptFilter','userSiteFilter','userEmploymentFilter'].forEach(id=>document.getElementById(id).addEventListener('input',renderUsers));document.getElementById('softwareSearch').addEventListener('input',renderSoftware);document.getElementById('softwareTypeFilter').addEventListener('change',renderSoftware);document.getElementById('softwareStatusFilter').addEventListener('change',renderSoftware);document.getElementById('globalSearch').addEventListener('input',e=>{let q=e.target.value.trim();if(!q)return;let foundUser=users.some(u=>Object.values(u).join(' ').toLowerCase().includes(q.toLowerCase()));if(foundUser){go('users');document.getElementById('userSearch').value=q;renderUsers()}else{go('assets');document.getElementById('assetSearch').value=q;renderAssets()}});document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();document.getElementById('globalSearch').focus()}if(e.key==='Escape')closeModal()});function openModal(){const typeSelect=document.querySelector('#assetForm select[name="type"]');if(typeSelect&&![...typeSelect.options].some(o=>o.value==='Surveillance'||o.textContent.trim()==='Surveillance'))typeSelect.add(new Option('Surveillance','Surveillance'));document.getElementById('assetModal').classList.add('open')}function closeModal(){document.getElementById('assetModal').classList.remove('open')}document.getElementById('assetModal').addEventListener('click',e=>{if(e.target.id==='assetModal')closeModal()});document.getElementById('assetForm').addEventListener('submit',e=>{e.preventDefault();let d=Object.fromEntries(new FormData(e.target));assets.unshift({name:d.name,tag:d.tag,type:d.type,specs:d.specs||'—',owner:d.owner||'Unassigned',dept:d.dept,site:d.site,status:'Not checked',ipStatus:'Not checked',seen:'Not checked',serial:d.serial||'Not recorded',ipAddress:d.ipAddress||'',macAddress:d.macAddress||'',managementUrl:d.managementUrl||'',networkInterfaces:readAssetNetworkInterfaces(),subtype:d.subtype||'',manufacturer:d.manufacturer||'',model:d.model||'',osType:d.osType||'',osVersion:d.osVersion||'',storageCapacity:d.storageCapacity||'',storageUnit:d.storageUnit||'GB',assetValue:Number(d.assetValue||0),purchaseDate:d.purchaseDate||new Date().toISOString().slice(0,10),warranty:d.warranty||'',lastMaintenance:'Not recorded'});saveAdminData();renderLifecycle();document.getElementById('totalAssets').textContent=Number(document.getElementById('totalAssets').textContent)+1;renderAssets();renderRecent();renderDashboard();e.target.reset();closeModal();showToast('Asset added to your inventory')});let toastTimer;function showToast(msg){let t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2700)}function filterAssetType(type){go('assets');document.getElementById('typeFilter').value=type;renderAssets()}async function apiFetch(url,options={}){let headers={"X-Requested-With":"NorthstarIT",...(options.headers||{})};let res;try{res=await fetch(url,{credentials:'same-origin',...options,headers})}catch(e){throw new Error('Cannot reach the Northstar API. Open the app through the Ubuntu server URL and check that its app container is running.')}let data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||('Request failed ('+res.status+')'));return data}async function saveAdminData(onlyKeys=null){persistLocal();if(!serverMode)return;const all={assets,software,departments:depts,maintenance:maintenanceRecords,parts_catalog:partsCatalog,parts_inventory:partsInventory,parts_stock_entries:partsStockEntries,parts_assignments:partsAssignments,vendors:window.invoiceVendors||[]};const keyOwner={assets:'assets',software:'software',departments:'departments',maintenance:'maintenance',parts_catalog:'parts',parts_inventory:'parts',parts_stock_entries:'parts',parts_assignments:'parts',vendors:'billing'};let body={};for(const [k,v] of Object.entries(all)){if(Array.isArray(onlyKeys)&&!onlyKeys.includes(k))continue;if(!serverAdmin&&effectiveModuleGrant(serverProfile,keyOwner[k])!=='write')continue;body[k]=v}if(!Object.keys(body).length)return;try{await apiFetch('/api/data',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}catch(e){showToast('Could not save server data: '+e.message)}}async function refreshServerTickets(){if(window.__nsTicketsFetching)return window.__nsTicketsFetching;window.__nsTicketsFetching=(async()=>{try{let r=await apiFetch('/api/tickets');tickets=r.tickets;if(Array.isArray(tickets))tickets.forEach(t=>window.nsSoundEngine?.markTicketSeen?.(t.id));renderTickets();renderTicketingBackend()}finally{window.__nsTicketsFetching=null}})();return window.__nsTicketsFetching}async function serverSubmitTicket(form){let d=new FormData(form),kind=document.querySelector('input[name="requestKind"]:checked').value,sub=document.querySelector('input[name="ticketSub"]:checked')?.value||'Other';let body=new FormData();body.append('kind',kind);body.append('primary',kind==='Material request'?'Material request':document.querySelector('input[name="primaryCategory"]:checked').value);body.append('sub',sub);body.append('description',d.get('description'));body.append('material',d.get('material')||'');for(const file of document.getElementById('ticketFiles').files)body.append('files',file);try{let r=await apiFetch('/api/tickets',{method:'POST',body});window.nsSoundEngine?.markTicketSeen?.(r.id);await refreshServerTickets();window.broadcastLiveTicketSync?.('ticket-created',{id:r.id,kind});form.reset();document.getElementById('ticketFiles').value='';document.getElementById('ticketFileNames').textContent='';renderTicketSubcats();showToast('Ticket '+r.id+' submitted successfully')}catch(err){showToast(err.message)}}async function hydrateServer(){try{let res=await fetch('/api/profile',{credentials:'same-origin',cache:'no-store'});if(res.status===401){clearInterval(window.northstarTicketPoll);clearInterval(window.northstarIpStatusPoll);document.getElementById('authGate').style.display='flex';document.getElementById('appShell').style.display='none';return}if(!res.ok)return;let profile=await res.json();serverMode=true;serverAdmin=profile.isAdmin;serverProfile=profile.profile;updateProfileUI(profile.profile,profile.isAdmin);let manageTickets=profile.isAdmin||profile.profile.role==='IT Ticketing',ticketingButton=document.getElementById('ticketingBackendButton');if(ticketingButton)ticketingButton.style.display=manageTickets?'':'none';document.getElementById('authGate').style.display='none';document.getElementById('appShell').style.display='flex';document.getElementById('localRestoreFile')?.closest('details')?.style.setProperty('display','none');setTicketProfile(profile.profile);let label=document.querySelector('.profile-name');if(label)label.textContent=profile.profile.name;let role=document.querySelector('.profile-role');if(role)role.textContent=profile.isAdmin?'IT administrator':(profile.profile.role||'Employee');applyModuleAccess(serverProfile);let data=await apiFetch('/api/data',{cache:'no-store'});if(data.settings||data.factories_config){const merged={...workspaceSettings(),...(data.factories_config||{}),...(data.settings||{})};localStorage.setItem('northstar-settings',JSON.stringify(merged));if(merged.factories)localStorage.setItem('northstar-factories',JSON.stringify(merged.factories));applyCompanyName()}assets.splice(0,assets.length,...(data.assets||[]));users.splice(0,users.length,...(data.users||[]));software.splice(0,software.length,...(data.software||[]));depts.splice(0,depts.length,...(data.departments||[]));maintenanceRecords.splice(0,maintenanceRecords.length,...(data.maintenance||[]));partsCatalog.splice(0,partsCatalog.length,...(data.parts_catalog||[]));partsInventory.splice(0,partsInventory.length,...(data.parts_inventory||[]));partsStockEntries.splice(0,partsStockEntries.length,...(data.parts_stock_entries||[]));partsAssignments.splice(0,partsAssignments.length,...(data.parts_assignments||[]));window.invoiceVendors=Array.isArray(data.vendors)?data.vendors:[];if(canAccessMod('tickets'))await refreshServerTickets().catch(()=>{});else tickets.length=0;if(manageTickets&&!canAccessMod('parts')){try{const tp=await apiFetch('/api/tickets/parts-options',{cache:'no-store'});if(Array.isArray(tp.parts_inventory))partsInventory.splice(0,partsInventory.length,...tp.parts_inventory);if(Array.isArray(tp.parts_catalog))partsCatalog.splice(0,partsCatalog.length,...tp.parts_catalog)}catch(e){}}window.initLiveBrowserAlerts?.();if(!window.northstarTicketPoll)window.northstarTicketPoll=setInterval(()=>{if(serverMode&&canAccessMod('tickets')&&(document.getElementById('view-tickets').classList.contains('active')||document.getElementById('view-ticketing').classList.contains('active')))refreshServerTickets().catch(()=>{})},30000);if(serverMode&&!window.northstarIpStatusPoll)window.northstarIpStatusPoll=setInterval(()=>{if(serverMode&&['dashboard','assets','users','monitoring','datacenter','surveillance'].some(v=>document.getElementById('view-'+v)?.classList.contains('active')))refreshIpStatusData()},30000);renderAssets();renderRecent();renderSettings();renderDashboard();renderMonitoring();renderReports();renderUsers();renderDepts();renderSoftware();renderLifecycle();renderMaintenance();renderParts();window.renderFactoryRows?.();applyModuleAccess(serverProfile);window.enhanceAllModuleTiles?.();document.getElementById('totalAssets').textContent=assets.length;document.getElementById('assetCount').textContent=assets.length+' total';document.querySelector('#view-tickets .head-actions .btn')?.setAttribute('style','display:none');if(!serverAdmin)document.querySelector('#view-tickets .panel:last-child')?.setAttribute('style','display:none');if(serverAdmin)loadBackups()}catch(e){document.getElementById('authGate').style.display='flex';document.getElementById('appShell').style.display='none';document.getElementById('loginError').textContent=location.protocol==='file:'?'':'Inventory server is unavailable. Contact your administrator.';if(location.protocol==='file:')document.querySelector('.login-security').innerHTML='<span>ⓘ</span> Local preview only · sign in on the installed server to use accounts.'}}function lockTicketRows(){document.querySelectorAll('#ticketTable [data-ticket]').forEach(el=>{let value=el.value,cell=el.closest('td');if(cell&&!cell.dataset.locked){cell.dataset.locked='1';el.replaceWith(document.createTextNode(value||'—'))}})}function updateProfileUI(profile={},isAdmin=false){let name=profile.name||profile.username||'Account',role=isAdmin?'Administrator':(profile.role||'User'),picture=profile.profile_picture||'';for(const id of ['topProfileName','menuProfileName']){let e=document.getElementById(id);if(e)e.textContent=name}let r=document.getElementById('menuProfileRole');if(r)r.textContent=role;let avatar=document.getElementById('topAvatar');if(avatar){avatar.innerHTML=picture?'<img src="'+esc(picture)+'?v='+Date.now()+'" alt="">':esc(initials(name)||'U')}}function toggleProfileMenu(){let menu=document.getElementById('profileMenu'),button=document.getElementById('profileMenuButton'),open=menu.hidden;menu.hidden=!open;button.setAttribute('aria-expanded',String(open))}function openPasswordSettings(){document.getElementById('profileMenu').hidden=true;if(!serverMode||serverAdmin||effectiveModuleGrant(serverProfile,'users')!=='none'){go('users');setTimeout(()=>{let form=document.getElementById('changePasswordForm');form?.scrollIntoView({behavior:'smooth',block:'center'});form?.querySelector('[name=current_password]')?.focus()},80);return}window.openSelfSecurityModal?.()}document.addEventListener('click',e=>{let wrap=document.querySelector('.profile-menu-wrap');if(wrap&&!wrap.contains(e.target)){document.getElementById('profileMenu').hidden=true;document.getElementById('profileMenuButton')?.setAttribute('aria-expanded','false')}});document.getElementById('profilePictureInput')?.addEventListener('change',async e=>{let file=e.target.files?.[0];if(!file)return;e.target.value='';if(!serverMode)return showToast('Profile pictures are saved on the installed server.');let body=new FormData();body.append('picture',file);try{let result=await apiFetch('/api/account/profile-picture',{method:'POST',body});serverProfile={...serverProfile,profile_picture:result.profile_picture};updateProfileUI(serverProfile,serverAdmin);showToast('Profile picture updated')}catch(err){showToast('Could not update profile picture: '+err.message)}});async function signOut(){clearInterval(window.northstarTicketPoll);clearInterval(window.northstarIpStatusPoll);try{await apiFetch('/api/logout',{method:'POST'})}catch(e){}serverAdmin=false;serverProfile=null;assets.length=0;users.length=0;software.length=0;depts.length=0;maintenanceRecords.length=0;partsInventory.length=0;partsAssignments.length=0;try{if(location.protocol!=='file:')localStorage.removeItem('northstar-local-data')}catch(e){}location.replace('/')}async function signOutAllDevices(){if(!serverMode)return showToast('Available on the installed Ubuntu server.');if(!confirm('Sign out your account from all open browsers and devices?'))return;try{await apiFetch('/api/account/logout-all',{method:'POST'})}catch(e){}await signOut()}window.addEventListener('pageshow',e=>{if((e.persisted||performance.getEntriesByType?.('navigation')?.[0]?.type==='back_forward')&&location.protocol!=='file:')hydrateServer()});async function loadBackups(){if(!serverMode||!serverAdmin)return;try{let r=await apiFetch('/api/backups'),tbody=document.getElementById('backupTable');tbody.innerHTML=r.backups.length?r.backups.map(b=>'<tr><td><b>'+esc(b.name)+'</b></td><td>'+new Date(b.created).toLocaleString()+'</td><td>'+(b.size/1048576).toFixed(2)+' MB</td><td>Database · ticket attachments · SHA-256 manifest</td><td><a class="link-btn" href="/api/backups/'+encodeURIComponent(b.name)+'">Download</a></td></tr>').join(''):'<tr><td colspan="5" class="empty-state">No backups yet. Scheduled backups will appear here.</td></tr>';if(r.backups[0])document.getElementById('lastBackupAt').textContent=new Date(r.backups[0].created).toLocaleDateString()}catch(e){document.getElementById('backupScheduleState').textContent=e.message}}async function createManualBackup(){if(!serverMode){let payload={format:'northstar-local-backup-v1',created:new Date().toISOString(),assets,users,software,depts,maintenanceRecords,partsCatalog,partsInventory,partsStockEntries,partsAssignments,tickets,settings:workspaceSettings(),factories:JSON.parse(localStorage.getItem('northstar-factories')||'[]'),ipMappings};let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));a.download='northstar-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);showToast('Local backup downloaded');return}let btn=document.getElementById('manualBackupBtn');btn.disabled=true;btn.textContent='Creating backup…';try{let r=await apiFetch('/api/backups',{method:'POST'});showToast('Backup created: '+r.name);await loadBackups()}catch(e){showToast('Backup failed: '+e.message)}finally{btn.disabled=false;btn.innerHTML='＋ &nbsp;Run backup now'}}function bindAuth(){if(location.protocol==='file:')document.getElementById('loginForm').addEventListener('submit',async e=>{e.preventDefault();let btn=e.currentTarget.querySelector('button');btn.disabled=true;document.getElementById('loginError').textContent='';try{let credentials=Object.fromEntries(new FormData(e.currentTarget));if(location.protocol==='file:'){if(!credentials.username.trim()||!credentials.password)throw new Error('Enter a username and password.');serverMode=false;serverAdmin=true;serverProfile={username:credentials.username.trim(),name:credentials.username.trim(),dept:'',site:'',ip:''};updateProfileUI(serverProfile,true);currentProfile=serverProfile;document.getElementById('authGate').style.display='none';document.getElementById('appShell').style.display='flex';document.querySelector('.profile-name').textContent=serverProfile.name;document.querySelector('.profile-role').textContent='Local preview administrator';setTicketProfile(serverProfile);showToast('Local preview only · live server features need Ubuntu deployment');return}await apiFetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(credentials)});await hydrateServer()}catch(err){document.getElementById('loginError').textContent=err.message}finally{btn.disabled=false}});document.querySelector('.profile-dots')?.addEventListener('click',signOut);document.getElementById('ticketForm').addEventListener('submit',e=>{if(serverMode){e.preventDefault();serverSubmitTicket(e.currentTarget)}});document.getElementById('userSearch').insertAdjacentHTML('afterend','');['ticketTable'].forEach(()=>{});hydrateServer()}
+document.querySelector('.sidebar').addEventListener('click',e=>{let b=e.target.closest('button[data-view]');if(b)go(b.dataset.view)});document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));document.getElementById('globalSite').addEventListener('change',e=>{document.querySelectorAll('.site-chip').forEach(c=>c.classList.toggle('selected',c.dataset.site===e.target.value));renderAssets();renderDashboard()});document.getElementById('siteChips').addEventListener('click',e=>{let c=e.target.closest('.site-chip');if(c){document.querySelectorAll('.site-chip').forEach(x=>x.classList.toggle('selected',x===c));document.getElementById('globalSite').value=c.dataset.site;renderAssets();renderDashboard()}});['assetSearch','typeFilter','deptFilter','statusFilter','networkSubtypeFilter','assetFactoryFilter'].forEach(id=>document.getElementById(id).addEventListener('input',renderAssets));['userSearch','userDeptFilter','userSiteFilter','userEmploymentFilter'].forEach(id=>document.getElementById(id).addEventListener('input',renderUsers));document.getElementById('softwareSearch').addEventListener('input',renderSoftware);document.getElementById('softwareTypeFilter').addEventListener('change',renderSoftware);document.getElementById('softwareStatusFilter').addEventListener('change',renderSoftware);document.getElementById('globalSearch').addEventListener('input',e=>{let q=e.target.value.trim();if(!q)return;let foundUser=users.some(u=>Object.values(u).join(' ').toLowerCase().includes(q.toLowerCase()));if(foundUser){go('users');document.getElementById('userSearch').value=q;renderUsers()}else{go('assets');document.getElementById('assetSearch').value=q;renderAssets()}});document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();document.getElementById('globalSearch').focus()}if(e.key==='Escape')closeModal()});function openModal(){const typeSelect=document.querySelector('#assetForm select[name="type"]');if(typeSelect&&![...typeSelect.options].some(o=>o.value==='Surveillance'||o.textContent.trim()==='Surveillance'))typeSelect.add(new Option('Surveillance','Surveillance'));document.getElementById('assetModal').classList.add('open')}function closeModal(){document.getElementById('assetModal').classList.remove('open')}document.getElementById('assetModal').addEventListener('click',e=>{if(e.target.id==='assetModal')closeModal()});document.getElementById('assetForm').addEventListener('submit',e=>{e.preventDefault();let d=Object.fromEntries(new FormData(e.target));assets.unshift({name:d.name,tag:d.tag,type:d.type,specs:d.specs||'—',owner:d.owner||'Unassigned',dept:d.dept,site:d.site,status:'Not checked',ipStatus:'Not checked',seen:'Not checked',serial:d.serial||'Not recorded',ipAddress:d.ipAddress||'',macAddress:d.macAddress||'',managementUrl:d.managementUrl||'',networkInterfaces:readAssetNetworkInterfaces(),subtype:d.subtype||'',manufacturer:d.manufacturer||'',model:d.model||'',osType:d.osType||'',osVersion:d.osVersion||'',storageCapacity:d.storageCapacity||'',storageUnit:d.storageUnit||'GB',assetValue:Number(d.assetValue||0),purchaseDate:d.purchaseDate||new Date().toISOString().slice(0,10),warranty:d.warranty||'',lastMaintenance:'Not recorded'});saveAdminData();renderLifecycle();document.getElementById('totalAssets').textContent=Number(document.getElementById('totalAssets').textContent)+1;renderAssets();renderRecent();renderDashboard();e.target.reset();closeModal();showToast('Asset added to your inventory')});let toastTimer;function showToast(msg){let t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2700)}function filterAssetType(type){go('assets');document.getElementById('typeFilter').value=type;renderAssets()}async function apiFetch(url,options={}){let headers={"X-Requested-With":"NorthstarIT",...(options.headers||{})};let res;try{res=await fetch(url,{credentials:'same-origin',...options,headers})}catch(e){throw new Error('Cannot reach the Northstar API. Open the app through the Ubuntu server URL and check that its app container is running.')}let data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||('Request failed ('+res.status+')'));return data}async function saveAdminData(onlyKeys=null){persistLocal();if(!serverMode)return;const all={assets,software,departments:depts,maintenance:maintenanceRecords,parts_catalog:partsCatalog,parts_inventory:partsInventory,parts_stock_entries:partsStockEntries,parts_assignments:partsAssignments,vendors:window.invoiceVendors||[]};const keyOwner={assets:'assets',software:'software',departments:'departments',maintenance:'maintenance',parts_catalog:'parts',parts_inventory:'parts',parts_stock_entries:'parts',parts_assignments:'parts',vendors:'billing'};let body={};for(const [k,v] of Object.entries(all)){if(Array.isArray(onlyKeys)&&!onlyKeys.includes(k))continue;if(!serverAdmin&&effectiveModuleGrant(serverProfile,keyOwner[k])!=='write')continue;body[k]=v}if(!Object.keys(body).length)return;try{await apiFetch('/api/data',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}catch(e){showToast('Could not save server data: '+e.message)}}async function refreshServerTickets(){if(window.__nsTicketsFetching)return window.__nsTicketsFetching;window.__nsTicketsFetching=(async()=>{try{let r=await apiFetch('/api/tickets');tickets=r.tickets;if(Array.isArray(tickets))tickets.forEach(t=>window.nsSoundEngine?.markTicketSeen?.(t.id));renderTickets();renderTicketingBackend()}finally{window.__nsTicketsFetching=null}})();return window.__nsTicketsFetching}async function serverSubmitTicket(form){let d=new FormData(form),kind=document.querySelector('input[name="requestKind"]:checked').value,sub=document.querySelector('input[name="ticketSub"]:checked')?.value||'Other';let body=new FormData();body.append('complaintDesk',window.getActiveComplaintDeskId?.()||'it');body.append('kind',kind);body.append('primary',kind==='Material request'?'Material request':document.querySelector('input[name="primaryCategory"]:checked').value);body.append('sub',sub);body.append('description',d.get('description'));body.append('material',d.get('material')||'');for(const file of document.getElementById('ticketFiles').files)body.append('files',file);try{let r=await apiFetch('/api/tickets',{method:'POST',body});window.nsSoundEngine?.markTicketSeen?.(r.id);await refreshServerTickets();window.broadcastLiveTicketSync?.('ticket-created',{id:r.id,kind,complaintDesk:r.complaintDesk});form.reset();document.getElementById('ticketFiles').value='';document.getElementById('ticketFileNames').textContent='';renderTicketSubcats();showToast('Ticket '+r.id+' submitted successfully')}catch(err){showToast(err.message)}}async function hydrateServer(){try{let res=await fetch('/api/profile',{credentials:'same-origin',cache:'no-store'});if(res.status===401){clearInterval(window.northstarTicketPoll);clearInterval(window.northstarIpStatusPoll);document.body.classList.remove('ns-authenticated');document.getElementById('authGate').style.display='flex';document.getElementById('appShell').style.display='none';return}if(!res.ok)return;let profile=await res.json();serverMode=true;serverAdmin=profile.isAdmin;serverProfile=profile.profile;updateProfileUI(profile.profile,profile.isAdmin);let manageTickets=profile.isAdmin||profile.profile.role==='IT Ticketing'||effectiveModuleGrant(profile.profile,'tickets')==='write',ticketingButton=document.getElementById('ticketingBackendButton');if(ticketingButton)ticketingButton.style.display=manageTickets?'':'none';document.body.classList.add('ns-authenticated');document.getElementById('authGate').style.display='none';document.getElementById('appShell').style.display='flex';document.getElementById('localRestoreFile')?.closest('details')?.style.setProperty('display','none');setTicketProfile(profile.profile);let label=document.querySelector('.profile-name');if(label)label.textContent=profile.profile.name;let role=document.querySelector('.profile-role');if(role)role.textContent=profile.isAdmin?'IT administrator':(profile.profile.role||'Employee');applyModuleAccess(serverProfile);let data=await apiFetch('/api/data',{cache:'no-store'});if(data.settings||data.factories_config){const merged={...workspaceSettings(),...(data.factories_config||{}),...(data.settings||{})};localStorage.setItem('northstar-settings',JSON.stringify(merged));if(merged.factories)localStorage.setItem('northstar-factories',JSON.stringify(merged.factories));applyCompanyName()}assets.splice(0,assets.length,...(data.assets||[]));users.splice(0,users.length,...(data.users||[]));software.splice(0,software.length,...(data.software||[]));depts.splice(0,depts.length,...(data.departments||[]));maintenanceRecords.splice(0,maintenanceRecords.length,...(data.maintenance||[]));partsCatalog.splice(0,partsCatalog.length,...(data.parts_catalog||[]));partsInventory.splice(0,partsInventory.length,...(data.parts_inventory||[]));partsStockEntries.splice(0,partsStockEntries.length,...(data.parts_stock_entries||[]));partsAssignments.splice(0,partsAssignments.length,...(data.parts_assignments||[]));window.invoiceVendors=Array.isArray(data.vendors)?data.vendors:[];if(canAccessMod('tickets'))await refreshServerTickets().catch(()=>{});else tickets.length=0;if(manageTickets&&!canAccessMod('parts')){try{const tp=await apiFetch('/api/tickets/parts-options',{cache:'no-store'});if(Array.isArray(tp.parts_inventory))partsInventory.splice(0,partsInventory.length,...tp.parts_inventory);if(Array.isArray(tp.parts_catalog))partsCatalog.splice(0,partsCatalog.length,...tp.parts_catalog)}catch(e){}}window.initLiveBrowserAlerts?.();if(!window.northstarTicketPoll)window.northstarTicketPoll=setInterval(()=>{if(serverMode&&canAccessMod('tickets')&&(document.getElementById('view-tickets').classList.contains('active')||document.getElementById('view-ticketing').classList.contains('active')))refreshServerTickets().catch(()=>{})},30000);if(serverMode&&!window.northstarIpStatusPoll)window.northstarIpStatusPoll=setInterval(()=>{if(serverMode&&['dashboard','assets','users','monitoring','datacenter','surveillance'].some(v=>document.getElementById('view-'+v)?.classList.contains('active')))refreshIpStatusData()},30000);renderAssets();renderRecent();renderSettings();renderDashboard();renderMonitoring();renderReports();renderUsers();renderDepts();renderSoftware();renderLifecycle();renderMaintenance();renderParts();window.renderFactoryRows?.();applyModuleAccess(serverProfile);window.enhanceAllModuleTiles?.();document.getElementById('totalAssets').textContent=assets.length;document.getElementById('assetCount').textContent=assets.length+' total';document.querySelector('#view-tickets .head-actions .btn')?.setAttribute('style','display:none');if(!serverAdmin)document.querySelector('#view-tickets .panel:last-child')?.setAttribute('style','display:none');if(serverAdmin)loadBackups()}catch(e){document.body.classList.remove('ns-authenticated');document.getElementById('authGate').style.display='flex';document.getElementById('appShell').style.display='none';document.getElementById('loginError').textContent=location.protocol==='file:'?'':'Inventory server is unavailable. Contact your administrator.';if(location.protocol==='file:')document.querySelector('.login-security').innerHTML='<span>ⓘ</span> Local preview only · sign in on the installed server to use accounts.'}}function lockTicketRows(){document.querySelectorAll('#ticketTable [data-ticket]').forEach(el=>{let value=el.value,cell=el.closest('td');if(cell&&!cell.dataset.locked){cell.dataset.locked='1';el.replaceWith(document.createTextNode(value||'—'))}})}function updateProfileUI(profile={},isAdmin=false){let name=profile.name||profile.username||'Account',role=isAdmin?'Administrator':(profile.role||'User'),picture=profile.profile_picture||'';for(const id of ['topProfileName','menuProfileName']){let e=document.getElementById(id);if(e)e.textContent=name}let r=document.getElementById('menuProfileRole');if(r)r.textContent=role;let avatar=document.getElementById('topAvatar');if(avatar){avatar.innerHTML=picture?'<img src="'+esc(picture)+'?v='+Date.now()+'" alt="">':esc(initials(name)||'U')}}function toggleProfileMenu(){let menu=document.getElementById('profileMenu'),button=document.getElementById('profileMenuButton'),open=menu.hidden;menu.hidden=!open;button.setAttribute('aria-expanded',String(open))}function openPasswordSettings(){document.getElementById('profileMenu').hidden=true;if(!serverMode||serverAdmin||effectiveModuleGrant(serverProfile,'users')!=='none'){go('users');setTimeout(()=>{let form=document.getElementById('changePasswordForm');form?.scrollIntoView({behavior:'smooth',block:'center'});form?.querySelector('[name=current_password]')?.focus()},80);return}window.openSelfSecurityModal?.()}document.addEventListener('click',e=>{let wrap=document.querySelector('.profile-menu-wrap');if(wrap&&!wrap.contains(e.target)){document.getElementById('profileMenu').hidden=true;document.getElementById('profileMenuButton')?.setAttribute('aria-expanded','false')}});document.getElementById('profilePictureInput')?.addEventListener('change',async e=>{let file=e.target.files?.[0];if(!file)return;e.target.value='';if(!serverMode)return showToast('Profile pictures are saved on the installed server.');let body=new FormData();body.append('picture',file);try{let result=await apiFetch('/api/account/profile-picture',{method:'POST',body});serverProfile={...serverProfile,profile_picture:result.profile_picture};updateProfileUI(serverProfile,serverAdmin);showToast('Profile picture updated')}catch(err){showToast('Could not update profile picture: '+err.message)}});async function signOut(){clearInterval(window.northstarTicketPoll);clearInterval(window.northstarIpStatusPoll);try{await apiFetch('/api/logout',{method:'POST'})}catch(e){}serverAdmin=false;serverProfile=null;assets.length=0;users.length=0;software.length=0;depts.length=0;maintenanceRecords.length=0;partsInventory.length=0;partsAssignments.length=0;try{if(location.protocol!=='file:')localStorage.removeItem('northstar-local-data')}catch(e){}location.replace('/')}async function signOutAllDevices(){if(!serverMode)return showToast('Available on the installed Ubuntu server.');if(!confirm('Sign out your account from all open browsers and devices?'))return;try{await apiFetch('/api/account/logout-all',{method:'POST'})}catch(e){}await signOut()}window.addEventListener('pageshow',e=>{if((e.persisted||performance.getEntriesByType?.('navigation')?.[0]?.type==='back_forward')&&location.protocol!=='file:')hydrateServer()});async function loadBackups(){if(!serverMode||!serverAdmin)return;try{let r=await apiFetch('/api/backups'),tbody=document.getElementById('backupTable');tbody.innerHTML=r.backups.length?r.backups.map(b=>'<tr><td><b>'+esc(b.name)+'</b></td><td>'+new Date(b.created).toLocaleString()+'</td><td>'+(b.size/1048576).toFixed(2)+' MB</td><td>Database · ticket attachments · SHA-256 manifest</td><td><a class="link-btn" href="/api/backups/'+encodeURIComponent(b.name)+'">Download</a></td></tr>').join(''):'<tr><td colspan="5" class="empty-state">No backups yet. Scheduled backups will appear here.</td></tr>';if(r.backups[0])document.getElementById('lastBackupAt').textContent=new Date(r.backups[0].created).toLocaleDateString()}catch(e){document.getElementById('backupScheduleState').textContent=e.message}}async function createManualBackup(){if(!serverMode){let payload={format:'northstar-local-backup-v1',created:new Date().toISOString(),assets,users,software,depts,maintenanceRecords,partsCatalog,partsInventory,partsStockEntries,partsAssignments,tickets,settings:workspaceSettings(),factories:JSON.parse(localStorage.getItem('northstar-factories')||'[]'),ipMappings};let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));a.download='northstar-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);showToast('Local backup downloaded');return}let btn=document.getElementById('manualBackupBtn');btn.disabled=true;btn.textContent='Creating backup…';try{let r=await apiFetch('/api/backups',{method:'POST'});showToast('Backup created: '+r.name);await loadBackups()}catch(e){showToast('Backup failed: '+e.message)}finally{btn.disabled=false;btn.innerHTML='＋ &nbsp;Run backup now'}}function bindAuth(){if(location.protocol==='file:')document.getElementById('loginForm').addEventListener('submit',async e=>{e.preventDefault();let btn=e.currentTarget.querySelector('button');btn.disabled=true;document.getElementById('loginError').textContent='';try{let credentials=Object.fromEntries(new FormData(e.currentTarget));if(location.protocol==='file:'){if(!credentials.username.trim()||!credentials.password)throw new Error('Enter a username and password.');serverMode=false;serverAdmin=true;serverProfile={username:credentials.username.trim(),name:credentials.username.trim(),dept:'',site:'',ip:''};updateProfileUI(serverProfile,true);currentProfile=serverProfile;document.getElementById('authGate').style.display='none';document.getElementById('appShell').style.display='flex';document.querySelector('.profile-name').textContent=serverProfile.name;document.querySelector('.profile-role').textContent='Local preview administrator';setTicketProfile(serverProfile);showToast('Local preview only · live server features need Ubuntu deployment');return}await apiFetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(credentials)});await hydrateServer()}catch(err){document.getElementById('loginError').textContent=err.message}finally{btn.disabled=false}});document.querySelector('.profile-dots')?.addEventListener('click',signOut);document.getElementById('ticketForm').addEventListener('submit',e=>{if(serverMode){e.preventDefault();serverSubmitTicket(e.currentTarget)}});document.getElementById('userSearch').insertAdjacentHTML('afterend','');['ticketTable'].forEach(()=>{});hydrateServer()}
 function exportCsv(name,rows){if(!rows||!rows.length){showToast('No records to export');return}let keys=[...new Set(rows.flatMap(r=>Array.isArray(r)?[]:Object.keys(r)))];let csv=[keys.join(','),...rows.map(r=>keys.map(k=>'"'+String(r[k]??'').replaceAll('"','""')+'"').join(','))].join('\r\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));a.download=name+'.csv';a.click();URL.revokeObjectURL(a.href);showToast('CSV downloaded')}
 function persistLocal(){try{localStorage.setItem('northstar-local-data',JSON.stringify({assets,users,software,depts,maintenanceRecords,partsCatalog,partsInventory,partsStockEntries,partsAssignments,tickets,vendors:window.invoiceVendors||[]}))}catch(e){}renderDashboard();renderMonitoring();renderReports()}
 function addSoftware(){let name=prompt('Software / application name');if(!name)return;let vendor=prompt('Vendor','Other')||'Other';software.unshift({name,icon:name[0].toUpperCase(),vendor,cat:'Other',type:'Manual',seats:'0 / 0',expiry:'Not recorded',state:'Active'});persistLocal();saveAdminData();renderSoftware();showToast('Software added')}
@@ -1111,7 +1126,7 @@ function copyCloudflareTunnelGuide(){let x=workspaceSettings(),sn=(x.siteName||d
 #    docker run -d --name cloudflared --restart unless-stopped cloudflare/cloudflared:latest tunnel --no-autoupdate run --token <YOUR_TOKEN>
 # Result: Worldwide Live HTTPS at https://${sn} with Free Trusted SSL & Instant PWA install!`;if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(guide).then(()=>showToast('Copied Cloudflare Tunnel guide to clipboard!')).catch(()=>alert(guide))}else{alert(guide)}}
 function applyCompanyName(){let raw=workspaceSettings().companyName,n=(!raw||raw==='IT Asset Management'||raw==='Northstar'||raw==='Northstar IT'||raw==='Shree')?'Swarnshilp':raw,b=document.querySelector('.brand-name');if(b)b.innerHTML=esc(n)+'<span style="color:#f5c542">.</span>';let crumb=document.getElementById('companyCrumb');if(crumb)crumb.textContent=n;document.title=(n?(n+' · IT Asset Intelligence'):'Swarnshilp · IT Asset Intelligence');let sub=document.querySelector('.brand-sub');if(sub)sub.textContent=esc(n.toUpperCase())+' · IT ASSET INTELLIGENCE';let wel=document.getElementById('loginWelcome');if(wel)wel.textContent='Welcome to '+n;let lk=document.querySelector('.login-kicker');if(lk)lk.textContent=esc(n.toUpperCase())+' · IT ASSET INTELLIGENCE';let lbn=document.getElementById('loginBrandName');if(lbn)lbn.textContent=n;let lvn=document.getElementById('loginVisualName');if(lvn)lvn.textContent=n}
-function refreshTicketCategoryChoices(){let x=workspaceSettings(),el=document.getElementById('primaryCategories'),selected=document.querySelector('input[name="primaryCategory"]:checked')?.value,cats=x.ticketCategories||defaultTicketCategories;if(el)el.innerHTML=cats.map((t,i)=>'<label class="ticket-choice"><input type="radio" name="primaryCategory" value="'+esc(t)+'" '+(t===selected||(!selected&&i===0)?'checked':'')+'> '+esc(t)+'</label>').join('');let filter=document.getElementById('ticketCategoryFilter'),old=filter?.value;if(filter){filter.innerHTML='<option value="">All categories</option>'+cats.map(t=>'<option>'+esc(t)+'</option>').join('');if(cats.includes(old))filter.value=old}}function renderSettings(){let x=workspaceSettings();const setIf=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v};setIf('companyNameInput',x.companyName||'');setIf('siteNameInput',x.siteName||'');setIf('siteHttpPortInput',x.httpPort||8848);setIf('siteHttpsPortInput',x.httpsPort||8849);renderSiteNameNote();loadNetworkConfigStatus();setIf('licenseWarningDays',x.licenseWarningDays??30);const al=document.getElementById('licenseAlertsEnabled');if(al)al.checked=x.licenseAlertsEnabled!==false;setIf('defaultTicketPriority',x.defaultTicketPriority||'Normal');let defs=[['dashboard','Overview'],['assets','Asset inventory'],['datacenter','Data Center'],['tickets','IT help desk'],['maintenance','Maintenance & repairs'],['ageing','Asset ageing & risk'],['users','Users'],['departments','Departments'],['factories','Factories'],['valuation','Valuation'],['billing','Billing / Invoices'],['software','Software & licenses'],['monitoring','Network monitoring'],['snmp','SNMP bandwidth'],['notifications','Notifications'],['surveillance','Surveillance'],['parts','Parts inventory'],['reports','Reports']];const modEl=document.getElementById('moduleSettings');if(modEl)modEl.innerHTML=defs.map(([k,n])=>'<label class="settings-toggle"><input type="checkbox" '+(x.modules[k]!==false?'checked':'')+' onchange="toggleModule(\''+k+'\',this.checked)"> '+n+'</label>').join('');defs.forEach(([k])=>{let nav=document.querySelector('#mainNav [data-view="'+k+'"]');if(nav&&x.modules[k]===false)nav.style.display='none'});let types=x.assetTypes||defaultAssetTypes;const catEl=document.getElementById('settingsCategories');if(catEl)catEl.innerHTML=types.map((t,i)=>'<div class="settings-list-row"><span>'+esc(t)+'</span><button onclick="removeAssetCategory('+i+')">Remove</button></div>').join('');const tcEl=document.getElementById('settingsTicketCategories');if(tcEl)tcEl.innerHTML=(x.ticketCategories||defaultTicketCategories).map((t,i)=>'<div class="settings-list-row"><span>'+esc(t)+'</span><button onclick="removeTicketCategory('+i+')">Remove</button></div>').join('');applyCompanyName();applyAssetTypes(types);applyDepartmentOptions();refreshTicketCategoryChoices();window.renderFactoryRows?.();applyModuleAccess(serverProfile);window.loadSoftwareUpdateStatus?.()}
+function refreshTicketCategoryChoices(){let x=workspaceSettings(),el=document.getElementById('primaryCategories'),selected=document.querySelector('input[name="primaryCategory"]:checked')?.value,deskTree=(typeof window.getTicketCategoryTree==='function'?window.getTicketCategoryTree():null),cats=(Array.isArray(deskTree)&&deskTree.length)?deskTree.map(c=>c.name):(x.ticketCategories||defaultTicketCategories);if(el)el.innerHTML=cats.map((t,i)=>'<label class="ticket-choice"><input type="radio" name="primaryCategory" value="'+esc(t)+'" '+(t===selected||(!selected&&i===0)?'checked':'')+'> '+esc(t)+'</label>').join('');let filter=document.getElementById('ticketCategoryFilter'),old=filter?.value;if(filter){filter.innerHTML='<option value="">All categories</option>'+cats.map(t=>'<option>'+esc(t)+'</option>').join('');if(cats.includes(old))filter.value=old}}function renderSettings(){let x=workspaceSettings();const setIf=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v};setIf('companyNameInput',x.companyName||'');setIf('siteNameInput',x.siteName||'');setIf('siteHttpPortInput',x.httpPort||8848);setIf('siteHttpsPortInput',x.httpsPort||8849);renderSiteNameNote();loadNetworkConfigStatus();setIf('licenseWarningDays',x.licenseWarningDays??30);const al=document.getElementById('licenseAlertsEnabled');if(al)al.checked=x.licenseAlertsEnabled!==false;setIf('defaultTicketPriority',x.defaultTicketPriority||'Normal');let defs=[['dashboard','Overview'],['assets','Asset inventory'],['datacenter','Data Center'],['tickets','IT help desk'],['maintenance','Maintenance & repairs'],['ageing','Asset ageing & risk'],['users','Users'],['departments','Departments'],['factories','Factories'],['valuation','Valuation'],['billing','Billing / Invoices'],['software','Software & licenses'],['monitoring','Network monitoring'],['snmp','SNMP bandwidth'],['notifications','Notifications'],['surveillance','Surveillance'],['parts','Parts inventory'],['reports','Reports']];const modEl=document.getElementById('moduleSettings');if(modEl)modEl.innerHTML=defs.map(([k,n])=>'<label class="settings-toggle"><input type="checkbox" '+(x.modules[k]!==false?'checked':'')+' onchange="toggleModule(\''+k+'\',this.checked)"> '+n+'</label>').join('');defs.forEach(([k])=>{let nav=document.querySelector('#mainNav [data-view="'+k+'"]');if(nav&&x.modules[k]===false)nav.style.display='none'});let types=x.assetTypes||defaultAssetTypes;const catEl=document.getElementById('settingsCategories');if(catEl)catEl.innerHTML=types.map((t,i)=>'<div class="settings-list-row"><span>'+esc(t)+'</span><button onclick="removeAssetCategory('+i+')">Remove</button></div>').join('');const tcEl=document.getElementById('settingsTicketCategories');if(tcEl)tcEl.innerHTML=(x.ticketCategories||defaultTicketCategories).map((t,i)=>'<div class="settings-list-row"><span>'+esc(t)+'</span><button onclick="removeTicketCategory('+i+')">Remove</button></div>').join('');applyCompanyName();applyAssetTypes(types);applyDepartmentOptions();refreshTicketCategoryChoices();window.renderFactoryRows?.();applyModuleAccess(serverProfile);window.loadSoftwareUpdateStatus?.()}
 function applyAssetTypes(types){for(const id of ['typeFilter']){let el=document.getElementById(id),v=el.value;el.innerHTML='<option value="">All device types</option>'+types.map(t=>'<option>'+esc(t)+'</option>').join('');if(types.includes(v))el.value=v}let sel=document.querySelector('#assetForm select[name=type]'),v=sel.value;sel.innerHTML='<option value="">Select type</option>'+types.map(t=>'<option>'+esc(t)+'</option>').join('');if(types.includes(v))sel.value=v}
 function renderTicketingBackend(){let body=document.getElementById('ticketingTable');if(!body)return;let q=(document.getElementById('ticketingSearch')?.value||'').toLowerCase(),kind=document.getElementById('ticketingKind')?.value||'',status=document.getElementById('ticketingStatus')?.value||'',rows=tickets.filter(t=>(!q||[t.id,t.name,t.dept,t.site,t.primary,t.sub,t.description].join(' ').toLowerCase().includes(q))&&(!kind||t.kind===kind)&&(!status||t.status===status));body.innerHTML=rows.map(t=>'<tr data-ticketing-id="'+esc(t.id)+'"><td><b>'+esc(t.id)+'</b><div class="ticket-meta">'+esc(t.updated||'')+'</div></td><td><b>'+esc(t.name)+'</b><div>'+esc(t.site)+' · '+esc(t.dept)+'</div></td><td><b>'+esc(t.primary)+' · '+esc(t.sub)+'</b><div style="white-space:normal;max-width:300px">'+esc(t.description)+(t.material?'<div class="ticket-meta">'+esc(t.material)+'</div>':'')+'</div></td><td><input class="filter-input" data-field="assigned" value="'+esc(t.assigned||'Unassigned')+'" placeholder="IT assignee"></td><td><select class="filter-select" data-field="status">'+['Open','In progress','Resolved','Closed'].map(x=>'<option '+(t.status===x?'selected':'')+'>'+x+'</option>').join('')+'</select></td><td><input class="filter-input" data-field="eta" type="datetime-local" value="'+(t.eta?new Date(t.eta).toISOString().slice(0,16):'')+'"></td><td><textarea class="filter-input" data-field="work" placeholder="What work did you do?" maxlength="3000"></textarea></td><td><button class="btn primary" onclick="saveTicketingFields(\''+esc(t.id)+'\')">Save</button><button class="btn" style="margin-top:5px" onclick="submitTicketWorklog(\''+esc(t.id)+'\')">Add work</button><button class="link-btn" onclick="showTicketWorklog(\''+esc(t.id)+'\')">History</button></td></tr>').join('')||'<tr><td colspan="8" class="empty-state">No tickets match these filters.</td></tr>'}
 function ticketingRow(id){return [...document.querySelectorAll('#ticketingTable tr[data-ticketing-id]')].find(x=>x.dataset.ticketingId===id)}
@@ -1189,7 +1204,7 @@ function openUserForm(index=-1){
   ${rf('Favourite food (3+ chars)','recovery_food','text','','',false,false,'Leave blank to keep existing')}
   ${modulePermissionFields(u,index<0)}
   <div class="field full form-note">Viewer accounts have read-only access. Custom module permissions control exactly which sidebar items &amp; actions this account can access.</div>`:`<div class="field full form-note">Directory details can be edited by users with Users write permission. Only Administrators can modify passwords, recovery questions or module permissions.</div>`}`);
- let site=recordFields.querySelector('[name=site]');site.addEventListener('change',()=>refreshUserDeptOptions(''));refreshUserDeptOptions(u.dept||u.department||'');
+ let site=recordFields.querySelector('[name=site]');site.addEventListener('change',()=>refreshUserDeptOptions(''));refreshUserDeptOptions(u.dept||u.department||'');syncDeskPermCheckboxes?.();
  settingsUserForm=false;
 }
 function refreshUserDeptOptions(selected=''){let site=recordFields.querySelector('[name=site]')?.value||'ARG',sel=recordFields.querySelector('[name=dept]');if(!sel)return;let names=deptsForFactory(site,false);sel.innerHTML='<option value="">Select</option>'+names.map(n=>`<option ${n===selected?'selected':''}>${esc(n)}</option>`).join('');sel.onchange=()=>refreshSubdeptOptions('');refreshSubdeptOptions(recordFields.querySelector('[name=subdept]')?.value||'')}
@@ -1209,7 +1224,7 @@ async function saveRecord(e){
   if(hasAnyRec&&rec.some(v=>v.length<3||v.length>200))return showToast('Answer all three recovery questions with 3–200 characters each');
   if(serverMode&&!serverAdmin)return showToast('Administrator access is required to manage users & permissions');
   let access=['Administrator','IT Ticketing','Viewer'].includes(x.role)?x.role:'User';
-  let u={...old,...x,username,id:x.id?.trim()||username,name:String(x.name||'').trim(),role:access,enabled:x.enabled!=='false',module_permissions:permissionsFromForm(x),department:x.dept||'',active:x.employment==='Active'?'Active':(x.employment||'Active'),assets:assets.filter(a=>a.owner===old.name||a.owner===x.name).length,software:old.software||0,source:'manual'};
+  let u={...old,...x,username,id:x.id?.trim()||username,name:String(x.name||'').trim(),role:access,enabled:x.enabled!=='false',module_permissions:permissionsFromForm(x),allowed_complaint_desks:complaintDesksFromForm(recordForm),department:x.dept||'',active:x.employment==='Active'?'Active':(x.employment||'Active'),assets:assets.filter(a=>a.owner===old.name||a.owner===x.name).length,software:old.software||0,source:'manual'};
   if(hasAnyRec)u.hasRecoveryQuestions=true;
   delete u.password;delete u.password_confirm;delete u.recovery_animal;delete u.recovery_colour;delete u.recovery_food;
   let next=users.map(r=>({...r}));
@@ -4996,7 +5011,12 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
   function getAssetsList(){ try{ return typeof assets !== 'undefined' && Array.isArray(assets) ? assets : []; }catch(_){ return []; } }
-  function getTicketsList(){ try{ return typeof tickets !== 'undefined' && Array.isArray(tickets) ? tickets : []; }catch(_){ return []; } }
+  function getRawTicketsList(){ try{ return typeof tickets !== 'undefined' && Array.isArray(tickets) ? tickets : []; }catch(_){ return []; } }
+  function getTicketsList(){
+    const raw = getRawTicketsList();
+    return typeof window.filterTicketsByUserDesks === 'function' ? window.filterTicketsByUserDesks(raw) : raw;
+  }
+  window.getTicketsList = getTicketsList;
   function getPartsList(){ try{ return typeof partsInventory !== 'undefined' && Array.isArray(partsInventory) ? partsInventory : []; }catch(_){ return []; } }
   function getPartsCatalogList(){ try{ return typeof partsCatalog !== 'undefined' && Array.isArray(partsCatalog) ? partsCatalog : []; }catch(_){ return []; } }
   function getPartsAssignmentsList(){ try{ return typeof partsAssignments !== 'undefined' && Array.isArray(partsAssignments) ? partsAssignments : []; }catch(_){ return []; } }
@@ -5500,38 +5520,177 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
   }
 
   // =========================================================================
-  // 3. DYNAMIC TICKETING SETTINGS & SEPARATED MATERIAL REQUESTS
+  // 3. DYNAMIC TICKETING SETTINGS, COMPLAINT DESKS & ISOLATED PERMISSIONS
   // =========================================================================
   function slugId(name, fallbackIdx){
     const s = String(name || '').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
     return s ? ('cat-' + s) : ('cat-' + (fallbackIdx + 1));
   }
+  function slugDeskId(name, fallback){
+    const s = String(name || '').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0, 40);
+    return s || (fallback || 'it');
+  }
 
-  window.getTicketCategoryTree = function(){
+  const DEFAULT_COMPLAINT_DESKS_JS = [
+    {
+      id: 'it',
+      name: 'IT Department',
+      icon: '💻',
+      tokenPrefix: 'IT',
+      allowMaterialRequest: true,
+      categories: DEFAULT_TICKET_TREE.map(c => ({ id: c.id, name: c.name, icon: c.icon, subcategories: [...c.subcategories] })),
+      materialCategories: [...DEFAULT_MATERIAL_CATS]
+    },
+    {
+      id: 'plumber',
+      name: 'Plumber',
+      icon: '🔧',
+      tokenPrefix: 'PLM',
+      allowMaterialRequest: true,
+      categories: [
+        { id: 'cat-plm-water', name: 'Water Supply / Pipeline', icon: '🚰', subcategories: ['Pipe Leakage', 'Tap / Valve Repair', 'Water Tank / Motor', 'Low Water Pressure', 'Other Plumbing'] },
+        { id: 'cat-plm-drain', name: 'Drainage / Washroom', icon: '🚿', subcategories: ['Blocked Drain', 'Flush / Cistern Issue', 'Basin / Sink Leakage', 'RO / Drinking Water'] }
+      ],
+      materialCategories: ['Pipes & Fittings', 'Taps & Valves', 'Sealants & Adhesive', 'Sanitary Hardware', 'Other Plumbing Material']
+    },
+    {
+      id: 'electrician',
+      name: 'Electrician',
+      icon: '⚡',
+      tokenPrefix: 'ELC',
+      allowMaterialRequest: true,
+      categories: [
+        { id: 'cat-elc-power', name: 'Power / Lighting', icon: '💡', subcategories: ['Tube Light / Bulb', 'Power Socket / Switch', 'MCB / DB Trip', 'Fan / Exhaust', 'Power Outage'] },
+        { id: 'cat-elc-equip', name: 'Electrical Panel / AC / UPS', icon: '🔌', subcategories: ['Panel Wiring', 'AC Electrical Point', 'Inverter / Generator', 'Earthing / Voltage'] }
+      ],
+      materialCategories: ['Switches & Sockets', 'MCB / Breakers', 'LED Lights & Drivers', 'Wires & Cables', 'Other Electrical Material']
+    },
+    {
+      id: 'admin',
+      name: 'Admin Dept',
+      icon: '🏢',
+      tokenPrefix: 'ADM',
+      allowMaterialRequest: true,
+      categories: [
+        { id: 'cat-adm-fac', name: 'Facility / Housekeeping', icon: '🧹', subcategories: ['Cleaning / Housekeeping', 'Furniture / Chair / Desk', 'Door / Lock / Glass', 'AC Cooling / Vent', 'Pest Control'] },
+        { id: 'cat-adm-ops', name: 'Admin / Security / Canteen', icon: '🪪', subcategories: ['ID Card / Access Pass', 'Canteen / Pantry', 'Parking / Transport', 'Stationery / Courier', 'Other Admin Request'] }
+      ],
+      materialCategories: ['Office Stationery', 'Furniture / Fittings', 'Housekeeping Supplies', 'Security Badges', 'Other Admin Material']
+    }
+  ];
+
+  let activeFormDeskId = 'it';
+  let activeSettingsDeskId = 'it';
+
+  function cloneTree(list, fallback){
+    const src = Array.isArray(list) && list.length ? list : fallback;
+    const clean = [];
+    const seen = new Set();
+    src.forEach((item, idx) => {
+      if(!item || typeof item !== 'object') return;
+      const name = String(item.name || item.primary || '').trim();
+      if(!name || seen.has(name.toLowerCase())) return;
+      seen.add(name.toLowerCase());
+      const srcSubs = Array.isArray(item.subcategories) ? item.subcategories : (Array.isArray(item.subCategories) ? item.subCategories : []);
+      const subs = [];
+      const sSeen = new Set();
+      srcSubs.forEach(s => {
+        const sv = String(s || '').trim();
+        if(sv && !sSeen.has(sv.toLowerCase())){ sSeen.add(sv.toLowerCase()); subs.push(sv); }
+      });
+      clean.push({
+        id: String(item.id || slugId(name, idx)),
+        name,
+        icon: String(item.icon || (name.toLowerCase().includes('network') ? '🖥️' : name.toLowerCase().includes('erp') ? '📊' : '🎫')),
+        subcategories: subs.length ? subs : ['Other']
+      });
+    });
+    return clean;
+  }
+
+  window.getComplaintDesks = function(){
+    const ws = getWsSettings();
+    let desks = Array.isArray(ws.complaintDesks) && ws.complaintDesks.length
+      ? ws.complaintDesks.map((d, idx) => ({
+          id: slugDeskId(d.id || d.name, 'desk-' + (idx + 1)),
+          name: String(d.name || 'Service Desk').trim(),
+          icon: String(d.icon || '🎫').trim() || '🎫',
+          tokenPrefix: String(d.tokenPrefix || d.name || 'TK').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5) || 'TK',
+          allowMaterialRequest: d.allowMaterialRequest !== false,
+          categories: cloneTree(d.categories, [{ id: 'cat-' + idx, name: (d.name || 'General') + ' Issue', icon: d.icon || '🎫', subcategories: ['General Issue', 'Other'] }]),
+          materialCategories: Array.isArray(d.materialCategories) && d.materialCategories.length ? [...d.materialCategories] : ['Other Material']
+        }))
+      : JSON.parse(JSON.stringify(DEFAULT_COMPLAINT_DESKS_JS));
+    const itDesk = desks.find(d => d.id === 'it');
+    if(itDesk && !(Array.isArray(ws.complaintDesks) && ws.complaintDesks.length)){
+      if(Array.isArray(ws.ticketCategoryTree) && ws.ticketCategoryTree.length){
+        itDesk.categories = cloneTree(ws.ticketCategoryTree, DEFAULT_TICKET_TREE);
+      }
+      if(Array.isArray(ws.materialRequestCategories) && ws.materialRequestCategories.length){
+        itDesk.materialCategories = [...ws.materialRequestCategories];
+      }
+    }
+    return desks;
+  };
+
+  window.getShowAllDesksOnPortal = function(){
+    return Boolean(getWsSettings().showAllDesksOnPortal);
+  };
+
+  window.getAllowedComplaintDesks = function(){
+    if(!inServerMode() || isAdminUser()) return null;
+    try{
+      const prof = typeof serverProfile !== 'undefined' ? serverProfile : null;
+      const raw = prof?.allowed_complaint_desks;
+      if(!Array.isArray(raw)) return null;
+      const lower = raw.map(x => String(x || '').trim().toLowerCase()).filter(Boolean);
+      if(lower.includes('*') || lower.includes('all')) return null;
+      return lower;
+    }catch(_){ return null; }
+  };
+
+  window.getVisibleComplaintDesks = function(){
+    const all = window.getComplaintDesks();
+    const allowed = window.getAllowedComplaintDesks();
+    if(allowed === null) return all;
+    return all.filter(d => allowed.includes(d.id));
+  };
+
+  window.filterTicketsByUserDesks = function(list){
+    const arr = Array.isArray(list) ? list : [];
+    const allowed = window.getAllowedComplaintDesks();
+    if(allowed === null) return arr;
+    return arr.filter(t => allowed.includes(slugDeskId(t?.complaintDesk || 'it', 'it')));
+  };
+
+  window.getDeskLabel = function(deskId){
+    const d = window.getComplaintDesks().find(x => x.id === slugDeskId(deskId || 'it', 'it'));
+    return d ? ((d.icon || '🎫') + ' ' + d.name) : String(deskId || 'IT');
+  };
+
+  window.getActiveComplaintDeskId = function(){
+    const visible = window.getVisibleComplaintDesks();
+    if(visible.length && !visible.some(d => d.id === activeFormDeskId)){
+      activeFormDeskId = visible[0].id;
+    }
+    return activeFormDeskId;
+  };
+
+  window.setActiveComplaintDeskId = function(did){
+    const clean = slugDeskId(did, 'it');
+    const visible = window.getVisibleComplaintDesks();
+    if(visible.some(d => d.id === clean)) activeFormDeskId = clean;
+  };
+
+  window.getTicketCategoryTree = function(deskIdOverride){
+    const desks = window.getComplaintDesks();
+    const targetId = deskIdOverride || window.getActiveComplaintDeskId();
+    const dk = desks.find(d => d.id === targetId);
+    if(dk && Array.isArray(dk.categories) && dk.categories.length) return dk.categories;
     const ws = getWsSettings();
     const raw = ws.ticketCategoryTree;
     if(Array.isArray(raw) && raw.length){
-      const clean = [];
-      const seen = new Set();
-      raw.forEach((item, idx) => {
-        if(!item || typeof item !== 'object') return;
-        const name = String(item.name || item.primary || '').trim();
-        if(!name || seen.has(name.toLowerCase())) return;
-        seen.add(name.toLowerCase());
-        const srcSubs = Array.isArray(item.subcategories) ? item.subcategories : (Array.isArray(item.subCategories) ? item.subCategories : []);
-        const subs = [];
-        const sSeen = new Set();
-        srcSubs.forEach(s => {
-          const sv = String(s || '').trim();
-          if(sv && !sSeen.has(sv.toLowerCase())){ sSeen.add(sv.toLowerCase()); subs.push(sv); }
-        });
-        clean.push({
-          id: String(item.id || slugId(name, idx)),
-          name,
-          icon: String(item.icon || (name.toLowerCase().includes('network') ? '🖥️' : name.toLowerCase().includes('erp') ? '📊' : '🎫')),
-          subcategories: subs
-        });
-      });
+      const clean = cloneTree(raw, DEFAULT_TICKET_TREE);
       if(clean.length) return clean;
     }
     if(Array.isArray(ws.ticketCategories) && ws.ticketCategories.length){
@@ -5549,7 +5708,11 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     return DEFAULT_TICKET_TREE.map(c => ({ id: c.id, name: c.name, icon: c.icon, subcategories: [...c.subcategories] }));
   };
 
-  window.getMaterialRequestCategories = function(){
+  window.getMaterialRequestCategories = function(deskIdOverride){
+    const desks = window.getComplaintDesks();
+    const targetId = deskIdOverride || window.getActiveComplaintDeskId();
+    const dk = desks.find(d => d.id === targetId);
+    if(dk && Array.isArray(dk.materialCategories) && dk.materialCategories.length) return [...dk.materialCategories];
     const ws = getWsSettings();
     const raw = ws.materialRequestCategories;
     if(Array.isArray(raw) && raw.length){
@@ -5582,6 +5745,95 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
   }
 
   function syncCategorySelectors(){
+    const visDesks = window.getVisibleComplaintDesks();
+    const allDesks = window.getComplaintDesks();
+    const activeId = window.getActiveComplaintDeskId();
+    const activeDesk = visDesks.find(d => d.id === activeId) || visDesks[0] || allDesks[0];
+    const showAll = window.getShowAllDesksOnPortal();
+
+    const pillsHost = document.getElementById('helpdeskDeskPills');
+    if(pillsHost){
+      pillsHost.innerHTML = visDesks.map(d => `
+        <label class="ticket-choice" style="margin:0;${d.id === activeId ? 'border-color:#167c56;background:#eefcf4;color:#0f5132;font-weight:700' : ''}">
+          <input type="radio" name="helpdeskDesk" value="${safeEsc(d.id)}" ${d.id === activeId ? 'checked' : ''}> ${safeEsc((d.icon || '🎫') + ' ' + d.name)}
+        </label>`).join('') || '<span class="ticket-meta">No complaint desk assigned to your account.</span>';
+      if(!pillsHost.dataset.nsDeskBound){
+        pillsHost.dataset.nsDeskBound = '1';
+        pillsHost.addEventListener('change', (ev) => {
+          const val = ev.target?.value;
+          if(!val) return;
+          window.setActiveComplaintDeskId(val);
+          const qDesk = document.getElementById('ticketDeskFilter');
+          if(qDesk && !window.getShowAllDesksOnPortal()){
+            qDesk.value = val;
+          }
+          syncCategorySelectors();
+          window.renderTickets();
+        });
+      }
+    }
+
+    if(activeDesk){
+      const allowMr = activeDesk.allowMaterialRequest !== false;
+      const mrWrap = document.getElementById('hdKindMaterialWrap');
+      if(mrWrap) mrWrap.style.display = allowMr ? '' : 'none';
+      if(!allowMr){
+        const mrRadio = document.querySelector('#view-tickets input[name="requestKind"][value="Material request"]');
+        if(mrRadio?.checked){
+          const sv = document.querySelector('#view-tickets input[name="requestKind"][value="IT help desk"]');
+          if(sv) sv.checked = true;
+        }
+      }
+      const sLbl = document.getElementById('hdKindServiceLabel');
+      if(sLbl) sLbl.textContent = (activeDesk.icon || '🧰') + ' ' + activeDesk.name + ' Issue / Service';
+      const mLbl = document.getElementById('hdKindMaterialLabel');
+      if(mLbl) mLbl.textContent = '📦 ' + activeDesk.name + ' Material Request';
+      const subBtn = document.querySelector('#ticketForm button.btn.primary');
+      if(subBtn) subBtn.innerHTML = '↥ &nbsp;Submit ' + safeEsc(activeDesk.name) + ' ticket';
+    }
+
+    const hdDeskSel = document.getElementById('ticketDeskFilter');
+    if(hdDeskSel){
+      const cur = hdDeskSel.value;
+      hdDeskSel.innerHTML = (visDesks.length > 1 ? '<option value="">All allowed departments</option>' : '')
+        + visDesks.map(d => `<option value="${safeEsc(d.id)}">${safeEsc((d.icon || '🎫') + ' ' + d.name)}</option>`).join('');
+      if(visDesks.length === 1){
+        hdDeskSel.value = visDesks[0].id;
+      } else if(!showAll){
+        hdDeskSel.value = activeId;
+      } else if(Array.from(hdDeskSel.options).some(o => o.value === cur)){
+        hdDeskSel.value = cur;
+      } else {
+        hdDeskSel.value = '';
+      }
+      if(!hdDeskSel.dataset.nsBound){
+        hdDeskSel.dataset.nsBound = '1';
+        hdDeskSel.addEventListener('change', () => window.renderTickets());
+      }
+    }
+
+    const qTitle = document.getElementById('hdLiveQueueTitle');
+    const qSub = document.getElementById('hdLiveQueueSub');
+    if(qTitle && activeDesk){
+      const selVal = hdDeskSel?.value || '';
+      const scopeDesk = allDesks.find(d => d.id === selVal) || activeDesk;
+      qTitle.innerHTML = (selVal || visDesks.length === 1)
+        ? `🌐 &nbsp;Live ${safeEsc(scopeDesk.name)} Support Tickets`
+        : '🌐 &nbsp;Live Support Tickets Queue';
+      if(qSub) qSub.textContent = (selVal || visDesks.length === 1)
+        ? `Showing only ${scopeDesk.name} support tickets (isolated per department).`
+        : 'Showing support tickets across your accessible complaint departments.';
+    }
+
+    const beDeskSel = document.getElementById('ticketingDeskFilter');
+    if(beDeskSel){
+      const curBe = beDeskSel.value;
+      beDeskSel.innerHTML = (visDesks.length > 1 ? '<option value="">All allowed desks</option>' : '')
+        + visDesks.map(d => `<option value="${safeEsc(d.id)}">${safeEsc((d.icon || '🎫') + ' ' + d.name)}</option>`).join('');
+      if(visDesks.length === 1) beDeskSel.value = visDesks[0].id;
+      else if(Array.from(beDeskSel.options).some(o => o.value === curBe)) beDeskSel.value = curBe;
+    }
+
     const tree = window.getTicketCategoryTree();
     ['ticketingCatFilter','ticketCategoryFilter'].forEach(id => {
       const sel = document.getElementById(id);
@@ -5599,19 +5851,40 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     }
   }
 
-  async function persistTicketingSettings(tree, matCats, defaultPriority, successMsg){
-    const normalizedTree = tree.map((c, idx) => ({
+  async function persistTicketingSettings(tree, matCats, defaultPriority, successMsg, extraOpts){
+    const opts = extraOpts || {};
+    let desks = Array.isArray(opts.complaintDesks) ? opts.complaintDesks : window.getComplaintDesks();
+    const targetDeskId = opts.deskId || activeSettingsDeskId || 'it';
+    const normalizedTree = (Array.isArray(tree) ? tree : window.getTicketCategoryTree(targetDeskId)).map((c, idx) => ({
       id: c.id || slugId(c.name, idx),
       name: c.name,
       icon: c.icon || '🎫',
       subcategories: Array.isArray(c.subcategories) ? c.subcategories : (Array.isArray(c.subCategories) ? c.subCategories : [])
     }));
-    const primaryNames = normalizedTree.map(c => c.name);
+    const normMat = Array.isArray(matCats) ? matCats : window.getMaterialRequestCategories(targetDeskId);
+
+    if(!opts.skipDeskTreePatch){
+      const targetDesk = desks.find(d => d.id === targetDeskId);
+      if(targetDesk){
+        targetDesk.categories = normalizedTree;
+        targetDesk.materialCategories = normMat;
+      }
+    }
+
+    const showAllDesks = typeof opts.showAllDesksOnPortal === 'boolean' ? opts.showAllDesksOnPortal : window.getShowAllDesksOnPortal();
+    const itDesk = desks.find(d => d.id === 'it') || desks[0];
+    const itTree = itDesk?.categories || normalizedTree;
+    const itMat = itDesk?.materialCategories || normMat;
+    const primaryNames = itTree.map(c => c.name);
+    const nextPrio = defaultPriority || getWsSettings().defaultTicketPriority || 'Normal';
+
     saveWsSettingsLocal({
-      ticketCategoryTree: normalizedTree,
+      ticketCategoryTree: itTree,
       ticketCategories: primaryNames,
-      materialRequestCategories: matCats,
-      defaultTicketPriority: defaultPriority || getWsSettings().defaultTicketPriority || 'Normal'
+      materialRequestCategories: itMat,
+      defaultTicketPriority: nextPrio,
+      complaintDesks: desks,
+      showAllDesksOnPortal: showAllDesks
     });
 
     if(inServerMode() && typeof apiFetch === 'function'){
@@ -5620,19 +5893,23 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ticketCategoryTree: normalizedTree,
+            ticketCategoryTree: itTree,
             ticketCategories: primaryNames,
-            materialRequestCategories: matCats,
-            defaultTicketPriority: defaultPriority || 'Normal'
+            materialRequestCategories: itMat,
+            defaultTicketPriority: nextPrio,
+            complaintDesks: desks,
+            showAllDesksOnPortal: showAllDesks
           })
         });
         const sObj = res?.settings || res?.ticketing;
         if(sObj && typeof sObj === 'object'){
           saveWsSettingsLocal({
-            ticketCategoryTree: sObj.ticketCategoryTree || normalizedTree,
+            ticketCategoryTree: sObj.ticketCategoryTree || itTree,
             ticketCategories: sObj.ticketCategories || primaryNames,
-            materialRequestCategories: sObj.materialRequestCategories || matCats,
-            defaultTicketPriority: sObj.defaultTicketPriority || defaultPriority || 'Normal'
+            materialRequestCategories: sObj.materialRequestCategories || itMat,
+            defaultTicketPriority: sObj.defaultTicketPriority || nextPrio,
+            complaintDesks: sObj.complaintDesks || desks,
+            showAllDesksOnPortal: typeof sObj.showAllDesksOnPortal === 'boolean' ? sObj.showAllDesksOnPortal : showAllDesks
           });
         }
       }catch(err){
@@ -5658,8 +5935,14 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     const host = document.getElementById('ticketingTabSettings');
     if(!host) return;
     const ws = getWsSettings();
-    const tree = window.getTicketCategoryTree();
-    const matCats = window.getMaterialRequestCategories();
+    const desks = window.getComplaintDesks();
+    if(!desks.some(d => d.id === activeSettingsDeskId)){
+      activeSettingsDeskId = desks[0]?.id || 'it';
+    }
+    const curDesk = desks.find(d => d.id === activeSettingsDeskId) || desks[0];
+    const showAllPortal = window.getShowAllDesksOnPortal();
+    const tree = window.getTicketCategoryTree(curDesk?.id);
+    const matCats = window.getMaterialRequestCategories(curDesk?.id);
     const defPrio = ws.defaultTicketPriority || 'Normal';
 
     const priCardsHtml = tree.map((cat, idx) => {
@@ -5725,12 +6008,54 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
         </div>
       </div>`).join('');
 
+    const deskPillsHtml = desks.map(dk => {
+      const active = dk.id === curDesk?.id;
+      return `<button type="button" class="btn ns-desk-switch-btn" data-desk-id="${safeEsc(dk.id)}" style="${active ? 'background:#167c56;color:#fff;border-color:#167c56;font-weight:700' : ''}">${safeEsc((dk.icon || '🎫') + ' ' + dk.name)} <span style="opacity:.78;font-size:11px">(${safeEsc(dk.tokenPrefix || 'TK')})</span></button>`;
+    }).join('');
+
     host.innerHTML = `
+      <div class="panel" style="padding:18px;margin-bottom:16px;border-left:4px solid #167c56;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+          <div>
+            <h3 style="margin:0;font-size:17px;">🎛 Complaint Selector Departments &amp; Portal Visibility</h3>
+            <div class="panel-sub">Add or remove complaint departments (IT, Plumber, Electrician, Admin Dept, etc.) and control whether portal visitors &amp; staff see all tickets or only the selected department.</div>
+          </div>
+          <label style="display:inline-flex;align-items:center;gap:9px;padding:9px 13px;border-radius:11px;border:1.5px solid ${showAllPortal ? '#167c56' : '#cbd5e1'};background:${showAllPortal ? '#eefcf4' : '#f8fafc'};cursor:pointer;font-size:12.5px;font-weight:700;color:${showAllPortal ? '#0f5132' : '#334155'};">
+            <input type="checkbox" id="nsToggleShowAllDesks" ${showAllPortal ? 'checked' : ''} style="width:17px;height:17px;accent-color:#167c56;">
+            <span>${showAllPortal ? '🌐 Portal Mode: Show All Departments Together (ON)' : '🔒 Portal Mode: Isolated by Selected Department (OFF)'}</span>
+          </label>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px;">
+          ${deskPillsHtml}
+        </div>
+
+        ${curDesk ? `
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:11px 12px;border:1px solid #d5e5dc;border-radius:10px;background:#f7fbf8;margin-bottom:12px;">
+          <b style="font-size:12px;color:#145b40;">Editing Desk:</b>
+          <input type="text" class="filter-input" id="nsEditDeskIconInput" value="${safeEsc(curDesk.icon || '🎫')}" maxlength="8" style="width:52px;text-align:center;" title="Icon emoji">
+          <input type="text" class="filter-input" id="nsEditDeskNameInput" value="${safeEsc(curDesk.name)}" maxlength="80" placeholder="Department name" style="min-width:160px;flex:1;">
+          <input type="text" class="filter-input" id="nsEditDeskPrefixInput" value="${safeEsc(curDesk.tokenPrefix || 'TK')}" maxlength="5" placeholder="Prefix (e.g. PLM)" style="width:92px;text-transform:uppercase;">
+          <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:6px 10px;cursor:pointer;">
+            <input type="checkbox" id="nsEditDeskAllowMr" ${curDesk.allowMaterialRequest !== false ? 'checked' : ''}> Enable Material Requests
+          </label>
+          <button type="button" id="nsSaveDeskMetaBtn" class="btn primary">Save Desk</button>
+          <button type="button" id="nsDeleteDeskBtn" class="btn danger" ${desks.length <= 1 ? 'disabled' : ''}>Delete Desk</button>
+        </div>` : ''}
+
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+          <input type="text" class="filter-input" id="nsNewDeskIconInput" value="🛠️" maxlength="8" style="width:52px;text-align:center;" title="Icon emoji">
+          <input type="text" class="filter-input" id="nsNewDeskNameInput" placeholder="Add new complaint department (e.g. House Keeping, Security, Maintenance)..." style="min-width:240px;flex:1;">
+          <input type="text" class="filter-input" id="nsNewDeskPrefixInput" placeholder="Prefix (e.g. HK)" maxlength="5" style="width:110px;text-transform:uppercase;">
+          <button type="button" id="nsAddDeskBtn" class="btn primary">+ Add Department Desk</button>
+        </div>
+      </div>
+
       <div class="panel" style="padding:18px;margin-bottom:16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
           <div>
-            <h3 style="margin:0;font-size:17px;">Dynamic Ticketing Categories &amp; Portal Settings</h3>
-            <div class="panel-sub">Add, rename, reorder or delete primary categories &amp; sub-categories. Syncs immediately to IT Help Desk &amp; Self-Service Portal.</div>
+            <h3 style="margin:0;font-size:17px;">${safeEsc((curDesk?.icon || '🎫') + ' ' + (curDesk?.name || 'IT'))} — Categories &amp; Portal Settings</h3>
+            <div class="panel-sub">Add, rename, reorder or delete primary categories &amp; sub-categories for <b>${safeEsc(curDesk?.name || 'this department')}</b>. Syncs immediately to Help Desk &amp; Portal.</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <label style="font-size:12px;color:#475569;">Default Priority:
@@ -5743,19 +6068,19 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
           </div>
         </div>
 
-        <h4 style="margin:12px 0 8px;">1. IT Support Primary Categories &amp; Sub-categories</h4>
+        <h4 style="margin:12px 0 8px;">1. ${safeEsc(curDesk?.name || 'IT')} Primary Categories &amp; Sub-categories</h4>
         <div style="display:flex;gap:8px;max-width:520px;margin-bottom:14px;">
-          <input type="text" class="filter-input" id="nsNewPrimaryCatInput" placeholder="New Primary Category (e.g. Security / Access, HVAC)..." style="flex:1;">
+          <input type="text" class="filter-input" id="nsNewPrimaryCatInput" placeholder="New Primary Category for ${safeEsc(curDesk?.name || 'desk')}..." style="flex:1;">
           <button type="button" id="nsAddPrimaryCatBtn" class="btn primary">+ Add Primary Category</button>
         </div>
         <div id="nsPrimaryCatList">${priCardsHtml}</div>
       </div>
 
       <div class="panel" style="padding:18px;">
-        <h4 style="margin:0 0 6px;">2. IT Material Request Categories</h4>
-        <div class="panel-sub" style="margin-bottom:10px;">Used exclusively for Material Requests (separate from IT Support Tickets).</div>
+        <h4 style="margin:0 0 6px;">2. ${safeEsc(curDesk?.name || 'IT')} Material Request Categories</h4>
+        <div class="panel-sub" style="margin-bottom:10px;">Used when requesting materials for ${safeEsc(curDesk?.name || 'this department')}.</div>
         <div style="display:flex;gap:8px;max-width:520px;margin-bottom:12px;">
-          <input type="text" class="filter-input" id="nsNewMatCatInput" placeholder="New Material Category (e.g. Barcode Scanner, Biometric Device)..." style="flex:1;">
+          <input type="text" class="filter-input" id="nsNewMatCatInput" placeholder="New Material Category..." style="flex:1;">
           <button type="button" id="nsAddMatCatBtn" class="btn primary">+ Add Material Category</button>
         </div>
         <div id="nsMatCatList">${matRowsHtml}</div>
@@ -5765,15 +6090,86 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       host.dataset.nsSettingsBound = '1';
       host.addEventListener('change', async (e)=>{
         if(e.target && e.target.id === 'nsDefaultTicketPrio'){
-          await persistTicketingSettings(window.getTicketCategoryTree(), window.getMaterialRequestCategories(), e.target.value, 'Default priority updated.');
+          const dkId = activeSettingsDeskId || 'it';
+          await persistTicketingSettings(window.getTicketCategoryTree(dkId), window.getMaterialRequestCategories(dkId), e.target.value, 'Default priority updated.', { deskId: dkId });
+        } else if(e.target && e.target.id === 'nsToggleShowAllDesks'){
+          const on = Boolean(e.target.checked);
+          const dkId = activeSettingsDeskId || 'it';
+          await persistTicketingSettings(
+            window.getTicketCategoryTree(dkId),
+            window.getMaterialRequestCategories(dkId),
+            document.getElementById('nsDefaultTicketPrio')?.value || 'Normal',
+            on ? 'Portal now shows all departments tickets together.' : 'Portal set to isolated per-department view.',
+            { deskId: dkId, showAllDesksOnPortal: on }
+          );
         }
       });
       host.addEventListener('click', async (e)=>{
         const t = e.target;
         if(!t || !t.closest) return;
-        const curTree = window.getTicketCategoryTree();
-        const curMat = window.getMaterialRequestCategories();
+        const curDesks = window.getComplaintDesks();
+        const dkId = activeSettingsDeskId || curDesks[0]?.id || 'it';
+        const curTree = window.getTicketCategoryTree(dkId);
+        const curMat = window.getMaterialRequestCategories(dkId);
         const curPrio = document.getElementById('nsDefaultTicketPrio')?.value || 'Normal';
+
+        const swBtn = t.closest('.ns-desk-switch-btn');
+        if(swBtn){
+          activeSettingsDeskId = swBtn.dataset.deskId || 'it';
+          editingPrimaryIdx = -1; editingSubKey = ''; editingMatIdx = -1;
+          window.renderTicketingSettingsPanel();
+          return;
+        }
+        if(t.id === 'nsAddDeskBtn'){
+          const dName = String(document.getElementById('nsNewDeskNameInput')?.value || '').trim();
+          const dIcon = String(document.getElementById('nsNewDeskIconInput')?.value || '🎫').trim() || '🎫';
+          const rawPref = String(document.getElementById('nsNewDeskPrefixInput')?.value || '').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);
+          if(!dName){ toastMsg('Enter a department desk name.', 'error'); return; }
+          if(curDesks.some(d => d.name.toLowerCase() === dName.toLowerCase())){ toastMsg('Department desk already exists.', 'error'); return; }
+          let idSlug = slugDeskId(dName, 'desk-' + (curDesks.length + 1));
+          if(curDesks.some(d => d.id === idSlug)) idSlug = idSlug + '-' + (curDesks.length + 1);
+          const pref = rawPref || (dName.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3) || 'TK');
+          const newDesk = {
+            id: idSlug,
+            name: dName,
+            icon: dIcon,
+            tokenPrefix: pref,
+            allowMaterialRequest: true,
+            categories: [{ id: 'cat-' + idSlug + '-1', name: dName + ' Issue', icon: dIcon, subcategories: ['General Issue', 'Urgent Repair', 'Other'] }],
+            materialCategories: [dName + ' Material', 'Other Material']
+          };
+          curDesks.push(newDesk);
+          activeSettingsDeskId = idSlug;
+          await persistTicketingSettings(newDesk.categories, newDesk.materialCategories, curPrio, 'Added complaint department "' + dName + '".', { complaintDesks: curDesks, deskId: idSlug, skipDeskTreePatch: true });
+          return;
+        }
+        if(t.id === 'nsSaveDeskMetaBtn'){
+          const idx = curDesks.findIndex(d => d.id === dkId);
+          if(idx < 0) return;
+          const nextName = String(document.getElementById('nsEditDeskNameInput')?.value || '').trim();
+          const nextIcon = String(document.getElementById('nsEditDeskIconInput')?.value || '🎫').trim() || '🎫';
+          const nextPref = String(document.getElementById('nsEditDeskPrefixInput')?.value || '').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);
+          const allowMr = Boolean(document.getElementById('nsEditDeskAllowMr')?.checked);
+          if(!nextName){ toastMsg('Department name cannot be empty.', 'error'); return; }
+          curDesks[idx].name = nextName;
+          curDesks[idx].icon = nextIcon;
+          if(nextPref) curDesks[idx].tokenPrefix = nextPref;
+          curDesks[idx].allowMaterialRequest = allowMr;
+          await persistTicketingSettings(curTree, curMat, curPrio, 'Saved department "' + nextName + '".', { complaintDesks: curDesks, deskId: dkId });
+          return;
+        }
+        if(t.id === 'nsDeleteDeskBtn'){
+          if(curDesks.length <= 1){ toastMsg('Keep at least one complaint department.', 'error'); return; }
+          const idx = curDesks.findIndex(d => d.id === dkId);
+          if(idx < 0) return;
+          const label = curDesks[idx].name;
+          if(!window.confirm('Remove complaint department "' + label + '"? Existing historical tickets remain in database.')) return;
+          curDesks.splice(idx, 1);
+          activeSettingsDeskId = curDesks[0].id;
+          editingPrimaryIdx = -1; editingSubKey = ''; editingMatIdx = -1;
+          await persistTicketingSettings(curDesks[0].categories, curDesks[0].materialCategories, curPrio, 'Removed department "' + label + '".', { complaintDesks: curDesks, deskId: activeSettingsDeskId, skipDeskTreePatch: true });
+          return;
+        }
 
         if(t.id === 'nsSaveTickSettingsBtn'){
           await persistTicketingSettings(curTree, curMat, curPrio, 'All ticketing categories synced.');
@@ -5957,6 +6353,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     const tbody = document.getElementById('ticketTable');
     if(!tbody) return;
 
+    const deskF = (document.getElementById('ticketDeskFilter')?.value || '').trim();
     const q = (document.getElementById('ticketSearch')?.value || '').trim().toLowerCase();
     const stF = (document.getElementById('ticketStatusFilter')?.value || '').trim();
     const catF = (document.getElementById('ticketCategoryFilter')?.value || '').trim();
@@ -5971,26 +6368,28 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     }
 
     const filtered = itTickets.filter(t => {
+      if(deskF && slugDeskId(t.complaintDesk || 'it', 'it') !== deskF) return false;
       if(stF && String(t.status || '') !== stF) return false;
       if(catF && String(t.primary || t.category || '') !== catF) return false;
       if(siteF && String(t.site || t.factory || '') !== siteF) return false;
       if(q){
-        const hay = [t.id, t.name, t.requester, t.dept, t.site, t.primary, t.sub, t.description, t.assigned, t.note].join(' ').toLowerCase();
+        const hay = [t.id, t.name, t.requester, t.dept, t.site, t.primary, t.sub, t.description, t.assigned, t.note, window.getDeskLabel?.(t.complaintDesk || 'it')].join(' ').toLowerCase();
         if(!hay.includes(q)) return false;
       }
       return true;
     });
 
     if(!filtered.length){
-      tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No IT support tickets found. Material Requests are separated in the Material Requests tab.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No support tickets match the selected department or filters.</td></tr>';
       return;
     }
 
     tbody.innerHTML = filtered.map(t => {
       const idEsc = safeEsc(t.id);
       const cls = statusCss(t.status);
+      const dkLbl = safeEsc(window.getDeskLabel?.(t.complaintDesk || 'it') || (t.complaintDesk || 'IT'));
       return `<tr data-ticket-id="${idEsc}">
-        <td><b>${idEsc}</b><div class="ticket-meta">${safeEsc(t.created || t.createdAt || t.updated || '')}</div></td>
+        <td><b>${idEsc}</b><div><span class="status" style="padding:1px 6px;font-size:10px;background:#eef2f6;color:#334155">${dkLbl}</span></div><div class="ticket-meta">${safeEsc(t.created || t.createdAt || t.updated || '')}</div></td>
         <td><b>${safeEsc(t.name || t.requester || '-')}</b><div class="ticket-meta">${safeEsc(t.dept || t.department || '-')} · ${safeEsc(t.site || t.factory || '-')}</div></td>
         <td><b>${safeEsc(t.primary || t.category || '-')}</b><div class="ticket-meta">${safeEsc(t.sub || t.subCategory || '-')}</div></td>
         <td style="white-space:normal;max-width:260px">${safeEsc(t.description || t.details || t.issue || '')}</td>
@@ -6020,6 +6419,8 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     }
 
     const filtered = matReqs.filter(t => {
+      const deskF = (document.getElementById('ticketDeskFilter')?.value || '').trim();
+      if(deskF && !window.getShowAllDesksOnPortal?.() && slugDeskId(t.complaintDesk || 'it', 'it') !== deskF) return false;
       if(statusF && String(t.status || '') !== statusF) return false;
       if(siteF && String(t.site || t.factory || '') !== siteF) return false;
       if(q){
@@ -6064,9 +6465,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     try{
       if(typeof serverProfile !== 'undefined' && serverProfile){
         if(serverProfile.role === 'IT Ticketing') return true;
-        if(!serverProfile.module_permissions || typeof serverProfile.module_permissions !== 'object'){
-          return typeof canAccessMod === 'function' ? canAccessMod('tickets', true) : true;
-        }
+        if(typeof canAccessMod === 'function' && canAccessMod('tickets', true)) return true;
       }
     }catch(_){}
     return false;
@@ -6376,6 +6775,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       const itTickets = all.filter(t => !window.isMaterialRequestTicket(t));
       const matReqs = all.filter(t => window.isMaterialRequestTicket(t));
       const mrIdSet = new Set(matReqs.map(t => String(t.id)));
+      const deskFilter = (document.getElementById('ticketingDeskFilter')?.value || '').trim();
       const catFilter = (document.getElementById('ticketingCatFilter')?.value || '').trim();
       const canDel = canMutateTicketingBackend();
 
@@ -6390,7 +6790,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
           const rowTid = tr.dataset.ticketingId || tr.dataset.ticketId || '';
           const matchedTicket = all.find(t => rowTid && String(t.id) === String(rowTid));
           const isMr = (rowTid && mrIdSet.has(rowTid)) || (matchedTicket && window.isMaterialRequestTicket(matchedTicket));
-          if(isMr){
+          if(isMr || (rowTid && !matchedTicket)){
             tr.remove();
             return;
           }
@@ -6403,6 +6803,15 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
             tdChk.innerHTML = `<input type="checkbox" class="be-ticket-check" data-tid="${safeEsc(rowTid)}" ${checked ? 'checked' : ''} ${canDel ? '' : 'disabled'} aria-label="Select ${safeEsc(rowTid)}">`;
             tr.insertBefore(tdChk, tr.firstChild);
             tr.classList.toggle('row-selected', checked);
+          }
+          if(rowTid && matchedTicket && !tr.querySelector('.ns-be-desk-pill')){
+            const firstDataCell = tr.children[1];
+            if(firstDataCell){
+              const sp = document.createElement('div');
+              sp.className = 'ns-be-desk-pill';
+              sp.innerHTML = `<span class="status" style="padding:1px 6px;font-size:10px;background:#eef2f6;color:#334155">${safeEsc(window.getDeskLabel?.(matchedTicket.complaintDesk || 'it') || (matchedTicket.complaintDesk || 'IT'))}</span>`;
+              firstDataCell.insertBefore(sp, firstDataCell.children[1] || null);
+            }
           }
           if(rowTid && canDel && !tr.querySelector('.ns-be-del-btn')){
             const actionCell = tr.lastElementChild;
@@ -6417,6 +6826,10 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
             }
           }
 
+          if(deskFilter && matchedTicket && slugDeskId(matchedTicket.complaintDesk || 'it', 'it') !== deskFilter){
+            tr.style.display = 'none';
+            return;
+          }
           if(catFilter && matchedTicket && String(matchedTicket.primary || '') !== catFilter){
             tr.style.display = 'none';
             return;
@@ -6425,7 +6838,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
           kept++;
         });
         if(kept === 0){
-          beTbody.innerHTML = '<tr><td colspan="9" class="empty-state">No IT support tickets match these filters. Material Requests are separated in the Material Requests tab.</td></tr>';
+          beTbody.innerHTML = '<tr><td colspan="9" class="empty-state">No support tickets match these filters. Material Requests are separated in the Material Requests tab.</td></tr>';
         }
         window.syncTicketingBulkUI('tickets');
       }
@@ -6870,9 +7283,23 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
   function resolveDeviceTypeRule(cfg, devOrMeta){
     const rules = cfg?.deviceRules || {};
     const cands = resolveDeviceTypeCandidates(devOrMeta);
-    for(const k of cands){
-      if(rules[k]) return { key: k, ...rules[k] };
+    const hay = (String(devOrMeta?.title || '') + ' ' + String(devOrMeta?.body || '') + ' ' + String(devOrMeta?.deviceSubtype || devOrMeta?.subtype || '') + ' ' + String(devOrMeta?.deviceType || devOrMeta?.type || '')).toLowerCase();
+    for(const [rk, rv] of Object.entries(rules)){
+      if(!rv || !rk || cands.includes(rk)) continue;
+      const escK = rk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if(new RegExp('(?:^|[^a-z0-9])' + escK + '(?:$|[^a-z0-9])', 'i').test(hay)){
+        cands.push(rk);
+      }
     }
+    let firstMatch = null;
+    for(const k of cands){
+      if(rules[k]){
+        const candRule = { key: k, ...rules[k] };
+        if(!firstMatch) firstMatch = candRule;
+        if(candRule.silent === true) return candRule;
+      }
+    }
+    if(firstMatch) return firstMatch;
     if(cands.length && cfg?.defaultNewTypeSilent){
       return { key: cands[0], silent: true, onlineSoundId: 'inherit', offlineSoundId: 'inherit' };
     }
@@ -6907,7 +7334,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       for(const [k, ts] of recentAlertDedupe.entries()){ if(ts < cut) recentAlertDedupe.delete(k); }
     }
     const cfg = loadSoundConfig();
-    const dtRule = resolveDeviceTypeRule(cfg, meta);
+    const dtRule = resolveDeviceTypeRule(cfg, { ...(meta || {}), title, body });
     const isDeviceSilent = Boolean(dtRule && dtRule.silent === true);
 
     try{
@@ -7069,6 +7496,36 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     let host = document.getElementById('nsNotifSoundSection');
     if(opts && opts.background && host && host.dataset.nsSoundBound){
       updateAudioPill();
+      const liveCfg = loadSoundConfig();
+      const active = document.activeElement;
+      const syncChk = (id, val) => { const el = document.getElementById(id); if(el && active !== el) el.checked = Boolean(val); };
+      syncChk('nsMasterSoundEnabled', liveCfg.masterEnabled);
+      syncChk('nsDesktopNotifEnabled', liveCfg.desktopNotifications);
+      syncChk('nsDefaultNewTypeSilent', liveCfg.defaultNewTypeSilent);
+      const volEl = document.getElementById('nsSoundVolume');
+      if(volEl && active !== volEl){
+        volEl.value = String(liveCfg.volume ?? 0.85);
+        const volLbl = document.getElementById('nsSoundVolLabel');
+        if(volLbl) volLbl.textContent = Math.round((liveCfg.volume ?? 0.85) * 100) + '%';
+      }
+      host.querySelectorAll('.ns-dt-row').forEach(tr => {
+        const k = tr.dataset.dtKey;
+        const rule = (liveCfg.deviceRules && liveCfg.deviceRules[k]) || { silent: Boolean(liveCfg.defaultNewTypeSilent), onlineSoundId: 'inherit', offlineSoundId: 'inherit' };
+        const btn = tr.querySelector('.ns-dt-silent-btn');
+        if(btn){
+          const isSil = Boolean(rule.silent);
+          btn.dataset.silent = isSil ? '1' : '0';
+          btn.classList.toggle('is-muted', isSil);
+          btn.textContent = isSil ? '🔇 Silent' : '🔔 Active';
+          btn.style.background = isSil ? '#fff1f2' : '#f0fdf4';
+          btn.style.borderColor = isSil ? '#fda4af' : '#86efac';
+          btn.style.color = isSil ? '#be123c' : '#157a54';
+        }
+        const onSel = tr.querySelector('.ns-dt-online-sel');
+        if(onSel && active !== onSel) onSel.value = rule.onlineSoundId || 'inherit';
+        const offSel = tr.querySelector('.ns-dt-offline-sel');
+        if(offSel && active !== offSel) offSel.value = rule.offlineSoundId || 'inherit';
+      });
       return;
     }
     if(!host){
@@ -7430,7 +7887,16 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     const origLoadNotif = window.loadNotificationModule;
     window.loadNotificationModule = async function(opts){
       window.renderNotificationSoundSettings(opts);
-      return origLoadNotif.apply(this, arguments);
+      const res = await origLoadNotif.apply(this, arguments);
+      try{
+        const sRes = await apiFetch('/api/notifications/sounds', { cache: 'no-store' });
+        if(sRes && (sRes.soundAlerts || sRes.soundLibrary)){
+          soundCfgCache = normalizeClientSoundConfig(sRes.soundAlerts, sRes.soundLibrary);
+          writeSoundLocalStorage(soundCfgCache);
+          window.renderNotificationSoundSettings(opts);
+        }
+      }catch(_){}
+      return res;
     };
   }
 
@@ -7473,10 +7939,16 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
           ticketCategoryTree: opts.ticketCategoryTree || getWsSettings().ticketCategoryTree,
           ticketCategories: opts.ticketCategories || getWsSettings().ticketCategories,
           materialRequestCategories: opts.materialRequestCategories || getWsSettings().materialRequestCategories,
-          defaultTicketPriority: opts.defaultTicketPriority || getWsSettings().defaultTicketPriority
+          defaultTicketPriority: opts.defaultTicketPriority || getWsSettings().defaultTicketPriority,
+          complaintDesks: Array.isArray(opts.complaintDesks) ? opts.complaintDesks : getWsSettings().complaintDesks,
+          showAllDesksOnPortal: typeof opts.showAllDesksOnPortal === 'boolean' ? opts.showAllDesksOnPortal : getWsSettings().showAllDesksOnPortal
         });
         syncCategorySelectors();
         window.renderTickets();
+        const settingsPanel = document.getElementById('ticketingTabSettings');
+        if(settingsPanel && settingsPanel.style.display !== 'none'){
+          window.renderTicketingSettingsPanel();
+        }
       }
     }catch(_){}
   }
@@ -7618,6 +8090,17 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       }catch(_){}
     },
     runPulseNow: runLivePulse,
+    refreshSoundsNow: async () => {
+      if(!inServerMode() || typeof apiFetch !== 'function') return;
+      try{
+        const sRes = await apiFetch('/api/notifications/sounds', { cache: 'no-store' });
+        if(sRes && (sRes.soundAlerts || sRes.soundLibrary)){
+          soundCfgCache = normalizeClientSoundConfig(sRes.soundAlerts, sRes.soundLibrary);
+          writeSoundLocalStorage(soundCfgCache);
+          window.renderNotificationSoundSettings({ background: true });
+        }
+      }catch(_){}
+    },
     isAudioUnlocked: () => !!audioUnlocked,
     markTicketSeen: (id) => { if(id) seenTicketIds.add(String(id)); },
     processLiveFeed: (payload, initial) => processLiveFeedPayload(payload, initial),
@@ -12349,7 +12832,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     const host = document.getElementById('tfFactoryTilesGrid');
     if(!host) return;
     const fCodes = getActiveFactoryListForTickets();
-    const allT = (typeof tickets !== 'undefined' && Array.isArray(tickets)) ? tickets : [];
+    const allT = typeof window.getTicketsList === 'function' ? window.getTicketsList() : ((typeof tickets !== 'undefined' && Array.isArray(tickets)) ? tickets : []);
 
     const badge = document.getElementById('tfFactoryTotalBadge');
     if(badge) badge.textContent = `${fCodes.length} Factories Active · ${allT.length} Total Tickets`;
@@ -12422,7 +12905,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     const fc = activeDrillFactory;
     if(!fc) return;
     const fName = getFactoryDisplayName(fc);
-    const allT = (typeof tickets !== 'undefined' && Array.isArray(tickets)) ? tickets : [];
+    const allT = typeof window.getTicketsList === 'function' ? window.getTicketsList() : ((typeof tickets !== 'undefined' && Array.isArray(tickets)) ? tickets : []);
     const facTickets = allT.filter(t => String(t.site || t.factory || '').trim() === fc);
 
     const openCount = facTickets.filter(t => ['Open', 'In progress'].includes(t.status)).length;
@@ -13248,6 +13731,9 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
           if(payload?.data?.source === 'tile_configs'){
             window.loadServerTileConfigs?.();
           }
+          if(payload?.data?.source === 'sounds'){
+            window.nsSoundEngine?.refreshSoundsNow?.();
+          }
         }catch(_){}
         window.nsSoundEngine?.runPulseNow?.();
       });
@@ -13277,6 +13763,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       const shell = document.getElementById('appShell');
       if(shell && shell.style.display !== 'none'){
         if(!sseSource) window.__nsStartSseStream?.();
+        window.nsSoundEngine?.refreshSoundsNow?.();
         window.nsSoundEngine?.runPulseNow?.();
         window.nsNotifCenter?.refreshFromServer?.();
       }

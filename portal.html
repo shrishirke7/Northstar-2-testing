@@ -72,10 +72,39 @@ tr:hover td{background:#fafdfb}
 .portal-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .portal-tab{background:#f2f6f4;color:#33463c;border:1px solid #d5e2da;padding:10px 16px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
 .portal-tab.active{background:#167c56;color:#fff;border-color:#167c56;box-shadow:0 6px 16px #167c5624}
+.desk-pill{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border-radius:11px;border:1.5px solid #cbd9d0;background:#fff;color:#1e2923;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s ease;max-width:100%}
+.desk-pill input{margin:0;accent-color:#167c56}
+.desk-pill:has(input:checked){background:#eefcf4;border-color:#167c56;color:#0f5132;box-shadow:0 4px 12px rgba(22,124,86,.14)}
+.desk-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:6px;background:#eef2f6;color:#334155;font-size:10.5px;font-weight:700;margin-left:5px}
+.queue-scope-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;background:#eefcf4;color:#147852;border:1px solid #cce7d7;margin-top:6px}
 #portalLiveToastStack{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:360px;pointer-events:none}
 .portal-live-toast{pointer-events:auto;background:#ffffff;border:1px solid #cce3d4;border-left:4px solid #16845d;border-radius:10px;padding:11px 14px;box-shadow:0 12px 28px rgba(15,23,42,.16);font-size:12.5px;color:#1b2620}
+html,body{overflow-x:hidden;max-width:100%}
 @media(max-width:900px){.grid-3,.mat-box.active{grid-template-columns:1fr}.grid-2{grid-template-columns:1fr}.card{padding:18px}}
-@media(max-width:680px){.wrap{width:calc(100vw - 16px);margin:10px auto calc(16px + env(safe-area-inset-bottom,0px));gap:12px}.card{padding:14px;border-radius:14px}.top-bar .button{width:100%;justify-content:center}.filters select,.filters input[type="search"]{width:100%;min-width:0}.portal-tab{flex:1;justify-content:center;font-size:12px;padding:9px 10px}#portalLiveToastStack{top:calc(12px + env(safe-area-inset-top,0px));left:10px;right:10px;bottom:auto;max-width:none}}
+@media(max-width:768px){
+  body{padding:0;margin:0;overflow-x:hidden}
+  .wrap{width:100%;max-width:100vw;padding:10px 8px calc(22px + env(safe-area-inset-bottom,0px));margin:0 auto;gap:12px;box-sizing:border-box}
+  .card{padding:14px 12px;border-radius:14px;box-sizing:border-box;max-width:100%;overflow:hidden}
+  .top-bar{flex-direction:column;align-items:stretch;gap:10px}
+  .top-bar h1{font-size:18px;line-height:1.25}
+  .top-bar .button{width:100%;justify-content:center;text-align:center;box-sizing:border-box}
+  .pill-group{display:flex;flex-wrap:wrap;gap:7px;max-width:100%}
+  .pill-choice,.desk-pill{flex:1 1 auto;min-width:0;max-width:100%;white-space:normal;word-break:break-word;box-sizing:border-box}
+  .filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:stretch}
+  .filters>b{grid-column:1/-1}
+  .filters select,.filters input[type="search"],.filters button{width:100%;min-width:0;box-sizing:border-box}
+  .filters input[type="search"]{grid-column:1/-1}
+  .portal-tab{flex:1 1 140px;justify-content:center;font-size:12px;padding:9px 10px;text-align:center}
+  .table-scroll{overflow-x:visible;border:0;margin-top:10px}
+  #publicTable,#publicTable tbody,#publicTable tr,#publicTable td{display:block;width:100%;min-width:0!important;box-sizing:border-box}
+  #publicTable thead{display:none}
+  #publicTable tbody tr{background:#ffffff;border:1px solid #d5e2da;border-radius:14px;padding:12px 13px;margin-bottom:10px;box-shadow:0 3px 12px rgba(22,36,28,.06)}
+  #publicTable tbody tr.portal-empty-row{text-align:center;padding:18px}
+  #publicTable tbody td{border:0!important;padding:4px 0!important;white-space:normal!important;word-break:break-word;min-width:0!important;font-size:13px;line-height:1.4}
+  #publicTable tbody td[data-label]{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;padding:4px 0!important}
+  #publicTable tbody td[data-label]::before{content:attr(data-label) ':';font-size:11px;font-weight:800;color:#5a6961;text-transform:uppercase;letter-spacing:.4px;flex-shrink:0}
+  #portalLiveToastStack{top:calc(12px + env(safe-area-inset-top,0px));left:10px;right:10px;bottom:auto;max-width:none}
+}
 </style>
 </head>
 <body>
@@ -113,12 +142,18 @@ tr:hover td{background:#fafdfb}
         </div>
       </div>
 
+      <div class="field" id="complaintDeskBox" style="margin-bottom:14px;padding:12px;border:1px solid #d5e5dc;border-radius:12px;background:#f7fbf8">
+        <label style="color:#145b40">Complaint Department / Service Desk *</label>
+        <div class="pill-group" id="complaintDeskPills"></div>
+        <div class="small" id="complaintDeskHint" style="margin-top:6px">Choose which department handles your request. Form options &amp; live ticket queue filter automatically.</div>
+      </div>
+
       <div class="grid-2" style="margin-bottom:12px">
-        <div class="field" style="margin-bottom:0">
+        <div class="field" style="margin-bottom:0" id="requestKindBox">
           <label>Request type *</label>
           <div class="pill-group" id="requestKindPills">
-            <label class="pill-choice"><input type="radio" name="requestKind" value="IT help desk" checked> 🧰 IT Issue / Help Desk</label>
-            <label class="pill-choice"><input type="radio" name="requestKind" value="Material request"> 📦 IT Material Request</label>
+            <label class="pill-choice"><input type="radio" name="requestKind" value="IT help desk" checked> <span id="kindServiceLabel">🧰 Service / Complaint Ticket</span></label>
+            <label class="pill-choice" id="kindMaterialWrap"><input type="radio" name="requestKind" value="Material request"> <span id="kindMaterialLabel">📦 Material Request</span></label>
           </div>
         </div>
         <div class="field" style="margin-bottom:0" id="primaryCategoryBox">
@@ -180,19 +215,21 @@ tr:hover td{background:#fafdfb}
   <section class="card">
     <div class="top-bar" style="margin-bottom:10px">
       <div>
-        <h2 style="margin:0">🌐 Live IT Tickets &amp; Material Request Status</h2>
-        <p class="sub" style="margin-top:3px">IT Support Tickets and Material Requests are tracked in separate dedicated sections with live Parts Inventory fulfillment details.</p>
+        <h2 style="margin:0" id="liveQueueHeading">🌐 Live Tickets &amp; Material Request Status</h2>
+        <p class="sub" style="margin-top:3px">Support Tickets and Material Requests are tracked in separate dedicated sections with live fulfillment details.</p>
+        <span class="queue-scope-pill" id="queueScopePill">🔒 Isolated Queue</span>
       </div>
       <span class="small" id="listUpdated"></span>
     </div>
 
     <div class="portal-tabs" role="tablist">
-      <button type="button" class="portal-tab active" data-kind-tab="IT help desk">🧰 IT Help-Desk Tickets Queue</button>
-      <button type="button" class="portal-tab" data-kind-tab="Material request">📦 IT Material Requests &amp; Parts Fulfillment</button>
+      <button type="button" class="portal-tab active" data-kind-tab="IT help desk" id="tabBtnHelpDesk">🧰 Support Tickets Queue</button>
+      <button type="button" class="portal-tab" data-kind-tab="Material request" id="tabBtnMaterial">📦 Material Requests &amp; Fulfillment</button>
     </div>
 
     <div class="filters">
       <b style="font-size:12px;color:#415448">🔍 Filter:</b>
+      <select id="listDesk" style="display:none"><option value="">All departments</option></select>
       <select id="listFactory"><option value="">All factories</option></select>
       <select id="listSub"><option value="">All sub-categories</option></select>
       <select id="listStatus"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select>
@@ -202,9 +239,9 @@ tr:hover td{background:#fafdfb}
     </div>
 
     <div class="table-scroll">
-      <table>
+      <table id="publicTable">
         <thead id="publicHead"></thead>
-        <tbody id="publicRows"><tr><td colspan="10">Loading tickets…</td></tr></tbody>
+        <tbody id="publicRows"><tr class="portal-empty-row"><td colspan="10">Loading tickets…</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -247,8 +284,102 @@ let MATERIAL_CATEGORIES = [
   'Printer / Toner', 'Accessories / Peripherals', 'Other Material'
 ];
 
+let COMPLAINT_DESKS = [
+  { id: 'it', name: 'IT Department', icon: '💻', tokenPrefix: 'IT', allowMaterialRequest: true, categories: null, materialCategories: null },
+  { id: 'plumber', name: 'Plumber', icon: '🔧', tokenPrefix: 'PLM', allowMaterialRequest: true, categories: [{ id:'cat-plm-water', name:'Water Supply / Pipeline', icon:'🚰', subcategories:['Pipe Leakage','Tap / Valve Repair','Water Tank / Motor','Low Water Pressure','Other Plumbing'] },{ id:'cat-plm-drain', name:'Drainage / Washroom', icon:'🚿', subcategories:['Blocked Drain','Flush / Cistern Issue','Basin / Sink Leakage','RO / Drinking Water'] }], materialCategories: ['Pipes & Fittings','Taps & Valves','Sealants & Adhesive','Sanitary Hardware','Other Plumbing Material'] },
+  { id: 'electrician', name: 'Electrician', icon: '⚡', tokenPrefix: 'ELC', allowMaterialRequest: true, categories: [{ id:'cat-elc-power', name:'Power / Lighting', icon:'💡', subcategories:['Tube Light / Bulb','Power Socket / Switch','MCB / DB Trip','Fan / Exhaust','Power Outage'] },{ id:'cat-elc-equip', name:'Electrical Panel / AC / UPS', icon:'🔌', subcategories:['Panel Wiring','AC Electrical Point','Inverter / Generator','Earthing / Voltage'] }], materialCategories: ['Switches & Sockets','MCB / Breakers','LED Lights & Drivers','Wires & Cables','Other Electrical Material'] },
+  { id: 'admin', name: 'Admin Dept', icon: '🏢', tokenPrefix: 'ADM', allowMaterialRequest: true, categories: [{ id:'cat-adm-fac', name:'Facility / Housekeeping', icon:'🧹', subcategories:['Cleaning / Housekeeping','Furniture / Chair / Desk','Door / Lock / Glass','AC Cooling / Vent','Pest Control'] },{ id:'cat-adm-ops', name:'Admin / Security / Canteen', icon:'🪪', subcategories:['ID Card / Access Pass','Canteen / Pantry','Parking / Transport','Stationery / Courier','Other Admin Request'] }], materialCategories: ['Office Stationery','Furniture / Fittings','Housekeeping Supplies','Security Badges','Other Admin Material'] }
+];
+let SHOW_ALL_DESKS = false;
+let activeDeskId = 'it';
+let DEFAULT_IT_TREE_SNAPSHOT = null;
+let DEFAULT_IT_MAT_SNAPSHOT = null;
+
 function h(v){
   return String(v || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function currentDeskObj(){
+  return COMPLAINT_DESKS.find(d => d.id === activeDeskId) || COMPLAINT_DESKS[0];
+}
+
+function deskLabel(deskId){
+  const dk = COMPLAINT_DESKS.find(d => d.id === (deskId || 'it'));
+  return dk ? ((dk.icon ? dk.icon + ' ' : '') + dk.name) : String(deskId || 'IT');
+}
+
+function syncDeskActiveData(){
+  if(!DEFAULT_IT_TREE_SNAPSHOT) DEFAULT_IT_TREE_SNAPSHOT = JSON.parse(JSON.stringify(CATEGORY_TREE));
+  if(!DEFAULT_IT_MAT_SNAPSHOT) DEFAULT_IT_MAT_SNAPSHOT = [...MATERIAL_CATEGORIES];
+  const dk = currentDeskObj();
+  if(!dk) return;
+  activeDeskId = dk.id;
+  if(Array.isArray(dk.categories) && dk.categories.length){
+    CATEGORY_TREE = dk.categories;
+  } else if(dk.id === 'it' && DEFAULT_IT_TREE_SNAPSHOT){
+    CATEGORY_TREE = DEFAULT_IT_TREE_SNAPSHOT;
+  }
+  if(Array.isArray(dk.materialCategories) && dk.materialCategories.length){
+    MATERIAL_CATEGORIES = dk.materialCategories;
+  } else if(dk.id === 'it' && DEFAULT_IT_MAT_SNAPSHOT){
+    MATERIAL_CATEGORIES = DEFAULT_IT_MAT_SNAPSHOT;
+  }
+  const allowMr = dk.allowMaterialRequest !== false;
+  const matWrap = $('kindMaterialWrap');
+  if(matWrap) matWrap.style.display = allowMr ? '' : 'none';
+  if(!allowMr && currentKind() === 'Material request'){
+    const servRadio = document.querySelector('input[name="requestKind"][value="IT help desk"]');
+    if(servRadio) servRadio.checked = true;
+  }
+  const sLbl = $('kindServiceLabel'), mLbl = $('kindMaterialLabel');
+  if(sLbl) sLbl.textContent = (dk.icon || '🧰') + ' ' + dk.name + ' Issue / Complaint';
+  if(mLbl) mLbl.textContent = '📦 ' + dk.name + ' Material Request';
+  const subBtn = $('submit');
+  if(subBtn) subBtn.textContent = 'Submit ' + dk.name + ' Ticket';
+  const tabHd = $('tabBtnHelpDesk'), tabMr = $('tabBtnMaterial');
+  if(tabHd) tabHd.textContent = (dk.icon || '🧰') + ' ' + (SHOW_ALL_DESKS ? 'All Support Tickets Queue' : dk.name + ' Tickets Queue');
+  if(tabMr) tabMr.textContent = '📦 ' + (SHOW_ALL_DESKS ? 'All Material Requests' : dk.name + ' Material Requests');
+  const scopeEl = $('queueScopePill'), qHead = $('liveQueueHeading'), deskSel = $('listDesk');
+  if(deskSel){
+    const prevD = deskSel.value;
+    deskSel.style.display = SHOW_ALL_DESKS ? '' : 'none';
+    deskSel.innerHTML = '<option value="">All departments</option>' + COMPLAINT_DESKS.map(d => `<option value="${h(d.id)}">${h((d.icon ? d.icon + ' ' : '') + d.name)}</option>`).join('');
+    if(COMPLAINT_DESKS.some(d => d.id === prevD)) deskSel.value = prevD;
+  }
+  if(scopeEl){
+    scopeEl.textContent = SHOW_ALL_DESKS
+      ? '🌐 Public View: Showing All Departments Together'
+      : ('🔒 Isolated View: Showing Only ' + dk.name + ' Live Tickets');
+  }
+  if(qHead){
+    qHead.textContent = SHOW_ALL_DESKS
+      ? '🌐 Live Tickets & Material Requests (All Departments)'
+      : ('🌐 Live ' + dk.name + ' Tickets & Requests');
+  }
+}
+
+function renderComplaintDesks(){
+  const box = $('complaintDeskPills');
+  if(!box) return;
+  if(!COMPLAINT_DESKS.some(d => d.id === activeDeskId)){
+    activeDeskId = COMPLAINT_DESKS[0]?.id || 'it';
+  }
+  box.innerHTML = COMPLAINT_DESKS.map(d => `
+    <label class="desk-pill">
+      <input type="radio" name="complaintDesk" value="${h(d.id)}" ${d.id === activeDeskId ? 'checked' : ''}>
+      <span>${h(d.icon || '🎫')} ${h(d.name)}</span>
+    </label>
+  `).join('');
+  box.querySelectorAll('input[name="complaintDesk"]').forEach(el => {
+    el.addEventListener('change', () => {
+      activeDeskId = el.value;
+      syncDeskActiveData();
+      renderPrimaryCategories();
+      renderSubcategories();
+      loadPublicTickets({ silent: true });
+    });
+  });
+  syncDeskActiveData();
 }
 
 function options(el, placeholder, rows, value, label){
@@ -460,10 +591,15 @@ async function loadPublicTickets(opts){
   portalTicketsBusy = true;
   const kind = activeListKind;
   const body = $('publicRows');
+  const deskQuery = SHOW_ALL_DESKS ? ($('listDesk')?.value || 'all') : activeDeskId;
   try {
-    const r = await fetch('/api/public/tickets?kind=' + encodeURIComponent(kind), { cache: 'no-store' });
+    const r = await fetch('/api/public/tickets?kind=' + encodeURIComponent(kind) + '&desk=' + encodeURIComponent(deskQuery), { cache: 'no-store' });
     const d = await r.json();
     if(!r.ok) throw Error(d.error || 'Could not load tickets');
+    if(typeof d.showAllDesksOnPortal === 'boolean' && d.showAllDesksOnPortal !== SHOW_ALL_DESKS){
+      SHOW_ALL_DESKS = d.showAllDesksOnPortal;
+      syncDeskActiveData();
+    }
 
     let allList = Array.isArray(d.tickets) ? d.tickets : [];
     const newArrivals = [];
@@ -482,6 +618,11 @@ async function loadPublicTickets(opts){
     }
 
     let rows = allList.filter(t => (t.kind || 'IT help desk') === kind);
+    if(!SHOW_ALL_DESKS){
+      rows = rows.filter(t => (t.complaintDesk || 'it') === activeDeskId);
+    } else if($('listDesk')?.value){
+      rows = rows.filter(t => (t.complaintDesk || 'it') === $('listDesk').value);
+    }
 
     const factoryEl = $('listFactory'), oldFactory = factoryEl.value;
     const factories = [...new Set(rows.map(t => t.factory).filter(Boolean))].sort();
@@ -526,33 +667,34 @@ async function loadPublicTickets(opts){
       }
       const noteHtml = (t.note ? `<div>${h(t.note)}</div>` : (!stageInfo ? '<span class="small">—</span>' : '')) + stageInfo;
 
+      const dBadge = `<span class="desk-badge">${h(deskLabel(t.complaintDesk || 'it'))}</span>`;
       if(kind === 'IT help desk'){
         return `<tr>
-          <td><b style="color:#16845d">${h(t.id)}</b></td>
-          <td style="white-space:nowrap">${h(created)}</td>
-          <td>${who}</td>
-          <td><b>${h(t.primary)}</b><small>↳ ${h(t.sub)}</small></td>
-          <td style="min-width:220px">${h(t.description)}</td>
-          <td>${photos}</td>
-          <td><b>${h(t.assigned || 'Unassigned')}</b></td>
-          <td>${statusBadge}</td>
-          <td style="min-width:190px">${noteHtml}</td>
-          <td style="white-space:nowrap">${elapsed(t.durationMinutes)}</td>
+          <td data-label="Token"><b style="color:#16845d">${h(t.id)}</b>${dBadge}</td>
+          <td data-label="Created" style="white-space:nowrap">${h(created)}</td>
+          <td data-label="Employee">${who}</td>
+          <td data-label="Category"><b>${h(t.primary)}</b><small>↳ ${h(t.sub)}</small></td>
+          <td data-label="Issue" style="min-width:220px">${h(t.description)}</td>
+          <td data-label="Photos">${photos}</td>
+          <td data-label="Assigned"><b>${h(t.assigned || 'Unassigned')}</b></td>
+          <td data-label="Status">${statusBadge}</td>
+          <td data-label="Updates" style="min-width:190px">${noteHtml}</td>
+          <td data-label="Elapsed" style="white-space:nowrap">${elapsed(t.durationMinutes)}</td>
         </tr>`;
       }
       return `<tr>
-        <td><b style="color:#16845d">${h(t.id)}</b></td>
-        <td style="white-space:nowrap">${h(created)}</td>
-        <td>${who}</td>
-        <td><b>${h(t.sub)}</b></td>
-        <td style="min-width:220px">${t.material ? `<b>📦 ${h(t.material)}</b><br>` : ''}${h(t.description)}</td>
-        <td>${photos}</td>
-        <td><b>${h(t.assigned || 'Unassigned')}</b></td>
-        <td>${statusBadge}</td>
-        <td style="min-width:210px">${noteHtml}</td>
-        <td style="white-space:nowrap">${elapsed(t.durationMinutes)}</td>
+        <td data-label="Request"><b style="color:#16845d">${h(t.id)}</b>${dBadge}</td>
+        <td data-label="Requested" style="white-space:nowrap">${h(created)}</td>
+        <td data-label="Requester">${who}</td>
+        <td data-label="Category"><b>${h(t.sub)}</b></td>
+        <td data-label="Item & Reason" style="min-width:220px">${t.material ? `<b>📦 ${h(t.material)}</b><br>` : ''}${h(t.description)}</td>
+        <td data-label="Photos">${photos}</td>
+        <td data-label="Assigned"><b>${h(t.assigned || 'Unassigned')}</b></td>
+        <td data-label="Status">${statusBadge}</td>
+        <td data-label="Fulfillment" style="min-width:210px">${noteHtml}</td>
+        <td data-label="Elapsed" style="white-space:nowrap">${elapsed(t.durationMinutes)}</td>
       </tr>`;
-    }).join('') : `<tr><td colspan="10" style="text-align:center;padding:24px;color:#728077">No ${kind === 'Material request' ? 'material requests' : 'IT support tickets'} match these filters.</td></tr>`;
+    }).join('') : `<tr class="portal-empty-row"><td colspan="10" style="text-align:center;padding:24px;color:#728077">No ${kind === 'Material request' ? 'material requests' : 'support tickets'} match these filters.</td></tr>`;
 
     $('listUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString();
   } catch(e) {
@@ -572,10 +714,11 @@ document.querySelectorAll('.portal-tab[data-kind-tab]').forEach(btn => {
     loadPublicTickets();
   });
 });
-['listFactory', 'listSub', 'listStatus'].forEach(id => $(id).addEventListener('change', loadPublicTickets));
+['listDesk', 'listFactory', 'listSub', 'listStatus'].forEach(id => $(id)?.addEventListener('change', loadPublicTickets));
 $('listSearch').addEventListener('input', loadPublicTickets);
 $('refreshList').addEventListener('click', loadPublicTickets);
 $('clearFilters').addEventListener('click', () => {
+  if($('listDesk')) $('listDesk').value = '';
   $('listFactory').value = '';
   $('listSub').value = '';
   $('listStatus').value = '';
@@ -614,6 +757,7 @@ $('ticketForm').addEventListener('submit', async e => {
     fd.append('factory', $('factory').value);
     fd.append('department', $('department').value);
     fd.append('employee', $('employee').value);
+    fd.append('complaintDesk', activeDeskId);
     fd.append('kind', kind);
     fd.append('primary', primary);
     fd.append('sub', sub);
@@ -650,6 +794,8 @@ $('newTicket').addEventListener('click', () => {
   pendingFiles = [];
   renderPendingFiles();
   fillDepartments();
+  renderComplaintDesks();
+  renderPrimaryCategories();
   renderSubcategories();
 });
 
@@ -706,11 +852,17 @@ async function refreshPortalOptions(){
   data = fresh;
   if(data.companyName) updatePortalBranding(data.companyName);
   if(Array.isArray(data.ticketCategoryTree) && data.ticketCategoryTree.length){
+    DEFAULT_IT_TREE_SNAPSHOT = data.ticketCategoryTree;
     CATEGORY_TREE = data.ticketCategoryTree;
   }
   if(Array.isArray(data.materialRequestCategories) && data.materialRequestCategories.length){
+    DEFAULT_IT_MAT_SNAPSHOT = data.materialRequestCategories;
     MATERIAL_CATEGORIES = data.materialRequestCategories;
   }
+  if(Array.isArray(data.complaintDesks) && data.complaintDesks.length){
+    COMPLAINT_DESKS = data.complaintDesks;
+  }
+  SHOW_ALL_DESKS = Boolean(data.showAllDesksOnPortal);
   const prevF = $('factory').value, prevD = $('department').value, prevE = $('employee').value;
   options($('factory'), 'Select factory', data.factories.map(f => ({
     code: f.code,
@@ -725,8 +877,10 @@ async function refreshPortalOptions(){
       if(prevE && [...$('employee').options].some(o => o.value === prevE)) $('employee').value = prevE;
     }
   }
+  renderComplaintDesks();
   renderPrimaryCategories();
   renderSubcategories();
+  loadPublicTickets({ silent: true });
 }
 
 async function pollPublicPulse(){
@@ -763,6 +917,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 async function load(){
+  renderComplaintDesks();
   renderPrimaryCategories();
   renderSubcategories();
   const r = await fetch('/api/public/portal-options', { cache: 'no-store' });
@@ -770,15 +925,22 @@ async function load(){
   data = await r.json();
   if(data.companyName) updatePortalBranding(data.companyName);
   if(Array.isArray(data.ticketCategoryTree) && data.ticketCategoryTree.length){
+    DEFAULT_IT_TREE_SNAPSHOT = data.ticketCategoryTree;
     CATEGORY_TREE = data.ticketCategoryTree;
   }
   if(Array.isArray(data.materialRequestCategories) && data.materialRequestCategories.length){
+    DEFAULT_IT_MAT_SNAPSHOT = data.materialRequestCategories;
     MATERIAL_CATEGORIES = data.materialRequestCategories;
   }
+  if(Array.isArray(data.complaintDesks) && data.complaintDesks.length){
+    COMPLAINT_DESKS = data.complaintDesks;
+  }
+  SHOW_ALL_DESKS = Boolean(data.showAllDesksOnPortal);
   options($('factory'), 'Select factory', data.factories.map(f => ({
     code: f.code,
     label: f.name && f.name !== f.code ? f.code + ' · ' + f.name : f.code
   })), 'code', 'label');
+  renderComplaintDesks();
   renderPrimaryCategories();
   fillDepartments();
   renderSubcategories();
@@ -788,6 +950,7 @@ async function load(){
 }
 
 (async () => {
+  renderComplaintDesks();
   renderPrimaryCategories();
   renderSubcategories();
   try {
