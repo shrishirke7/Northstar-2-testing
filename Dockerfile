@@ -3,8 +3,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY requirements.txt .
 RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client ca-certificates tzdata iputils-ping iproute2 arp-scan snmp && rm -rf /var/lib/apt/lists/* && pip install --no-cache-dir -r requirements.txt && useradd --system --uid 10001 --create-home appuser
-COPY server.py schema.sql index.html cctv-live.js setup.html portal.html scanner_agent.py backup.py restore_archive.py reset_admin_password.py ./
+COPY server.py schema.sql index.html cctv-live.js setup.html portal.html manifest.json sw.js apple-touch-icon.png favicon.ico scanner_agent.py backup.py restore_archive.py reset_admin_password.py ./
+COPY static ./static
 RUN mkdir -p /app/uploads && chown -R appuser:appuser /app
 USER appuser
 EXPOSE 8000
-CMD ["gunicorn", "--workers", "2", "--threads", "4", "--timeout", "3600", "--bind", "0.0.0.0:8000", "--access-logfile", "-", "--access-logformat", "%(h)s %(l)s %(u)s %(t)s \"%(m)s %(U)s %(H)s\" %(s)s %(b)s \"%(f)s\" \"%(a)s\"", "server:app"]
+CMD ["gunicorn", "--worker-class", "gthread", "--workers", "2", "--threads", "24", "--timeout", "3600", "--bind", "0.0.0.0:8000", "--access-logfile", "-", "--access-logformat", "%(h)s %(l)s %(u)s %(t)s \"%(m)s %(U)s %(H)s\" %(s)s %(b)s \"%(f)s\" \"%(a)s\"", "server:app"]

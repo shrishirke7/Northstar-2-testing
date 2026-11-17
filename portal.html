@@ -75,6 +75,7 @@ tr:hover td{background:#fafdfb}
 #portalLiveToastStack{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:360px;pointer-events:none}
 .portal-live-toast{pointer-events:auto;background:#ffffff;border:1px solid #cce3d4;border-left:4px solid #16845d;border-radius:10px;padding:11px 14px;box-shadow:0 12px 28px rgba(15,23,42,.16);font-size:12.5px;color:#1b2620}
 @media(max-width:900px){.grid-3,.mat-box.active{grid-template-columns:1fr}.grid-2{grid-template-columns:1fr}.card{padding:18px}}
+@media(max-width:680px){.wrap{width:calc(100vw - 16px);margin:10px auto calc(16px + env(safe-area-inset-bottom,0px));gap:12px}.card{padding:14px;border-radius:14px}.top-bar .button{width:100%;justify-content:center}.filters select,.filters input[type="search"]{width:100%;min-width:0}.portal-tab{flex:1;justify-content:center;font-size:12px;padding:9px 10px}#portalLiveToastStack{top:calc(12px + env(safe-area-inset-top,0px));left:10px;right:10px;bottom:auto;max-width:none}}
 </style>
 </head>
 <body>
@@ -788,21 +789,32 @@ async function load(){
     });
   }
 
-  // Connect to SSE for instant sub-second portal refresh
-  if(typeof EventSource !== 'undefined'){
+  // Connect to sanitized Public SSE for instant sub-second ticket status refresh
+  let pubEs = null;
+  let pubRetry = null;
+  function connectPublicSse(){
+    if(typeof EventSource === 'undefined') return;
+    if(pubEs){ try{ pubEs.close(); }catch(_){} pubEs = null; }
     try{
-      const es = new EventSource('/api/public/live-stream');
-      es.addEventListener('ticket', function(){
-        if(typeof loadPortalQueue === 'function') loadPortalQueue();
+      pubEs = new EventSource('/api/public/live-stream');
+      const onRefresh = function(){
+        if(typeof loadPublicTickets === 'function') loadPublicTickets({ silent: false }).catch(()=>{});
+      };
+      pubEs.addEventListener('ticket', onRefresh);
+      pubEs.addEventListener('pulse', function(){
+        if(typeof pollPublicPulse === 'function') pollPublicPulse();
       });
-      es.addEventListener('notification', function(){
-        if(typeof loadPortalQueue === 'function') loadPortalQueue();
-      });
-      es.addEventListener('pulse', function(){
-        if(typeof loadPortalQueue === 'function') loadPortalQueue();
-      });
+      pubEs.onerror = function(){
+        if(pubEs){ try{ pubEs.close(); }catch(_){} pubEs = null; }
+        clearTimeout(pubRetry);
+        pubRetry = setTimeout(connectPublicSse, 4000);
+      };
     }catch(_){}
   }
+  connectPublicSse();
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden && !pubEs) connectPublicSse();
+  });
 })();
 </script>
 </body>

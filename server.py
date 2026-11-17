@@ -311,6 +311,7 @@ def enforce_module_access():
         "/api/login", "/api/logout", "/api/profile", "/api/profile/preferences",
         "/api/account/password", "/api/account/profile-picture", "/api/account/recovery-answers",
         "/api/account/logout-all", "/api/data", "/api/live-alerts-feed", "/api/live-pulse",
+        "/api/live-stream",
         "/api/notifications/silent", "/api/notifications/history", "/api/notifications/history/read",
         "/api/speedtest/ping", "/api/speedtest/download", "/api/speedtest/upload",
         "/api/network/speedtest", "/api/network/speedtest/run", "/api/network/speedtest/settings",
@@ -343,7 +344,7 @@ def add_security_headers(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
     response.headers.setdefault("X-Frame-Options", "DENY")
-    if request.path in ("/", "/setup", "/portal") or request.path.startswith("/api/"):
+    if request.path in ("/", "/setup", "/portal") or (request.path.startswith("/api/") and request.path not in ("/api/live-stream", "/api/public/live-stream")):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
     return response
@@ -1311,6 +1312,7 @@ def save_notification_sounds():
             _, existing_lib = normalize_sound_state(state)
             state["soundLibrary"] = existing_lib
         conn.execute("INSERT INTO app_state(key,value) VALUES('notifications',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(state),))
+        _pg_emit_notify(conn, "pulse", {"source": "sounds"})
     return jsonify(ok=True, soundAlerts=state["soundAlerts"], soundLibrary=state["soundLibrary"])
 
 
@@ -1350,6 +1352,9 @@ def _normalize_notif_history_doc(raw):
 
 _LIVE_STREAM_SUBSCRIBERS = set()
 _LIVE_STREAM_LOCK = threading.Lock()
+_MAX_SSE_PER_WORKER = 16
+_PG_LISTENER_STARTED = False
+_PG_LISTENER_LOCK = threading.Lock()
 
 
 def _broadcast_live_stream_event(event_type="pulse", data=None):
@@ -1357,18 +1362,80 @@ def _broadcast_live_stream_event(event_type="pulse", data=None):
         if not _LIVE_STREAM_SUBSCRIBERS:
             return
         msg = {
-            "type": event_type,
+            "type": str(event_type or "pulse"),
             "timestamp": time.time(),
-            "data": data or {}
+            "data": data if isinstance(data, dict) else {},
         }
         dead = []
-        for q in list(_LIVE_STREAM_SUBSCRIBERS):
+        for entry in list(_LIVE_STREAM_SUBSCRIBERS):
+            q, is_public = entry
             try:
-                q.put_nowait(msg)
+                if is_public:
+                    # Never expose internal device alerts, IPs, or private metadata to public /portal stream
+                    ev_kind = str(msg["data"].get("kind") or "")
+                    if msg["type"] == "ticket" or (msg["type"] == "notification" and ev_kind in ("ticket", "material_request")):
+                        pub_msg = {"type": "ticket", "timestamp": msg["timestamp"], "data": {"action": "refresh"}}
+                        q.put_nowait(pub_msg)
+                else:
+                    q.put_nowait(msg)
             except Exception:
-                dead.append(q)
-        for q in dead:
-            _LIVE_STREAM_SUBSCRIBERS.discard(q)
+                dead.append(entry)
+        for entry in dead:
+            _LIVE_STREAM_SUBSCRIBERS.discard(entry)
+
+
+def _pg_emit_notify(conn, event_type="pulse", data=None):
+    payload_obj = {
+        "type": str(event_type or "pulse")[:40],
+        "timestamp": time.time(),
+        "data": data if isinstance(data, dict) else {},
+    }
+    payload_str = json.dumps(payload_obj, separators=(",", ":"))
+    if len(payload_str.encode("utf-8")) > 7500:
+        d = payload_obj["data"]
+        payload_obj["data"] = {
+            k: d[k] for k in ("id", "eventKey", "kind", "level", "title", "factory",
+                              "targetView", "targetTab", "targetId", "targetTag", "action", "ticketId")
+            if k in d
+        }
+        payload_str = json.dumps(payload_obj, separators=(",", ":"))
+    if conn is not None:
+        try:
+            conn.execute("SELECT pg_notify('northstar_live_events', %s)", (payload_str,))
+            return
+        except Exception:
+            pass
+    _broadcast_live_stream_event(event_type, payload_obj["data"])
+
+
+def _pg_listener_loop():
+    while True:
+        try:
+            with psycopg.connect(DATABASE_URL, autocommit=True, connect_timeout=8) as lconn:
+                lconn.execute("LISTEN northstar_live_events")
+                while True:
+                    for notify in lconn.notifies(timeout=20.0):
+                        if not notify or not notify.payload:
+                            continue
+                        try:
+                            msg = json.loads(notify.payload)
+                            _broadcast_live_stream_event(msg.get("type", "pulse"), msg.get("data"))
+                        except Exception:
+                            _broadcast_live_stream_event("pulse", {})
+        except Exception:
+            time.sleep(2.5)
+
+
+def _ensure_pg_listener():
+    global _PG_LISTENER_STARTED
+    if _PG_LISTENER_STARTED:
+        return
+    with _PG_LISTENER_LOCK:
+        if _PG_LISTENER_STARTED:
+            return
+        _PG_LISTENER_STARTED = True
+        t = threading.Thread(target=_pg_listener_loop, name="northstar-pg-listener", daemon=True)
+        t.start()
 
 
 def _record_notification_event(conn, item):
@@ -1403,7 +1470,9 @@ def _record_notification_event(conn, item):
         "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
         (json.dumps(doc),),
     )
-    _broadcast_live_stream_event("notification", ev)
+    _pg_emit_notify(conn, "notification", ev)
+    if ev.get("kind") in ("ticket", "material_request"):
+        _pg_emit_notify(conn, "ticket", {"action": "create", "ticketId": ev.get("targetId", ""), "kind": ev.get("kind")})
     return ev
 
 
@@ -1460,17 +1529,21 @@ def _record_asset_transition_notification(conn, notif_state, asset, new_status, 
     })
 
 
-def _generate_sse_stream():
+def _generate_sse_stream(is_public=False):
+    _ensure_pg_listener()
     q = queue.Queue(maxsize=120)
+    entry = (q, bool(is_public))
     with _LIVE_STREAM_LOCK:
-        _LIVE_STREAM_SUBSCRIBERS.add(q)
+        if len(_LIVE_STREAM_SUBSCRIBERS) >= _MAX_SSE_PER_WORKER:
+            return
+        _LIVE_STREAM_SUBSCRIBERS.add(entry)
     try:
         try:
             with db() as conn:
-                pulse = _pulse_versions(conn, include_internal=True)
-            yield f"event: connected\ndata: {json.dumps(pulse)}\n\n"
+                pulse = _pulse_versions(conn, include_internal=(not is_public))
+            yield f"retry: 3000\nevent: connected\ndata: {json.dumps(pulse)}\n\n"
         except Exception:
-            yield "event: connected\ndata: {}\n\n"
+            yield "retry: 3000\nevent: connected\ndata: {}\n\n"
         while True:
             try:
                 msg = q.get(timeout=20)
@@ -1482,12 +1555,16 @@ def _generate_sse_stream():
         pass
     finally:
         with _LIVE_STREAM_LOCK:
-            _LIVE_STREAM_SUBSCRIBERS.discard(q)
+            _LIVE_STREAM_SUBSCRIBERS.discard(entry)
 
 
 @app.get("/api/live-stream")
+@signed_in
 def live_stream_sse():
-    resp = Response(_generate_sse_stream(), mimetype="text/event-stream")
+    with _LIVE_STREAM_LOCK:
+        if len(_LIVE_STREAM_SUBSCRIBERS) >= _MAX_SSE_PER_WORKER:
+            return ("", 503)
+    resp = Response(_generate_sse_stream(is_public=False), mimetype="text/event-stream")
     resp.headers["Cache-Control"] = "no-cache, no-transform"
     resp.headers["X-Accel-Buffering"] = "no"
     resp.headers["Connection"] = "keep-alive"
@@ -1496,7 +1573,10 @@ def live_stream_sse():
 
 @app.get("/api/public/live-stream")
 def public_live_stream_sse():
-    resp = Response(_generate_sse_stream(), mimetype="text/event-stream")
+    with _LIVE_STREAM_LOCK:
+        if len(_LIVE_STREAM_SUBSCRIBERS) >= _MAX_SSE_PER_WORKER:
+            return ("", 503)
+    resp = Response(_generate_sse_stream(is_public=True), mimetype="text/event-stream")
     resp.headers["Cache-Control"] = "no-cache, no-transform"
     resp.headers["X-Accel-Buffering"] = "no"
     resp.headers["Connection"] = "keep-alive"
@@ -1615,6 +1695,7 @@ def save_notification_silent_mode():
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
             (json.dumps(doc),),
         )
+        _pg_emit_notify(conn, "pulse", {"source": "silent", "silent": silent})
     return jsonify(ok=True, silentMode=silent)
 
 
@@ -1909,6 +1990,7 @@ def scanner_ip_status_results():
             users_changed = True
         if assets_changed:
             conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='assets'", (json.dumps(inventory),))
+            _pg_emit_notify(conn, "asset", {"online": len(responsive), "checked": len(target_set)})
         if users_changed:
             conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='manual_users'", (json.dumps(users),))
         state["finished_at"] = checked_at
@@ -3143,6 +3225,7 @@ def issue_material_for_ticket(ticket_id):
         conn.execute("UPDATE tickets SET status=%s, note=%s, assigned_to=CASE WHEN assigned_to='Unassigned' THEN %s ELSE assigned_to END, updated_at=now() WHERE id=%s",
                      (new_status, ticket_note[:1000], actor, ticket_id))
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'material_issued',%s)", (ticket_id, actor, ticket_note[:1000]))
+        _pg_emit_notify(conn, "ticket", {"action": "issue-material", "ticketId": ticket_id, "status": new_status})
         issued_list = issued_parts_map_from_conn(conn).get(ticket_id, [])
     return jsonify(ok=True, assignment=assignment, status=new_status, note=ticket_note, issuedParts=issued_list, parts_inventory=inv_list, parts_assignments=asgn_list)
 
@@ -3227,6 +3310,7 @@ def update_ticket(ticket_id):
             abort(404)
         detail = "; ".join(f"{k}: {v}" for k,v in body.items() if k in allowed)[:1000]
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'updated',%s)", (ticket_id,session["profile"]["username"],detail))
+        _pg_emit_notify(conn, "ticket", {"action": "update", "ticketId": ticket_id})
     return jsonify(ok=True)
 
 
@@ -3243,6 +3327,7 @@ def add_ticket_worklog(ticket_id):
         if not row:
             abort(404)
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'worklog',%s)", (ticket_id, actor, detail))
+        _pg_emit_notify(conn, "ticket", {"action": "worklog", "ticketId": ticket_id})
     return jsonify(ok=True)
 
 
@@ -3298,6 +3383,8 @@ def _delete_tickets_tx(conn, raw_ids):
             p.unlink(missing_ok=True)
         except OSError:
             pass
+    if deleted_ids:
+        _pg_emit_notify(conn, "ticket", {"action": "delete", "ids": deleted_ids})
     return deleted_ids
 
 

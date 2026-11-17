@@ -1,8 +1,6 @@
 /* Swarnshilp IT Asset Intelligence - Progressive Web App Service Worker */
-const CACHE_NAME = 'swarnshilp-pwa-v1';
+const CACHE_NAME = 'swarnshilp-pwa-v2';
 const STATIC_ASSETS = [
-  '/',
-  '/portal',
   '/manifest.json',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
@@ -111,7 +109,8 @@ self.addEventListener('message', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const data = event.notification.data || {};
-  const targetUrl = data.url || (data.view ? `/?view=${encodeURIComponent(data.view)}` : '/');
+  const view = data.targetView || data.view || 'notifications';
+  const targetUrl = data.url || `/?view=${encodeURIComponent(view)}`;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
@@ -120,9 +119,9 @@ self.addEventListener('notificationclick', (event) => {
           client.focus();
           client.postMessage({
             type: 'PWA_NAVIGATE',
-            view: data.view || '',
-            id: data.id || '',
-            target: data.target || ''
+            view: view,
+            id: data.targetId || data.id || '',
+            meta: data
           });
           return;
         }

@@ -43,42 +43,125 @@
   --safe-right: env(safe-area-inset-right, 0px);
 }
 
-.mobile-menu-btn {
-  display: none;
-}
-.mobile-sidebar-backdrop {
-  display: none;
-}
-.mobile-bottom-nav {
-  display: none;
-}
-.pwa-install-banner {
-  display: none;
-}
+.mobile-menu-btn { display: none; }
+.mobile-drawer-close { display: none; }
+.mobile-sidebar-backdrop { display: none; }
+.mobile-bottom-nav { display: none; }
+.pwa-install-banner { display: none; }
+.ov-mob-tabs { display: none; }
+.ns-mob-collapse-pill { display: none; }
+@media(max-width:420px){.login-portal-btn{font-size:12px!important;padding:0 12px!important;gap:7px!important}}
 
 @media (max-width: 768px) {
-  /* Sidebar off-canvas mobile drawer */
+  /* Sidebar off-canvas mobile drawer — ALWAYS restore full labels & badges overriding 680px compact desktop strip */
   .sidebar {
-    width: 280px !important;
-    max-width: 82vw !important;
+    width: 284px !important;
+    max-width: 84vw !important;
     position: fixed !important;
     inset: 0 auto 0 0 !important;
     transform: translateX(-100%);
     transition: transform .26s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 9999 !important;
-    box-shadow: 0 0 35px rgba(0,0,0,0.5) !important;
-    padding: calc(18px + var(--safe-top)) 16px calc(24px + var(--safe-bottom)) 16px !important;
+    box-shadow: 0 0 38px rgba(0,0,0,0.52) !important;
+    padding: calc(16px + var(--safe-top)) 14px calc(24px + var(--safe-bottom)) 14px !important;
     overflow-y: auto !important;
+    overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch !important;
   }
   .sidebar.mobile-open {
     transform: translateX(0) !important;
   }
+  .sidebar .brand {
+    padding: 2px 6px 16px !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 11px !important;
+    position: relative;
+  }
+  .sidebar .brand-mark {
+    width: 35px !important;
+    height: 35px !important;
+    flex-shrink: 0;
+  }
+  .sidebar .brand-name {
+    display: block !important;
+    font-size: 16px !important;
+    color: #fff !important;
+  }
+  .sidebar .brand-sub {
+    display: block !important;
+    font-size: 9.5px !important;
+  }
+  .sidebar .org-label {
+    display: block !important;
+    padding: 8px 10px 6px !important;
+  }
+  .sidebar .nav {
+    display: grid !important;
+    gap: 3px !important;
+  }
+  .sidebar .nav button {
+    justify-content: flex-start !important;
+    align-items: center !important;
+    padding: 10px 11px !important;
+    gap: 11px !important;
+    width: 100% !important;
+  }
+  .sidebar .nav .ico {
+    width: 20px !important;
+    flex-shrink: 0;
+    font-size: 15px !important;
+  }
+  .sidebar .nav-label {
+    display: inline-block !important;
+    flex: 1 !important;
+    text-align: left !important;
+    font-size: 13px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sidebar .nav-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-left: auto !important;
+    flex-shrink: 0;
+  }
+  .sidebar .help-card {
+    display: block !important;
+    margin: 12px 2px 12px !important;
+  }
+  .sidebar .profile {
+    justify-content: flex-start !important;
+    padding: 12px 6px 4px !important;
+    gap: 10px !important;
+  }
+  .sidebar .profile-name,
+  .sidebar .profile-role,
+  .sidebar .profile-dots {
+    display: block !important;
+  }
+  .mobile-drawer-close {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.16);
+    background: rgba(255,255,255,.08);
+    color: #fff;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
   .mobile-sidebar-backdrop {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.6);
+    background: rgba(15, 23, 42, 0.58);
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
     z-index: 9998;
@@ -95,25 +178,26 @@
     margin-left: 0 !important;
     width: 100% !important;
     min-width: 0 !important;
+    overflow-x: hidden !important;
   }
 
-  /* Topbar on mobile */
+  /* Topbar clean & spacious on mobile */
   .topbar {
-    height: calc(58px + var(--safe-top)) !important;
-    padding: var(--safe-top) 12px 0 12px !important;
-    gap: 8px !important;
+    height: calc(56px + var(--safe-top)) !important;
+    padding: var(--safe-top) 10px 0 10px !important;
+    gap: 6px !important;
   }
   .mobile-menu-btn {
     display: flex !important;
     align-items: center;
     justify-content: center;
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
     border-radius: 9px;
     border: 1.5px solid var(--line);
     background: #ffffff;
     color: var(--ink);
-    font-size: 19px;
+    font-size: 18px;
     cursor: pointer;
     flex-shrink: 0;
     box-shadow: 0 2px 6px rgba(0,0,0,.04);
@@ -121,38 +205,307 @@
   .crumb, .site-select {
     display: none !important;
   }
+  .topbar .top-btn[aria-label="Notifications"] {
+    display: none !important;
+  }
+  .ns-top-notif-btn, .ns-top-silent-btn {
+    height: 36px !important;
+    padding: 0 9px !important;
+    gap: 4px !important;
+  }
+  .ns-top-notif-btn .ns-notif-lbl,
+  .ns-top-silent-btn .ns-silent-lbl {
+    display: none !important;
+  }
   .search {
     width: auto !important;
     flex: 1 !important;
-    min-width: 0 !important;
+    min-width: 78px !important;
+    height: 36px !important;
+    padding: 0 9px !important;
+    gap: 5px !important;
+  }
+  .search span:last-child {
+    display: none !important;
+  }
+  .top-btn[aria-label="Help"] {
+    width: 34px !important;
+    height: 36px !important;
+    flex-shrink: 0;
+  }
+
+  /* Mobile Full-Width Notification Shade */
+  .ns-notif-shade {
+    position: fixed !important;
+    top: calc(60px + var(--safe-top)) !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-height: calc(100dvh - 134px) !important;
+    z-index: 9996 !important;
+    border-radius: 16px !important;
+  }
+  .ns-notif-shade .ns-shade-list {
+    max-height: calc(100dvh - 295px) !important;
+  }
+
+  /* Heads-Up Notification Toast Stack from TOP on Mobile */
+  #nsAlertToastStack {
+    top: calc(62px + var(--safe-top)) !important;
+    bottom: auto !important;
+    left: 10px !important;
+    right: 10px !important;
+    width: auto !important;
+    z-index: 99995 !important;
   }
 
   /* Content area scroll & bottom nav clearance */
   .content {
-    padding: 14px 12px calc(76px + var(--safe-bottom)) 12px !important;
-    overflow-x: hidden;
+    padding: 12px 10px calc(76px + var(--safe-bottom)) 10px !important;
+    overflow-x: hidden !important;
+  }
+  .panel, .card {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+  .table-wrap {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
-  /* Grid layouts collapse gracefully */
-  .grid-4, .grid-3 {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 8px !important;
-  }
-  .grid-4 .metric, .grid-3 .metric {
-    padding: 14px 12px !important;
-  }
-  .metric-value {
-    font-size: 24px !important;
-  }
+  /* Overview Header, Swipe Strip & Filter Pills */
   .page-head {
     flex-direction: column !important;
     align-items: flex-start !important;
-    gap: 10px !important;
-    margin-bottom: 14px !important;
+    gap: 9px !important;
+    margin-bottom: 10px !important;
+  }
+  .page-head h1 {
+    font-size: 20px !important;
   }
   .head-actions {
     width: 100% !important;
-    flex-wrap: wrap !important;
+    display: flex !important;
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+  }
+  .head-actions .btn {
+    flex: 1 !important;
+    padding: 8px 6px !important;
+    font-size: 11px !important;
+    text-align: center;
+    justify-content: center;
+    white-space: nowrap;
+  }
+  .site-strip {
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 2px;
+    margin-bottom: 10px !important;
+    gap: 6px !important;
+  }
+  .site-strip::-webkit-scrollbar {
+    display: none !important;
+  }
+  .site-chip {
+    flex-shrink: 0;
+    padding: 6px 10px !important;
+  }
+
+  /* Mobile Overview Section Quick-Filter Strip */
+  .ov-mob-tabs {
+    display: flex !important;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 0 10px;
+    padding: 2px 0;
+  }
+  .ov-mob-tabs::-webkit-scrollbar { display: none; }
+  .ov-mob-tab {
+    flex-shrink: 0;
+    border: 1px solid #d5e2db;
+    background: #ffffff;
+    color: #34443a;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .ov-mob-tab.active {
+    background: #157a54;
+    border-color: #157a54;
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(21,122,84,.22);
+  }
+
+  /* Overview Dynamic KPI Grid & Legacy Grid -> CRISP 2-COLUMN COMPACT TILES */
+  #view-dashboard .ov-dynamic-tiles-grid,
+  .ov-dynamic-tiles-grid,
+  .grid-4,
+  .grid-3,
+  .val-tiles-grid,
+  .ov-drill-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
+  }
+  #view-dashboard .category-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
+  }
+  .ov-custom-tile {
+    padding: 10px 11px !important;
+    border-radius: 12px !important;
+    gap: 3px !important;
+  }
+  .ov-tile-title {
+    font-size: 10.5px !important;
+  }
+  .ov-tile-badge {
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 12px !important;
+  }
+  .ov-tile-val {
+    font-size: 20px !important;
+  }
+  .ov-tile-foot {
+    font-size: 9.5px !important;
+  }
+  .ov-tile-foot span:last-child {
+    display: none;
+  }
+  .grid-4 .metric, .grid-3 .metric {
+    padding: 11px 11px !important;
+  }
+  .metric-value {
+    font-size: 21px !important;
+    margin: 6px 0 3px !important;
+  }
+  .category-card {
+    padding: 10px 11px !important;
+  }
+  .category-card .cat-count {
+    font-size: 19px !important;
+    margin: 4px 0 2px !important;
+  }
+  .val-tile {
+    padding: 10px 11px !important;
+    gap: 5px !important;
+  }
+  .val-tile-amt {
+    font-size: 18px !important;
+  }
+
+  /* Live Speedtest -> COMPACT SIDE-BY-SIDE 2 GAUGES ON MOBILE */
+  .ns-ov-net-row {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    margin-bottom: 10px !important;
+  }
+  .ns-speed-panel.compact .panel-head {
+    padding: 10px 11px 8px !important;
+  }
+  .ns-speed-panel.compact .ns-speed-controls {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+  .ns-speed-panel.compact .ns-speed-controls select {
+    width: 100% !important;
+    min-width: 0 !important;
+    font-size: 10.5px !important;
+    padding: 6px 6px !important;
+  }
+  .ns-speed-panel.compact .ns-speed-controls .ns-speed-run-btn {
+    width: 100% !important;
+    justify-content: center !important;
+    font-size: 11px !important;
+    padding: 6px 8px !important;
+  }
+  .ns-speed-cluster-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    padding: 8px 10px !important;
+  }
+  .ns-gauge-card {
+    padding: 7px 6px 6px !important;
+    border-radius: 11px !important;
+    gap: 4px !important;
+  }
+  .ns-gauge-svg {
+    width: min(126px, 100%) !important;
+  }
+  .ns-gauge-caption {
+    font-size: 9.5px !important;
+    gap: 4px !important;
+  }
+  .ns-speed-meta-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    padding: 0 10px 10px !important;
+  }
+  .ns-speed-stat {
+    padding: 5px 8px !important;
+  }
+  .ns-speed-stat b {
+    font-size: 12px !important;
+  }
+
+  /* Compact Overview 3D Network Map & Collapsible Panels */
+  .ns-ov-map-card {
+    min-height: 220px !important;
+  }
+  .ns-ov-map-stage {
+    min-height: 170px !important;
+  }
+  .ns-mob-collapse-pill {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #157a54;
+    background: #eefaf3;
+    border: 1px solid #cce7d7;
+    border-radius: 99px;
+    padding: 3px 9px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .ns-mob-collapsible.is-collapsed > :not(.panel-head) {
+    display: none !important;
+  }
+  .ns-mob-collapsible .panel-head {
+    cursor: pointer;
+  }
+
+  /* Modals on mobile */
+  .val-modal-backdrop {
+    padding: 8px !important;
+  }
+  .val-modal-dialog,
+  #tfDrillModal .val-modal-dialog {
+    width: 100% !important;
+    max-height: 92dvh !important;
+    border-radius: 15px !important;
+  }
+  .val-modal-head {
+    padding: 12px 14px 10px !important;
+  }
+  .val-modal-body {
+    padding: 12px 14px !important;
+  }
+  .val-modal-foot {
+    padding: 10px 14px !important;
   }
 
   /* Mobile Bottom Navigation Bar */
@@ -519,14 +872,20 @@
 </style></head>
 <body>
 <div class="auth-gate" id="authGate"><div class="login-shell"><section class="login-visual"><div class="login-visual-brand"><span class="login-diamond">◇</span><img id="loginBrandLogo" class="login-brand-logo" alt="" hidden><span id="loginVisualName">IT Asset Management</span></div><div class="jewel-art" aria-hidden="true"><svg viewBox="0 0 420 340" role="presentation"><path d="M100 80 Q210 300 320 80" fill="none" stroke="#c58b35" stroke-width="5"/><path d="M121 121 Q210 272 299 121" fill="none" stroke="#f1d38d" stroke-width="3"/><g fill="#fff9e9" stroke="#c58b35" stroke-width="3"><circle cx="132" cy="140" r="11"/><circle cx="160" cy="178" r="11"/><circle cx="190" cy="208" r="11"/><circle cx="210" cy="230" r="17"/><circle cx="230" cy="208" r="11"/><circle cx="260" cy="178" r="11"/><circle cx="288" cy="140" r="11"/><path d="M210 247l-18 31 18 29 18-29z"/></g><g fill="none" stroke="#f9f3df" stroke-width="4" stroke-linecap="round"><path d="M73 230q-20-45 5-86m-4 49q-33-15-37-43m41 24q28-35 56-31M347 230q20-45-5-86m4 49q33-15 37-43m-41 24q-28-35-56-31"/></g><g fill="#fff9e9"><circle cx="75" cy="139" r="7"/><circle cx="37" cy="150" r="6"/><circle cx="133" cy="162" r="6"/><circle cx="345" cy="139" r="7"/><circle cx="383" cy="150" r="6"/><circle cx="287" cy="162" r="6"/></g></svg></div><div class="login-dots" id="loginSlideDots"><i></i><i></i><i></i><i></i></div></section><section class="login-side"><div class="login-wordmark"><img id="loginWordmarkLogo" class="login-brand-logo" alt="" hidden><span id="loginBrandName">IT Asset Management</span><span>◇</span></div><div class="login-form-wrap"><div class="login-kicker">IT ASSET INTELLIGENCE</div><h1 id="loginWelcome">Welcome to IT Asset Management</h1><p>Sign in with your account to continue.</p><form id="loginForm" method="post" action="/api/login"><label class="login-field"><span>Username</span><input name="username" required autocomplete="username" placeholder="Enter your username"></label><label class="login-field"><span>Password</span><input name="password" required type="password" autocomplete="current-password" placeholder="Enter your password"></label><div class="auth-error" id="loginError" role="alert" aria-live="polite"></div><button class="login-submit" type="submit">Sign in <span>→</span></button></form><button type="button" id="recoveryToggle" class="link-btn" aria-expanded="false" style="display:block;margin:15px auto 0">Forgot password?</button><section id="recoveryPanel" hidden class="panel" style="text-align:left;margin-top:14px;padding:16px"><h2 style="margin:0 0 8px;font-size:16px">Reset your password</h2><p style="font-size:12px;color:#758179;line-height:1.5">Answer all three questions exactly as you saved them. Use private answers that other people cannot easily guess.</p><form id="recoveryForm" method="post" action="/api/recovery/reset"><label class="login-field"><span>Username</span><input name="username" required maxlength="120" autocomplete="username"></label><label class="login-field"><span>Favourite animal</span><input name="animal" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>Favourite colour</span><input name="colour" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>Favourite food</span><input name="food" required minlength="3" maxlength="200" autocomplete="off"></label><label class="login-field"><span>New password</span><input name="new_password" required type="password" maxlength="1024" autocomplete="new-password"></label><label class="login-field"><span>Confirm new password</span><input name="confirm_password" required type="password" maxlength="1024" autocomplete="new-password"></label><div id="recoveryStatus" class="auth-error" role="status" aria-live="polite"></div><button class="login-submit" type="submit">Reset password</button><button class="link-btn" id="recoveryCancel" type="button" style="display:block;margin:10px auto">Back to sign in</button></form></section><div class="login-security"><span>▣</span> Secure sign-in · Your account is protected</div><a class="login-portal-btn" href="/portal"><span>🎫</span> Raise an IT ticket without signing in</a></div><div class="login-footer" id="loginFooter">IT Asset Management</div></section></div></div><script>
-(()=>{const form=document.getElementById('loginForm');if(!form)return;if(location.search)history.replaceState(null,'',location.pathname+location.hash);form.method='post';form.action='/api/login';if(location.protocol!=='file:'){form.addEventListener('submit',async e=>{e.preventDefault();const btn=form.querySelector('button[type="submit"]'),error=document.getElementById('loginError'),data=Object.fromEntries(new FormData(form));btn.disabled=true;error.textContent='';try{const r=await fetch('/api/login',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'NorthstarIT'},body:JSON.stringify(data)}),body=await r.json().catch(()=>({}));if(!r.ok)throw new Error(body.error||'Sign-in could not be completed.');location.reload()}catch(err){error.textContent=err.message||'Unable to reach the sign-in service. Try again.'}finally{btn.disabled=false}})}const toggle=document.getElementById('recoveryToggle'),panel=document.getElementById('recoveryPanel'),recovery=document.getElementById('recoveryForm'),cancel=document.getElementById('recoveryCancel');toggle?.addEventListener('click',()=>{panel.hidden=!panel.hidden;toggle.setAttribute('aria-expanded',String(!panel.hidden))});cancel?.addEventListener('click',()=>{panel.hidden=true;toggle?.setAttribute('aria-expanded','false')});recovery?.addEventListener('submit',async e=>{e.preventDefault();const status=document.getElementById('recoveryStatus'),button=recovery.querySelector('button[type="submit"]'),d=Object.fromEntries(new FormData(recovery));status.textContent='';if(d.new_password!==d.confirm_password){status.textContent='Passwords do not match.';return}if(!d.new_password){status.textContent='Enter a new password.';return}button.disabled=true;try{const r=await fetch('/api/recovery/reset',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'NorthstarIT'},body:JSON.stringify({username:d.username,answers:[d.animal,d.colour,d.food],new_password:d.new_password,confirm_password:d.confirm_password})}),body=await r.json().catch(()=>({}));status.textContent=r.status===429?(body.message||'Too many attempts. Wait 15 minutes and try again.'):body.message||'If the account and answers match, the password was reset. Try signing in.';if(r.ok&&r.status!==429)recovery.reset()}catch(err){status.textContent='Unable to reach the recovery service. Try again.'}finally{button.disabled=false}})})();
+(()=>{const form=document.getElementById('loginForm');if(!form)return;try{const sp=new URLSearchParams(location.search);const qv=sp.get('view');if(qv)window.__nsInitialView=qv;}catch(_){}if(location.search)history.replaceState(null,'',location.pathname+location.hash);form.method='post';form.action='/api/login';if(location.protocol!=='file:'){form.addEventListener('submit',async e=>{e.preventDefault();const btn=form.querySelector('button[type="submit"]'),error=document.getElementById('loginError'),data=Object.fromEntries(new FormData(form));btn.disabled=true;error.textContent='';try{const r=await fetch('/api/login',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'NorthstarIT'},body:JSON.stringify(data)}),body=await r.json().catch(()=>({}));if(!r.ok)throw new Error(body.error||'Sign-in could not be completed.');location.reload()}catch(err){error.textContent=err.message||'Unable to reach the sign-in service. Try again.'}finally{btn.disabled=false}})}const toggle=document.getElementById('recoveryToggle'),panel=document.getElementById('recoveryPanel'),recovery=document.getElementById('recoveryForm'),cancel=document.getElementById('recoveryCancel');toggle?.addEventListener('click',()=>{panel.hidden=!panel.hidden;toggle.setAttribute('aria-expanded',String(!panel.hidden))});cancel?.addEventListener('click',()=>{panel.hidden=true;toggle?.setAttribute('aria-expanded','false')});recovery?.addEventListener('submit',async e=>{e.preventDefault();const status=document.getElementById('recoveryStatus'),button=recovery.querySelector('button[type="submit"]'),d=Object.fromEntries(new FormData(recovery));status.textContent='';if(d.new_password!==d.confirm_password){status.textContent='Passwords do not match.';return}if(!d.new_password){status.textContent='Enter a new password.';return}button.disabled=true;try{const r=await fetch('/api/recovery/reset',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'NorthstarIT'},body:JSON.stringify({username:d.username,answers:[d.animal,d.colour,d.food],new_password:d.new_password,confirm_password:d.confirm_password})}),body=await r.json().catch(()=>({}));status.textContent=r.status===429?(body.message||'Too many attempts. Wait 15 minutes and try again.'):body.message||'If the account and answers match, the password was reset. Try signing in.';if(r.ok&&r.status!==429)recovery.reset()}catch(err){status.textContent='Unable to reach the recovery service. Try again.'}finally{button.disabled=false}})})();
 </script><div class="layout" id="appShell" style="display:none">
 <div class="mobile-sidebar-backdrop" id="mobileSidebarBackdrop" onclick="closeMobileSidebar()"></div>
-<aside class="sidebar"><div class="brand"><div class="brand-mark">N</div><div><div class="brand-name">northstar<span style="color:var(--lime)">.</span></div><div class="brand-sub">IT ASSET INTELLIGENCE</div></div></div><div class="org-label">Workspace</div><nav class="nav" id="mainNav"><button class="active" data-view="dashboard"><span class="ico">▦</span><span class="nav-label">Overview</span></button><button data-view="assets"><span class="ico">▤</span><span class="nav-label">Asset inventory</span></button><button data-view="datacenter"><span class="ico">▦</span><span class="nav-label">Data Center</span></button><button data-view="tickets"><span class="ico">✉</span><span class="nav-label">IT help desk</span><span class="nav-badge" id="ticketBadge">3</span></button><button data-view="maintenance"><span class="ico">⚒</span><span class="nav-label">Maintenance & repairs</span><span class="nav-badge" style="background:#b78738">4</span></button><button data-view="ageing"><span class="ico">◷</span><span class="nav-label">Asset ageing & risk</span></button><button data-view="users"><span class="ico">♙</span><span class="nav-label">Users</span></button><button data-view="departments"><span class="ico">⌂</span><span class="nav-label">Departments</span></button><button data-view="factories"><span class="ico">🏭</span><span class="nav-label">Factories</span></button><button data-view="software"><span class="ico">▧</span><span class="nav-label">Software & licenses</span></button><button data-view="monitoring"><span class="ico">⌁</span><span class="nav-label">Network monitoring</span><span class="nav-badge">3</span></button><button data-view="networkmap"><span class="ico">🗺</span><span class="nav-label">Network Map</span></button><button data-view="snmp"><span class="ico">📊</span><span class="nav-label">SNMP bandwidth</span></button><button data-view="surveillance"><span class="ico">◉</span><span class="nav-label">Surveillance</span></button><button data-view="parts"><span class="ico">▣</span><span class="nav-label">Parts inventory</span></button><button data-view="reports"><span class="ico">▥</span><span class="nav-label">Reports</span></button></nav><button class="nav-customize" id="customizeModulesButton" type="button"><span class="ico">☷</span><span class="nav-label">Customize modules</span></button><div class="sidebar-bottom"><div class="org-label">System</div><nav class="nav"><button data-view="backups"><span class="ico">▣</span><span class="nav-label">Backup & restore</span></button><button data-view="settings"><span class="ico">⚙</span><span class="nav-label">Settings</span></button></nav><div class="help-card"><b>Need a hand?</b><p>Make asset management work the way your team does.</p><button onclick="showHelp()">Visit help center ↗</button></div><div class="profile sidebar-account"><div class="avatar">IT</div><div><div class="profile-name">Signed in</div><div class="profile-role">Account menu in top bar</div></div></div></div></aside>
+<aside class="sidebar"><div class="brand"><div class="brand-mark">N</div><div><div class="brand-name">Swarnshilp<span style="color:var(--lime)">.</span></div><div class="brand-sub">IT ASSET INTELLIGENCE</div></div><button type="button" class="mobile-drawer-close" id="mobileDrawerCloseBtn" aria-label="Close Menu" onclick="closeMobileSidebar()">✕</button></div><div class="org-label">Workspace</div><nav class="nav" id="mainNav"><button class="active" data-view="dashboard"><span class="ico">▦</span><span class="nav-label">Overview</span></button><button data-view="assets"><span class="ico">▤</span><span class="nav-label">Asset inventory</span></button><button data-view="datacenter"><span class="ico">▦</span><span class="nav-label">Data Center</span></button><button data-view="tickets"><span class="ico">✉</span><span class="nav-label">IT help desk</span><span class="nav-badge" id="ticketBadge">3</span></button><button data-view="maintenance"><span class="ico">⚒</span><span class="nav-label">Maintenance & repairs</span><span class="nav-badge" style="background:#b78738">4</span></button><button data-view="ageing"><span class="ico">◷</span><span class="nav-label">Asset ageing & risk</span></button><button data-view="users"><span class="ico">♙</span><span class="nav-label">Users</span></button><button data-view="departments"><span class="ico">⌂</span><span class="nav-label">Departments</span></button><button data-view="factories"><span class="ico">🏭</span><span class="nav-label">Factories</span></button><button data-view="software"><span class="ico">▧</span><span class="nav-label">Software & licenses</span></button><button data-view="monitoring"><span class="ico">⌁</span><span class="nav-label">Network monitoring</span><span class="nav-badge">3</span></button><button data-view="networkmap"><span class="ico">🗺</span><span class="nav-label">Network Map</span></button><button data-view="snmp"><span class="ico">📊</span><span class="nav-label">SNMP bandwidth</span></button><button data-view="surveillance"><span class="ico">◉</span><span class="nav-label">Surveillance</span></button><button data-view="parts"><span class="ico">▣</span><span class="nav-label">Parts inventory</span></button><button data-view="reports"><span class="ico">▥</span><span class="nav-label">Reports</span></button></nav><button class="nav-customize" id="customizeModulesButton" type="button"><span class="ico">☷</span><span class="nav-label">Customize modules</span></button><div class="sidebar-bottom"><div class="org-label">System</div><nav class="nav"><button data-view="backups"><span class="ico">▣</span><span class="nav-label">Backup & restore</span></button><button data-view="settings"><span class="ico">⚙</span><span class="nav-label">Settings</span></button></nav><div class="help-card"><b>Need a hand?</b><p>Make asset management work the way your team does.</p><button onclick="showHelp()">Visit help center ↗</button></div><div class="profile sidebar-account"><div class="avatar">IT</div><div><div class="profile-name">Signed in</div><div class="profile-role">Account menu in top bar</div></div></div></div></aside>
 <main class="main"><header class="topbar"><button type="button" class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle Navigation Menu" onclick="toggleMobileSidebar()"><span class="ico">☰</span></button><div class="crumb"><span id="companyCrumb">IT Asset Management</span>&nbsp; / &nbsp;<b id="crumb">Overview</b></div><select class="site-select" id="globalSite" aria-label="Select factory"><option value="All sites">All factories</option><option>ARG</option><option>ARB</option><option>ARC</option><option>ARF</option></select><div class="top-spacer"></div><div class="ns-top-notif-wrap" id="nsTopNotifWrap"><button type="button" class="ns-top-silent-btn" id="nsTopSilentBtn" title="Silent mode: mute ringtones &amp; screen popups while keeping notification dropdown &amp; history"><span id="nsTopSilentIcon">🔊</span><span class="ns-silent-lbl" id="nsTopSilentLabel">Alerts Live</span></button><button type="button" class="ns-top-notif-btn" id="nsTopNotifBtn" aria-expanded="false" aria-haspopup="true"><span>🔔</span><span class="ns-notif-lbl">Notifications</span><span class="ns-top-notif-badge" id="nsTopNotifBadge">0</span></button><div class="ns-notif-shade" id="nsTopNotifDropdown" role="region" aria-label="Notification dropdown"></div></div><label class="search"><span>⌕</span><input id="globalSearch" placeholder="Search assets, users..." aria-label="Search assets and users"><span style="font-size:9px">⌘ K</span></label><button class="top-btn" aria-label="Notifications" onclick="showNotifications()">♧<span class="notification-dot"></span></button><button class="top-btn" aria-label="Help" onclick="showHelp()">?</button><div class="profile-menu-wrap"><button class="top-profile" id="profileMenuButton" aria-label="Profile menu" aria-expanded="false" onclick="toggleProfileMenu()"><span class="top-avatar" id="topAvatar">U</span><span id="topProfileName">Account</span><span aria-hidden="true">⌄</span></button><div class="profile-menu" id="profileMenu" hidden><div class="profile-menu-heading"><b id="menuProfileName">Account</b><small id="menuProfileRole">User</small></div><button type="button" onclick="document.getElementById('profilePictureInput').click()">Change profile picture</button><button type="button" onclick="openPasswordSettings()">Change password</button><button type="button" class="profile-menu-logout" onclick="signOut()">Log out</button></div><input id="profilePictureInput" type="file" accept="image/png,image/jpeg,image/webp" hidden></div></header>
 <div class="content">
 <section class="view active" id="view-dashboard"><div class="page-head"><div><div class="eyebrow">IT overview · Live inventory</div><h1>IT overview <span style="font-size:20px">✳</span></h1><p>Here’s what’s happening across your IT estate today.</p></div><div class="head-actions"><button type="button" class="btn" id="ovCustomizeTilesBtn" onclick="openOverviewCustomizeModal()">⚙ &nbsp;Customize</button><button type="button" class="btn" onclick="openAssetExportChoicesModal('IT-overview')">↓ &nbsp;Export report</button><button class="btn primary" onclick="openModal()">＋ &nbsp;Add asset</button></div></div>
 <div class="site-strip" id="siteChips"><button class="site-chip selected" data-site="All sites">All factories <b>4</b></button><button class="site-chip" data-site="ARG">ARG <b>112</b></button><button class="site-chip" data-site="ARB">ARB <b>86</b></button><button class="site-chip" data-site="ARC">ARC <b>74</b></button><button class="site-chip" data-site="ARF">ARF <b>96</b></button></div>
+<div class="ov-mob-tabs" id="ovMobileSectionTabs" role="tablist" aria-label="Overview mobile sections">
+  <button type="button" class="ov-mob-tab active" data-ov-mob-sec="all" onclick="setMobileOverviewSection('all')">⊞ Quick View</button>
+  <button type="button" class="ov-mob-tab" data-ov-mob-sec="network" onclick="setMobileOverviewSection('network')">⚡ Speed &amp; Map</button>
+  <button type="button" class="ov-mob-tab" data-ov-mob-sec="categories" onclick="setMobileOverviewSection('categories')">📦 Categories</button>
+  <button type="button" class="ov-mob-tab" data-ov-mob-sec="health" onclick="setMobileOverviewSection('health')">💚 Health &amp; Logs</button>
+</div>
 <div class="ov-dynamic-tiles-grid" id="overviewDynamicTilesGrid"></div>
 <div class="grid-4" id="overviewLegacyGrid" style="display:none"><div class="card metric"><div class="metric-top"><span>Total assets</span><span class="metric-icon">▤</span></div><div class="metric-value" id="totalAssets">368</div><div class="metric-foot"><span class="up">↑ 12</span> added this month</div></div><div class="card metric"><div class="metric-top"><span>Online devices</span><span class="metric-icon">⌁</span></div><div class="metric-value">342</div><div class="metric-foot"><span class="up">92.9%</span> of managed devices</div></div><div class="card metric"><div class="metric-top"><span>Assigned to users</span><span class="metric-icon">♙</span></div><div class="metric-value">296</div><div class="metric-foot">Across <span class="up">18 departments</span></div></div><div class="card metric"><div class="metric-top"><span>Needs attention</span><span class="metric-icon" style="background:#fff4eb;color:#c87549">♢</span></div><div class="metric-value">7</div><div class="metric-foot"><span class="warn">3 offline</span> · 4 licenses expiring</div></div></div>
 <div class="category-grid"><div class="panel category-card" onclick="filterAssetType('Laptop')"><span class="cat-icon">▱</span><div class="cat-title">Laptops</div><div class="cat-count">146</div><div class="cat-meta">34 due for refresh</div></div><div class="panel category-card" onclick="filterAssetType('Desktop')"><span class="cat-icon">▣</span><div class="cat-title">Desktop PCs</div><div class="cat-count">86</div><div class="cat-meta">12 due for refresh</div></div><div class="panel category-card" onclick="filterAssetType('Network')"><span class="cat-icon">⌁</span><div class="cat-title">Network devices</div><div class="cat-count">42</div><div class="cat-meta">14 switches · 8 routers</div></div><div class="panel category-card" onclick="filterAssetType('Mobile')"><span class="cat-icon">▯</span><div class="cat-title">Smartphones</div><div class="cat-count">38</div><div class="cat-meta">6 due for refresh</div></div><div class="panel category-card" onclick="filterAssetType('Tablet')"><span class="cat-icon">▭</span><div class="cat-title">Tablets</div><div class="cat-count">18</div><div class="cat-meta">2 due for refresh</div></div><div class="panel category-card" onclick="filterAssetType('Printer')"><span class="cat-icon">▧</span><div class="cat-title">Printers & MFDs</div><div class="cat-count">38</div><div class="cat-meta">3 maintenance due</div></div></div><div class="panel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">Network device breakdown</div><div class="panel-sub">Sub-categories across all factory locations</div></div><button class="link-btn" onclick="filterAssetType('Network')">View network assets →</button></div><div class="section-toolbar" style="justify-content:space-between"><span>Switches <b>14</b></span><span>Routers <b>8</b></span><span>Access points <b>10</b></span><span>Firewalls <b>4</b></span><span>Other <b>6</b></span></div></div><div class="panel surveillance-overview" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">Surveillance overview</div><div class="panel-sub">CCTV cameras and recording devices · current factory selection</div></div><button class="link-btn" data-go="surveillance">Open Surveillance →</button></div><div class="surv-overview-grid"><div><span>CCTV cameras</span><b id="ovCctvTotal">0</b><small id="ovCctvStatus">0 online · 0 offline</small></div><div><span>NVR recorders</span><b id="ovNvrTotal">0</b><small id="ovNvrStatus">0 online · 0 offline</small></div><div><span>DVR recorders</span><b id="ovDvrTotal">0</b><small id="ovDvrStatus">0 online · 0 offline</small></div></div><div class="table-wrap"><table><thead><tr><th>FACTORY</th><th>DEPARTMENT</th><th>CAMERAS</th><th>ONLINE</th><th>OFFLINE</th></tr></thead><tbody id="ovSurveillanceBreakdown"></tbody></table></div></div><div class="dashboard-grid"><div class="panel"><div class="panel-head"><div><div class="panel-title">Device activity</div><div class="panel-sub">Online and offline devices · last 7 days</div></div><div class="chart-legend"><span><i class="legend-dot" style="background:#24805a"></i>Online</span><span><i class="legend-dot" style="background:#d3a14f"></i>Offline</span><button class="filter-select" style="padding:6px 8px">Last 7 days⌄</button></div></div><div class="chart-wrap"><svg class="chart" viewBox="0 0 660 160" preserveAspectRatio="none"><defs><linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#60a77d" stop-opacity=".19"/><stop offset="1" stop-color="#60a77d" stop-opacity="0"/></linearGradient></defs><line class="gridline" x1="40" y1="20" x2="650" y2="20"/><line class="gridline" x1="40" y1="60" x2="650" y2="60"/><line class="gridline" x1="40" y1="100" x2="650" y2="100"/><line class="gridline" x1="40" y1="140" x2="650" y2="140"/><text x="0" y="23">360</text><text x="0" y="63">320</text><text x="0" y="103">280</text><text x="0" y="143">240</text><path class="area" d="M40 59 C80 57 92 47 126 51 S176 64 212 47 S262 44 298 38 S348 47 384 37 S434 30 470 34 S520 22 556 28 S612 21 650 19 L650 148 L40 148Z"/><path class="line" d="M40 59 C80 57 92 47 126 51 S176 64 212 47 S262 44 298 38 S348 47 384 37 S434 30 470 34 S520 22 556 28 S612 21 650 19"/><path class="line2" d="M40 118 C80 115 96 108 126 112 S177 119 212 106 S262 111 298 99 S347 110 384 102 S434 94 470 103 S520 90 556 96 S611 91 650 87"/><text x="37" y="158">Oct 7</text><text x="135" y="158">Oct 8</text><text x="233" y="158">Oct 9</text><text x="331" y="158">Oct 10</text><text x="429" y="158">Oct 11</text><text x="527" y="158">Oct 12</text><text x="617" y="158">Today</text></svg></div></div>
@@ -6326,6 +6685,8 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     return (crit.keywords || []).some(kw => kw && hay.includes(String(kw).toLowerCase()));
   }
 
+  const recentAlertDedupe = new Map();
+
   function pushAlertToast(title, body, level, meta){
     const stack = document.getElementById('nsAlertToastStack');
     if(stack){
@@ -6333,9 +6694,9 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       card.className = 'ns-alert-popup ' + (level || 'info');
       card.style.cursor = 'pointer';
       card.title = 'Click to open item';
-      card.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-        <div><strong>${safeEsc(title)}</strong><div style="font-size:12px;margin-top:3px;opacity:.92">${safeEsc(body)}</div></div>
-        <button type="button" class="ns-toast-close" style="border:0;background:transparent;cursor:pointer;font-size:15px;line-height:1" onclick="event.stopPropagation();this.closest('.ns-alert-popup')?.remove()">×</button>
+      card.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;width:100%">
+        <div style="min-width:0;flex:1"><strong>${safeEsc(title)}</strong><div style="font-size:12px;margin-top:3px;opacity:.92;word-break:break-word">${safeEsc(body)}</div></div>
+        <button type="button" class="ns-toast-close" style="border:0;background:transparent;color:#e2e8f0;cursor:pointer;font-size:17px;line-height:1;padding:0 2px" onclick="event.stopPropagation();this.closest('.ns-alert-popup')?.remove()">×</button>
       </div>`;
       if(meta && typeof window.openNotificationTarget === 'function'){
         card.addEventListener('click', (ev) => {
@@ -6347,18 +6708,35 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       stack.appendChild(card);
       setTimeout(() => card.remove(), 9000);
     }
+    try{ if('vibrate' in navigator) navigator.vibrate([180, 80, 180]); }catch(_){}
     const cfg = loadSoundConfig();
-    if(cfg.desktopNotifications && typeof Notification !== 'undefined' && Notification.permission === 'granted'){
-      try{
-        const n = new Notification(title, { body });
-        if(meta && typeof window.openNotificationTarget === 'function'){
-          n.onclick = () => { try{ window.focus(); window.openNotificationTarget(meta); }catch(_){} n.close(); };
-        }
-      }catch(_){}
+    const isMobOrPwa = window.innerWidth <= 768 || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    if((cfg.desktopNotifications || isMobOrPwa) && typeof Notification !== 'undefined' && Notification.permission === 'granted'){
+      if(typeof window.showPwaSystemNotification === 'function'){
+        window.showPwaSystemNotification(title, body, meta?.eventKey || meta?.id || 'swarnshilp-alert', meta);
+      } else {
+        try{
+          const n = new Notification(title, { body });
+          if(meta && typeof window.openNotificationTarget === 'function'){
+            n.onclick = () => { try{ window.focus(); window.openNotificationTarget(meta); }catch(_){} n.close(); };
+          }
+        }catch(_){}
+      }
     }
   }
 
   function triggerEventAlert(eventKey, title, body, level, meta){
+    const dedupeKey = meta?.id || meta?.eventKey || '';
+    const nowTs = Date.now();
+    if(dedupeKey){
+      const prevTs = recentAlertDedupe.get(dedupeKey) || 0;
+      if(nowTs - prevTs < 8000) return;
+      recentAlertDedupe.set(dedupeKey, nowTs);
+      if(recentAlertDedupe.size > 120){
+        const cut = nowTs - 15000;
+        for(const [k, ts] of recentAlertDedupe.entries()){ if(ts < cut) recentAlertDedupe.delete(k); }
+      }
+    }
     try{
       window.nsNotifCenter?.recordEvent?.({
         eventKey,
@@ -6379,6 +6757,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     }
     pushAlertToast(title, body, level, meta);
   }
+  window.triggerEventAlert = triggerEventAlert;
 
   function processLiveFeedPayload(feed, isInitialSeed){
     if(!feed || typeof feed !== 'object') return [];
@@ -6834,7 +7213,8 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
   function scheduleLivePulse(){
     clearTimeout(livePulseTimer);
     if(!inServerMode()) return;
-    const delay = document.hidden ? 2000 : 1000;
+    const sseOk = Boolean(window.__nsSseConnected);
+    const delay = document.hidden ? 4000 : (sseOk ? 4000 : 1000);
     livePulseTimer = setTimeout(runLivePulse, delay);
   }
 
@@ -6864,6 +7244,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
         }
       }catch(_){}
       scheduleLivePulse();
+      window.__nsStartSseStream?.();
     } else if(!liveFeedInitialized){
       processLiveFeedPayload({ latestTickets: getTicketsList(), deviceStates: getAssetsList() }, true);
       liveFeedInitialized = true;
@@ -6878,6 +7259,16 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     saveSoundConfig,
     isCriticalDevice,
     triggerEventAlert,
+    syncTicketsNow: syncIncomingTicketsNow,
+    syncAssetsNow: async () => {
+      if(!inServerMode() || typeof apiFetch !== 'function') return;
+      try{
+        const feed = await apiFetch('/api/live-alerts-feed?tickets=0&devices=1&sounds=0');
+        if(feed) processLiveFeedPayload(feed, false);
+      }catch(_){}
+    },
+    runPulseNow: runLivePulse,
+    isAudioUnlocked: () => !!audioUnlocked,
     markTicketSeen: (id) => { if(id) seenTicketIds.add(String(id)); },
     processLiveFeed: (payload, initial) => processLiveFeedPayload(payload, initial),
     resetSeenState: () => {
@@ -7058,14 +7449,33 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       return true;
     }).slice(0, 35);
 
+    const permState = (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported';
+    const needsPermBtn = (permState === 'default');
+    const permDenied = (permState === 'denied');
+    const swBlocked = Boolean(window.__nsSwCertBlocked);
+    const audioNotReady = window.nsSoundEngine?.isAudioUnlocked ? !window.nsSoundEngine.isAudioUnlocked() : false;
+    const statusStripHtml = (needsPermBtn || permDenied || swBlocked || audioNotReady) ? `
+      <div style="padding:8px 12px;background:#fffbeb;border-bottom:1px solid #fde68a;display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;font-size:10.5px;color:#92400e">
+        <span>${swBlocked ? '🔒 Self-signed LAN HTTPS: In-app alerts work live; trust cert for Home-Screen PWA &amp; Push' : (permDenied ? '🔕 Phone Push blocked in browser Site Settings' : (needsPermBtn ? '📲 Enable phone push alerts &amp; sound' : '🔊 Tap to unlock ringtone audio'))}</span>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          ${audioNotReady ? `<button type="button" class="btn" style="padding:4px 8px;font-size:10px" onclick="window.nsSoundEngine?.unlockAudio?.();window.nsNotifCenter?.renderShade?.()">🔊 Enable Sound</button>` : ''}
+          ${needsPermBtn ? `<button type="button" class="btn primary" style="padding:4px 9px;font-size:10px" onclick="window.requestMobileNotificationPermission?.()">🔔 Allow Alerts</button>` : ''}
+          ${swBlocked ? `<button type="button" class="btn" style="padding:4px 8px;font-size:10px;border-color:#f59e0b;background:#fff" onclick="window.openPwaCertGuide?.()">📜 Trust SSL Cert</button>` : ''}
+        </div>
+      </div>` : '';
+
     drop.innerHTML = `
       <div class="ns-shade-head">
         <div>
           <div style="font:800 13px 'Manrope',sans-serif">Notifications <span style="opacity:.8;font-weight:600">(${unread} unread)</span></div>
           <div style="font-size:10px;opacity:.8">${silentMode ? '🔕 Silent mode active · popups & ringtones muted' : '🔔 Live alerts & sound active · Click any item to open'}</div>
         </div>
-        <button type="button" class="btn" style="padding:4px 8px;font-size:10px;background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.22)" onclick="nsNotifCenter.toggleSilent()">${silentMode ? 'Unmute' : 'Silent'}</button>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button type="button" class="btn" style="padding:4px 8px;font-size:10px;background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.22)" onclick="nsNotifCenter.toggleSilent()">${silentMode ? 'Unmute' : 'Silent'}</button>
+          <button type="button" class="btn" style="padding:4px 8px;font-size:10px;background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.22)" onclick="nsNotifCenter.closeShade()">✕</button>
+        </div>
       </div>
+      ${statusStripHtml}
       <div class="ns-shade-subbar">
         <div class="ns-shade-chips">
           ${[['all','All'],['unread','Unread ('+unread+')'],['tickets','Tickets & MR'],['devices','Devices']].map(([k,lbl]) =>
@@ -7278,8 +7688,10 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     shadeOpen = false;
     const drop = document.getElementById('nsTopNotifDropdown');
     const btn = document.getElementById('nsTopNotifBtn');
+    const mbBtn = document.getElementById('mbNavAlerts');
     if(drop) drop.classList.remove('open');
     if(btn) btn.setAttribute('aria-expanded', 'false');
+    if(mbBtn) mbBtn.classList.remove('active');
   }
 
   function highlightRowSelector(selector){
@@ -7450,8 +7862,27 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     },
     openHistoryModule(){
       closeTopShade();
+      document.getElementById('mbNavAlerts')?.classList.remove('active');
       if(typeof window.go === 'function') window.go('notifications');
       window.switchNotificationsTab('history');
+    },
+    toggleShade(forceOpen){
+      const drop = document.getElementById('nsTopNotifDropdown');
+      const btn = document.getElementById('nsTopNotifBtn');
+      const mbBtn = document.getElementById('mbNavAlerts');
+      if(!drop) return;
+      shadeOpen = (typeof forceOpen === 'boolean') ? forceOpen : !shadeOpen;
+      drop.classList.toggle('open', shadeOpen);
+      btn?.setAttribute('aria-expanded', shadeOpen ? 'true' : 'false');
+      mbBtn?.classList.toggle('active', shadeOpen);
+      if(shadeOpen) renderTopShade();
+    },
+    closeShade(){
+      closeTopShade();
+      document.getElementById('mbNavAlerts')?.classList.remove('active');
+    },
+    renderShade(){
+      renderTopShade();
     }
   };
 
@@ -7475,10 +7906,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       btn.dataset.bound = '1';
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        shadeOpen = !shadeOpen;
-        drop.classList.toggle('open', shadeOpen);
-        btn.setAttribute('aria-expanded', shadeOpen ? 'true' : 'false');
-        if(shadeOpen) renderTopShade();
+        window.nsNotifCenter.toggleShade();
       });
       drop.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -7496,10 +7924,12 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       });
     }
     document.addEventListener('click', (e) => {
-      if(shadeOpen && wrap && !wrap.contains(e.target)) closeTopShade();
+      if(shadeOpen && wrap && !wrap.contains(e.target) && !e.target.closest?.('#mbNavAlerts') && !e.target.closest?.('#pwaCertModal')){
+        window.nsNotifCenter.closeShade();
+      }
     });
     document.addEventListener('keydown', (e) => {
-      if(e.key === 'Escape' && shadeOpen) closeTopShade();
+      if(e.key === 'Escape' && shadeOpen) window.nsNotifCenter.closeShade();
     });
     syncSilentUI();
     renderTopShade();
@@ -11112,6 +11542,42 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
   </div>
 </div>
 
+<!-- HTTPS / PWA Certificate Helper Modal (for LAN Self-Signed Servers) -->
+<div class="val-modal-backdrop" id="pwaCertModal" role="dialog" aria-modal="true" aria-labelledby="pwaCertTitle">
+  <div class="val-modal-dialog" style="width:min(540px,96vw)">
+    <div class="val-modal-head">
+      <div>
+        <div class="val-drill-kicker">SMARTPHONE PWA &amp; PUSH SETUP</div>
+        <h2 class="val-drill-title" id="pwaCertTitle">Enable Native App &amp; Push Alerts</h2>
+        <div class="val-tile-sub">Trust your server's local SSL certificate once on Android / iPhone for standalone app install &amp; OS notifications.</div>
+      </div>
+      <button type="button" class="btn" onclick="closePwaCertGuide()">✕</button>
+    </div>
+    <div class="val-modal-body" style="display:grid;gap:12px;font-size:12.5px;line-height:1.5;color:#1e293b">
+      <a class="btn primary" href="/northstar-ca.crt" download="swarnshilp-server-ca.crt" style="justify-content:center;padding:11px 16px;font-size:13px;text-decoration:none">
+        📜 Download Server SSL Certificate (.crt)
+      </a>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px">
+        <b style="color:#157a54;display:block;margin-bottom:4px">📱 On Android (Chrome):</b>
+        1. Tap <b>Download Server SSL Certificate</b> above.<br>
+        2. Open Android <b>Settings → Security &amp; privacy → More security → Encryption &amp; credentials → Install a certificate → CA certificate</b>.<br>
+        3. Select the downloaded <code>swarnshilp-server-ca.crt</code> file, then reload Chrome. Now tap <b>⋮ → Install app</b> &amp; allow Notifications!
+      </div>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px">
+        <b style="color:#157a54;display:block;margin-bottom:4px">🍎 On iPhone / iPad (Safari):</b>
+        1. Open this link in <b>Safari</b> &amp; tap Download Certificate → Allow Profile.<br>
+        2. Open iOS <b>Settings → General → VPN &amp; Device Management</b> → install the downloaded profile.<br>
+        3. Go to <b>Settings → General → About → Certificate Trust Settings</b> and toggle <b>ON</b> for this certificate.<br>
+        4. Back in Safari, tap <b>Share ⎋ → Add to Home Screen</b>!
+      </div>
+    </div>
+    <div class="val-modal-foot">
+      <span class="val-tile-sub">In-app sound, vibration &amp; popup alerts always work immediately.</span>
+      <button type="button" class="btn primary" onclick="closePwaCertGuide()">Done</button>
+    </div>
+  </div>
+</div>
+
 <script id="northstar-pwa-mobile-logic">
 (function(){
   /* Mobile Sidebar Toggle */
@@ -11147,26 +11613,112 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
   const origGo = window.go;
   if(typeof origGo === 'function'){
     window.go = function(key){
-      origGo.apply(this, arguments);
-      document.querySelectorAll('.mb-nav-item').forEach(b => {
+      const res = origGo.apply(this, arguments);
+      document.querySelectorAll('.mb-nav-item[data-mb-view]').forEach(b => {
         b.classList.toggle('active', b.dataset.mbView === key);
       });
       closeMobileSidebar();
+      if(key === 'dashboard' && typeof window.refreshMobileOverviewLayout === 'function'){
+        setTimeout(window.refreshMobileOverviewLayout, 30);
+      }
+      return res;
     };
   }
 
-  /* Safe Web Audio Unlocking on Mobile User Interaction */
-  let audioUnlocked = false;
-  function unlockMobileAudio(){
-    if(audioUnlocked) return;
-    audioUnlocked = true;
-    try{
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if(AudioCtx){
-        const ctx = new AudioCtx();
-        if(ctx.state === 'suspended') ctx.resume();
+  /* Overview Mobile Quick Filter + Compact Collapsible Panels (Zero Endless Scroll on Mobile) */
+  let activeMobOvSec = 'all';
+  function tagOverviewPanelsForMobile(){
+    const dash = document.getElementById('view-dashboard');
+    if(!dash) return;
+    dash.querySelectorAll(':scope > .panel, #nsOverviewNetRow .ns-ov-map-card, .dashboard-grid > .panel, .bottom-grid > .panel').forEach(panel => {
+      if(panel.dataset.nsMobTagged) return;
+      if(panel.id === 'nsDashboardSpeedPanel') return;
+      const head = panel.querySelector(':scope > .panel-head');
+      if(!head) return;
+      panel.dataset.nsMobTagged = '1';
+      panel.classList.add('ns-mob-collapsible');
+      if(!head.querySelector('.ns-mob-collapse-pill')){
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'ns-mob-collapse-pill';
+        pill.textContent = 'Expand ▾';
+        head.appendChild(pill);
       }
-    }catch(_){}
+      if(window.innerWidth <= 768 && !panel.dataset.nsUserExpanded){
+        panel.classList.add('is-collapsed');
+      }
+      head.addEventListener('click', (e) => {
+        if(window.innerWidth > 768) return;
+        if(e.target.closest('button:not(.ns-mob-collapse-pill), a, select, input')) return;
+        panel.classList.toggle('is-collapsed');
+        panel.dataset.nsUserExpanded = panel.classList.contains('is-collapsed') ? '' : '1';
+        const pill = head.querySelector('.ns-mob-collapse-pill');
+        if(pill) pill.textContent = panel.classList.contains('is-collapsed') ? 'Expand ▾' : 'Collapse ▴';
+      });
+    });
+  }
+
+  window.setMobileOverviewSection = function(sec){
+    activeMobOvSec = sec || 'all';
+    document.querySelectorAll('#ovMobileSectionTabs .ov-mob-tab').forEach(b => {
+      b.classList.toggle('active', b.dataset.ovMobSec === activeMobOvSec);
+    });
+    window.refreshMobileOverviewLayout();
+  };
+
+  window.refreshMobileOverviewLayout = function(){
+    tagOverviewPanelsForMobile();
+    const dash = document.getElementById('view-dashboard');
+    if(!dash) return;
+    const isMob = window.innerWidth <= 768;
+    const kpiGrid = document.getElementById('overviewDynamicTilesGrid');
+    const netRow = document.getElementById('nsOverviewNetRow');
+    const catGrid = dash.querySelector(':scope > .category-grid');
+    const surv = dash.querySelector(':scope > .surveillance-overview');
+    const bwCard = document.getElementById('bandwidthTelemetryCard');
+    const life = dash.querySelector(':scope > .panel:not(.surveillance-overview):not(#bandwidthTelemetryCard)');
+    const dashGrid = dash.querySelector(':scope > .dashboard-grid');
+    const botGrid = dash.querySelector(':scope > .bottom-grid');
+
+    if(!isMob){
+      [kpiGrid, netRow, catGrid, surv, bwCard, dashGrid, botGrid].forEach(el => { if(el) el.style.display = ''; });
+      dash.querySelectorAll('.ns-mob-collapsible').forEach(p => p.classList.remove('is-collapsed'));
+      return;
+    }
+
+    const s = activeMobOvSec;
+    if(kpiGrid) kpiGrid.style.display = (s === 'all') ? '' : 'none';
+    if(netRow) netRow.style.display = (s === 'all' || s === 'network') ? '' : 'none';
+    if(catGrid) catGrid.style.display = (s === 'all' || s === 'categories') ? '' : 'none';
+    if(surv) surv.style.display = (s === 'all' || s === 'categories' || s === 'health') ? '' : 'none';
+    if(bwCard) bwCard.style.display = (s === 'network') ? '' : 'none';
+    if(dashGrid) dashGrid.style.display = (s === 'all' || s === 'health') ? '' : 'none';
+    if(botGrid) botGrid.style.display = (s === 'all' || s === 'health') ? '' : 'none';
+    dash.querySelectorAll(':scope > .panel').forEach(p => {
+      if(p.id === 'bandwidthTelemetryCard' || p.classList.contains('surveillance-overview')) return;
+      const t = p.querySelector('.panel-title')?.textContent || '';
+      if(t.includes('Network device breakdown')) p.style.display = 'none';
+      else if(t.includes('Asset lifecycle')) p.style.display = (s === 'all' || s === 'health') ? '' : 'none';
+    });
+
+    // When a dedicated filter tab is clicked, expand its panels automatically so user sees full details immediately
+    dash.querySelectorAll('.ns-mob-collapsible').forEach(p => {
+      const wantExpanded = (s !== 'all') || Boolean(p.dataset.nsUserExpanded);
+      p.classList.toggle('is-collapsed', !wantExpanded);
+      const pill = p.querySelector('.ns-mob-collapse-pill');
+      if(pill) pill.textContent = wantExpanded ? 'Collapse ▴' : 'Expand ▾';
+    });
+  };
+
+  window.addEventListener('resize', () => {
+    if(document.getElementById('view-dashboard')?.classList.contains('active')){
+      window.refreshMobileOverviewLayout();
+    }
+  });
+
+  /* Safe Web Audio Unlocking on Mobile User Interaction */
+  function unlockMobileAudio(){
+    try{ window.nsSoundEngine?.unlockAudio?.(); }catch(_){}
     window.removeEventListener('touchstart', unlockMobileAudio, true);
     window.removeEventListener('click', unlockMobileAudio, true);
   }
@@ -11182,39 +11734,101 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     }catch(_){}
   };
 
-  /* PWA System Notification via Service Worker */
-  window.showPwaSystemNotification = function(title, body, tag, meta){
+  /* PWA System Notification via Service Worker Registration (Works on Android Chrome, iOS PWA, and Desktop) */
+  window.showPwaSystemNotification = async function(title, body, tag, meta){
     try{
       if(window.nsNotifCenter?.isSilent?.()) return;
       window.triggerMobileVibrate([200, 100, 200]);
-      if(navigator.serviceWorker && navigator.serviceWorker.controller){
-        navigator.serviceWorker.controller.postMessage({
-          type: 'SHOW_NOTIFICATION',
-          title: title || 'Swarnshilp IT Alert',
-          options: {
-            body: body || '',
-            icon: '/static/icons/icon-192.png',
-            badge: '/static/icons/icon-192.png',
-            tag: String(tag || 'swarnshilp-alert'),
-            data: meta || {}
+      if(typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+
+      const notifOptions = {
+        body: body || '',
+        icon: '/static/icons/icon-192.png',
+        badge: '/static/icons/icon-192.png',
+        tag: String(tag || 'swarnshilp-alert'),
+        renotify: true,
+        vibrate: [200, 100, 200],
+        data: meta || {}
+      };
+
+      if('serviceWorker' in navigator){
+        try{
+          const reg = await navigator.serviceWorker.getRegistration('/');
+          if(reg && typeof reg.showNotification === 'function'){
+            await reg.showNotification(title || 'Swarnshilp IT Alert', notifOptions);
+            return;
           }
-        });
-      } else if('Notification' in window && Notification.permission === 'granted'){
-        new Notification(title || 'Swarnshilp IT Alert', {
-          body: body || '',
-          icon: '/static/icons/icon-192.png',
-          tag: String(tag || 'swarnshilp-alert')
-        });
+          if(navigator.serviceWorker.controller){
+            navigator.serviceWorker.controller.postMessage({
+              type: 'SHOW_NOTIFICATION',
+              title: title || 'Swarnshilp IT Alert',
+              options: notifOptions
+            });
+            return;
+          }
+        }catch(_){}
       }
+      // Fallback for desktop browsers without Service Worker (guard mobile Chrome Illegal Constructor)
+      try{
+        const n = new Notification(title || 'Swarnshilp IT Alert', notifOptions);
+        if(meta && typeof window.openNotificationTarget === 'function'){
+          n.onclick = () => { try{ window.focus(); window.openNotificationTarget(meta); }catch(_){} n.close(); };
+        }
+      }catch(_){}
     }catch(_){}
   };
 
-  /* Service Worker Registration */
+  window.requestMobileNotificationPermission = async function(){
+    try{ window.nsSoundEngine?.unlockAudio?.(); }catch(_){}
+    if(typeof Notification === 'undefined'){
+      window.showToast?.('Push alerts require HTTPS or a supported smartphone browser; live in-app alerts remain active.');
+      return;
+    }
+    try{
+      const perm = await Notification.requestPermission();
+      if(perm === 'granted'){
+        const cur = window.nsSoundEngine?.loadSoundConfig?.();
+        if(cur){
+          cur.desktopNotifications = true;
+          await window.nsSoundEngine?.saveSoundConfig?.(cur);
+        }
+        window.showToast?.('✅ Smartphone notifications enabled!');
+        window.triggerMobileVibrate([150, 80, 150]);
+        window.showPwaSystemNotification('Swarnshilp Notifications Active', 'You will now receive instant IT ticket & critical device alerts.', 'swarnshilp-welcome', { targetView: 'dashboard' });
+      } else {
+        window.showToast?.('Notification permission is ' + perm + '.');
+      }
+      window.nsNotifCenter?.renderShade?.();
+      window.renderNotificationSoundSettings?.({ background: true });
+    }catch(err){
+      if(window.__nsSwCertBlocked){
+        window.openPwaCertGuide();
+      } else {
+        window.showToast?.('Enable notifications in browser Site Settings.');
+      }
+    }
+  };
+
+  window.openPwaCertGuide = function(){
+    window.nsNotifCenter?.closeShade?.();
+    const m = document.getElementById('pwaCertModal');
+    if(m) m.classList.add('open');
+  };
+  window.closePwaCertGuide = function(){
+    const m = document.getElementById('pwaCertModal');
+    if(m) m.classList.remove('open');
+  };
+  document.getElementById('pwaCertModal')?.addEventListener('click', (e) => {
+    if(e.target?.id === 'pwaCertModal') window.closePwaCertGuide();
+  });
+
+  /* Service Worker Registration & SSL Cert Error Detection */
+  window.__nsSwCertBlocked = false;
   if('serviceWorker' in navigator){
     window.addEventListener('load', function(){
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
         .then(function(reg){
-          // Check for worker updates
+          window.__nsSwCertBlocked = false;
           reg.onupdatefound = function(){
             const installing = reg.installing;
             if(installing){
@@ -11226,6 +11840,10 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
             }
           };
         }).catch(function(err){
+          const msg = String(err && (err.message || err.name || err) || '');
+          if(/ssl|cert|security/i.test(msg)){
+            window.__nsSwCertBlocked = true;
+          }
           console.warn('[PWA] SW register notice:', err);
         });
     });
@@ -11233,11 +11851,14 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     // Handle clicks from Service Worker system notifications
     navigator.serviceWorker.addEventListener('message', function(event){
       if(event.data && event.data.type === 'PWA_NAVIGATE'){
+        const meta = event.data.meta;
+        if(meta && typeof window.openNotificationTarget === 'function'){
+          window.openNotificationTarget(meta);
+          return;
+        }
         const view = event.data.view;
         const id = event.data.id;
-        if(view && typeof window.go === 'function'){
-          window.go(view);
-        }
+        if(view && typeof window.go === 'function') window.go(view);
         if(id && typeof window.jumpToTicketInQueue === 'function'){
           setTimeout(function(){ window.jumpToTicketInQueue(id); }, 250);
         }
@@ -11259,6 +11880,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
   });
 
   const isIos = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase()) && !window.navigator.standalone;
+  const isAndroid = /android/i.test(navigator.userAgent) && !(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
   if(isIos && !localStorage.getItem('swarnshilp-pwa-dismissed')){
     if(pwaBanner){
       if(pwaDesc) pwaDesc.textContent = 'Tap Share ⎋ at bottom & select "Add to Home Screen" ➕';
@@ -11266,6 +11888,16 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       if(instBtn) instBtn.textContent = 'How to Add';
       pwaBanner.style.display = 'flex';
     }
+  } else if(isAndroid && !localStorage.getItem('swarnshilp-pwa-dismissed')){
+    // Show subtle helper after load if self-signed HTTPS prevented native beforeinstallprompt
+    setTimeout(() => {
+      if(!deferredPrompt && window.__nsSwCertBlocked && pwaBanner){
+        if(pwaDesc) pwaDesc.textContent = 'Trust LAN SSL Cert once to install full-screen App & Push Alerts';
+        const instBtn = document.getElementById('pwaInstallBtn');
+        if(instBtn) instBtn.textContent = 'Setup';
+        pwaBanner.style.display = 'flex';
+      }
+    }, 2200);
   }
 
   window.handlePwaInstallClick = function(){
@@ -11277,6 +11909,8 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
         }
         deferredPrompt = null;
       });
+    } else if(window.__nsSwCertBlocked){
+      window.openPwaCertGuide();
     } else if(isIos){
       alert('To install Swarnshilp on your iPhone:\n1. Tap the Share button at the bottom of Safari.\n2. Scroll down and tap "Add to Home Screen".\n3. Tap "Add" at top right.');
     } else {
@@ -11289,11 +11923,12 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     if(pwaBanner) pwaBanner.style.display = 'none';
   };
 
-  /* Sub-Second Real-Time Server-Sent Events (SSE) Stream */
+  /* Sub-Second Real-Time Server-Sent Events (SSE) Stream (Started Post-Auth) */
   let sseSource = null;
   let sseRetryTimer = null;
+  window.__nsSseConnected = false;
 
-  function connectSseStream(){
+  window.__nsStartSseStream = function connectSseStream(){
     if(typeof EventSource === 'undefined') return;
     if(sseSource){
       try{ sseSource.close(); }catch(_){}
@@ -11302,97 +11937,122 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     try{
       sseSource = new EventSource('/api/live-stream');
 
-      sseSource.addEventListener('connected', function(e){
-        // SSE active and connected
+      sseSource.addEventListener('connected', function(){
+        window.__nsSseConnected = true;
       });
 
-      // Fraction of a second ticket arrival
-      sseSource.addEventListener('ticket', function(e){
-        try{
-          const payload = JSON.parse(e.data);
-          if(typeof syncIncomingTicketsNow === 'function'){
-            syncIncomingTicketsNow();
-          }
-          window.nsNotifCenter?.refreshFromServer?.();
-          window.triggerMobileVibrate([200, 100, 200]);
-        }catch(_){
-          if(typeof syncIncomingTicketsNow === 'function') syncIncomingTicketsNow();
-        }
+      // Fraction-of-a-second ticket create/update/delete arrival
+      sseSource.addEventListener('ticket', function(){
+        window.nsSoundEngine?.syncTicketsNow?.();
+        window.nsNotifCenter?.refreshFromServer?.();
       });
 
-      // Instant notification arrival (tickets, critical device online/offline)
+      // Instant notification event across all workers (tickets, critical device online/offline, etc.)
       sseSource.addEventListener('notification', function(e){
         try{
           const payload = JSON.parse(e.data);
           const ev = payload.data || {};
           window.nsNotifCenter?.refreshFromServer?.();
-          if(ev.title){
-            window.showPwaSystemNotification(ev.title, ev.body, ev.eventKey, ev);
+          if(ev.kind === 'ticket' || ev.kind === 'material_request' || ev.targetView === 'ticketing' || ev.targetView === 'tickets'){
+            window.nsSoundEngine?.syncTicketsNow?.();
+          } else if(ev.kind === 'critical' || ev.kind === 'offline' || ev.kind === 'online'){
+            window.nsSoundEngine?.syncAssetsNow?.();
           }
-          if(ev.targetView === 'tickets' && typeof syncIncomingTicketsNow === 'function'){
-            syncIncomingTicketsNow();
+          if(ev.title && ev.kind !== 'ticket' && ev.kind !== 'material_request'){
+            window.nsSoundEngine?.triggerEventAlert?.(ev.kind || 'info', ev.title, ev.body || '', ev.level || 'info', ev);
           }
-        }catch(_){}
+        }catch(_){
+          window.nsSoundEngine?.runPulseNow?.();
+        }
+      });
+
+      // Instant asset status arrival from ping sweep
+      sseSource.addEventListener('asset', function(){
+        window.nsSoundEngine?.syncAssetsNow?.();
       });
 
       // Instant pulse sync
-      sseSource.addEventListener('pulse', function(e){
-        try{
-          const p = JSON.parse(e.data);
-          if(typeof runLivePulse === 'function'){
-            runLivePulse();
-          }
-        }catch(_){}
+      sseSource.addEventListener('pulse', function(){
+        window.nsSoundEngine?.runPulseNow?.();
       });
 
       sseSource.onerror = function(){
+        window.__nsSseConnected = false;
         if(sseSource){
           try{ sseSource.close(); }catch(_){}
           sseSource = null;
         }
         clearTimeout(sseRetryTimer);
-        sseRetryTimer = setTimeout(connectSseStream, 3500);
+        sseRetryTimer = setTimeout(() => {
+          const shell = document.getElementById('appShell');
+          if(shell && shell.style.display !== 'none'){
+            connectSseStream();
+          }
+        }, 4000);
       };
     }catch(err){
       console.warn('SSE stream init notice:', err);
     }
+  };
+
+  /* Instant Wake Sync when switching back to phone app */
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden){
+      const shell = document.getElementById('appShell');
+      if(shell && shell.style.display !== 'none'){
+        if(!sseSource) window.__nsStartSseStream?.();
+        window.nsSoundEngine?.runPulseNow?.();
+        window.nsNotifCenter?.refreshFromServer?.();
+      }
+    }
+  });
+
+  /* Restore deep-linked ?view= parameter from PWA shortcut after boot finishes */
+  if(window.__nsInitialView){
+    const iv = window.__nsInitialView;
+    const waitBoot = setInterval(function(){
+      const shell = document.getElementById('appShell');
+      if(shell && shell.style.display !== 'none' && typeof window.go === 'function'){
+        clearInterval(waitBoot);
+        window.go(iv);
+      }
+    }, 80);
+    setTimeout(() => clearInterval(waitBoot), 10000);
   }
 
-  // Start SSE stream
-  if(document.readyState === 'complete' || document.readyState === 'interactive'){
-    connectSseStream();
-  } else {
-    window.addEventListener('DOMContentLoaded', connectSseStream);
-  }
-
-  /* Hook into triggerEventAlert to automatically dispatch PWA notifications */
-  const origTriggerAlert = window.triggerEventAlert;
-  if(typeof origTriggerAlert === 'function'){
-    window.triggerEventAlert = function(eventKey, title, body, level, meta){
-      origTriggerAlert.apply(this, arguments);
-      window.showPwaSystemNotification(title, body, eventKey, meta);
+  if(typeof window.renderDashboard === 'function'){
+    const prevRD = window.renderDashboard;
+    window.renderDashboard = function(){
+      const res = prevRD.apply(this, arguments);
+      window.refreshMobileOverviewLayout?.();
+      return res;
     };
   }
 
-  /* Update bottom nav badges */
+  /* Initial Mobile Overview collapsible layout & live bottom-nav badges */
+  setTimeout(() => {
+    window.refreshMobileOverviewLayout();
+  }, 150);
+
   setInterval(function(){
-    // Ticket badge
-    const openCard = document.getElementById('openTicketsCount');
+    const openCard = document.getElementById('openTicketCount') || document.getElementById('openTicketsCount');
+    const sideBadge = document.getElementById('ticketBadge');
     const mbTicket = document.getElementById('mbTicketBadge');
-    if(openCard && mbTicket){
-      const cnt = parseInt(openCard.textContent || '0', 10);
-      mbTicket.textContent = cnt;
+    if(mbTicket){
+      const raw = (openCard ? openCard.textContent : '') || (sideBadge && sideBadge.style.display !== 'none' ? sideBadge.textContent : '0');
+      const cnt = parseInt(raw || '0', 10) || 0;
+      mbTicket.textContent = cnt > 99 ? '99+' : String(cnt);
       mbTicket.style.display = cnt > 0 ? 'inline-block' : 'none';
     }
-    // Alerts badge
     const topNotifBadge = document.getElementById('nsTopNotifBadge');
     const mbAlert = document.getElementById('mbAlertBadge');
     if(topNotifBadge && mbAlert){
       const val = topNotifBadge.textContent || '';
+      const activeShow = topNotifBadge.classList.contains('show') || (val && val !== '0' && !topNotifBadge.hidden);
       mbAlert.textContent = val;
-      mbAlert.style.display = (val && val !== '0' && !topNotifBadge.hidden) ? 'inline-block' : 'none';
+      mbAlert.style.display = activeShow ? 'inline-block' : 'none';
     }
-  }, 1000);
+  }, 800);
 
 })();
 </script>
