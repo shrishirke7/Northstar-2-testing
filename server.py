@@ -523,7 +523,9 @@ def public_ca_cert():
 def index():
     if not setup_complete():
         return redirect("/setup")
-    return send_from_directory(ROOT, "index.html")
+    resp = send_from_directory(ROOT, "index.html")
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
 
 
 def setup_complete():
@@ -537,7 +539,9 @@ def setup_complete():
 def setup_page():
     if setup_complete():
         return redirect("/")
-    return send_from_directory(ROOT, "setup.html")
+    resp = send_from_directory(ROOT, "setup.html")
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
 
 
 @app.get("/api/setup/status")
@@ -2500,7 +2504,9 @@ def save_profile_preferences():
 
 @app.get("/portal")
 def public_helpdesk_page():
-    return send_from_directory(ROOT, "portal.html")
+    resp = send_from_directory(ROOT, "portal.html")
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
 
 
 DEFAULT_TICKET_CATEGORY_TREE = [
