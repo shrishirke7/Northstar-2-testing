@@ -57,10 +57,13 @@ services:
     restart: unless-stopped
     environment:
       APP_FQDN: ${APP_FQDN:?set APP_FQDN in .env}
+      SITE_NAME: ${SITE_NAME:-}
       HTTP_PORT: ${HTTP_PORT:-8848}
       HTTPS_PORT: ${HTTPS_PORT:-8849}
-      NGINX_ENVSUBST_FILTER: '^(APP_FQDN|HTTP_PORT|HTTPS_PORT)$'
+      NGINX_ENVSUBST_FILTER: '^(APP_FQDN|SITE_NAME|HTTP_PORT|HTTPS_PORT)$'
     ports:
+      - "${PORT_80_BIND:-80}:80"
+      - "${PORT_443_BIND:-443}:443"
       - "${HTTP_PORT:-8898}:${HTTP_PORT:-8848}"
       - "${HTTPS_PORT:-8899}:${HTTPS_PORT:-8849}"
     volumes:

@@ -57,22 +57,23 @@ mkdir -p /run/northstar-updater
 SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
 SERVER_IP="${SERVER_IP:-127.0.0.1}"
 APP_FQDN="${APP_FQDN:-$SERVER_IP}"
+SITE_NAME="${SITE_NAME:-swarnshilp.local}"
 HTTP_PORT="${HTTP_PORT:-8898}"
 HTTPS_PORT="${HTTPS_PORT:-8899}"
 DB_PASSWORD="$(openssl rand -hex 32)"
 APP_SECRET="$(openssl rand -hex 48)"
-export APP_FQDN HTTP_PORT HTTPS_PORT DB_PASSWORD APP_SECRET
+export APP_FQDN SITE_NAME HTTP_PORT HTTPS_PORT DB_PASSWORD APP_SECRET
 
 echo "==> [4/6] Generating secure configuration (.env) & SSL certificates..."
 python3 - "$INSTALL_DIR/.env" <<'PYENV'
 import os, sys
-keys = ("APP_FQDN", "HTTP_PORT", "HTTPS_PORT", "DB_PASSWORD", "APP_SECRET")
+keys = ("APP_FQDN", "SITE_NAME", "HTTP_PORT", "HTTPS_PORT", "DB_PASSWORD", "APP_SECRET")
 def q(v):
     return "'" + v.replace("\\", "\\\\").replace("'", "\\'") + "'"
 with open(sys.argv[1], "w", encoding="utf-8") as f:
     for k in keys:
         f.write(f"{k}={q(os.environ[k])}\n")
-    f.write("COOKIE_SECURE='true'\n")
+    f.write("COOKIE_SECURE='false'\n")
     f.write("BACKUP_DIR='/backups'\n")
     f.write("UPLOAD_DIR='/app/uploads'\n")
     f.write("TZ='Asia/Kolkata'\n")
@@ -84,9 +85,22 @@ chmod 700 "$INSTALL_DIR/uploads" "$INSTALL_DIR/backups" "$INSTALL_DIR/secrets"
 
 ALL_IPS="$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | grep -v '^127\.' | sort -u || true)"
 SAN_LIST="DNS:$APP_FQDN,DNS:localhost,IP:$SERVER_IP,IP:127.0.0.1"
+if [[ -n "$SITE_NAME" ]]; then
+  case ",$SAN_LIST," in *,"DNS:${SITE_NAME}",*) ;; *) SAN_LIST="${SAN_LIST},DNS:$SITE_NAME,DNS:${SITE_NAME%.local}.local,DNS:${SITE_NAME%.local}" ;; esac
+fi
 for _ip in $ALL_IPS; do
   case ",$SAN_LIST," in *,"IP:${_ip}",*) ;; *) SAN_LIST="${SAN_LIST},IP:${_ip}" ;; esac
 done
+
+if command -v apt-get >/dev/null 2>&1; then
+  if ! command -v avahi-daemon >/dev/null 2>&1; then
+    apt-get update -y && apt-get install -y avahi-daemon avahi-utils >/dev/null 2>&1 || true
+  fi
+  systemctl enable --now avahi-daemon >/dev/null 2>&1 || true
+fi
+if [[ -n "$SITE_NAME" ]] && ! grep -q "$SITE_NAME" /etc/hosts 2>/dev/null; then
+  echo "$SERVER_IP $SITE_NAME ${SITE_NAME%.local}" >> /etc/hosts 2>/dev/null || true
+fi
 
 if [[ ! -s "$INSTALL_DIR/secrets/ca.crt" || ! -s "$INSTALL_DIR/secrets/ca.key" ]]; then
   openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
@@ -124,11 +138,16 @@ chmod +x "$INSTALL_DIR/backup.sh" "$INSTALL_DIR/restore.sh" "$INSTALL_DIR/update
 
 echo "==> [5/6] Configuring firewall ports (if UFW is active) & building containers..."
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
+  ufw allow 80/tcp >/dev/null 2>&1 || true
+  ufw allow 443/tcp >/dev/null 2>&1 || true
+  ufw allow 5353/udp >/dev/null 2>&1 || true
   ufw allow "${HTTP_PORT}/tcp" >/dev/null 2>&1 || true
   ufw allow "${HTTPS_PORT}/tcp" >/dev/null 2>&1 || true
+  ufw allow 8848/tcp >/dev/null 2>&1 || true
+  ufw allow 8849/tcp >/dev/null 2>&1 || true
   ufw allow 8555/tcp >/dev/null 2>&1 || true
   ufw allow 8555/udp >/dev/null 2>&1 || true
-  echo "Opened UFW ports: ${HTTP_PORT}/tcp, ${HTTPS_PORT}/tcp, 8555/tcp+udp"
+  echo "Opened UFW ports: 80, 443, 5353/udp, ${HTTP_PORT}/tcp, ${HTTPS_PORT}/tcp, 8555/tcp+udp"
 fi
 
 cd "$INSTALL_DIR"

@@ -70,7 +70,7 @@ SESSION_MAX_HOURS = max(1, int(os.getenv("SESSION_MAX_HOURS", "8")))
 app.secret_key = APP_SECRET
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SECURE=os.getenv("COOKIE_SECURE", "true").lower() == "true",
+    SESSION_COOKIE_SECURE=os.getenv("COOKIE_SECURE", "false").lower() == "true",
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_REFRESH_EACH_REQUEST=False,
     MAX_CONTENT_LENGTH=64 * 1024 * 1024,
@@ -541,9 +541,12 @@ def initial_setup():
         settings_row=conn.execute("SELECT value FROM app_state WHERE key='settings' FOR UPDATE").fetchone()
         settings=settings_row[0] if settings_row else {}
         branding=dict(settings.get("loginBranding", {}))
+        site_name = str(body.get("site_name") or body.get("siteName") or "").strip()[:120]
         if company:
             branding['companyName'] = company
             settings.update(companyName=company, loginBranding=branding)
+        if site_name:
+            settings['siteName'] = site_name
         conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='settings'",(json.dumps(settings),))
     return jsonify(ok=True, redirect="/"), 201
 
@@ -554,8 +557,11 @@ def get_login_branding():
         row = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
     settings = row[0] if row else {}
     branding = settings.get("loginBranding", {})
+    company_name = str(branding.get("companyName") or settings.get("companyName") or "").strip()
+    if not company_name or company_name.casefold() in ("shree", "northstar", "northstar it", "it asset management"):
+        company_name = "Swarnshilp"
     return jsonify({
-        "companyName": str(branding.get("companyName") or settings.get("companyName") or "")[:120],
+        "companyName": company_name[:120],
         "tagline": str(branding.get("tagline") or "")[:180],
         "showTagline": branding.get("showTagline", True) is not False,
         "logoUrl": str(branding.get("logoUrl") or "")[:300],
@@ -2600,7 +2606,11 @@ def public_portal_options():
         if name and dept and site and key:
             public_key = hashlib.sha256((APP_SECRET + "|" + key.casefold() + "|" + dept.casefold() + "|" + site.casefold()).encode()).hexdigest()
             employees.append({"key": public_key, "name": name, "department": dept, "factory": site})
-    return jsonify(factories=factories, departments=depts, employees=employees, **ticketing_cfg)
+    company_name = str(settings.get("companyName") or settings.get("loginBranding", {}).get("companyName") or "").strip()
+    if not company_name or company_name.casefold() in ("shree", "northstar", "northstar it", "it asset management"):
+        company_name = "Swarnshilp"
+    site_name = str(settings.get("siteName") or "").strip()
+    return jsonify(factories=factories, departments=depts, employees=employees, companyName=company_name, siteName=site_name, **ticketing_cfg)
 
 
 def repair_map_from_conn(conn):

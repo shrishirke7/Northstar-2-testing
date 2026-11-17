@@ -6,14 +6,14 @@
 <meta name="theme-color" content="#157a54">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Shree Portal">
+<meta name="apple-mobile-web-app-title" content="Swarnshilp Portal">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3">
 <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png?v=3">
 <link rel="shortcut icon" href="/favicon.ico?v=3">
-<title>Shree · IT Help Desk &amp; Material Request Portal</title>
+<title>Swarnshilp · IT Help Desk &amp; Material Request Portal</title>
 <style>
 :root{font-family:Inter,"Segoe UI",sans-serif;color:#1c2b24;background:#f3f6f4}
 *{box-sizing:border-box}
@@ -86,11 +86,11 @@ tr:hover td{background:#fafdfb}
       <div style="display:flex;align-items:center;gap:14px">
         <img src="/static/icons/icon-192.png?v=3" alt="Shree" width="46" height="46" style="border-radius:11px;border:1.5px solid #b59e50;flex-shrink:0;box-shadow:0 4px 12px rgba(5,20,51,.18)">
         <div>
-          <div class="eyebrow">SHREE · IT HELP DESK &amp; MATERIAL REQUESTS</div>
+          <div class="eyebrow" id="portalEyebrow">SWARNSHILP · IT HELP DESK &amp; MATERIAL REQUESTS</div>
           <h1 style="margin-top:2px">📝 Raise a support ticket or material request</h1>
         </div>
       </div>
-      <a class="button muted" href="/">Sign in to Shree IT ↗</a>
+      <a class="button muted" id="portalSignInBtn" href="/">Sign in to Swarnshilp IT ↗</a>
     </div>
     <p class="sub" style="margin-bottom:14px">Select your Factory, Department and Employee name, pick a category and describe the issue. You can also upload screenshots and track live progress below.</p>
 
@@ -682,11 +682,26 @@ window.addEventListener('storage', e => {
   }
 });
 
+function updatePortalBranding(cName){
+  let name = String(cName || '').trim();
+  if(!name || name === 'IT Asset Management' || name === 'Northstar' || name === 'Northstar IT' || name === 'Shree') name = 'Swarnshilp';
+  const eyebrow = $('portalEyebrow');
+  if(eyebrow) eyebrow.textContent = name.toUpperCase() + ' · IT HELP DESK & MATERIAL REQUESTS';
+  const signIn = $('portalSignInBtn');
+  if(signIn) signIn.textContent = 'Sign in to ' + name + ' IT ↗';
+  document.title = name + ' · IT Help Desk & Material Request Portal';
+}
+try{
+  const localSet = JSON.parse(localStorage.getItem('northstar-settings') || '{}');
+  if(localSet.companyName) updatePortalBranding(localSet.companyName);
+}catch(_){}
+
 async function refreshPortalOptions(){
   const r = await fetch('/api/public/portal-options', { cache: 'no-store' });
   if(!r.ok) return;
   const fresh = await r.json();
   data = fresh;
+  if(data.companyName) updatePortalBranding(data.companyName);
   if(Array.isArray(data.ticketCategoryTree) && data.ticketCategoryTree.length){
     CATEGORY_TREE = data.ticketCategoryTree;
   }
@@ -750,6 +765,7 @@ async function load(){
   const r = await fetch('/api/public/portal-options', { cache: 'no-store' });
   if(!r.ok) throw Error('Could not load factory and employee list.');
   data = await r.json();
+  if(data.companyName) updatePortalBranding(data.companyName);
   if(Array.isArray(data.ticketCategoryTree) && data.ticketCategoryTree.length){
     CATEGORY_TREE = data.ticketCategoryTree;
   }

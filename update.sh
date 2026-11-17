@@ -24,10 +24,24 @@ set -a
 set +a
 SERVER_IP="$(hostname -I | awk '{print $1}')"
 ALL_IPS="$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | grep -v '^127\.' | sort -u || true)"
+SITE_NAME="${SITE_NAME:-swarnshilp.local}"
 SAN_LIST="DNS:${APP_FQDN:-localhost},DNS:localhost,IP:127.0.0.1"
+if [[ -n "$SITE_NAME" ]]; then
+  case ",$SAN_LIST," in *,"DNS:${SITE_NAME}",*) ;; *) SAN_LIST="${SAN_LIST},DNS:$SITE_NAME,DNS:${SITE_NAME%.local}.local,DNS:${SITE_NAME%.local}" ;; esac
+fi
 for _ip in $ALL_IPS; do
   case ",$SAN_LIST," in *,"IP:${_ip}",*) ;; *) SAN_LIST="${SAN_LIST},IP:${_ip}" ;; esac
 done
+
+if command -v apt-get >/dev/null 2>&1; then
+  if ! command -v avahi-daemon >/dev/null 2>&1; then
+    apt-get update -y && apt-get install -y avahi-daemon avahi-utils >/dev/null 2>&1 || true
+  fi
+  systemctl enable --now avahi-daemon >/dev/null 2>&1 || true
+fi
+if [[ -n "$SITE_NAME" ]] && ! grep -q "$SITE_NAME" /etc/hosts 2>/dev/null; then
+  echo "$SERVER_IP $SITE_NAME ${SITE_NAME%.local}" >> /etc/hosts 2>/dev/null || true
+fi
 
 if [[ ! -s "$INSTALL_DIR/secrets/ca.crt" || ! -s "$INSTALL_DIR/secrets/ca.key" ]]; then
   openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
@@ -65,6 +79,13 @@ EOF
   rm -rf "$TMP_CERT_DIR" "$INSTALL_DIR/secrets/ca.srl"
   chmod 600 "$INSTALL_DIR/secrets/nginx.key"
   chmod 644 "$INSTALL_DIR/secrets/nginx.crt"
+fi
+if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
+  ufw allow 80/tcp >/dev/null 2>&1 || true
+  ufw allow 443/tcp >/dev/null 2>&1 || true
+  ufw allow 5353/udp >/dev/null 2>&1 || true
+  ufw allow 8848/tcp >/dev/null 2>&1 || true
+  ufw allow 8849/tcp >/dev/null 2>&1 || true
 fi
 docker compose build app scanner
 bash ./backup.sh manual
