@@ -391,10 +391,11 @@ def pwa_static_icon(filename):
 
 def _extract_der_cert_from_pem(pem_bytes):
     txt = pem_bytes.decode("ascii", errors="ignore")
-    m = re.search(r"-----BEGIN CERTIFICATE-----([\s\S]+?)-----END CERTIFICATE-----", txt)
-    if not m:
+    matches = re.findall(r"-----BEGIN CERTIFICATE-----([\s\S]+?)-----END CERTIFICATE-----", txt)
+    if not matches:
         return None
-    b64 = re.sub(r"\s+", "", m.group(1))
+    # If fullchain PEM (leaf + Root CA), return the final Root CA certificate in the chain
+    b64 = re.sub(r"\s+", "", matches[-1])
     try:
         return base64.b64decode(b64)
     except Exception:
@@ -402,8 +403,11 @@ def _extract_der_cert_from_pem(pem_bytes):
 
 
 def _fetch_server_ca_cert_der():
-    # 1. Check read-only public certificate files (never private keys)
+    # 1. Prefer dedicated Root CA public file, else extract Root CA from fullchain nginx.crt (never private keys)
     for cand in (
+        Path("/app/secrets/ca.crt"),
+        ROOT / "secrets" / "ca.crt",
+        Path("/etc/nginx/certs/ca.crt"),
         Path("/app/secrets/nginx.crt"),
         ROOT / "secrets" / "nginx.crt",
         Path("/etc/nginx/certs/nginx.crt"),
@@ -1287,6 +1291,7 @@ DEFAULT_SOUND_ALERTS = {
     "masterEnabled": True,
     "volume": 0.85,
     "desktopNotifications": False,
+    "defaultNewTypeSilent": False,
     "events": {
         "ticket": {"enabled": True, "soundId": "builtin:ticket-chime"},
         "online": {"enabled": True, "soundId": "builtin:online-ping"},
@@ -1301,6 +1306,7 @@ DEFAULT_SOUND_ALERTS = {
         "alertOnOffline": True,
         "alertOnOnline": True,
     },
+    "deviceRules": {},
 }
 
 
@@ -1317,6 +1323,8 @@ def normalize_sound_state(state):
             pass
     if "desktopNotifications" in saved_cfg:
         merged["desktopNotifications"] = bool(saved_cfg.get("desktopNotifications"))
+    if "defaultNewTypeSilent" in saved_cfg:
+        merged["defaultNewTypeSilent"] = bool(saved_cfg.get("defaultNewTypeSilent"))
     raw_events = saved_cfg.get("events") if isinstance(saved_cfg.get("events"), dict) else {}
     for ev_key in ("ticket", "online", "offline", "critical"):
         ev_val = raw_events.get(ev_key)
@@ -1332,6 +1340,19 @@ def normalize_sound_state(state):
     for bool_key in ("alertOnOffline", "alertOnOnline"):
         if bool_key in raw_crit:
             merged["criticalCriteria"][bool_key] = bool(raw_crit.get(bool_key))
+    raw_dev_rules = saved_cfg.get("deviceRules") if isinstance(saved_cfg.get("deviceRules"), dict) else {}
+    clean_dev_rules = {}
+    for rk, rv in list(raw_dev_rules.items())[:120]:
+        k_norm = str(rk or "").strip().lower()[:60]
+        if not k_norm or not isinstance(rv, dict):
+            continue
+        clean_dev_rules[k_norm] = {
+            "label": str(rv.get("label") or rk)[:80],
+            "silent": bool(rv.get("silent", False)),
+            "onlineSoundId": str(rv.get("onlineSoundId") or "inherit").strip()[:120] or "inherit",
+            "offlineSoundId": str(rv.get("offlineSoundId") or "inherit").strip()[:120] or "inherit",
+        }
+    merged["deviceRules"] = clean_dev_rules
     lib = raw.get("soundLibrary") if isinstance(raw.get("soundLibrary"), list) else []
     clean_lib = []
     for item in lib[:12]:
@@ -1559,6 +1580,9 @@ def _record_notification_event(conn, item):
         "targetId": str(item.get("targetId") or "")[:120],
         "targetTag": str(item.get("targetTag") or "")[:120],
         "targetIp": str(item.get("targetIp") or "")[:64],
+        "deviceType": str(item.get("deviceType") or "")[:60],
+        "deviceSubtype": str(item.get("deviceSubtype") or "")[:60],
+        "transitionStatus": str(item.get("transitionStatus") or "")[:20],
         "createdAt": str(item.get("createdAt") or now_iso)[:40],
     }
     doc["events"] = [ev] + doc["events"]
@@ -1624,6 +1648,9 @@ def _record_asset_transition_notification(conn, notif_state, asset, new_status, 
         "targetView": "assets",
         "targetTag": tag,
         "targetIp": ip,
+        "deviceType": dev_type,
+        "deviceSubtype": sub,
+        "transitionStatus": st_low,
         "createdAt": checked_at,
     })
 

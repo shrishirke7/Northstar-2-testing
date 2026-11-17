@@ -82,15 +82,41 @@ chmod 600 "$INSTALL_DIR/.env"
 chown -R 10001:10001 "$INSTALL_DIR/uploads" "$INSTALL_DIR/backups"
 chmod 700 "$INSTALL_DIR/uploads" "$INSTALL_DIR/backups" "$INSTALL_DIR/secrets"
 
-if [[ ! -s "$INSTALL_DIR/secrets/nginx.crt" || ! -s "$INSTALL_DIR/secrets/nginx.key" ]]; then
-  openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
-    -keyout "$INSTALL_DIR/secrets/nginx.key" \
-    -out "$INSTALL_DIR/secrets/nginx.crt" \
-    -subj "/CN=$APP_FQDN" \
-    -addext "subjectAltName=DNS:$APP_FQDN,DNS:localhost,IP:$SERVER_IP,IP:127.0.0.1" \
-    -addext "basicConstraints=critical,CA:TRUE" \
-    -addext "keyUsage=critical,digitalSignature,keyEncipherment,keyCertSign,cRLSign" \
-    -addext "extendedKeyUsage=serverAuth"
+ALL_IPS="$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | grep -v '^127\.' | sort -u || true)"
+SAN_LIST="DNS:$APP_FQDN,DNS:localhost,IP:$SERVER_IP,IP:127.0.0.1"
+for _ip in $ALL_IPS; do
+  case ",$SAN_LIST," in *,"IP:${_ip}",*) ;; *) SAN_LIST="${SAN_LIST},IP:${_ip}" ;; esac
+done
+
+if [[ ! -s "$INSTALL_DIR/secrets/ca.crt" || ! -s "$INSTALL_DIR/secrets/ca.key" ]]; then
+  openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+    -keyout "$INSTALL_DIR/secrets/ca.key" \
+    -out "$INSTALL_DIR/secrets/ca.crt" \
+    -subj "/CN=Shree Root CA/O=Shree IT Asset Intelligence" \
+    -addext "basicConstraints=critical,CA:TRUE,pathlen:0" \
+    -addext "keyUsage=critical,keyCertSign,cRLSign" \
+    -addext "subjectKeyIdentifier=hash"
+fi
+chmod 600 "$INSTALL_DIR/secrets/ca.key"
+chmod 644 "$INSTALL_DIR/secrets/ca.crt"
+
+if [[ ! -s "$INSTALL_DIR/secrets/nginx.crt" || ! -s "$INSTALL_DIR/secrets/nginx.key" ]] || ! openssl verify -CAfile "$INSTALL_DIR/secrets/ca.crt" "$INSTALL_DIR/secrets/nginx.crt" >/dev/null 2>&1; then
+  TMP_CERT_DIR="$(mktemp -d)"
+  openssl genrsa -out "$INSTALL_DIR/secrets/nginx.key" 2048
+  openssl req -new -key "$INSTALL_DIR/secrets/nginx.key" -out "$TMP_CERT_DIR/server.csr" -subj "/CN=$APP_FQDN/O=Shree IT"
+  cat > "$TMP_CERT_DIR/leaf.ext" <<EOF
+basicConstraints=critical,CA:FALSE
+keyUsage=critical,digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
+subjectAltName=$SAN_LIST
+EOF
+  openssl x509 -req -in "$TMP_CERT_DIR/server.csr" \
+    -CA "$INSTALL_DIR/secrets/ca.crt" -CAkey "$INSTALL_DIR/secrets/ca.key" -CAcreateserial \
+    -out "$TMP_CERT_DIR/leaf.crt" -days 365 -sha256 -extfile "$TMP_CERT_DIR/leaf.ext"
+  cat "$TMP_CERT_DIR/leaf.crt" "$INSTALL_DIR/secrets/ca.crt" > "$INSTALL_DIR/secrets/nginx.crt"
+  rm -rf "$TMP_CERT_DIR" "$INSTALL_DIR/secrets/ca.srl"
 fi
 chmod 600 "$INSTALL_DIR/secrets/nginx.key"
 chmod 644 "$INSTALL_DIR/secrets/nginx.crt"

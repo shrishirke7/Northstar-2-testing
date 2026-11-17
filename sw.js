@@ -1,6 +1,7 @@
 /* Shree IT Asset Intelligence - Progressive Web App Service Worker */
-const CACHE_NAME = 'shree-pwa-v3';
+const CACHE_NAME = 'shree-pwa-v4';
 const STATIC_ASSETS = [
+  '/',
   '/manifest.json',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
