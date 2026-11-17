@@ -2,8 +2,7 @@ log_format northstar_safe '$remote_addr - $remote_user [$time_local] "$request_m
 access_log /dev/stdout northstar_safe;
 
 server {
-    listen 80 default_server;
-    listen ${HTTP_PORT};
+    listen ${HTTP_PORT} default_server;
     server_name ${APP_FQDN} ${SITE_NAME} _ localhost;
 
     client_max_body_size 1g;
@@ -79,8 +78,7 @@ server {
 }
 
 server {
-    listen 443 ssl default_server;
-    listen ${HTTPS_PORT} ssl;
+    listen ${HTTPS_PORT} ssl default_server;
     server_name ${APP_FQDN} ${SITE_NAME} _ localhost;
 
     ssl_certificate /etc/nginx/certs/nginx.crt;

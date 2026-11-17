@@ -62,10 +62,8 @@ services:
       HTTPS_PORT: ${HTTPS_PORT:-8849}
       NGINX_ENVSUBST_FILTER: '^(APP_FQDN|SITE_NAME|HTTP_PORT|HTTPS_PORT)$'
     ports:
-      - "${PORT_80_BIND:-80}:80"
-      - "${PORT_443_BIND:-443}:443"
-      - "${HTTP_PORT:-8898}:${HTTP_PORT:-8848}"
-      - "${HTTPS_PORT:-8899}:${HTTPS_PORT:-8849}"
+      - "${HTTP_PORT:-8848}:${HTTP_PORT:-8848}"
+      - "${HTTPS_PORT:-8849}:${HTTPS_PORT:-8849}"
     volumes:
       - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ./secrets/nginx.crt:/etc/nginx/certs/nginx.crt:ro
