@@ -4476,6 +4476,65 @@ def download_android_apk():
     return resp
 
 
+def _find_ios_ipa():
+    for cand in (UPLOAD_DIR / "shree-it.ipa", ROOT / "static" / "downloads" / "shree-it.ipa", ROOT / "Shree-IT.ipa", ROOT / "shree-it.ipa"):
+        if cand.is_file() and cand.stat().st_size > 10000:
+            return cand
+    return None
+
+
+@app.get("/api/public/ios-status")
+def public_ios_status():
+    ipa = _find_ios_ipa()
+    zip_proj = ROOT / "static" / "downloads" / "shree-ios-project.zip"
+    return jsonify(
+        ipaAvailable=bool(ipa),
+        ipaSizeBytes=ipa.stat().st_size if ipa else 0,
+        ipaDownloadUrl="/download/shree-it.ipa" if ipa else "",
+        projectZipAvailable=zip_proj.is_file() or (ROOT / "ios-app").is_dir(),
+        projectZipDownloadUrl="/download/shree-ios-project.zip",
+    )
+
+
+@app.get("/download/shree-it.ipa")
+def download_ios_ipa():
+    ipa = _find_ios_ipa()
+    if not ipa:
+        return jsonify(
+            error="Compiled Apple .ipa binary requires macOS/Xcode or GitHub Actions (build-ipa.yml). Download /download/shree-ios-project.zip or open this site in iPhone/iPad Safari and tap Share -> Add to Home Screen."
+        ), 404
+    resp = send_from_directory(ipa.parent, ipa.name, mimetype="application/octet-stream")
+    resp.headers["Content-Disposition"] = 'attachment; filename="Shree-IT-iOS-iPadOS.ipa"'
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return resp
+
+
+@app.get("/download/shree-ios-project.zip")
+def download_ios_project():
+    pre = ROOT / "static" / "downloads" / "shree-ios-project.zip"
+    if pre.is_file() and pre.stat().st_size > 1000:
+        resp = send_from_directory(pre.parent, pre.name, mimetype="application/zip")
+        resp.headers["Content-Disposition"] = 'attachment; filename="Shree-IT-iOS-iPadOS-Project.zip"'
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        return resp
+    ios_dir = ROOT / "ios-app"
+    if not ios_dir.is_dir():
+        return jsonify(error="iOS project bundle not found."), 404
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for p in sorted(ios_dir.rglob("*")):
+            if p.is_file() and "/build/" not in str(p).replace("\\", "/"):
+                rel = p.relative_to(ROOT).as_posix()
+                zf.write(p, rel)
+        wf = ROOT / ".github" / "workflows" / "build-ipa.yml"
+        if wf.is_file():
+            zf.write(wf, ".github/workflows/build-ipa.yml")
+    resp = Response(buf.getvalue(), mimetype="application/zip")
+    resp.headers["Content-Disposition"] = 'attachment; filename="Shree-IT-iOS-iPadOS-Project.zip"'
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return resp
+
+
 @app.post("/api/admin/software-update/check")
 @administrator
 def software_update_check():

@@ -10,14 +10,18 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon-180.png?v=4">
+<link rel="apple-touch-icon" sizes="167x167" href="/static/icons/apple-touch-icon-167.png?v=4">
+<link rel="apple-touch-icon" sizes="152x152" href="/static/icons/apple-touch-icon-152.png?v=4">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3">
 <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png?v=3">
 <link rel="shortcut icon" href="/favicon.ico?v=3">
 <title>Swarnshilp · IT Help Desk &amp; Material Request Portal</title>
 <style>
-:root{font-family:Inter,"Segoe UI",sans-serif;color:#1c2b24;background:#f3f6f4}
+:root{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,"Segoe UI",sans-serif;color:#1c2b24;background:#f3f6f4}
 *{box-sizing:border-box}
-body{margin:0}
+body{margin:0;padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+button,.button,.pill-choice,.desk-pill,.portal-tab,.portal-mode-btn,.pg-dir-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .wrap{width:min(1480px,calc(100vw - 32px));margin:24px auto;display:grid;gap:20px}
 .card{background:#fff;border:1px solid #e1e8e3;border-radius:16px;box-shadow:0 12px 38px #1c2b240d;padding:24px 28px}
 .top-bar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px}
@@ -156,6 +160,7 @@ html,body{overflow-x:hidden;max-width:100%}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <a class="button muted" id="portalApkDownloadBtn" href="/download/shree-it.apk" download="Shree-IT.apk" style="background:#f0fdf4;color:#157a54;border:1px solid #bbf7d0">🤖 Android App (.apk)</a>
+        <a class="button muted" id="portalIosDownloadBtn" href="/download/shree-ios-project.zip" download="Shree-IT-iOS-iPadOS-Project.zip" style="background:#f8fafc;color:#0f172a;border:1px solid #cbd5e1" title="On iPhone/iPad Safari: tap Share -> Add to Home Screen, or download Xcode project to build .ipa"> iPhone &amp; iPad App</a>
         <a class="button muted" id="portalSignInBtn" href="/">Sign in to Swarnshilp ↗</a>
       </div>
     </div>
@@ -1520,10 +1525,11 @@ async function load(){
   }
 
   window.openPubCam = function(facing, title, onSnap, fallbackInputEl){
-    if(window.ShreeAndroid && typeof window.ShreeAndroid.captureCameraPhoto === 'function'){
+    const nb = window.ShreeAndroid || window.ShreeIOS;
+    if(nb && typeof nb.captureCameraPhoto === 'function'){
       const cbId = 'pc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
       window.__shreeNativeCamCbs[cbId] = dataUrl => { if(typeof onSnap === 'function') onSnap(dataUrl); };
-      window.ShreeAndroid.captureCameraPhoto(facing || 'environment', cbId);
+      nb.captureCameraPhoto(facing || 'environment', cbId);
       return;
     }
     if($('pubCamTitle')) $('pubCamTitle').textContent = title || '📷 Capture Photo';

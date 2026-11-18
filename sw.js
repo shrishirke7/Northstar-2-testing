@@ -1,5 +1,5 @@
 /* Shree IT Asset Intelligence - Progressive Web App Service Worker */
-const CACHE_NAME = 'shree-pwa-v4';
+const CACHE_NAME = 'shree-pwa-v5';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -7,6 +7,9 @@ const STATIC_ASSETS = [
   '/static/icons/icon-512.png',
   '/static/icons/icon-maskable-192.png',
   '/static/icons/icon-maskable-512.png',
+  '/static/icons/apple-touch-icon-180.png',
+  '/static/icons/apple-touch-icon-167.png',
+  '/static/icons/apple-touch-icon-152.png',
   '/static/icons/icon.svg',
   '/apple-touch-icon.png',
   '/favicon.ico'

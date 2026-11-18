@@ -161,6 +161,12 @@ public class MainActivity extends Activity {
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
         s.setSupportZoom(false);
+        s.setCacheMode(WebSettings.LOAD_DEFAULT);
+        if (Build.VERSION.SDK_INT >= 23) {
+            s.setOffscreenPreRaster(true);
+        }
+        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        webView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
 
         webView.addJavascriptInterface(new ShreeBridge(), "ShreeAndroid");
 
@@ -751,7 +757,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "1.0.6";
+            return "1.0.7";
         }
 
         @JavascriptInterface
