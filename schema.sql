@@ -114,10 +114,21 @@ CREATE TABLE IF NOT EXISTS material_gate_passes (
   entered_by text NOT NULL DEFAULT 'Security Gate',
   verified_by text NOT NULL DEFAULT '',
   verified_at timestamptz,
+  expected_return_at timestamptz,
+  expected_days integer NOT NULL DEFAULT 0,
+  returned_at timestamptz,
+  return_note text NOT NULL DEFAULT '',
+  last_reminder_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE material_gate_passes ADD COLUMN IF NOT EXISTS expected_return_at timestamptz;
+ALTER TABLE material_gate_passes ADD COLUMN IF NOT EXISTS expected_days integer NOT NULL DEFAULT 0;
+ALTER TABLE material_gate_passes ADD COLUMN IF NOT EXISTS returned_at timestamptz;
+ALTER TABLE material_gate_passes ADD COLUMN IF NOT EXISTS return_note text NOT NULL DEFAULT '';
+ALTER TABLE material_gate_passes ADD COLUMN IF NOT EXISTS last_reminder_at timestamptz;
 CREATE INDEX IF NOT EXISTS material_gate_created_idx ON material_gate_passes(created_at DESC);
 CREATE INDEX IF NOT EXISTS material_gate_dir_idx ON material_gate_passes(direction);
 CREATE INDEX IF NOT EXISTS material_gate_factory_idx ON material_gate_passes(factory);
 CREATE INDEX IF NOT EXISTS material_gate_dept_idx ON material_gate_passes(department);
+CREATE INDEX IF NOT EXISTS material_gate_ret_due_idx ON material_gate_passes(returnable, expected_return_at);

@@ -889,7 +889,7 @@
 .ov-cust-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid #e0ebe4;border-radius:12px;padding:10px 14px;font-size:12px;transition:box-shadow .15s}
 .ov-cust-row:hover{box-shadow:0 2px 8px rgba(0,0,0,0.04);border-color:#c8dbcf}
 .ov-cust-drag-handle{cursor:grab;color:#829288;font-size:16px}
-.login-portal-btn,.login-apk-btn{width:min(370px,100%);height:48px;margin:16px auto 0;display:flex;align-items:center;justify-content:center;gap:10px;border:1.5px solid #cbd5e1;border-radius:30px;background:#ffffff;color:#334155;font-size:13.5px;font-weight:700;text-decoration:none;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.06);transition:all .18s ease;box-sizing:border-box}
+.login-portal-btn,.login-apk-btn{width:min(460px,100%);height:48px;padding:0 24px;margin:16px auto 0;display:flex;align-items:center;justify-content:center;gap:10px;border:1.5px solid #cbd5e1;border-radius:30px;background:#ffffff;color:#334155;font-size:13.5px;font-weight:700;text-decoration:none;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.06);transition:all .18s ease;box-sizing:border-box}
 .login-portal-btn:hover,.login-apk-btn:hover{background:#f8fafc;border-color:#94a3b8;color:#0f172a;transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,.09)}
 .login-portal-btn span,.login-apk-btn span{font-size:16px}
 .login-apk-btn{margin-top:8px;height:44px;border-color:#bbf7d0;background:#f0fdf4;color:#157a54}
@@ -1039,6 +1039,7 @@
       <button type="button" class="gate-tab-btn active" data-gpdir="ALL" onclick="nsGatePassModule.setDirectionTab('ALL')">📋 All Movements</button>
       <button type="button" class="gate-tab-btn" data-gpdir="IN" onclick="nsGatePassModule.setDirectionTab('IN')">📥 Material Inward (IN)</button>
       <button type="button" class="gate-tab-btn" data-gpdir="OUT" onclick="nsGatePassModule.setDirectionTab('OUT')">📤 Material Outward (OUT)</button>
+      <button type="button" class="gate-tab-btn" data-gpdir="RETURNABLE" onclick="nsGatePassModule.setDirectionTab('RETURNABLE')">🔄 Returnable Tracker</button>
     </div>
   </div>
   <div class="grid-4" id="gatepassKpis" style="margin-bottom:14px">
@@ -1328,7 +1329,7 @@ renderSettings();renderDashboard();renderMonitoring();renderReports();renderRece
 <style>
 .dc-kpi{cursor:pointer;text-align:left;width:100%}.dc-breakdown{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:14px 17px}.dc-breakdown-item{display:grid;gap:7px;padding:11px;border:1px solid var(--line);border-radius:9px}.dc-breakdown-item b{font-size:11px}.dc-breakdown-item span{font-size:10px;color:var(--muted)}.dc-breakdown-item .btn{padding:6px 8px}.sidebar{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}.main{min-width:0}.table-wrap{overflow-x:auto}.modal-backdrop{overflow-y:auto;align-items:flex-start;padding:16px}.modal{max-height:calc(100vh - 32px);overflow:auto}.form-modal{width:min(760px,100%);padding:24px}.form-modal .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.form-modal .field.full{grid-column:1/-1}.form-modal input,.form-modal select,.form-modal textarea{width:100%}.form-modal textarea{min-height:76px}.form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}.form-note{font-size:10px;color:#78847d;line-height:1.5}.form-section{grid-column:1/-1;border-bottom:1px solid var(--line);padding:8px 0 4px;font-weight:800;color:var(--green)}.row-actions{white-space:nowrap}.row-actions .btn{padding:6px 8px;margin-right:3px}.scan-controls{display:flex;gap:14px;align-items:flex-end}.scan-controls textarea{width:100%;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:10px;background:#fafbfa}.scan-buttons{display:flex;gap:7px;white-space:nowrap}.scan-progress{display:grid;grid-template-columns:1fr 200px;gap:12px;align-items:center;margin:10px 0 14px;color:#758078;font-size:11px}.scan-progress progress{width:100%;height:8px;accent-color:var(--green)}@media(max-width:850px){.sidebar{width:70px;padding:18px 9px}.brand{padding:0 8px 22px}.brand-name,.brand-sub,.org-label,.nav button span:not(.ico),.help-card,.profile-name,.profile-role,.profile-dots{display:none}.nav button{justify-content:center;padding:11px 8px}.profile{justify-content:center;padding:14px 0 0}.main{margin-left:70px;width:calc(100% - 70px)}.content{padding:20px 16px 32px}.topbar{padding:0 16px}.search{width:min(220px,35vw)}}@media(max-width:850px){.dc-breakdown{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.scan-controls{display:block}.scan-buttons{margin-top:9px}.scan-progress{grid-template-columns:1fr}.form-modal .form-grid{grid-template-columns:1fr}.form-modal .field.full,.form-section{grid-column:1}.content{padding:16px 10px 24px}.page-head{align-items:flex-start;gap:12px;flex-direction:column}.head-actions{flex-wrap:wrap}.topbar{gap:8px}.crumb{max-width:36vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 /* Branded, full-screen sign-in; the application shell stays hidden until authentication succeeds. */
-.auth-gate{display:flex;position:fixed;inset:0;z-index:90;background:#f3f3f1;align-items:center;justify-content:center;padding:24px}.login-shell{width:min(1160px,100%);min-height:min(700px,calc(100vh - 48px));display:grid;grid-template-columns:1.04fr .96fr;background:#fff;box-shadow:0 24px 90px #17251e22;overflow:hidden}.login-visual{position:relative;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:42px 36px 30px;background:radial-gradient(ellipse at 52% 44%,#c5d7c8 0,#a9c3b2 45%,#91af9c 100%);color:#fff;overflow:hidden}.login-visual:before,.login-visual:after{content:'';position:absolute;border:1px solid #ffffff35;border-radius:50%;width:450px;height:450px;left:-240px;top:-180px}.login-visual:after{width:380px;height:380px;left:auto;top:auto;right:-230px;bottom:-210px}.login-visual-brand{align-self:flex-start;display:flex;align-items:center;gap:12px;font:italic 34px Georgia,serif;color:#8c5a17;position:relative;z-index:1}.login-diamond{font-size:27px;color:#aa741e}.jewel-art{width:min(390px,85%);flex:1;display:grid;place-items:center;position:relative;z-index:1}.jewel-art svg{width:100%;height:auto;max-height:350px;filter:drop-shadow(0 16px 15px #52685b30)}.login-dots{display:flex;gap:9px;align-items:center;margin-top:27px;position:relative;z-index:1}.login-dots i{width:9px;height:9px;border-radius:50%;background:#ffffff80}.login-dots i:first-child{width:29px;border-radius:8px;background:#fff}.login-side{padding:37px clamp(28px,6vw,78px) 28px;display:flex;flex-direction:column;align-items:center}.login-wordmark{font:italic 42px Georgia,serif;color:#9a651a;margin:4px auto auto;text-align:center}.login-wordmark span{display:block;font:20px Georgia;color:#bc8e46;margin-top:-5px}.login-form-wrap{width:min(400px,100%);margin:auto 0}.login-kicker{font-size:10px;letter-spacing:1.6px;font-weight:800;color:#a57b3a;text-align:center}.login-form-wrap h1{font:600 25px Manrope;text-align:center;margin:14px 0 7px;color:#50534f}.login-form-wrap>p{text-align:center;color:#92958f;font-size:12px;margin:0 0 35px}.login-field{display:grid;gap:8px;margin-bottom:22px;color:#747871;font-size:11px}.login-field input{border:0;border-bottom:1px solid #d7d9d4;border-radius:0;padding:12px 0;outline:0;font-size:14px;color:#323b34;background:#fff}.login-field input:focus{border-color:#a47837}.login-field input::placeholder{color:#b0b3ad}.auth-error{color:#bd5149;font-size:11px;min-height:17px;margin:-7px 0 5px}.login-submit{width:min(260px,100%);height:48px;margin:3px auto 0;display:flex;align-items:center;justify-content:center;gap:18px;border:0;border-radius:30px;background:#26392f;color:#fff;font-size:14px;font-weight:700;box-shadow:0 8px 20px #26392f25}.login-submit:hover{background:#355240}.login-submit span{font-size:18px}.login-security{text-align:center;color:#939891;font-size:10px;margin-top:27px}.login-security span{color:#9b7439;margin-right:5px}.login-footer{margin-top:auto;padding-top:28px;color:#a4a59e;font-size:10px;text-align:center}@media(max-width:760px){.auth-gate{padding:0}.login-shell{min-height:100vh;grid-template-columns:1fr}.login-visual{display:none}.login-side{min-height:100vh;padding:35px 24px 22px}.login-wordmark{font-size:37px}.login-form-wrap{margin:60px 0}}
+.auth-gate{display:flex;position:fixed;inset:0;z-index:90;background:#f3f3f1;align-items:center;justify-content:center;padding:24px}.login-shell{width:min(1160px,100%);min-height:min(700px,calc(100vh - 48px));display:grid;grid-template-columns:1.04fr .96fr;background:#fff;box-shadow:0 24px 90px #17251e22;overflow:hidden}.login-visual{position:relative;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:42px 36px 30px;background:radial-gradient(ellipse at 52% 44%,#c5d7c8 0,#a9c3b2 45%,#91af9c 100%);color:#fff;overflow:hidden}.login-visual:before,.login-visual:after{content:'';position:absolute;border:1px solid #ffffff35;border-radius:50%;width:450px;height:450px;left:-240px;top:-180px}.login-visual:after{width:380px;height:380px;left:auto;top:auto;right:-230px;bottom:-210px}.login-visual-brand{align-self:flex-start;display:flex;align-items:center;gap:12px;font:italic 34px Georgia,serif;color:#8c5a17;position:relative;z-index:1}.login-diamond{font-size:27px;color:#aa741e}.jewel-art{width:min(390px,85%);flex:1;display:grid;place-items:center;position:relative;z-index:1}.jewel-art svg{width:100%;height:auto;max-height:350px;filter:drop-shadow(0 16px 15px #52685b30)}.login-dots{display:flex;gap:9px;align-items:center;margin-top:27px;position:relative;z-index:1}.login-dots i{width:9px;height:9px;border-radius:50%;background:#ffffff80}.login-dots i:first-child{width:29px;border-radius:8px;background:#fff}.login-side{padding:37px clamp(20px,4vw,50px) 28px;display:flex;flex-direction:column;align-items:center}.login-wordmark{font:italic 42px Georgia,serif;color:#9a651a;margin:4px auto auto;text-align:center}.login-wordmark span{display:block;font:20px Georgia;color:#bc8e46;margin-top:-5px}.login-form-wrap{width:min(460px,100%);margin:auto 0}.login-kicker{font-size:10px;letter-spacing:1.6px;font-weight:800;color:#a57b3a;text-align:center}.login-form-wrap h1{font:600 25px Manrope;text-align:center;margin:14px 0 7px;color:#50534f}.login-form-wrap>p{text-align:center;color:#92958f;font-size:12px;margin:0 0 35px}.login-field{display:grid;gap:8px;margin-bottom:22px;color:#747871;font-size:11px}.login-field input{border:0;border-bottom:1px solid #d7d9d4;border-radius:0;padding:12px 0;outline:0;font-size:14px;color:#323b34;background:#fff}.login-field input:focus{border-color:#a47837}.login-field input::placeholder{color:#b0b3ad}.auth-error{color:#bd5149;font-size:11px;min-height:17px;margin:-7px 0 5px}.login-submit{width:min(260px,100%);height:48px;margin:3px auto 0;display:flex;align-items:center;justify-content:center;gap:18px;border:0;border-radius:30px;background:#26392f;color:#fff;font-size:14px;font-weight:700;box-shadow:0 8px 20px #26392f25}.login-submit:hover{background:#355240}.login-submit span{font-size:18px}.login-security{text-align:center;color:#939891;font-size:10px;margin-top:27px}.login-security span{color:#9b7439;margin-right:5px}.login-footer{margin-top:auto;padding-top:28px;color:#a4a59e;font-size:10px;text-align:center}@media(max-width:760px){.auth-gate{padding:0}.login-shell{min-height:100vh;grid-template-columns:1fr}.login-visual{display:none}.login-side{min-height:100vh;padding:35px 24px 22px}.login-wordmark{font-size:37px}.login-form-wrap{margin:60px 0}}
 .login-brand-logo[hidden]{display:none!important}.login-brand-logo{max-width:170px;max-height:58px;object-fit:contain}.login-wordmark #loginBrandName{font:italic 42px Georgia,serif;color:#9a651a;margin:4px auto auto}.login-wordmark .login-brand-logo{display:block;margin:0 auto 8px;max-width:210px;max-height:72px}.login-visual.photo-mode{background-size:cover;background-position:center}.login-dots button{width:9px;height:9px;border:0;border-radius:50%;padding:0;background:#ffffff80;cursor:pointer}.login-dots button.active{width:29px;border-radius:8px;background:#fff}.login-brand-slides-preview{display:flex;gap:8px;flex-wrap:wrap;min-height:40px;align-items:center}.login-brand-thumb{position:relative;width:74px;height:54px;border:1px solid var(--line);border-radius:8px;overflow:hidden}.login-brand-thumb img{width:100%;height:100%;object-fit:cover}.login-brand-thumb button{position:absolute;right:3px;top:3px;border:0;border-radius:50%;background:#17251ecc;color:white;width:20px;height:20px;cursor:pointer}.login-visual-brand,.login-wordmark{display:none!important}.login-footer{visibility:hidden}#view-assets .table-wrap{overscroll-behavior-x:contain}#view-assets table{table-layout:fixed}#view-assets th{position:relative}#view-assets td{overflow:hidden;text-overflow:ellipsis}.asset-col-resize{position:absolute;right:-3px;top:0;width:8px;height:100%;cursor:col-resize;touch-action:none;z-index:2}.asset-col-resize:after{content:"";position:absolute;left:3px;top:25%;height:50%;border-left:2px solid transparent}.asset-col-resize:hover:after,.asset-col-resizing .asset-col-resize:after{border-color:#16815a}.asset-col-resizing{cursor:col-resize!important;user-select:none!important}/* Asset form: wider, evenly rounded modal and interface rows that stay inside it. */
 #assetModal .form-modal{width:min(920px,calc(100vw - 32px));max-width:920px;border-radius:18px;overflow-x:hidden}
 #assetModal .form-modal .form-grid,#assetModal .form-modal .field.full,#assetNetworkInterfaces{min-width:0;width:100%}
@@ -8563,6 +8564,8 @@ let lastPulseGatepassRev = '';
 
   function notifIcon(item){
     const k = String(item.kind || item.eventKey || '').toLowerCase();
+    if(k === 'gatepass') return { ico:'📦', cls:item.level === 'critical' ? 'critical' : 'info', label:'Gate Pass' };
+    if(k === 'visitor') return { ico:'🛂', cls:'info', label:'Visitor Pass' };
     if(k === 'material_request') return { ico:'📦', cls:'info', label:'Material Request' };
     if(k === 'ticket') return { ico:'🎫', cls:'info', label:'IT Ticket' };
     if(k === 'critical') return { ico:'🚨', cls:item.level === 'ok' ? 'ok' : 'critical', label:'Critical Device' };
@@ -8712,6 +8715,8 @@ let lastPulseGatepassRev = '';
             <option value="">All types</option>
             <option value="ticket">IT Tickets</option>
             <option value="material_request">Material Requests</option>
+            <option value="gatepass">Gate Pass / Returnable</option>
+            <option value="visitor">Visitor Pass</option>
             <option value="critical">Critical Devices</option>
             <option value="offline">Offline Devices</option>
             <option value="online">Online Devices</option>
@@ -14328,6 +14333,7 @@ let lastPulseGatepassRev = '';
   let gatepassRows = [];
   let seenVisitorIds = new Set();
   let seenGatepassIds = new Set();
+  let seenOverdueGpIds = new Set();
   let visBooted = false;
   let gpBooted = false;
   let activeDirectionTab = 'ALL';
@@ -14416,17 +14422,24 @@ let lastPulseGatepassRev = '';
     document.getElementById('gateLightboxModal')?.classList.remove('open');
   };
 
-  window.openGateCam = async function(onSnap){
+  window.openGateCam = async function(onSnap, opts = {}){
     const modal = document.getElementById('gateCamModal');
     const vid = document.getElementById('gateCamVideo');
-    if(!modal || !vid) return;
+    const hdr = modal?.querySelector('.modal-head h2');
+    if(hdr) hdr.textContent = opts.title || '📷 Capture Photo';
+    if(!modal || !vid || !navigator.mediaDevices?.getUserMedia){
+      if(opts.fallbackFileEl){ opts.fallbackFileEl.click(); return; }
+      if(typeof showToast === 'function') showToast('Camera unavailable. Choose photo from device.');
+      return;
+    }
     camCallback = onSnap;
     try{
-      camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } }, audio: false });
+      camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: opts.facingMode || 'user', width: { ideal: 1080 }, height: { ideal: 1080 } }, audio: false });
       vid.srcObject = camStream;
       modal.classList.add('open');
     }catch(err){
-      if(typeof showToast === 'function') showToast('Camera unavailable (' + (err?.message || 'permission needed') + '). Use file/camera upload button below.');
+      if(opts.fallbackFileEl){ opts.fallbackFileEl.click(); return; }
+      if(typeof showToast === 'function') showToast('Camera unavailable (' + (err?.message || 'permission needed') + '). Use file upload below.');
     }
   };
   window.closeGateCam = function(){
@@ -14536,7 +14549,8 @@ let lastPulseGatepassRev = '';
     const tMs = toVal ? Date.parse(toVal) : NaN;
     const ql = String(q || '').trim().toLowerCase();
     return rows.filter(r => {
-      if(dir && dir !== 'ALL' && r.direction !== dir) return false;
+      if(dir === 'RETURNABLE'){ if(!r.returnable) return false; }
+      else if(dir && dir !== 'ALL' && r.direction !== dir) return false;
       if(fac && r.factory !== fac) return false;
       if(dept && String(r.department || '').toLowerCase() !== dept.toLowerCase()) return false;
       if(status && r.status !== status) return false;
@@ -14653,16 +14667,27 @@ let lastPulseGatepassRev = '';
       if(canWrite && g.status === 'Logged'){
         actions.push(`<button type="button" class="btn primary" style="padding:4px 9px;font-size:10px" onclick="nsGatePassModule.setStatus('${esc(g.id)}','Verified')">✓ Verify / Received</button>`);
       }
+      const retLabel = g.direction === 'IN' ? '📤 Sent Back OUT' : '↩ Mark Returned IN';
       if(canWrite && g.returnable && g.status !== 'Returned'){
-        actions.push(`<button type="button" class="btn" style="padding:4px 9px;font-size:10px;border-color:#0284c7;color:#0369a1" onclick="nsGatePassModule.setStatus('${esc(g.id)}','Returned')">↩ Mark Returned</button>`);
+        actions.push(`<button type="button" class="btn" style="padding:4px 9px;font-size:10px;border-color:#0284c7;color:#0369a1" onclick="nsGatePassModule.setStatus('${esc(g.id)}','Returned')">${retLabel}</button>`);
       }
       if(scope === 'all' || scope === 'security'){
         actions.push(`<button type="button" class="btn" style="padding:4px 7px;font-size:10px;color:#b53d38" title="Delete" onclick="nsGatePassModule.remove('${esc(g.id)}')">🗑</button>`);
       }
-      return `<tr data-gatepass-id="${esc(g.id)}" style="${highlightId && highlightId === g.id ? 'background:#dcfce7' : ''}">
+      const isOverdue = !!(g.returnable && g.status !== 'Returned' && (g.isOverdue || (g.expectedReturnAt && Date.parse(g.expectedReturnAt) <= Date.now())));
+      const retBadge = !g.returnable ? '' : (
+        g.status === 'Returned'
+          ? `<div style="margin-top:4px"><span class="status healthy">✅ Returned${g.returnedAt ? ' · ' + fmtGateDt(g.returnedAt) : ''}</span></div>`
+          : isOverdue
+            ? `<div style="margin-top:4px"><span class="status critical">⚠️ OVERDUE · Due ${fmtGateDt(g.expectedReturnAt)}</span></div>`
+            : g.expectedReturnAt
+              ? `<div style="margin-top:4px"><span class="age-pill old">🔄 Due: ${fmtGateDt(g.expectedReturnAt)}</span></div>`
+              : '<div style="margin-top:4px"><span class="age-pill old">🔄 Returnable Pending</span></div>'
+      );
+      return `<tr data-gatepass-id="${esc(g.id)}" style="${highlightId && highlightId === g.id ? 'background:#dcfce7' : (isOverdue ? 'background:#fff5f5' : '')}">
         <td><b class="ticket-token">${esc(g.id)}</b><div style="margin-top:4px"><span class="${g.direction==='OUT'?'gate-dir-out':'gate-dir-in'}">${g.direction==='OUT'?'📤 OUTWARD':'📥 INWARD'}</span></div></td>
         <td>${photosHtml}</td>
-        <td style="max-width:210px;white-space:normal"><b>${esc(g.materialName)}</b><div class="ticket-meta">${esc(g.materialType)} ${g.quantity ? `· <b>${esc(g.quantity)} ${esc(g.unit||'')}</b>` : ''}</div>${g.returnable ? '<span class="age-pill old" style="margin-top:3px">🔄 Returnable</span>' : ''}${g.remarks ? `<div class="ticket-meta">${esc(g.remarks)}</div>` : ''}</td>
+        <td style="max-width:220px;white-space:normal"><b>${esc(g.materialName)}</b><div class="ticket-meta">${esc(g.materialType)} ${g.quantity ? `· <b>${esc(g.quantity)} ${esc(g.unit||'')}</b>` : ''}</div>${retBadge}${g.remarks ? `<div class="ticket-meta">${esc(g.remarks)}</div>` : ''}</td>
         <td><b>${esc(g.partyName || '—')}</b>${g.challanNo ? `<div class="ticket-meta">Bill/Challan: <b>${esc(g.challanNo)}</b></div>` : ''}${g.vehicleNo ? `<div class="ticket-meta">🚗 ${esc(g.vehicleNo)}</div>` : ''}</td>
         <td><b>${esc(g.factory)}</b> · ${esc(g.department)}<div class="ticket-meta">For: <b>${esc(g.forName || '—')}</b></div><div class="ticket-meta">By: ${esc(g.enteredBy || 'Gate')}</div></td>
         <td><div>${fmtGateDt(g.createdAt)}</div><div style="margin-top:4px"><span class="status ${g.status==='Verified'||g.status==='Returned'?'healthy':'open'}">${esc(g.status)}</span></div>${g.verifiedBy ? `<div class="ticket-meta">✓ ${esc(g.verifiedBy)}</div>` : ''}</td>
@@ -14782,8 +14807,8 @@ let lastPulseGatepassRev = '';
         <div class="field"><label>Vehicle No. / Visitor Count</label><div style="display:flex;gap:6px"><input name="vehicleNo" placeholder="MH01..." style="flex:2"><input name="visitorCount" type="number" min="1" value="1" style="flex:1"></div></div>
         <div class="field"><label>Pass / Badge No.</label><input name="passNo" placeholder="e.g. V-12"></div>
         <div class="field"><label>Belongings / Tools Carried</label><input name="belongings" placeholder="Laptop, tool bag, etc."></div>
-        <div class="field gate-photo-box"><label>Visitor ID Card Photo</label><input type="file" id="gVisIdFile" accept="image/*" capture="environment"><img id="gVisIdPrev" class="gate-photo-preview"></div>
-        <div class="field gate-photo-box"><label>Visitor Selfie / Face Photo</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn" id="gVisCamBtn">📷 Camera Selfie</button><input type="file" id="gVisSelfieFile" accept="image/*" capture="user" style="flex:1;min-width:120px"></div><img id="gVisSelfiePrev" class="gate-photo-preview"></div>
+        <div class="field gate-photo-box"><label>Visitor ID Card Photo</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn" id="gVisIdCamBtn">📷 Scan ID Card</button><input type="file" id="gVisIdFile" accept="image/*" capture="environment" style="flex:1;min-width:120px"></div><img id="gVisIdPrev" class="gate-photo-preview"></div>
+        <div class="field gate-photo-box"><label>Visitor Selfie / Face Photo</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn" id="gVisCamBtn">📷 Live Selfie Camera</button><input type="file" id="gVisSelfieFile" accept="image/*" capture="user" style="flex:1;min-width:120px"></div><img id="gVisSelfiePrev" class="gate-photo-preview"></div>
       </div>
       <div class="modal-foot"><button type="button" class="btn" onclick="closeGateCreateModal()">Cancel</button><button type="submit" class="btn primary">Submit &amp; Notify Host</button></div>`;
       const syncDepts = () => {
@@ -14809,10 +14834,14 @@ let lastPulseGatepassRev = '';
         selfieData = await compressImageFile(e.target.files?.[0]);
         const p = form.querySelector('#gVisSelfiePrev'); if(p && selfieData){ p.src = selfieData; p.style.display = 'block'; }
       };
+      form.querySelector('#gVisIdCamBtn').onclick = () => window.openGateCam(d => {
+        idData = d;
+        const p = form.querySelector('#gVisIdPrev'); if(p){ p.src = d; p.style.display = 'block'; }
+      }, { facingMode: 'environment', title: '📷 Capture Visitor ID Card', fallbackFileEl: form.querySelector('#gVisIdFile') });
       form.querySelector('#gVisCamBtn').onclick = () => window.openGateCam(d => {
         selfieData = d;
         const p = form.querySelector('#gVisSelfiePrev'); if(p){ p.src = d; p.style.display = 'block'; }
-      });
+      }, { facingMode: 'user', title: '📷 Take Visitor Selfie', fallbackFileEl: form.querySelector('#gVisSelfieFile') });
       form.onsubmit = async e => {
         e.preventDefault();
         const fdObj = Object.fromEntries(new FormData(form));
@@ -14847,7 +14876,7 @@ let lastPulseGatepassRev = '';
     getRows: () => gatepassRows.slice(),
     setLocalSeed(rows){ gatepassRows = Array.isArray(rows) ? rows : []; seenGatepassIds = new Set(gatepassRows.map(x=>x.id)); gpBooted = true; },
     setDirectionTab(dir){
-      activeDirectionTab = ['IN', 'OUT', 'ALL'].includes(dir) ? dir : 'ALL';
+      activeDirectionTab = ['IN', 'OUT', 'ALL', 'RETURNABLE'].includes(dir) ? dir : 'ALL';
       document.querySelectorAll('#gpDirectionTabs [data-gpdir]').forEach(b => b.classList.toggle('active', b.dataset.gpdir === activeDirectionTab));
       this.refresh();
     },
@@ -14895,6 +14924,25 @@ let lastPulseGatepassRev = '';
         rows.forEach(x => seenGatepassIds.add(x.id));
       }
       renderGatePassTable(rows, opts.highlightId || '');
+      this.checkOverdueReturnables();
+    },
+    checkOverdueReturnables(){
+      const nowMs = Date.now();
+      gatepassRows.forEach(g => {
+        if(!g || !g.returnable || g.status === 'Returned' || g.returnedAt) return;
+        const expMs = g.expectedReturnAt ? new Date(g.expectedReturnAt).getTime() : 0;
+        const overdueFlag = g.isOverdue || (expMs > 0 && expMs <= nowMs);
+        if(!overdueFlag || seenOverdueGpIds.has(g.id)) return;
+        seenOverdueGpIds.add(g.id);
+        const dirMsg = g.direction === 'IN' ? 'due to be SENT BACK OUT' : 'not yet RETURNED IN';
+        window.nsSoundEngine?.triggerEventAlert?.(
+          'ticket',
+          `Returnable Overdue: ${g.materialName} (${g.id})`,
+          `${dirMsg} · For ${g.forName || g.department} (${g.department} · ${g.factory}) · Due ${fmtGateDt(g.expectedReturnAt)}`,
+          'critical',
+          { kind: 'gatepass', targetView: 'gatepass', targetTab: 'RETURNABLE', targetId: g.id }
+        );
+      });
     },
     async setStatus(id, status){
       if(isSrv()){
@@ -14907,7 +14955,15 @@ let lastPulseGatepassRev = '';
         }catch(err){ if(typeof showToast === 'function') showToast(err.message || 'Update failed'); }
       } else {
         const actor = (typeof serverProfile !== 'undefined' && serverProfile?.name) || 'User';
-        gatepassRows = gatepassRows.map(g => g.id === id ? { ...g, status, verifiedBy: actor, verifiedAt: new Date().toISOString() } : g);
+        const nowIso = new Date().toISOString();
+        gatepassRows = gatepassRows.map(g => g.id === id ? {
+          ...g,
+          status,
+          verifiedBy: actor,
+          verifiedAt: nowIso,
+          returnedAt: status === 'Returned' ? nowIso : g.returnedAt,
+          isOverdue: status === 'Returned' ? false : g.isOverdue
+        } : g);
         this.refresh();
       }
     },
@@ -14935,8 +14991,8 @@ let lastPulseGatepassRev = '';
       let matData = '', billData = '';
       if(title) title.textContent = dir === 'OUT' ? '📤 Material Outward (OUT) Entry' : '📥 Material Inward (IN) Entry';
       form.innerHTML = `<div class="form-grid">
-        <div class="field full" style="background:#eefcf4;border:1px solid #cce7d7;border-radius:8px;padding:8px 11px;font-size:11px;color:#0f5132">🕒 <b>Auto Date &amp; Time:</b> ${new Date().toLocaleString('en-IN')} · Direction: <b>${dir === 'OUT' ? '📤 Material Outward (OUT)' : '📥 Material Inward (IN)'}</b></div>
-        <div class="field"><label>Direction *</label><select name="direction"><option value="IN" ${dir==='IN'?'selected':''}>📥 Material Inward (IN)</option><option value="OUT" ${dir==='OUT'?'selected':''}>📤 Material Outward (OUT)</option></select></div>
+        <div class="field full" id="gGpDirBanner" style="background:#eefcf4;border:1px solid #cce7d7;border-radius:8px;padding:8px 11px;font-size:11px;color:#0f5132">🕒 <b>Auto Date &amp; Time:</b> ${new Date().toLocaleString('en-IN')} · Direction: <b>${dir === 'OUT' ? '📤 Material Outward (OUT)' : '📥 Material Inward (IN)'}</b></div>
+        <div class="field"><label>Direction *</label><select name="direction" id="gGpDirSel"><option value="IN" ${dir==='IN'?'selected':''}>📥 Material Inward (IN)</option><option value="OUT" ${dir==='OUT'?'selected':''}>📤 Material Outward (OUT)</option></select></div>
         <div class="field"><label>Factory *</label><select name="factory" id="gGpFac" required>${facts.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select></div>
         <div class="field"><label>Department *</label><select name="department" id="gGpDept" required></select></div>
         <div class="field"><label>For Person / Employee</label><select name="employee" id="gGpEmp"></select></div>
@@ -14947,12 +15003,63 @@ let lastPulseGatepassRev = '';
         <div class="field"><label>Challan / Invoice / Bill No.</label><input name="challanNo" placeholder="Optional reference"></div>
         <div class="field"><label>Vehicle No.</label><input name="vehicleNo" placeholder="Optional"></div>
         <div class="field"><label>Or Type Recipient Name</label><input name="forName" placeholder="If not in dropdown"></div>
-        <div class="field"><label style="display:flex;align-items:center;gap:7px;margin-top:16px"><input type="checkbox" name="returnable" value="true"> 🔄 Returnable Material (track return)</label></div>
+        <div class="field"><label style="display:flex;align-items:center;gap:7px;margin-top:16px"><input type="checkbox" name="returnable" id="gGpReturnChk" value="true"> 🔄 Returnable Material (track return)</label></div>
+        <div class="field full" id="gGpReturnBox" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+            <span style="font-size:12px;font-weight:700;color:#1d4ed8" id="gGpReturnHint">🔄 Returnable Deadline Tracking (Overdue alert starts automatically if not completed by due date)</span>
+            <div style="display:flex;gap:5px;flex-wrap:wrap">
+              <button type="button" class="btn" data-gpret="1">+1d</button>
+              <button type="button" class="btn" data-gpret="3">+3d</button>
+              <button type="button" class="btn" data-gpret="7">+7d</button>
+              <button type="button" class="btn" data-gpret="15">+15d</button>
+              <button type="button" class="btn" data-gpret="30">+30d</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px">
+            <div><label style="font-size:11px;font-weight:600">Expected Return After (Days)</label><input type="number" name="expectedDays" id="gGpExpectedDays" min="0" value="7" placeholder="e.g. 7"></div>
+            <div><label style="font-size:11px;font-weight:600">Expected Return Date &amp; Time</label><input type="datetime-local" id="gGpExpectedDt"></div>
+            <div><label style="font-size:11px;font-weight:600">Return Instructions / Note</label><input name="returnNote" placeholder="e.g. After calibration / repair"></div>
+          </div>
+        </div>
         <div class="field full"><label>Remarks</label><input name="remarks" placeholder="Any notes for security or receiver"></div>
-        <div class="field gate-photo-box"><label>Material Photo</label><input type="file" id="gGpMatFile" accept="image/*" capture="environment"><img id="gGpMatPrev" class="gate-photo-preview"></div>
-        <div class="field gate-photo-box"><label>Bill / Challan Photo</label><input type="file" id="gGpBillFile" accept="image/*" capture="environment"><img id="gGpBillPrev" class="gate-photo-preview"></div>
+        <div class="field gate-photo-box"><label>Material Photo</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn" id="gGpMatCamBtn">📷 Camera</button><input type="file" id="gGpMatFile" accept="image/*" capture="environment" style="flex:1;min-width:120px"></div><img id="gGpMatPrev" class="gate-photo-preview"></div>
+        <div class="field gate-photo-box"><label>Bill / Challan Photo</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn" id="gGpBillCamBtn">📷 Camera</button><input type="file" id="gGpBillFile" accept="image/*" capture="environment" style="flex:1;min-width:120px"></div><img id="gGpBillPrev" class="gate-photo-preview"></div>
       </div>
       <div class="modal-foot"><button type="button" class="btn" onclick="closeGateCreateModal()">Cancel</button><button type="submit" class="btn primary">Save Gate Pass</button></div>`;
+      const dirSel = form.querySelector('#gGpDirSel');
+      const retChk = form.querySelector('#gGpReturnChk');
+      const retBox = form.querySelector('#gGpReturnBox');
+      const retHint = form.querySelector('#gGpReturnHint');
+      const daysInp = form.querySelector('#gGpExpectedDays');
+      const dtInp = form.querySelector('#gGpExpectedDt');
+      const applyRetDays = dVal => {
+        const n = Math.max(0, parseInt(dVal, 10) || 0);
+        if(daysInp) daysInp.value = String(n);
+        if(dtInp){
+          const target = new Date(Date.now() + n * 86400000);
+          dtInp.value = toLocalInputStr(target);
+        }
+      };
+      const syncRetUI = () => {
+        const isRet = !!retChk?.checked;
+        if(retBox) retBox.style.display = isRet ? 'block' : 'none';
+        const dNow = dirSel?.value || 'IN';
+        if(retHint){
+          retHint.textContent = dNow === 'OUT'
+            ? '🔄 Going OUT -> Must come BACK IN by due date (Security & Dept get overdue alert!)'
+            : '🔄 Coming IN -> Must be SENT BACK OUT by due date (Security & Dept get overdue alert!)';
+        }
+        const bEl = form.querySelector('#gGpDirBanner');
+        if(bEl) bEl.innerHTML = `🕒 <b>Auto Date &amp; Time:</b> ${new Date().toLocaleString('en-IN')} · Direction: <b>${dNow === 'OUT' ? '📤 Material Outward (OUT)' : '📥 Material Inward (IN)'}</b>`;
+        if(isRet && !dtInp?.value) applyRetDays(daysInp?.value || 7);
+      };
+      dirSel?.addEventListener('change', syncRetUI);
+      retChk?.addEventListener('change', syncRetUI);
+      daysInp?.addEventListener('input', () => applyRetDays(daysInp.value));
+      form.querySelectorAll('[data-gpret]').forEach(btn => {
+        btn.onclick = () => { if(retChk) retChk.checked = true; syncRetUI(); applyRetDays(btn.dataset.gpret); };
+      });
+      syncRetUI();
       const syncDepts = () => {
         const fc = form.querySelector('#gGpFac').value;
         const dList = getDeptsForFactory(fc);
@@ -14967,6 +15074,14 @@ let lastPulseGatepassRev = '';
       form.querySelector('#gGpFac').onchange = syncDepts;
       form.querySelector('#gGpDept').onchange = syncEmps;
       syncDepts();
+      form.querySelector('#gGpMatCamBtn').onclick = () => window.openGateCam(d => {
+        matData = d;
+        const p = form.querySelector('#gGpMatPrev'); if(p){ p.src = d; p.style.display = 'block'; }
+      }, { facingMode: 'environment', title: '📷 Capture Material Photo', fallbackFileEl: form.querySelector('#gGpMatFile') });
+      form.querySelector('#gGpBillCamBtn').onclick = () => window.openGateCam(d => {
+        billData = d;
+        const p = form.querySelector('#gGpBillPrev'); if(p){ p.src = d; p.style.display = 'block'; }
+      }, { facingMode: 'environment', title: '📷 Capture Bill / Challan Photo', fallbackFileEl: form.querySelector('#gGpBillFile') });
       form.querySelector('#gGpMatFile').onchange = async e => {
         matData = await compressImageFile(e.target.files?.[0]);
         const p = form.querySelector('#gGpMatPrev'); if(p && matData){ p.src = matData; p.style.display = 'block'; }
@@ -14979,6 +15094,8 @@ let lastPulseGatepassRev = '';
         e.preventDefault();
         const fdObj = Object.fromEntries(new FormData(form));
         fdObj.returnable = !!form.querySelector('[name="returnable"]')?.checked;
+        fdObj.expectedDays = fdObj.returnable ? Math.max(0, parseInt(fdObj.expectedDays, 10) || 0) : 0;
+        fdObj.expectedReturnAt = fdObj.returnable ? isoFromLocalInput(dtInp?.value) : '';
         if(isSrv()){
           try{
             const res = await apiFetch('/api/gate-passes', {
@@ -14993,9 +15110,12 @@ let lastPulseGatepassRev = '';
           const isOut = fdObj.direction === 'OUT';
           const id = (isOut ? 'MOUT' : 'MIN') + String(gatepassRows.length + 1).padStart(2, '0') + '/' + new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
           const empUser = (typeof users !== 'undefined' ? users : []).find(u => (u.username||u.id) === fdObj.employee);
+          const expIso = fdObj.expectedReturnAt || (fdObj.returnable && fdObj.expectedDays > 0 ? new Date(Date.now() + fdObj.expectedDays * 86400000).toISOString() : '');
           gatepassRows.unshift({
             id, direction: fdObj.direction, factory: fdObj.factory, department: fdObj.department, forUsername: empUser?.username || '', forName: empUser?.name || fdObj.forName || fdObj.department,
-            materialType: fdObj.materialType, materialName: fdObj.materialName, quantity: fdObj.quantity, unit: fdObj.unit, returnable: !!fdObj.returnable,
+            materialType: fdObj.materialType, materialName: fdObj.materialName, quantity: fdObj.quantity, unit: fdObj.unit,
+            returnable: !!fdObj.returnable, expectedDays: fdObj.expectedDays, expectedReturnAt: expIso, returnNote: fdObj.returnNote || '',
+            returnedAt: '', isOverdue: !!(fdObj.returnable && expIso && new Date(expIso).getTime() <= Date.now()),
             partyName: fdObj.partyName, challanNo: fdObj.challanNo, vehicleNo: fdObj.vehicleNo, remarks: fdObj.remarks,
             materialPhoto: matData, billPhoto: billData, status: 'Logged', enteredBy: (typeof serverProfile !== 'undefined' && serverProfile?.name) || 'Gate', createdAt: new Date().toISOString()
           });

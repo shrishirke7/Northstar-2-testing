@@ -5,6 +5,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DownloadManager;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -12,9 +13,11 @@ import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.MediaStore;
 import android.view.View;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
 import android.webkit.SslErrorHandler;
 import android.webkit.URLUtil;
 import android.webkit.ValueCallback;
@@ -38,6 +41,8 @@ public class MainActivity extends Activity {
     public static volatile boolean isAppInForeground = false;
     private static final int REQ_FILE_CHOOSER = 4001;
     private static final int REQ_NOTIF_PERM = 4002;
+    private static final int REQ_CAMERA_PERM = 4003;
+    private static final int REQ_CAMERA_CHOOSER = 4004;
 
     private WebView webView;
     private ProgressBar progressBar;
@@ -45,6 +50,9 @@ public class MainActivity extends Activity {
     private TextView errorDetailText;
 
     private ValueCallback<Uri[]> fileUploadCallback = null;
+    private PermissionRequest pendingPermissionRequest = null;
+    private WebChromeClient.FileChooserParams pendingChooserParams = null;
+    private Uri pendingCameraPhotoUri = null;
     private boolean sslDialogShowing = false;
     private final List<SslErrorHandler> pendingSslHandlers = new ArrayList<>();
     private String configuredHost = "";
@@ -198,20 +206,46 @@ public class MainActivity extends Activity {
             }
 
             @Override
+            public void onPermissionRequest(PermissionRequest request) {
+                runOnUiThread(() -> {
+                    String[] resources = request.getResources();
+                    boolean wantsVideo = false;
+                    for (String res : resources) {
+                        if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(res)) {
+                            wantsVideo = true;
+                        }
+                    }
+                    if (!wantsVideo) {
+                        request.deny();
+                        return;
+                    }
+                    if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                        if (pendingPermissionRequest != null) {
+                            try { pendingPermissionRequest.deny(); } catch (Exception ignored) {}
+                        }
+                        pendingPermissionRequest = request;
+                        requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA_PERM);
+                    } else {
+                        request.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
+                    }
+                });
+            }
+
+            @Override
             public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
                 if (fileUploadCallback != null) {
                     fileUploadCallback.onReceiveValue(null);
                 }
                 fileUploadCallback = filePathCallback;
-                try {
-                    Intent chooser = fileChooserParams.createIntent();
-                    startActivityForResult(chooser, REQ_FILE_CHOOSER);
+                if (acceptsImageTypes(fileChooserParams)
+                        && Build.VERSION.SDK_INT >= 23
+                        && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                    pendingChooserParams = fileChooserParams;
+                    requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA_CHOOSER);
                     return true;
-                } catch (Exception e) {
-                    fileUploadCallback = null;
-                    Toast.makeText(MainActivity.this, "Cannot open file picker", Toast.LENGTH_SHORT).show();
-                    return false;
                 }
+                launchFileChooserWithCamera(fileChooserParams);
+                return true;
             }
         });
 
@@ -315,11 +349,84 @@ public class MainActivity extends Activity {
         CookieManager.getInstance().flush();
     }
 
+    private boolean acceptsImageTypes(WebChromeClient.FileChooserParams params) {
+        if (params == null) return false;
+        String[] types = params.getAcceptTypes();
+        if (types == null) return false;
+        for (String t : types) {
+            if (t != null && (t.contains("image") || t.contains(".jpg") || t.contains(".jpeg") || t.contains(".png"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void launchFileChooserWithCamera(WebChromeClient.FileChooserParams fileChooserParams) {
+        pendingCameraPhotoUri = null;
+        try {
+            Intent contentIntent = fileChooserParams != null
+                    ? fileChooserParams.createIntent()
+                    : new Intent(Intent.ACTION_GET_CONTENT).setType("image/*");
+            List<Intent> extraIntents = new ArrayList<>();
+            if (acceptsImageTypes(fileChooserParams)
+                    && (Build.VERSION.SDK_INT < 23 || checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)) {
+                try {
+                    Intent camIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                    ContentValues cv = new ContentValues();
+                    cv.put(MediaStore.Images.Media.DISPLAY_NAME, "SHREE_GATE_" + System.currentTimeMillis() + ".jpg");
+                    cv.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                    Uri uri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv);
+                    if (uri != null) {
+                        pendingCameraPhotoUri = uri;
+                        camIntent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
+                        camIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        extraIntents.add(camIntent);
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            Intent chooser = Intent.createChooser(contentIntent, "Camera or Select Photo");
+            if (!extraIntents.isEmpty()) {
+                chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, extraIntents.toArray(new Intent[0]));
+            }
+            startActivityForResult(chooser, REQ_FILE_CHOOSER);
+        } catch (Exception e) {
+            if (fileUploadCallback != null) {
+                fileUploadCallback.onReceiveValue(null);
+                fileUploadCallback = null;
+            }
+            Toast.makeText(MainActivity.this, "Cannot open camera or file picker", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+        if (requestCode == REQ_CAMERA_PERM && pendingPermissionRequest != null) {
+            PermissionRequest req = pendingPermissionRequest;
+            pendingPermissionRequest = null;
+            if (granted) {
+                req.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
+            } else {
+                req.deny();
+            }
+        } else if (requestCode == REQ_CAMERA_CHOOSER) {
+            WebChromeClient.FileChooserParams cp = pendingChooserParams;
+            pendingChooserParams = null;
+            launchFileChooserWithCamera(cp);
+        }
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQ_FILE_CHOOSER && fileUploadCallback != null) {
             Uri[] result = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+            if ((result == null || result.length == 0) && resultCode == RESULT_OK && pendingCameraPhotoUri != null) {
+                result = new Uri[]{pendingCameraPhotoUri};
+            }
+            pendingCameraPhotoUri = null;
             fileUploadCallback.onReceiveValue(result);
             fileUploadCallback = null;
         }
@@ -347,7 +454,12 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "1.0.0";
+            return "1.0.2";
+        }
+
+        @JavascriptInterface
+        public boolean hasCameraSupport() {
+            return true;
         }
     }
 }

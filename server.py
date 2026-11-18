@@ -16,7 +16,7 @@ import tempfile
 import base64
 import socket
 import ssl
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
 from urllib.parse import quote
@@ -5070,9 +5070,13 @@ def _gatepass_json(r, include_private=True, public_token=""):
         if public_token:
             return "/api/public/gate-media/" + quote(rel, safe="/") + "?token=" + quote(public_token, safe="")
         return ""
+    exp_dt = r[24] if len(r) > 24 else None
+    ret_dt = r[26] if len(r) > 26 else None
+    is_ret = bool(r[8])
+    is_overdue = bool(is_ret and r[18] != "Returned" and exp_dt and exp_dt <= datetime.now(timezone.utc))
     return {
         "id": r[0], "direction": r[2], "factory": r[3], "materialType": r[4], "materialName": r[5],
-        "quantity": r[6], "unit": r[7], "returnable": bool(r[8]), "partyName": r[9],
+        "quantity": r[6], "unit": r[7], "returnable": is_ret, "partyName": r[9],
         "challanNo": r[10], "vehicleNo": r[11], "remarks": r[12], "department": r[13],
         "forUsername": r[14] if include_private else "", "forName": r[15],
         "materialPhoto": _media_url(r[16]), "billPhoto": _media_url(r[17]),
@@ -5080,6 +5084,11 @@ def _gatepass_json(r, include_private=True, public_token=""):
         "verifiedAt": r[21].isoformat() if r[21] else "",
         "createdAt": r[22].isoformat() if r[22] else "",
         "updatedAt": r[23].isoformat() if r[23] else "",
+        "expectedReturnAt": exp_dt.isoformat() if exp_dt else "",
+        "expectedDays": int(r[25] or 0) if len(r) > 25 else 0,
+        "returnedAt": ret_dt.isoformat() if ret_dt else "",
+        "returnNote": str(r[27] or "") if len(r) > 27 else "",
+        "isOverdue": is_overdue,
     }
 
 
@@ -5107,9 +5116,12 @@ def _build_gate_where(args, alias=""):
     if args.get("status"):
         clauses.append(f"status = %s")
         params.append(str(args.get("status"))[:40])
-    if args.get("direction") in ("IN", "OUT"):
+    d_arg = str(args.get("direction") or "").strip().upper()
+    if d_arg in ("IN", "OUT"):
         clauses.append(f"direction = %s")
-        params.append(str(args.get("direction")))
+        params.append(d_arg)
+    elif d_arg == "RETURNABLE" or str(args.get("returnable") or "").lower() in ("1", "true"):
+        clauses.append("returnable = true")
     dt_from = _parse_dt_bound(args.get("from"))
     if dt_from is not None:
         clauses.append("created_at >= %s")
@@ -5123,7 +5135,7 @@ def _build_gate_where(args, alias=""):
 
 
 VISITOR_COLS = "id,tracking_token_hash,factory,visitor_name,phone,address,purpose,department,host_username,host_name,vehicle_no,pass_no,visitor_count,belongings,id_card_photo,selfie_photo,status,entered_by,approved_by,approved_at,checked_in_at,checked_out_at,decision_note,created_at,updated_at"
-GATEPASS_COLS = "id,tracking_token_hash,direction,factory,material_type,material_name,quantity,unit,returnable,party_name,challan_no,vehicle_no,remarks,department,for_username,for_name,material_photo,bill_photo,status,entered_by,verified_by,verified_at,created_at,updated_at"
+GATEPASS_COLS = "id,tracking_token_hash,direction,factory,material_type,material_name,quantity,unit,returnable,party_name,challan_no,vehicle_no,remarks,department,for_username,for_name,material_photo,bill_photo,status,entered_by,verified_by,verified_at,created_at,updated_at,expected_return_at,expected_days,returned_at,return_note"
 
 
 def _token_map_from_request():
@@ -5447,6 +5459,17 @@ def _create_gatepass_impl(is_public=True):
     tracking_token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(tracking_token.encode()).hexdigest()
     init_status = "Dispatched" if direction == "OUT" and not returnable else "Logged"
+    try:
+        expected_days = max(0, min(3650, int(body.get("expectedDays") or 0))) if returnable else 0
+    except (TypeError, ValueError):
+        expected_days = 0
+    expected_return_at = _parse_dt_bound(body.get("expectedReturnAt")) if returnable else None
+    if returnable and expected_return_at is None and expected_days > 0:
+        expected_return_at = datetime.now(timezone.utc) + timedelta(days=expected_days)
+    elif returnable and expected_return_at is not None and expected_days == 0:
+        delta_s = (expected_return_at - datetime.now(timezone.utc)).total_seconds()
+        expected_days = max(1, int((delta_s + 86399) // 86400)) if delta_s > 0 else 1
+    return_note = str(body.get("returnNote") or "").strip()[:300]
     with db() as conn:
         if is_public:
             recent = conn.execute("SELECT count(*) FROM material_gate_passes WHERE created_at > now() - interval '10 minutes'").fetchone()[0]
@@ -5465,16 +5488,17 @@ def _create_gatepass_impl(is_public=True):
         if err2:
             return jsonify(error=err2), 400
         conn.execute(
-            "INSERT INTO material_gate_passes(id,tracking_token_hash,direction,factory,material_type,material_name,quantity,unit,returnable,party_name,challan_no,vehicle_no,remarks,department,for_username,for_name,material_photo,bill_photo,status,entered_by) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (gid, token_hash, direction, factory, material_type, material_name, quantity, unit, returnable, party_name, challan_no, vehicle_no, remarks, department, for_username, for_name, mat_rel, bill_rel, init_status, entered_by),
+            "INSERT INTO material_gate_passes(id,tracking_token_hash,direction,factory,material_type,material_name,quantity,unit,returnable,party_name,challan_no,vehicle_no,remarks,department,for_username,for_name,material_photo,bill_photo,status,entered_by,expected_return_at,expected_days,return_note) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (gid, token_hash, direction, factory, material_type, material_name, quantity, unit, returnable, party_name, challan_no, vehicle_no, remarks, department, for_username, for_name, mat_rel, bill_rel, init_status, entered_by, expected_return_at, expected_days, return_note),
         )
         dir_word = "Outward (OUT)" if direction == "OUT" else "Inward (IN)"
+        due_txt = f" · Return due: {expected_return_at.strftime('%d %b %Y')}" if (returnable and expected_return_at) else (" · 🔄 Returnable" if returnable else "")
         _record_notification_event(conn, {
             "eventKey": f"gatepass:{gid}",
             "kind": "gatepass",
             "level": "info",
             "title": f"Material {dir_word}: {material_name} ({gid})",
-            "body": f"For {for_name} ({department} · {factory}){' · Challan ' + challan_no if challan_no else ''}",
+            "body": f"For {for_name} ({department} · {factory}){' · Challan ' + challan_no if challan_no else ''}{due_txt}",
             "factory": factory,
             "targetView": "gatepass",
             "targetTab": direction,
@@ -5528,6 +5552,7 @@ def update_gatepass_status(pass_id):
         return jsonify(error="Write permission for Material Gate Pass is required."), 403
     body = request.get_json(silent=True) or {}
     new_st = str(body.get("status") or "Verified").strip()
+    ret_note = str(body.get("returnNote") or "").strip()[:300]
     if new_st not in GATEPASS_STATUSES:
         return jsonify(error="Invalid status."), 400
     actor = str(who.get("name") or who.get("username") or "User")[:120]
@@ -5538,10 +5563,134 @@ def update_gatepass_status(pass_id):
         cur = _gatepass_json(row, include_private=True)
         if not gatepass_row_visible(cur, who, is_adm):
             return jsonify(error="You can only update material entries assigned to you or your scope."), 403
-        conn.execute("UPDATE material_gate_passes SET status=%s, verified_by=%s, verified_at=now(), updated_at=now() WHERE id=%s", (new_st, actor, pass_id))
+        if new_st == "Returned":
+            conn.execute("UPDATE material_gate_passes SET status=%s, verified_by=%s, verified_at=now(), returned_at=now(), return_note=COALESCE(NULLIF(%s,''), return_note), updated_at=now() WHERE id=%s", (new_st, actor, ret_note, pass_id))
+            _record_notification_event(conn, {
+                "eventKey": f"gatepass-ret:{pass_id}",
+                "kind": "gatepass",
+                "level": "ok",
+                "title": f"Returnable Material Returned ({pass_id}): {cur['materialName']}",
+                "body": f"Marked Returned by {actor} · {cur['forName']} ({cur['department']} · {cur['factory']})",
+                "factory": cur["factory"],
+                "targetView": "gatepass",
+                "targetTab": "RETURNABLE",
+                "targetId": pass_id,
+                "targetDepartment": cur["department"],
+                "targetUsername": cur["forUsername"],
+                "targetHostName": cur["forName"],
+            })
+        else:
+            conn.execute("UPDATE material_gate_passes SET status=%s, verified_by=%s, verified_at=now(), updated_at=now() WHERE id=%s", (new_st, actor, pass_id))
         updated = conn.execute(f"SELECT {GATEPASS_COLS} FROM material_gate_passes WHERE id=%s", (pass_id,)).fetchone()
         _pg_emit_notify(conn, "gatepass", {"action": "status", "id": pass_id, "status": new_st})
     return jsonify(ok=True, gatePass=_gatepass_json(updated, include_private=True))
+
+
+@app.post("/api/public/gate-passes/<path:pass_id>/return")
+def public_mark_gatepass_returned(pass_id):
+    body = request.get_json(silent=True) or {}
+    guard = str(body.get("enteredBy") or "Security Gate").strip()[:80] or "Security Gate"
+    note = str(body.get("returnNote") or "").strip()[:300]
+    with db() as conn:
+        row = conn.execute(f"SELECT {GATEPASS_COLS} FROM material_gate_passes WHERE id=%s FOR UPDATE", (pass_id,)).fetchone()
+        if not row:
+            return jsonify(error="Material pass not found."), 404
+        if not row[8]:
+            return jsonify(error="Only returnable items can be marked returned from Gate."), 400
+        conn.execute("UPDATE material_gate_passes SET status='Returned', verified_by=%s, verified_at=now(), returned_at=now(), return_note=%s, updated_at=now() WHERE id=%s", (guard, note, pass_id))
+        updated = conn.execute(f"SELECT {GATEPASS_COLS} FROM material_gate_passes WHERE id=%s", (pass_id,)).fetchone()
+        cur = _gatepass_json(updated, include_private=True)
+        _record_notification_event(conn, {
+            "eventKey": f"gatepass-ret:{pass_id}",
+            "kind": "gatepass",
+            "level": "ok",
+            "title": f"Returnable Material Completed ({pass_id}): {cur['materialName']}",
+            "body": f"{'Received back IN' if cur['direction']=='OUT' else 'Sent back OUT'} at Gate by {guard} · For {cur['forName']} ({cur['department']} · {cur['factory']})",
+            "factory": cur["factory"],
+            "targetView": "gatepass",
+            "targetTab": "RETURNABLE",
+            "targetId": pass_id,
+            "targetDepartment": cur["department"],
+            "targetUsername": cur["forUsername"],
+            "targetHostName": cur["forName"],
+        })
+        _pg_emit_notify(conn, "gatepass", {"action": "returned", "id": pass_id})
+    return jsonify(ok=True, gatePass=_gatepass_json(updated, include_private=False))
+
+
+def process_returnable_gatepass_reminders(conn):
+    got_lock = conn.execute("SELECT pg_try_advisory_xact_lock(hashtext('northstar:returnable-gatepass-due'))").fetchone()[0]
+    if not got_lock:
+        return 0
+    rows = conn.execute(f"""
+        SELECT {GATEPASS_COLS}, last_reminder_at
+        FROM material_gate_passes
+        WHERE returnable = true
+          AND status <> 'Returned'
+          AND expected_return_at IS NOT NULL
+          AND expected_return_at <= now()
+          AND (last_reminder_at IS NULL OR last_reminder_at::date < CURRENT_DATE)
+        ORDER BY expected_return_at ASC
+        LIMIT 80
+    """).fetchall()
+    today_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    sent = 0
+    for row in rows:
+        item = _gatepass_json(row[:28], include_private=True)
+        gid = item["id"]
+        dir_up = item["direction"]
+        due_str = row[24].astimezone(timezone(timedelta(hours=5, minutes=30))).strftime("%d %b %Y, %I:%M %p") if row[24] else ""
+        sent_str = row[22].astimezone(timezone(timedelta(hours=5, minutes=30))).strftime("%d %b %Y") if row[22] else ""
+        if dir_up == "OUT":
+            title = f"⏰ OVERDUE Returnable Material ({gid}): {item['materialName']}"
+            body = f"Sent OUT ({item['partyName'] or 'External'}) on {sent_str} — expected BACK IN by {due_str}, NOT YET RETURNED! For {item['forName']} ({item['department']} · {item['factory']})"
+        else:
+            title = f"⏰ OVERDUE Returnable Dispatch ({gid}): {item['materialName']}"
+            body = f"Came IN ({item['partyName'] or 'Vendor'}) on {sent_str} — expected BACK OUT by {due_str}, NOT YET DISPATCHED BACK! For {item['forName']} ({item['department']} · {item['factory']})"
+        _record_notification_event(conn, {
+            "eventKey": f"gatepass-due:{gid}:{today_key}",
+            "kind": "gatepass",
+            "level": "critical",
+            "title": title[:180],
+            "body": body[:400],
+            "factory": item["factory"],
+            "targetView": "gatepass",
+            "targetTab": "RETURNABLE",
+            "targetId": gid,
+            "targetDepartment": item["department"],
+            "targetUsername": item["forUsername"],
+            "targetHostName": item["forName"],
+        })
+        conn.execute("UPDATE material_gate_passes SET last_reminder_at=now(), updated_at=now() WHERE id=%s", (gid,))
+        sent += 1
+    return sent
+
+
+_RETURNABLE_SCHED_STARTED = False
+_RETURNABLE_SCHED_LOCK = threading.Lock()
+
+
+def _start_returnable_scheduler():
+    global _RETURNABLE_SCHED_STARTED
+    if _RETURNABLE_SCHED_STARTED:
+        return
+    with _RETURNABLE_SCHED_LOCK:
+        if _RETURNABLE_SCHED_STARTED:
+            return
+        _RETURNABLE_SCHED_STARTED = True
+
+        def _loop():
+            time.sleep(8)
+            while True:
+                try:
+                    with db() as conn:
+                        process_returnable_gatepass_reminders(conn)
+                except Exception:
+                    pass
+                time.sleep(60)
+
+        t = threading.Thread(target=_loop, name="northstar-returnable-reminders", daemon=True)
+        t.start()
 
 
 @app.delete("/api/gate-passes/<path:pass_id>")
@@ -5573,3 +5722,4 @@ def too_large(_):
 
 
 init_db()
+_start_returnable_scheduler()

@@ -316,7 +316,10 @@ html,body{overflow-x:hidden;max-width:100%}
         <div class="grid-2">
           <div class="field pg-photo-box">
             <label>Visitor ID Card Photo</label>
-            <input type="file" id="pubVisIdInput" accept="image/*" capture="environment">
+            <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
+              <button type="button" class="muted" id="pubVisIdCamBtn" style="padding:8px 12px">📷 Scan ID Camera</button>
+              <input type="file" id="pubVisIdInput" accept="image/*" capture="environment" style="flex:1;min-width:130px">
+            </div>
             <img id="pubVisIdPrev" class="pg-photo-prev" alt="ID Preview">
           </div>
           <div class="field pg-photo-box">
@@ -405,15 +408,38 @@ html,body{overflow-x:hidden;max-width:100%}
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="pubGpReturnable" style="width:auto"> 🔄 Returnable Material (item will come back / go back)</label>
           </div>
         </div>
+        <div class="hidden" id="pubGpReturnBox" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:10px 12px;margin-bottom:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+            <span style="font-size:12px;font-weight:700;color:#1d4ed8" id="pubGpReturnHint">🔄 Returnable Tracking: Automatic overdue alert sent to Department &amp; Security on due date!</span>
+            <div style="display:flex;gap:5px;flex-wrap:wrap">
+              <button type="button" class="pg-preset-btn" data-pgret="1">+1d</button>
+              <button type="button" class="pg-preset-btn" data-pgret="3">+3d</button>
+              <button type="button" class="pg-preset-btn" data-pgret="7">+7d</button>
+              <button type="button" class="pg-preset-btn" data-pgret="15">+15d</button>
+              <button type="button" class="pg-preset-btn" data-pgret="30">+30d</button>
+            </div>
+          </div>
+          <div class="grid-3">
+            <div class="field"><label>Return Within (Days)</label><input type="number" id="pubGpExpectedDays" min="0" value="7" placeholder="e.g. 7"></div>
+            <div class="field"><label>Expected Return Date &amp; Time</label><input type="datetime-local" id="pubGpExpectedDt"></div>
+            <div class="field"><label>Return Purpose / Note</label><input id="pubGpReturnNote" placeholder="e.g. Calibration / Repair / Demo"></div>
+          </div>
+        </div>
         <div class="grid-2">
           <div class="field pg-photo-box">
             <label>Material Photo</label>
-            <input type="file" id="pubGpMatPhotoInput" accept="image/*" capture="environment">
+            <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
+              <button type="button" class="muted" id="pubGpMatCamBtn" style="padding:8px 12px">📷 Capture Material</button>
+              <input type="file" id="pubGpMatPhotoInput" accept="image/*" capture="environment" style="flex:1;min-width:130px">
+            </div>
             <img id="pubGpMatPrev" class="pg-photo-prev" alt="Material Preview">
           </div>
           <div class="field pg-photo-box">
             <label>Bill / Challan Photo</label>
-            <input type="file" id="pubGpBillPhotoInput" accept="image/*" capture="environment">
+            <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
+              <button type="button" class="muted" id="pubGpBillCamBtn" style="padding:8px 12px">📷 Capture Bill / Challan</button>
+              <input type="file" id="pubGpBillPhotoInput" accept="image/*" capture="environment" style="flex:1;min-width:130px">
+            </div>
             <img id="pubGpBillPrev" class="pg-photo-prev" alt="Bill Preview">
           </div>
         </div>
@@ -438,6 +464,7 @@ html,body{overflow-x:hidden;max-width:100%}
         <button type="button" class="portal-tab active" data-pglist="ALL" onclick="setPubGpListTab('ALL')">📋 All Movements</button>
         <button type="button" class="portal-tab" data-pglist="IN" onclick="setPubGpListTab('IN')">📥 Inward (IN)</button>
         <button type="button" class="portal-tab" data-pglist="OUT" onclick="setPubGpListTab('OUT')">📤 Outward (OUT)</button>
+        <button type="button" class="portal-tab" data-pglist="RETURNABLE" onclick="setPubGpListTab('RETURNABLE')">🔄 Returnable Tracker</button>
       </div>
       <div class="filters">
         <div class="pg-preset-strip">
@@ -464,7 +491,7 @@ html,body{overflow-x:hidden;max-width:100%}
 
 <div class="pg-modal-bg" id="pubCamModal" onclick="if(event.target===this)closePubCam()">
   <div class="pg-modal-card" style="text-align:center">
-    <h3 style="margin:0 0 10px">📷 Take Visitor Selfie</h3>
+    <h3 id="pubCamTitle" style="margin:0 0 10px">📷 Capture Photo</h3>
     <video id="pubCamVideo" autoplay playsinline style="width:100%;max-height:260px;border-radius:10px;background:#0f172a;object-fit:cover"></video>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
       <button type="button" class="muted" onclick="closePubCam()">Cancel</button>
@@ -1434,13 +1461,60 @@ async function load(){
     pubVisSelfieData = await compressPubPhoto(e.target.files?.[0]);
     if(pubVisSelfieData){ $('pubVisSelfiePrev').src = pubVisSelfieData; $('pubVisSelfiePrev').style.display = 'block'; }
   });
-  $('pubVisCamBtn')?.addEventListener('click', async () => {
+  window.openPubCam = async function(facing, title, onSnap, fallbackInputEl){
+    if($('pubCamTitle')) $('pubCamTitle').textContent = title || '📷 Capture Photo';
+    if(!navigator.mediaDevices?.getUserMedia){
+      if(fallbackInputEl){ fallbackInputEl.click(); return; }
+      alert('Camera unavailable — please use the file button next to it.');
+      return;
+    }
     try{
-      pubCamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } }, audio: false });
+      pubCamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing || 'environment', width: { ideal: 1080 }, height: { ideal: 1080 } }, audio: false });
       $('pubCamVideo').srcObject = pubCamStream;
-      pubCamCb = d => { pubVisSelfieData = d; $('pubVisSelfiePrev').src = d; $('pubVisSelfiePrev').style.display = 'block'; };
+      pubCamCb = onSnap;
       $('pubCamModal').classList.add('open');
-    }catch(_){ alert('Camera unavailable — please use the file / camera input button next to it.'); }
+    }catch(_){
+      if(fallbackInputEl){ fallbackInputEl.click(); return; }
+      alert('Camera unavailable — please choose or snap a photo using the file input next to it.');
+    }
+  };
+  $('pubVisIdCamBtn')?.addEventListener('click', () => window.openPubCam('environment', '📷 Scan Visitor ID Card', d => {
+    pubVisIdData = d; $('pubVisIdPrev').src = d; $('pubVisIdPrev').style.display = 'block';
+  }, $('pubVisIdInput')));
+  $('pubVisCamBtn')?.addEventListener('click', () => window.openPubCam('user', '📷 Take Visitor Selfie', d => {
+    pubVisSelfieData = d; $('pubVisSelfiePrev').src = d; $('pubVisSelfiePrev').style.display = 'block';
+  }, $('pubVisSelfieInput')));
+  $('pubGpMatCamBtn')?.addEventListener('click', () => window.openPubCam('environment', '📷 Capture Material Photo', d => {
+    pubGpMatData = d; $('pubGpMatPrev').src = d; $('pubGpMatPrev').style.display = 'block';
+  }, $('pubGpMatPhotoInput')));
+  $('pubGpBillCamBtn')?.addEventListener('click', () => window.openPubCam('environment', '📷 Capture Bill / Challan Photo', d => {
+    pubGpBillData = d; $('pubGpBillPrev').src = d; $('pubGpBillPrev').style.display = 'block';
+  }, $('pubGpBillPhotoInput')));
+
+  const applyPubRetDays = days => {
+    const n = Math.max(0, parseInt(days, 10) || 0);
+    if($('pubGpExpectedDays')) $('pubGpExpectedDays').value = String(n);
+    if($('pubGpExpectedDt')) $('pubGpExpectedDt').value = toLocalInput(new Date(Date.now() + n * 86400000));
+  };
+  const syncPubRetBox = () => {
+    const isRet = !!$('pubGpReturnable')?.checked;
+    $('pubGpReturnBox')?.classList.toggle('hidden', !isRet);
+    const dNow = $('pubGpDir')?.value || 'IN';
+    if($('pubGpReturnHint')){
+      $('pubGpReturnHint').textContent = dNow === 'OUT'
+        ? '🔄 Going OUT -> Must come BACK IN by due date (Overdue alert sent to Dept & Security!)'
+        : '🔄 Coming IN -> Must be SENT BACK OUT by due date (Overdue alert sent to Dept & Security!)';
+    }
+    if(isRet && !$('pubGpExpectedDt')?.value) applyPubRetDays($('pubGpExpectedDays')?.value || 7);
+  };
+  $('pubGpReturnable')?.addEventListener('change', syncPubRetBox);
+  $('pubGpExpectedDays')?.addEventListener('input', () => applyPubRetDays($('pubGpExpectedDays').value));
+  document.querySelectorAll('[data-pgret]').forEach(b => {
+    b.addEventListener('click', () => {
+      if($('pubGpReturnable')) $('pubGpReturnable').checked = true;
+      syncPubRetBox();
+      applyPubRetDays(b.dataset.pgret);
+    });
   });
 
   $('pubGpMatPhotoInput')?.addEventListener('change', async e => {
@@ -1458,9 +1532,10 @@ async function load(){
     const d = dir === 'OUT' ? 'OUT' : 'IN';
     $('pubGpDir').value = d;
     document.querySelectorAll('[data-pgdir]').forEach(b => b.classList.toggle('active', b.dataset.pgdir === d));
+    syncPubRetBox();
   };
   window.setPubGpListTab = dir => {
-    pubGpListDir = ['IN', 'OUT', 'ALL'].includes(dir) ? dir : 'ALL';
+    pubGpListDir = ['IN', 'OUT', 'ALL', 'RETURNABLE'].includes(dir) ? dir : 'ALL';
     document.querySelectorAll('#pubGpListTabs [data-pglist]').forEach(b => b.classList.toggle('active', b.dataset.pglist === pubGpListDir));
     window.loadPublicGatePasses();
   };
@@ -1546,14 +1621,40 @@ async function load(){
       if(!rows.length){ tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:18px;color:#6c7d72">No material entries found for selected filters.</td></tr>'; return; }
       tb.innerHTML = rows.map(g => {
         const thumbs = `${g.materialPhoto?`<img class="pg-thumb" src="${htm(g.materialPhoto)}" alt="Mat" onclick="openPubLightbox('${htm(g.materialPhoto)}','${htm(g.materialName)}')">`:''} ${g.billPhoto?`<img class="pg-thumb" src="${htm(g.billPhoto)}" alt="Bill" onclick="openPubLightbox('${htm(g.billPhoto)}','Bill · ${htm(g.challanNo||g.materialName)}')">`:''}`;
+        const expMs = g.expectedReturnAt ? new Date(g.expectedReturnAt).getTime() : 0;
+        const isDoneRet = g.status === 'Returned' || !!g.returnedAt;
+        const isOver = !!(g.isOverdue || (g.returnable && !isDoneRet && expMs > 0 && expMs <= Date.now()));
+        const retBadge = g.returnable
+          ? (isDoneRet
+              ? `<div class="small" style="color:#15803d;font-weight:700">✅ Returned ${g.returnedAt ? fmtPubDt(g.returnedAt) : ''}</div>`
+              : isOver
+                ? `<div class="small" style="color:#b91c1c;font-weight:700">⚠️ OVERDUE · Due ${fmtPubDt(g.expectedReturnAt)}</div>`
+                : `<div class="small" style="color:#1d4ed8;font-weight:600">🔄 Return Due: ${g.expectedReturnAt ? fmtPubDt(g.expectedReturnAt) : (g.expectedDays ? g.expectedDays + ' days' : 'Tracked')}</div>`)
+          : '';
+        const retBtn = (g.returnable && !isDoneRet)
+          ? `<div style="margin-top:5px"><button type="button" style="padding:5px 10px;font-size:11px" onclick="pubMarkGatePassReturned('${htm(g.id)}')">${g.direction === 'IN' ? '📤 Sent Back OUT' : '↩ Mark Returned IN'}</button></div>`
+          : '';
         return `<tr>
           <td><b class="token">${htm(g.id)}</b><div style="margin-top:3px"><span class="pg-badge ${g.direction==='OUT'?'pending':'in'}">${g.direction==='OUT'?'📤 OUTWARD':'📥 INWARD'}</span></div></td>
-          <td><b>${htm(g.materialName)}</b><div class="small">${htm(g.materialType)} ${g.quantity?`· <b>${htm(g.quantity)} ${htm(g.unit||'')}</b>`:''}${g.returnable?' · 🔄 Returnable':''}</div><div style="display:flex;gap:5px;margin-top:4px">${thumbs}</div></td>
+          <td><b>${htm(g.materialName)}</b><div class="small">${htm(g.materialType)} ${g.quantity?`· <b>${htm(g.quantity)} ${htm(g.unit||'')}</b>`:''}${g.returnable?' · 🔄 Returnable':''}</div>${g.returnNote?`<div class="small">📝 ${htm(g.returnNote)}</div>`:''}<div style="display:flex;gap:5px;margin-top:4px">${thumbs}</div></td>
           <td><b>${htm(g.partyName || '—')}</b>${g.challanNo?`<div class="small">Challan/Bill: ${htm(g.challanNo)}</div>`:''}${g.vehicleNo?`<div class="small">🚗 ${htm(g.vehicleNo)}</div>`:''}</td>
           <td><b>${htm(g.factory)}</b> · ${htm(g.department)}<div class="small">For: <b>${htm(g.forName)}</b></div></td>
-          <td><div>${fmtPubDt(g.createdAt)}</div><span class="pg-badge ${g.status==='Verified'||g.status==='Returned'?'in':'approved'}" style="margin-top:4px">${htm(g.status)}</span></td>
+          <td><div>${fmtPubDt(g.createdAt)}</div><span class="pg-badge ${g.status==='Verified'||g.status==='Returned'?'in':'approved'}" style="margin-top:4px">${htm(g.status)}</span>${retBadge}${retBtn}</td>
         </tr>`;
       }).join('');
+    }catch(_){}
+  };
+
+  window.pubMarkGatePassReturned = async function(id){
+    try{
+      const guard = $('pubGpGuard')?.value || 'Security Gate';
+      const r = await fetch('/api/public/gate-passes/' + encodeURIComponent(id) + '/return', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'NorthstarIT' },
+        body: JSON.stringify({ enteredBy: guard })
+      });
+      if(!r.ok){ const e = await r.json().catch(()=>({})); alert(e.error || 'Could not update return status'); return; }
+      await window.loadPublicGatePasses();
     }catch(_){}
   };
 
@@ -1607,6 +1708,7 @@ async function load(){
     err.classList.add('hidden'); ok.classList.add('hidden');
     btn.disabled = true;
     try{
+      const isRet = !!$('pubGpReturnable')?.checked;
       const r = await fetch('/api/public/gate-passes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'NorthstarIT' },
@@ -1620,7 +1722,10 @@ async function load(){
           materialName: $('pubGpMatName').value.trim(),
           quantity: $('pubGpQty').value.trim(),
           unit: $('pubGpUnit').value,
-          returnable: $('pubGpReturnable').checked,
+          returnable: isRet,
+          expectedDays: isRet ? Math.max(0, parseInt($('pubGpExpectedDays')?.value, 10) || 0) : 0,
+          expectedReturnAt: isRet ? toIsoOrEmpty($('pubGpExpectedDt')?.value) : '',
+          returnNote: isRet ? ($('pubGpReturnNote')?.value.trim() || '') : '',
           partyName: $('pubGpParty').value.trim(),
           challanNo: $('pubGpChallan').value.trim(),
           vehicleNo: $('pubGpVehicle').value.trim(),
@@ -1637,7 +1742,7 @@ async function load(){
       ok.classList.remove('hidden');
       pubGpMatData = ''; pubGpBillData = '';
       $('pubGpMatPrev').style.display = 'none'; $('pubGpBillPrev').style.display = 'none';
-      $('pubGpMatName').value = ''; $('pubGpQty').value = ''; $('pubGpParty').value = ''; $('pubGpChallan').value = ''; $('pubGpVehicle').value = ''; $('pubGpRemarks').value = ''; $('pubGpReturnable').checked = false; $('pubGpMatPhotoInput').value = ''; $('pubGpBillPhotoInput').value = '';
+      $('pubGpMatName').value = ''; $('pubGpQty').value = ''; $('pubGpParty').value = ''; $('pubGpChallan').value = ''; $('pubGpVehicle').value = ''; $('pubGpRemarks').value = ''; $('pubGpReturnable').checked = false; $('pubGpExpectedDays').value = '7'; $('pubGpExpectedDt').value = ''; $('pubGpReturnNote').value = ''; syncPubRetBox(); $('pubGpMatPhotoInput').value = ''; $('pubGpBillPhotoInput').value = '';
       await window.loadPublicGatePasses();
     }catch(ex){
       err.textContent = ex.message;
