@@ -76,6 +76,8 @@ CREATE TABLE IF NOT EXISTS visitor_passes (
   belongings text NOT NULL DEFAULT '',
   id_card_photo text NOT NULL DEFAULT '',
   selfie_photo text NOT NULL DEFAULT '',
+  id_card_photos jsonb NOT NULL DEFAULT '[]'::jsonb,
+  selfie_photos jsonb NOT NULL DEFAULT '[]'::jsonb,
   status text NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending','Approved','Checked In','Checked Out','Rejected')),
   entered_by text NOT NULL DEFAULT 'Security Gate',
   approved_by text NOT NULL DEFAULT '',
@@ -86,6 +88,8 @@ CREATE TABLE IF NOT EXISTS visitor_passes (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE visitor_passes ADD COLUMN IF NOT EXISTS id_card_photos jsonb NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE visitor_passes ADD COLUMN IF NOT EXISTS selfie_photos jsonb NOT NULL DEFAULT '[]'::jsonb;
 CREATE INDEX IF NOT EXISTS visitor_passes_created_idx ON visitor_passes(created_at DESC);
 CREATE INDEX IF NOT EXISTS visitor_passes_dept_idx ON visitor_passes(department);
 CREATE INDEX IF NOT EXISTS visitor_passes_factory_idx ON visitor_passes(factory);
@@ -110,6 +114,8 @@ CREATE TABLE IF NOT EXISTS material_gate_passes (
   for_name text NOT NULL DEFAULT '',
   material_photo text NOT NULL DEFAULT '',
   bill_photo text NOT NULL DEFAULT '',
+  material_photos jsonb NOT NULL DEFAULT '[]'::jsonb,
+  bill_photos jsonb NOT NULL DEFAULT '[]'::jsonb,
   status text NOT NULL DEFAULT 'Logged' CHECK (status IN ('Logged','Verified','Returned','Dispatched')),
   entered_by text NOT NULL DEFAULT 'Security Gate',
   verified_by text NOT NULL DEFAULT '',
@@ -127,6 +133,8 @@ ALTER TABLE material_gate_passes ADD COLUMN IF NOT EXISTS expected_days integer 
 ALTER TABLE material_gate_passes ADD COLUMN IF NOT EXISTS returned_at timestamptz;
 ALTER TABLE material_gate_passes ADD COLUMN IF NOT EXISTS return_note text NOT NULL DEFAULT '';
 ALTER TABLE material_gate_passes ADD COLUMN IF NOT EXISTS last_reminder_at timestamptz;
+ALTER TABLE material_gate_passes ADD COLUMN IF NOT EXISTS material_photos jsonb NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE material_gate_passes ADD COLUMN IF NOT EXISTS bill_photos jsonb NOT NULL DEFAULT '[]'::jsonb;
 CREATE INDEX IF NOT EXISTS material_gate_created_idx ON material_gate_passes(created_at DESC);
 CREATE INDEX IF NOT EXISTS material_gate_dir_idx ON material_gate_passes(direction);
 CREATE INDEX IF NOT EXISTS material_gate_factory_idx ON material_gate_passes(factory);

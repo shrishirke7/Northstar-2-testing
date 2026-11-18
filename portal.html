@@ -91,6 +91,12 @@ tr:hover td{background:#fafdfb}
 .pg-dir-btn.out.active{background:#fff7ed;border-color:#ea580c;color:#9a3412;box-shadow:0 4px 12px rgba(234,88,12,.14)}
 .pg-photo-box{border:1px dashed #b9cebf;border-radius:10px;padding:10px;background:#fafdfb;display:grid;gap:6px}
 .pg-photo-prev{width:76px;height:76px;border-radius:8px;object-fit:cover;border:1px solid #cbd9d0;display:none}
+.pg-photo-grid{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
+.pg-photo-chip{position:relative;width:66px;height:66px;border-radius:8px;overflow:hidden;border:1px solid #cbd9d0;background:#fff}
+.pg-photo-chip img{width:100%;height:100%;object-fit:cover;cursor:pointer;display:block}
+.pg-photo-chip button{position:absolute;top:2px;right:2px;width:18px;height:18px;min-height:0;border-radius:50%;border:0;background:rgba(15,23,42,.78);color:#fff;font-size:11px;line-height:1;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pg-thumb-wrap{position:relative;display:inline-block}
+.pg-thumb-cnt{position:absolute;right:-4px;bottom:-4px;background:#0f172a;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:99px;pointer-events:none}
 .pg-thumb{width:38px;height:38px;border-radius:7px;object-fit:cover;border:1px solid #cbd9d0;cursor:pointer}
 .pg-preset-strip{display:flex;gap:5px;flex-wrap:wrap;grid-column:1/-1}
 .pg-preset-btn{border:1px solid #d4e3da;background:#fff;color:#273b30;border-radius:7px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer}
@@ -315,20 +321,22 @@ html,body{overflow-x:hidden;max-width:100%}
         </div>
         <div class="grid-2">
           <div class="field pg-photo-box">
-            <label>Visitor ID Card Photo</label>
+            <label>Visitor ID Card Photos (1 or more)</label>
             <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
               <button type="button" class="muted" id="pubVisIdCamBtn" style="padding:8px 12px">📷 Scan ID Camera</button>
-              <input type="file" id="pubVisIdInput" accept="image/*" capture="environment" style="flex:1;min-width:130px">
+              <input type="file" id="pubVisIdInput" accept="image/*" multiple style="flex:1;min-width:130px">
             </div>
-            <img id="pubVisIdPrev" class="pg-photo-prev" alt="ID Preview">
+            <div class="small" id="pubVisIdHint">Tap Camera or Pick Photos repeatedly to add multiple ID sides/pages.</div>
+            <div id="pubVisIdStrip" class="pg-photo-grid"></div>
           </div>
           <div class="field pg-photo-box">
-            <label>Visitor Selfie / Face Picture</label>
+            <label>Visitor Selfie / Face Pictures (1 or more)</label>
             <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
               <button type="button" class="muted" id="pubVisCamBtn" style="padding:8px 12px">📷 Live Selfie Camera</button>
-              <input type="file" id="pubVisSelfieInput" accept="image/*" capture="user" style="flex:1;min-width:130px">
+              <input type="file" id="pubVisSelfieInput" accept="image/*" multiple style="flex:1;min-width:130px">
             </div>
-            <img id="pubVisSelfiePrev" class="pg-photo-prev" alt="Selfie Preview">
+            <div class="small" id="pubVisSelfieHint">Tap Camera again if adding photos for co-visitors too.</div>
+            <div id="pubVisSelfieStrip" class="pg-photo-grid"></div>
           </div>
         </div>
         <div class="message error hidden" id="pubVisErr" role="alert"></div>
@@ -427,20 +435,22 @@ html,body{overflow-x:hidden;max-width:100%}
         </div>
         <div class="grid-2">
           <div class="field pg-photo-box">
-            <label>Material Photo</label>
+            <label>Material Photos (multiple angles/items)</label>
             <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
               <button type="button" class="muted" id="pubGpMatCamBtn" style="padding:8px 12px">📷 Capture Material</button>
-              <input type="file" id="pubGpMatPhotoInput" accept="image/*" capture="environment" style="flex:1;min-width:130px">
+              <input type="file" id="pubGpMatPhotoInput" accept="image/*" multiple style="flex:1;min-width:130px">
             </div>
-            <img id="pubGpMatPrev" class="pg-photo-prev" alt="Material Preview">
+            <div class="small" id="pubGpMatHint">Add multiple photos by capturing/selecting more pages.</div>
+            <div id="pubGpMatStrip" class="pg-photo-grid"></div>
           </div>
           <div class="field pg-photo-box">
-            <label>Bill / Challan Photo</label>
+            <label>Bill / Challan Photos (multi-page bills supported)</label>
             <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
               <button type="button" class="muted" id="pubGpBillCamBtn" style="padding:8px 12px">📷 Capture Bill / Challan</button>
-              <input type="file" id="pubGpBillPhotoInput" accept="image/*" capture="environment" style="flex:1;min-width:130px">
+              <input type="file" id="pubGpBillPhotoInput" accept="image/*" multiple style="flex:1;min-width:130px">
             </div>
-            <img id="pubGpBillPrev" class="pg-photo-prev" alt="Bill Preview">
+            <div class="small" id="pubGpBillHint">Multiple challan/invoice pages? Capture Page 1, Page 2, Page 3...</div>
+            <div id="pubGpBillStrip" class="pg-photo-grid"></div>
           </div>
         </div>
         <div class="message error hidden" id="pubGpErr" role="alert"></div>
@@ -501,9 +511,14 @@ html,body{overflow-x:hidden;max-width:100%}
 </div>
 
 <div class="pg-modal-bg" id="pubLightboxModal" onclick="if(event.target===this)this.classList.remove('open')">
-  <div class="pg-modal-card" style="max-width:680px;text-align:center">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b id="pubLbTitle">Photo Preview</b><button type="button" class="muted" style="padding:4px 9px" onclick="document.getElementById('pubLightboxModal').classList.remove('open')">✕</button></div>
-    <img id="pubLbImg" alt="Preview" style="max-width:100%;max-height:70vh;border-radius:10px">
+  <div class="pg-modal-card" style="max-width:720px;text-align:center">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px"><b id="pubLbTitle">Photo Preview</b><span class="small" id="pubLbCount"></span><button type="button" class="muted" style="padding:4px 9px" onclick="document.getElementById('pubLightboxModal').classList.remove('open')">✕</button></div>
+    <img id="pubLbImg" alt="Preview" style="max-width:100%;max-height:66vh;border-radius:10px;border:1px solid #d5e2da">
+    <div id="pubLbNav" style="display:none;justify-content:center;gap:10px;margin-top:10px;align-items:center">
+      <button type="button" class="muted" id="pubLbPrev" style="padding:6px 14px">◀ Prev</button>
+      <button type="button" class="muted" id="pubLbNext" style="padding:6px 14px">Next ▶</button>
+    </div>
+    <div id="pubLbThumbs" class="pg-photo-grid" style="justify-content:center;margin-top:8px"></div>
   </div>
 </div>
 
@@ -1287,10 +1302,21 @@ async function load(){
 <script id="portal-gate-logic">
 (function(){
   const TK_KEY = 'ns-gate-tokens';
-  let pubVisIdData = '', pubVisSelfieData = '', pubGpMatData = '', pubGpBillData = '';
+  let pubVisIdPhotos = [], pubVisSelfiePhotos = [], pubGpMatPhotos = [], pubGpBillPhotos = [];
+  let pubVisCache = [], pubGpCache = [];
+  let pubLbList = [], pubLbIdx = 0, pubLbBaseTitle = 'Photo Preview';
   let pubCamStream = null, pubCamCb = null;
   let pubGpListDir = 'ALL';
   let curMainMode = 'tickets';
+
+  if(!window.__shreeNativeCamCbs){
+    window.__shreeNativeCamCbs = {};
+    window.__shreeReceiveNativePhoto = function(cbId, dataUrl){
+      const fn = window.__shreeNativeCamCbs[cbId];
+      delete window.__shreeNativeCamCbs[cbId];
+      if(typeof fn === 'function' && dataUrl) fn(dataUrl);
+    };
+  }
 
   function getTokMap(){
     try{ return JSON.parse(localStorage.getItem(TK_KEY) || '{}') || {}; }catch(_){ return {}; }
@@ -1356,11 +1382,43 @@ async function load(){
     });
   }
 
-  window.openPubLightbox = function(url, title){
-    if(!url) return;
-    $('pubLbImg').src = url;
-    $('pubLbTitle').textContent = title || 'Photo Preview';
+  function renderPubLb(){
+    if(!pubLbList.length) return;
+    if(pubLbIdx < 0) pubLbIdx = 0;
+    if(pubLbIdx >= pubLbList.length) pubLbIdx = pubLbList.length - 1;
+    $('pubLbImg').src = pubLbList[pubLbIdx];
+    $('pubLbTitle').textContent = pubLbBaseTitle;
+    if($('pubLbCount')) $('pubLbCount').textContent = pubLbList.length > 1 ? `Page ${pubLbIdx + 1} / ${pubLbList.length}` : '';
+    if($('pubLbNav')) $('pubLbNav').style.display = pubLbList.length > 1 ? 'flex' : 'none';
+    const th = $('pubLbThumbs');
+    if(th){
+      th.innerHTML = pubLbList.length > 1 ? pubLbList.map((u, i) => `<div class="pg-photo-chip" style="${i===pubLbIdx?'outline:2.5px solid #167c56':''}"><img src="${htm(u)}" alt="Page ${i+1}"></div>`).join('') : '';
+      th.querySelectorAll('.pg-photo-chip').forEach((el, i) => el.onclick = () => { pubLbIdx = i; renderPubLb(); });
+    }
+  }
+  $('pubLbPrev')?.addEventListener('click', () => { pubLbIdx = (pubLbIdx - 1 + pubLbList.length) % pubLbList.length; renderPubLb(); });
+  $('pubLbNext')?.addEventListener('click', () => { pubLbIdx = (pubLbIdx + 1) % pubLbList.length; renderPubLb(); });
+
+  window.openPubLightbox = function(urlOrList, title, startIdx = 0){
+    const arr = Array.isArray(urlOrList) ? urlOrList.filter(Boolean) : (urlOrList ? [urlOrList] : []);
+    if(!arr.length) return;
+    pubLbList = arr;
+    pubLbIdx = Math.max(0, Math.min(arr.length - 1, Number(startIdx) || 0));
+    pubLbBaseTitle = title || 'Photo Preview';
+    renderPubLb();
     $('pubLightboxModal').classList.add('open');
+  };
+
+  window.openPubGallery = function(kind, id, slot){
+    if(kind === 'vis'){
+      const v = pubVisCache.find(x => x.id === id); if(!v) return;
+      const list = slot === 'selfie' ? (v.selfiePhotos?.length ? v.selfiePhotos : [v.selfiePhoto].filter(Boolean)) : (v.idCardPhotos?.length ? v.idCardPhotos : [v.idCardPhoto].filter(Boolean));
+      window.openPubLightbox(list, (slot === 'selfie' ? 'Selfie · ' : 'ID Card · ') + v.visitorName, 0);
+    } else {
+      const g = pubGpCache.find(x => x.id === id); if(!g) return;
+      const list = slot === 'bill' ? (g.billPhotos?.length ? g.billPhotos : [g.billPhoto].filter(Boolean)) : (g.materialPhotos?.length ? g.materialPhotos : [g.materialPhoto].filter(Boolean));
+      window.openPubLightbox(list, (slot === 'bill' ? 'Bill / Challan · ' : 'Material · ') + (slot === 'bill' ? (g.challanNo || g.materialName) : g.materialName), 0);
+    }
   };
   window.closePubCam = function(){
     if(pubCamStream){ try{ pubCamStream.getTracks().forEach(t => t.stop()); }catch(_){} pubCamStream = null; }
@@ -1453,43 +1511,62 @@ async function load(){
   $('pubVisFac')?.addEventListener('change', () => cascadeFactoryDeptEmp('pubVisFac', 'pubVisDept', 'pubVisEmp'));
   $('pubGpFac')?.addEventListener('change', () => cascadeFactoryDeptEmp('pubGpFac', 'pubGpDept', 'pubGpEmp'));
 
-  $('pubVisIdInput')?.addEventListener('change', async e => {
-    pubVisIdData = await compressPubPhoto(e.target.files?.[0]);
-    if(pubVisIdData){ $('pubVisIdPrev').src = pubVisIdData; $('pubVisIdPrev').style.display = 'block'; }
-  });
-  $('pubVisSelfieInput')?.addEventListener('change', async e => {
-    pubVisSelfieData = await compressPubPhoto(e.target.files?.[0]);
-    if(pubVisSelfieData){ $('pubVisSelfiePrev').src = pubVisSelfieData; $('pubVisSelfiePrev').style.display = 'block'; }
-  });
-  window.openPubCam = async function(facing, title, onSnap, fallbackInputEl){
+  function renderPubPhotoStrip(arr, stripId, titlePrefix){
+    const el = $(stripId);
+    if(!el) return;
+    el.innerHTML = arr.map((u, idx) => `<div class="pg-photo-chip"><img src="${htm(u)}" alt="${htm(titlePrefix)} ${idx+1}" title="Preview #${idx+1}"><button type="button" title="Remove" aria-label="Remove">×</button></div>`).join('');
+    el.querySelectorAll('.pg-photo-chip img').forEach((im, idx) => im.onclick = () => window.openPubLightbox(arr, titlePrefix, idx));
+    el.querySelectorAll('.pg-photo-chip button').forEach((bt, idx) => bt.onclick = () => { arr.splice(idx, 1); renderPubPhotoStrip(arr, stripId, titlePrefix); });
+  }
+
+  window.openPubCam = function(facing, title, onSnap, fallbackInputEl){
+    if(window.ShreeAndroid && typeof window.ShreeAndroid.captureCameraPhoto === 'function'){
+      const cbId = 'pc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+      window.__shreeNativeCamCbs[cbId] = dataUrl => { if(typeof onSnap === 'function') onSnap(dataUrl); };
+      window.ShreeAndroid.captureCameraPhoto(facing || 'environment', cbId);
+      return;
+    }
     if($('pubCamTitle')) $('pubCamTitle').textContent = title || '📷 Capture Photo';
     if(!navigator.mediaDevices?.getUserMedia){
       if(fallbackInputEl){ fallbackInputEl.click(); return; }
-      alert('Camera unavailable — please use the file button next to it.');
+      alert('Camera unavailable — please choose photo using the button next to it.');
       return;
     }
-    try{
-      pubCamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing || 'environment', width: { ideal: 1080 }, height: { ideal: 1080 } }, audio: false });
-      $('pubCamVideo').srcObject = pubCamStream;
-      pubCamCb = onSnap;
-      $('pubCamModal').classList.add('open');
-    }catch(_){
-      if(fallbackInputEl){ fallbackInputEl.click(); return; }
-      alert('Camera unavailable — please choose or snap a photo using the file input next to it.');
-    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: facing || 'environment', width: { ideal: 1080 }, height: { ideal: 1080 } }, audio: false })
+      .then(stream => {
+        pubCamStream = stream;
+        $('pubCamVideo').srcObject = pubCamStream;
+        pubCamCb = onSnap;
+        $('pubCamModal').classList.add('open');
+      })
+      .catch(() => {
+        if(fallbackInputEl){ fallbackInputEl.click(); return; }
+        alert('Camera unavailable — please choose or snap a photo using the file input next to it.');
+      });
   };
-  $('pubVisIdCamBtn')?.addEventListener('click', () => window.openPubCam('environment', '📷 Scan Visitor ID Card', d => {
-    pubVisIdData = d; $('pubVisIdPrev').src = d; $('pubVisIdPrev').style.display = 'block';
-  }, $('pubVisIdInput')));
-  $('pubVisCamBtn')?.addEventListener('click', () => window.openPubCam('user', '📷 Take Visitor Selfie', d => {
-    pubVisSelfieData = d; $('pubVisSelfiePrev').src = d; $('pubVisSelfiePrev').style.display = 'block';
-  }, $('pubVisSelfieInput')));
-  $('pubGpMatCamBtn')?.addEventListener('click', () => window.openPubCam('environment', '📷 Capture Material Photo', d => {
-    pubGpMatData = d; $('pubGpMatPrev').src = d; $('pubGpMatPrev').style.display = 'block';
-  }, $('pubGpMatPhotoInput')));
-  $('pubGpBillCamBtn')?.addEventListener('click', () => window.openPubCam('environment', '📷 Capture Bill / Challan Photo', d => {
-    pubGpBillData = d; $('pubGpBillPrev').src = d; $('pubGpBillPrev').style.display = 'block';
-  }, $('pubGpBillPhotoInput')));
+
+  function bindPubMultiPhotoField(arr, camBtnId, inputId, stripId, facing, camTitle, previewTitle){
+    const pushPhoto = d => {
+      if(!d || arr.length >= 12) return;
+      arr.push(d);
+      renderPubPhotoStrip(arr, stripId, previewTitle);
+    };
+    $(camBtnId)?.addEventListener('click', () => window.openPubCam(facing, camTitle, pushPhoto, $(inputId)));
+    $(inputId)?.addEventListener('change', async e => {
+      const files = Array.from(e.target.files || []);
+      for(const f of files){
+        if(arr.length >= 12) break;
+        const d = await compressPubPhoto(f);
+        if(d) arr.push(d);
+      }
+      renderPubPhotoStrip(arr, stripId, previewTitle);
+      try{ e.target.value = ''; }catch(_){}
+    });
+  }
+  bindPubMultiPhotoField(pubVisIdPhotos, 'pubVisIdCamBtn', 'pubVisIdInput', 'pubVisIdStrip', 'environment', '📷 Scan Visitor ID Card', 'Visitor ID Card');
+  bindPubMultiPhotoField(pubVisSelfiePhotos, 'pubVisCamBtn', 'pubVisSelfieInput', 'pubVisSelfieStrip', 'user', '📷 Take Visitor Selfie', 'Visitor Selfie');
+  bindPubMultiPhotoField(pubGpMatPhotos, 'pubGpMatCamBtn', 'pubGpMatPhotoInput', 'pubGpMatStrip', 'environment', '📷 Capture Material Photo', 'Material Photo');
+  bindPubMultiPhotoField(pubGpBillPhotos, 'pubGpBillCamBtn', 'pubGpBillPhotoInput', 'pubGpBillStrip', 'environment', '📷 Capture Bill / Challan Page', 'Bill / Challan');
 
   const applyPubRetDays = days => {
     const n = Math.max(0, parseInt(days, 10) || 0);
@@ -1515,15 +1592,6 @@ async function load(){
       syncPubRetBox();
       applyPubRetDays(b.dataset.pgret);
     });
-  });
-
-  $('pubGpMatPhotoInput')?.addEventListener('change', async e => {
-    pubGpMatData = await compressPubPhoto(e.target.files?.[0]);
-    if(pubGpMatData){ $('pubGpMatPrev').src = pubGpMatData; $('pubGpMatPrev').style.display = 'block'; }
-  });
-  $('pubGpBillPhotoInput')?.addEventListener('change', async e => {
-    pubGpBillData = await compressPubPhoto(e.target.files?.[0]);
-    if(pubGpBillData){ $('pubGpBillPrev').src = pubGpBillData; $('pubGpBillPrev').style.display = 'block'; }
   });
 
   window.setPubVisPreset = p => { setPreset(p, 'pvFromDt', 'pvToDt', 'data-pvpreset'); window.loadPublicVisitors(); };
@@ -1564,18 +1632,25 @@ async function load(){
       if(!r.ok) return;
       const body = await r.json();
       const rows = Array.isArray(body.visitors) ? body.visitors : [];
+      pubVisCache = rows;
       const tb = $('pubVisRows');
       if(!tb) return;
       if(!rows.length){ tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:18px;color:#6c7d72">No visitor entries found for selected filters.</td></tr>'; return; }
+      const tokMap = getTokMap();
       tb.innerHTML = rows.map(v => {
         const btns = [];
         if(v.status === 'Approved') btns.push(`<button type="button" style="padding:5px 10px;font-size:11px" onclick="pubVisitorAction('${htm(v.id)}','checkin')">🟢 Mark Check-In</button>`);
         if(v.status === 'Checked In') btns.push(`<button type="button" class="muted" style="padding:5px 10px;font-size:11px" onclick="pubVisitorAction('${htm(v.id)}','checkout')">🚪 Mark Exit</button>`);
-        const thumbs = `${v.idCardPhoto?`<img class="pg-thumb" src="${htm(v.idCardPhoto)}" alt="ID" onclick="openPubLightbox('${htm(v.idCardPhoto)}','ID · ${htm(v.visitorName)}')">`:''} ${v.selfiePhoto?`<img class="pg-thumb" src="${htm(v.selfiePhoto)}" alt="Selfie" onclick="openPubLightbox('${htm(v.selfiePhoto)}','Selfie · ${htm(v.visitorName)}')">`:''}`;
+        const idArr = Array.isArray(v.idCardPhotos) && v.idCardPhotos.length ? v.idCardPhotos : (v.idCardPhoto ? [v.idCardPhoto] : []);
+        const sfArr = Array.isArray(v.selfiePhotos) && v.selfiePhotos.length ? v.selfiePhotos : (v.selfiePhoto ? [v.selfiePhoto] : []);
+        const idThumb = idArr.length ? `<div class="pg-thumb-wrap"><img class="pg-thumb" src="${htm(idArr[0])}" alt="ID" onclick="openPubGallery('vis','${htm(v.id)}','id')">${idArr.length>1?`<span class="pg-thumb-cnt">×${idArr.length}</span>`:''}</div>` : '';
+        const sfThumb = sfArr.length ? `<div class="pg-thumb-wrap"><img class="pg-thumb" src="${htm(sfArr[0])}" alt="Selfie" onclick="openPubGallery('vis','${htm(v.id)}','selfie')">${sfArr.length>1?`<span class="pg-thumb-cnt">×${sfArr.length}</span>`:''}</div>` : '';
+        const thumbs = `${idThumb} ${sfThumb}`;
+        const addBtns = tokMap[v.id] ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px"><button type="button" class="muted" style="padding:3px 7px;font-size:10px" onclick="pubAppendMorePhoto('vis','${htm(v.id)}','id')">📷+ ID</button><button type="button" class="muted" style="padding:3px 7px;font-size:10px" onclick="pubAppendMorePhoto('vis','${htm(v.id)}','selfie')">📷+ Photo</button></div>` : '';
         return `<tr>
           <td><b class="token">${htm(v.id)}</b><div class="small">${fmtPubDt(v.createdAt)}</div></td>
           <td><b>${htm(v.visitorName)}</b>${v.visitorCount>1?` (+${v.visitorCount-1})`:''}${v.vehicleNo?`<div class="small">🚗 ${htm(v.vehicleNo)}</div>`:''}${v.passNo?`<div class="small">Pass: ${htm(v.passNo)}</div>`:''}</td>
-          <td><b>${htm(v.purpose)}</b><div style="display:flex;gap:5px;margin-top:4px">${thumbs}</div></td>
+          <td><b>${htm(v.purpose)}</b><div style="display:flex;gap:5px;margin-top:4px">${thumbs}</div>${addBtns}</td>
           <td><b>${htm(v.factory)}</b> · ${htm(v.department)}<div class="small">Meet: <b>${htm(v.hostName)}</b></div></td>
           <td><span class="pg-badge ${visStatusClass(v.status)}">${htm(v.status)}</span>
             ${v.approvedBy?`<div class="small">By: ${htm(v.approvedBy)}</div>`:''}
@@ -1616,11 +1691,18 @@ async function load(){
       if(!r.ok) return;
       const body = await r.json();
       const rows = Array.isArray(body.passes) ? body.passes : [];
+      pubGpCache = rows;
       const tb = $('pubGpRows');
       if(!tb) return;
       if(!rows.length){ tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:18px;color:#6c7d72">No material entries found for selected filters.</td></tr>'; return; }
+      const tokMap = getTokMap();
       tb.innerHTML = rows.map(g => {
-        const thumbs = `${g.materialPhoto?`<img class="pg-thumb" src="${htm(g.materialPhoto)}" alt="Mat" onclick="openPubLightbox('${htm(g.materialPhoto)}','${htm(g.materialName)}')">`:''} ${g.billPhoto?`<img class="pg-thumb" src="${htm(g.billPhoto)}" alt="Bill" onclick="openPubLightbox('${htm(g.billPhoto)}','Bill · ${htm(g.challanNo||g.materialName)}')">`:''}`;
+        const matArr = Array.isArray(g.materialPhotos) && g.materialPhotos.length ? g.materialPhotos : (g.materialPhoto ? [g.materialPhoto] : []);
+        const billArr = Array.isArray(g.billPhotos) && g.billPhotos.length ? g.billPhotos : (g.billPhoto ? [g.billPhoto] : []);
+        const matThumb = matArr.length ? `<div class="pg-thumb-wrap"><img class="pg-thumb" src="${htm(matArr[0])}" alt="Mat" onclick="openPubGallery('gp','${htm(g.id)}','mat')">${matArr.length>1?`<span class="pg-thumb-cnt">×${matArr.length}</span>`:''}</div>` : '';
+        const billThumb = billArr.length ? `<div class="pg-thumb-wrap"><img class="pg-thumb" src="${htm(billArr[0])}" alt="Bill" onclick="openPubGallery('gp','${htm(g.id)}','bill')">${billArr.length>1?`<span class="pg-thumb-cnt">×${billArr.length}</span>`:''}</div>` : '';
+        const thumbs = `${matThumb} ${billThumb}`;
+        const addBtns = tokMap[g.id] ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px"><button type="button" class="muted" style="padding:3px 7px;font-size:10px" onclick="pubAppendMorePhoto('gp','${htm(g.id)}','mat')">📷+ Mat</button><button type="button" class="muted" style="padding:3px 7px;font-size:10px" onclick="pubAppendMorePhoto('gp','${htm(g.id)}','bill')">📷+ Bill Page</button></div>` : '';
         const expMs = g.expectedReturnAt ? new Date(g.expectedReturnAt).getTime() : 0;
         const isDoneRet = g.status === 'Returned' || !!g.returnedAt;
         const isOver = !!(g.isOverdue || (g.returnable && !isDoneRet && expMs > 0 && expMs <= Date.now()));
@@ -1636,7 +1718,7 @@ async function load(){
           : '';
         return `<tr>
           <td><b class="token">${htm(g.id)}</b><div style="margin-top:3px"><span class="pg-badge ${g.direction==='OUT'?'pending':'in'}">${g.direction==='OUT'?'📤 OUTWARD':'📥 INWARD'}</span></div></td>
-          <td><b>${htm(g.materialName)}</b><div class="small">${htm(g.materialType)} ${g.quantity?`· <b>${htm(g.quantity)} ${htm(g.unit||'')}</b>`:''}${g.returnable?' · 🔄 Returnable':''}</div>${g.returnNote?`<div class="small">📝 ${htm(g.returnNote)}</div>`:''}<div style="display:flex;gap:5px;margin-top:4px">${thumbs}</div></td>
+          <td><b>${htm(g.materialName)}</b><div class="small">${htm(g.materialType)} ${g.quantity?`· <b>${htm(g.quantity)} ${htm(g.unit||'')}</b>`:''}${g.returnable?' · 🔄 Returnable':''}</div>${g.returnNote?`<div class="small">📝 ${htm(g.returnNote)}</div>`:''}<div style="display:flex;gap:5px;margin-top:4px">${thumbs}</div>${addBtns}</td>
           <td><b>${htm(g.partyName || '—')}</b>${g.challanNo?`<div class="small">Challan/Bill: ${htm(g.challanNo)}</div>`:''}${g.vehicleNo?`<div class="small">🚗 ${htm(g.vehicleNo)}</div>`:''}</td>
           <td><b>${htm(g.factory)}</b> · ${htm(g.department)}<div class="small">For: <b>${htm(g.forName)}</b></div></td>
           <td><div>${fmtPubDt(g.createdAt)}</div><span class="pg-badge ${g.status==='Verified'||g.status==='Returned'?'in':'approved'}" style="margin-top:4px">${htm(g.status)}</span>${retBadge}${retBtn}</td>
@@ -1656,6 +1738,41 @@ async function load(){
       if(!r.ok){ const e = await r.json().catch(()=>({})); alert(e.error || 'Could not update return status'); return; }
       await window.loadPublicGatePasses();
     }catch(_){}
+  };
+
+  window.pubAppendMorePhoto = function(kind, id, slot){
+    const tok = getTokMap()[id];
+    if(!tok){ alert('Only entries created on this device can append photos without signing in.'); return; }
+    const sendUrls = async urls => {
+      if(!urls || !urls.length) return;
+      const endpoint = kind === 'vis'
+        ? '/api/public/visitors/' + encodeURIComponent(id) + '/photos'
+        : '/api/public/gate-passes/' + encodeURIComponent(id) + '/photos';
+      const payload = { token: tok };
+      if(kind === 'vis'){
+        if(slot === 'selfie') payload.selfieDataUrls = urls;
+        else payload.idCardDataUrls = urls;
+      } else {
+        if(slot === 'bill') payload.billDataUrls = urls;
+        else payload.materialDataUrls = urls;
+      }
+      const r = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'NorthstarIT' }, body: JSON.stringify(payload) });
+      if(!r.ok){ const e = await r.json().catch(()=>({})); alert(e.error || 'Upload failed'); return; }
+      if(kind === 'vis') await window.loadPublicVisitors();
+      else await window.loadPublicGatePasses();
+    };
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true;
+    inp.onchange = async () => {
+      const urls = [];
+      for(const f of Array.from(inp.files || []).slice(0, 12)){
+        const d = await compressPubPhoto(f);
+        if(d) urls.push(d);
+      }
+      await sendUrls(urls);
+    };
+    const facing = slot === 'selfie' ? 'user' : 'environment';
+    window.openPubCam(facing, '📷 Add Photo / Page', d => { if(d) sendUrls([d]); }, inp);
   };
 
   $('pubVisitorForm')?.addEventListener('submit', async e => {
@@ -1681,8 +1798,10 @@ async function load(){
           passNo: $('pubVisPassNo').value.trim(),
           belongings: $('pubVisItems').value.trim(),
           enteredBy: $('pubVisGuard').value.trim() || 'Security Gate',
-          idCardDataUrl: pubVisIdData,
-          selfieDataUrl: pubVisSelfieData
+          idCardDataUrl: pubVisIdPhotos[0] || '',
+          idCardDataUrls: pubVisIdPhotos.slice(),
+          selfieDataUrl: pubVisSelfiePhotos[0] || '',
+          selfieDataUrls: pubVisSelfiePhotos.slice()
         })
       });
       const res = await r.json().catch(()=>({}));
@@ -1690,8 +1809,9 @@ async function load(){
       saveTok(res.id, res.tracking_token);
       ok.innerHTML = `✅ Visitor Pass <b>${htm(res.id)}</b> logged! Notification sent to <b>${htm(res.visitor?.hostName || 'Department')}</b> for approval.`;
       ok.classList.remove('hidden');
-      pubVisIdData = ''; pubVisSelfieData = '';
-      $('pubVisIdPrev').style.display = 'none'; $('pubVisSelfiePrev').style.display = 'none';
+      pubVisIdPhotos.length = 0; pubVisSelfiePhotos.length = 0;
+      renderPubPhotoStrip(pubVisIdPhotos, 'pubVisIdStrip', 'Visitor ID Card');
+      renderPubPhotoStrip(pubVisSelfiePhotos, 'pubVisSelfieStrip', 'Visitor Selfie');
       $('pubVisName').value = ''; $('pubVisPhone').value = ''; $('pubVisAddr').value = ''; $('pubVisVehicle').value = ''; $('pubVisPassNo').value = ''; $('pubVisItems').value = ''; $('pubVisIdInput').value = ''; $('pubVisSelfieInput').value = '';
       await window.loadPublicVisitors();
     }catch(ex){
@@ -1731,8 +1851,10 @@ async function load(){
           vehicleNo: $('pubGpVehicle').value.trim(),
           remarks: $('pubGpRemarks').value.trim(),
           enteredBy: $('pubGpGuard').value.trim() || 'Security Gate',
-          materialDataUrl: pubGpMatData,
-          billDataUrl: pubGpBillData
+          materialDataUrl: pubGpMatPhotos[0] || '',
+          materialDataUrls: pubGpMatPhotos.slice(),
+          billDataUrl: pubGpBillPhotos[0] || '',
+          billDataUrls: pubGpBillPhotos.slice()
         })
       });
       const res = await r.json().catch(()=>({}));
@@ -1740,8 +1862,9 @@ async function load(){
       saveTok(res.id, res.tracking_token);
       ok.innerHTML = `✅ Material Pass <b>${htm(res.id)}</b> (${htm(res.gatePass?.direction)}) logged &amp; <b>${htm(res.gatePass?.forName)}</b> notified!`;
       ok.classList.remove('hidden');
-      pubGpMatData = ''; pubGpBillData = '';
-      $('pubGpMatPrev').style.display = 'none'; $('pubGpBillPrev').style.display = 'none';
+      pubGpMatPhotos.length = 0; pubGpBillPhotos.length = 0;
+      renderPubPhotoStrip(pubGpMatPhotos, 'pubGpMatStrip', 'Material Photo');
+      renderPubPhotoStrip(pubGpBillPhotos, 'pubGpBillStrip', 'Bill / Challan');
       $('pubGpMatName').value = ''; $('pubGpQty').value = ''; $('pubGpParty').value = ''; $('pubGpChallan').value = ''; $('pubGpVehicle').value = ''; $('pubGpRemarks').value = ''; $('pubGpReturnable').checked = false; $('pubGpExpectedDays').value = '7'; $('pubGpExpectedDt').value = ''; $('pubGpReturnNote').value = ''; syncPubRetBox(); $('pubGpMatPhotoInput').value = ''; $('pubGpBillPhotoInput').value = '';
       await window.loadPublicGatePasses();
     }catch(ex){

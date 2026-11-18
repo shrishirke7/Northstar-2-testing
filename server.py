@@ -5006,6 +5006,59 @@ def _save_gate_image(file_storage, data_url, category, entry_id, slot):
     return f"{category}/{date_dir}/{fname}", None
 
 
+def _merge_photo_rels(legacy_rel, extra_json):
+    out = []
+    seen = set()
+    extras = extra_json
+    if isinstance(extras, str):
+        try:
+            extras = json.loads(extras)
+        except Exception:
+            extras = []
+    for cand in ([legacy_rel] if legacy_rel else []) + (extras if isinstance(extras, list) else []):
+        s = str(cand or "").strip()
+        if s and s not in seen:
+            seen.add(s)
+            out.append(s)
+    return out
+
+
+def _save_gate_image_batch(files_list, data_urls_val, single_data_url, category, entry_id, slot, max_count=12):
+    items_data = []
+    if isinstance(data_urls_val, str) and data_urls_val.strip().startswith("["):
+        try:
+            data_urls_val = json.loads(data_urls_val)
+        except Exception:
+            data_urls_val = []
+    if isinstance(data_urls_val, list):
+        for u in data_urls_val:
+            if isinstance(u, str) and u.startswith("data:image/"):
+                items_data.append(u)
+    if not items_data and isinstance(single_data_url, str) and single_data_url.startswith("data:image/"):
+        items_data.append(single_data_url)
+
+    saved = []
+    for f in (files_list or []):
+        if f is None or not getattr(f, "filename", ""):
+            continue
+        if len(saved) >= max_count:
+            break
+        rel, err = _save_gate_image(f, None, category, entry_id, f"{slot}{len(saved) + 1}")
+        if err:
+            return None, err
+        if rel:
+            saved.append(rel)
+    for du in items_data:
+        if len(saved) >= max_count:
+            break
+        rel, err = _save_gate_image(None, du, category, entry_id, f"{slot}{len(saved) + 1}")
+        if err:
+            return None, err
+        if rel:
+            saved.append(rel)
+    return saved, None
+
+
 def _resolve_portal_employee(conn, factory, department, emp_key, fallback_name=""):
     row = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
     users = row[0] if row and isinstance(row[0], list) else []
@@ -5038,6 +5091,10 @@ def _visitor_json(r, include_private=True, public_token=""):
         if public_token:
             return "/api/public/gate-media/" + quote(rel, safe="/") + "?token=" + quote(public_token, safe="")
         return ""
+    id_rels = _merge_photo_rels(r[14], r[25] if len(r) > 25 else None)
+    sf_rels = _merge_photo_rels(r[15], r[26] if len(r) > 26 else None)
+    id_urls = [_media_url(u) for u in id_rels if _media_url(u)]
+    sf_urls = [_media_url(u) for u in sf_rels if _media_url(u)]
     item = {
         "id": r[0], "factory": r[2], "visitorName": r[3],
         "purpose": r[6], "department": r[7], "hostUsername": r[8] if include_private else "",
@@ -5049,8 +5106,10 @@ def _visitor_json(r, include_private=True, public_token=""):
         "decisionNote": r[22],
         "createdAt": r[23].isoformat() if r[23] else "",
         "updatedAt": r[24].isoformat() if r[24] else "",
-        "idCardPhoto": _media_url(r[14]),
-        "selfiePhoto": _media_url(r[15]),
+        "idCardPhoto": id_urls[0] if id_urls else "",
+        "idCardPhotos": id_urls,
+        "selfiePhoto": sf_urls[0] if sf_urls else "",
+        "selfiePhotos": sf_urls,
     }
     if include_private:
         item["phone"] = r[4]
@@ -5074,12 +5133,19 @@ def _gatepass_json(r, include_private=True, public_token=""):
     ret_dt = r[26] if len(r) > 26 else None
     is_ret = bool(r[8])
     is_overdue = bool(is_ret and r[18] != "Returned" and exp_dt and exp_dt <= datetime.now(timezone.utc))
+    mat_rels = _merge_photo_rels(r[16], r[28] if len(r) > 28 else None)
+    bill_rels = _merge_photo_rels(r[17], r[29] if len(r) > 29 else None)
+    mat_urls = [_media_url(u) for u in mat_rels if _media_url(u)]
+    bill_urls = [_media_url(u) for u in bill_rels if _media_url(u)]
     return {
         "id": r[0], "direction": r[2], "factory": r[3], "materialType": r[4], "materialName": r[5],
         "quantity": r[6], "unit": r[7], "returnable": is_ret, "partyName": r[9],
         "challanNo": r[10], "vehicleNo": r[11], "remarks": r[12], "department": r[13],
         "forUsername": r[14] if include_private else "", "forName": r[15],
-        "materialPhoto": _media_url(r[16]), "billPhoto": _media_url(r[17]),
+        "materialPhoto": mat_urls[0] if mat_urls else "",
+        "materialPhotos": mat_urls,
+        "billPhoto": bill_urls[0] if bill_urls else "",
+        "billPhotos": bill_urls,
         "status": r[18], "enteredBy": r[19], "verifiedBy": r[20],
         "verifiedAt": r[21].isoformat() if r[21] else "",
         "createdAt": r[22].isoformat() if r[22] else "",
@@ -5134,8 +5200,8 @@ def _build_gate_where(args, alias=""):
     return sql, params
 
 
-VISITOR_COLS = "id,tracking_token_hash,factory,visitor_name,phone,address,purpose,department,host_username,host_name,vehicle_no,pass_no,visitor_count,belongings,id_card_photo,selfie_photo,status,entered_by,approved_by,approved_at,checked_in_at,checked_out_at,decision_note,created_at,updated_at"
-GATEPASS_COLS = "id,tracking_token_hash,direction,factory,material_type,material_name,quantity,unit,returnable,party_name,challan_no,vehicle_no,remarks,department,for_username,for_name,material_photo,bill_photo,status,entered_by,verified_by,verified_at,created_at,updated_at,expected_return_at,expected_days,returned_at,return_note"
+VISITOR_COLS = "id,tracking_token_hash,factory,visitor_name,phone,address,purpose,department,host_username,host_name,vehicle_no,pass_no,visitor_count,belongings,id_card_photo,selfie_photo,status,entered_by,approved_by,approved_at,checked_in_at,checked_out_at,decision_note,created_at,updated_at,id_card_photos,selfie_photos"
+GATEPASS_COLS = "id,tracking_token_hash,direction,factory,material_type,material_name,quantity,unit,returnable,party_name,challan_no,vehicle_no,remarks,department,for_username,for_name,material_photo,bill_photo,status,entered_by,verified_by,verified_at,created_at,updated_at,expected_return_at,expected_days,returned_at,return_note,material_photos,bill_photos"
 
 
 def _token_map_from_request():
@@ -5161,11 +5227,18 @@ def public_gate_media(rel_path):
         abort(404)
     thash = hashlib.sha256(token.encode()).hexdigest()
     norm_rel = f"{parts[0]}/{parts[1]}/{parts[2]}"
+    rel_json = json.dumps([norm_rel])
     with db() as conn:
         if parts[0] == "visitors":
-            row = conn.execute("SELECT 1 FROM visitor_passes WHERE tracking_token_hash=%s AND (id_card_photo=%s OR selfie_photo=%s)", (thash, norm_rel, norm_rel)).fetchone()
+            row = conn.execute(
+                "SELECT 1 FROM visitor_passes WHERE tracking_token_hash=%s AND (id_card_photo=%s OR selfie_photo=%s OR id_card_photos @> %s::jsonb OR selfie_photos @> %s::jsonb)",
+                (thash, norm_rel, norm_rel, rel_json, rel_json),
+            ).fetchone()
         else:
-            row = conn.execute("SELECT 1 FROM material_gate_passes WHERE tracking_token_hash=%s AND (material_photo=%s OR bill_photo=%s)", (thash, norm_rel, norm_rel)).fetchone()
+            row = conn.execute(
+                "SELECT 1 FROM material_gate_passes WHERE tracking_token_hash=%s AND (material_photo=%s OR bill_photo=%s OR material_photos @> %s::jsonb OR bill_photos @> %s::jsonb)",
+                (thash, norm_rel, norm_rel, rel_json, rel_json),
+            ).fetchone()
     if not row:
         abort(403)
     return send_from_directory(UPLOAD_DIR / parts[0] / parts[1], parts[2], as_attachment=False)
@@ -5180,11 +5253,15 @@ def signed_in_gate_media(rel_path):
     if len(parts) != 3 or parts[0] not in ("visitors", "gatepass") or Path(parts[2]).name != parts[2]:
         abort(404)
     norm_rel = f"{parts[0]}/{parts[1]}/{parts[2]}"
+    rel_json = json.dumps([norm_rel])
     with db() as conn:
         if parts[0] == "visitors":
             if not is_adm and not module_access(who, "visitors"):
                 abort(403)
-            row = conn.execute(f"SELECT {VISITOR_COLS} FROM visitor_passes WHERE id_card_photo=%s OR selfie_photo=%s", (norm_rel, norm_rel)).fetchone()
+            row = conn.execute(
+                f"SELECT {VISITOR_COLS} FROM visitor_passes WHERE id_card_photo=%s OR selfie_photo=%s OR id_card_photos @> %s::jsonb OR selfie_photos @> %s::jsonb",
+                (norm_rel, norm_rel, rel_json, rel_json),
+            ).fetchone()
             if not row:
                 abort(404)
             if not visitor_row_visible(_visitor_json(row), who, is_adm):
@@ -5192,7 +5269,10 @@ def signed_in_gate_media(rel_path):
         else:
             if not is_adm and not module_access(who, "gatepass"):
                 abort(403)
-            row = conn.execute(f"SELECT {GATEPASS_COLS} FROM material_gate_passes WHERE material_photo=%s OR bill_photo=%s", (norm_rel, norm_rel)).fetchone()
+            row = conn.execute(
+                f"SELECT {GATEPASS_COLS} FROM material_gate_passes WHERE material_photo=%s OR bill_photo=%s OR material_photos @> %s::jsonb OR bill_photos @> %s::jsonb",
+                (norm_rel, norm_rel, rel_json, rel_json),
+            ).fetchone()
             if not row:
                 abort(404)
             if not gatepass_row_visible(_gatepass_json(row), who, is_adm):
@@ -5280,17 +5360,19 @@ def _create_visitor_impl(is_public=True):
         if not host_name:
             host_name = department + " Desk"
         vid, _ = _next_gate_id(conn, "visitor_passes", "VIS")
-        id_file = request.files.get("idCardPhoto") if is_multi else None
-        sf_file = request.files.get("selfiePhoto") if is_multi else None
-        id_rel, err1 = _save_gate_image(id_file, body.get("idCardDataUrl"), "visitors", vid, "id")
+        id_files = request.files.getlist("idCardPhoto") if is_multi else []
+        sf_files = request.files.getlist("selfiePhoto") if is_multi else []
+        id_rels, err1 = _save_gate_image_batch(id_files, body.get("idCardDataUrls"), body.get("idCardDataUrl"), "visitors", vid, "id")
         if err1:
             return jsonify(error=err1), 400
-        sf_rel, err2 = _save_gate_image(sf_file, body.get("selfieDataUrl"), "visitors", vid, "selfie")
+        sf_rels, err2 = _save_gate_image_batch(sf_files, body.get("selfieDataUrls"), body.get("selfieDataUrl"), "visitors", vid, "selfie")
         if err2:
             return jsonify(error=err2), 400
+        id_rel = id_rels[0] if id_rels else ""
+        sf_rel = sf_rels[0] if sf_rels else ""
         conn.execute(
-            "INSERT INTO visitor_passes(id,tracking_token_hash,factory,visitor_name,phone,address,purpose,department,host_username,host_name,vehicle_no,pass_no,visitor_count,belongings,id_card_photo,selfie_photo,status,entered_by) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'Pending',%s)",
-            (vid, token_hash, factory, visitor_name, phone, address, purpose, department, host_username, host_name, vehicle_no, pass_no, visitor_count, belongings, id_rel, sf_rel, entered_by),
+            "INSERT INTO visitor_passes(id,tracking_token_hash,factory,visitor_name,phone,address,purpose,department,host_username,host_name,vehicle_no,pass_no,visitor_count,belongings,id_card_photo,selfie_photo,id_card_photos,selfie_photos,status,entered_by) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,'Pending',%s)",
+            (vid, token_hash, factory, visitor_name, phone, address, purpose, department, host_username, host_name, vehicle_no, pass_no, visitor_count, belongings, id_rel, sf_rel, json.dumps(id_rels), json.dumps(sf_rels), entered_by),
         )
         _record_notification_event(conn, {
             "eventKey": f"visitor:{vid}",
@@ -5391,6 +5473,58 @@ def decide_visitor(visitor_id):
     return jsonify(ok=True, visitor=_visitor_json(updated, include_private=True))
 
 
+def _append_visitor_photos_impl(visitor_id, is_public=False):
+    body = request.get_json(silent=True) or {}
+    if is_public:
+        tok = str(body.get("token") or request.headers.get("X-Gate-Token") or "").strip()
+        if not tok:
+            return jsonify(error="Tracking token required to add photos to an existing visitor entry."), 403
+        thash = hashlib.sha256(tok.encode()).hexdigest()
+    else:
+        who = session.get("profile") or {}
+        is_adm = bool(session.get("is_admin"))
+        if not is_adm and not module_access(who, "visitors", write=True):
+            return jsonify(error="Write permission required for Visitor Pass."), 403
+    with db() as conn:
+        row = conn.execute(f"SELECT {VISITOR_COLS} FROM visitor_passes WHERE id=%s FOR UPDATE", (visitor_id,)).fetchone()
+        if not row:
+            abort(404)
+        cur = _visitor_json(row)
+        if is_public:
+            if not row[1] or row[1] != thash:
+                return jsonify(error="Invalid tracking token for this visitor entry."), 403
+        elif not visitor_row_visible(cur, who, is_adm):
+            return jsonify(error="You can only update visitors in your assigned department."), 403
+        existing_id = _merge_photo_rels(row[14], row[25] if len(row) > 25 else None)
+        existing_sf = _merge_photo_rels(row[15], row[26] if len(row) > 26 else None)
+        new_id, err1 = _save_gate_image_batch(None, body.get("idCardDataUrls"), body.get("idCardDataUrl"), "visitors", visitor_id, f"id{len(existing_id)+1}_")
+        if err1:
+            return jsonify(error=err1), 400
+        new_sf, err2 = _save_gate_image_batch(None, body.get("selfieDataUrls"), body.get("selfieDataUrl"), "visitors", visitor_id, f"selfie{len(existing_sf)+1}_")
+        if err2:
+            return jsonify(error=err2), 400
+        merged_id = (existing_id + new_id)[:20]
+        merged_sf = (existing_sf + new_sf)[:20]
+        conn.execute(
+            "UPDATE visitor_passes SET id_card_photo=%s, selfie_photo=%s, id_card_photos=%s::jsonb, selfie_photos=%s::jsonb, updated_at=now() WHERE id=%s",
+            (merged_id[0] if merged_id else "", merged_sf[0] if merged_sf else "", json.dumps(merged_id), json.dumps(merged_sf), visitor_id),
+        )
+        updated = conn.execute(f"SELECT {VISITOR_COLS} FROM visitor_passes WHERE id=%s", (visitor_id,)).fetchone()
+        _pg_emit_notify(conn, "visitor", {"action": "photos", "id": visitor_id})
+    return jsonify(ok=True, visitor=_visitor_json(updated, include_private=not is_public, public_token=tok if is_public else ""))
+
+
+@app.post("/api/public/visitors/<path:visitor_id>/photos")
+def append_public_visitor_photos(visitor_id):
+    return _append_visitor_photos_impl(visitor_id, is_public=True)
+
+
+@app.post("/api/visitors/<path:visitor_id>/photos")
+@signed_in
+def append_visitor_photos(visitor_id):
+    return _append_visitor_photos_impl(visitor_id, is_public=False)
+
+
 @app.delete("/api/visitors/<path:visitor_id>")
 @signed_in
 def delete_visitor(visitor_id):
@@ -5398,10 +5532,11 @@ def delete_visitor(visitor_id):
     if not session.get("is_admin") and not is_gate_security_or_admin(who):
         return jsonify(error="Administrator or Security Incharge access required."), 403
     with db() as conn:
-        row = conn.execute("DELETE FROM visitor_passes WHERE id=%s RETURNING id_card_photo, selfie_photo", (visitor_id,)).fetchone()
+        row = conn.execute("DELETE FROM visitor_passes WHERE id=%s RETURNING id_card_photo, selfie_photo, id_card_photos, selfie_photos", (visitor_id,)).fetchone()
         if not row:
             abort(404)
-        for rel in row:
+        all_rels = _merge_photo_rels(row[0], row[2]) + _merge_photo_rels(row[1], row[3])
+        for rel in all_rels:
             if rel:
                 try:
                     p = (UPLOAD_DIR / rel).resolve()
@@ -5479,17 +5614,19 @@ def _create_gatepass_impl(is_public=True):
         if not for_name:
             for_name = department + " Team"
         gid, _ = _next_gate_id(conn, "material_gate_passes", "MOUT" if direction == "OUT" else "MIN")
-        mat_file = request.files.get("materialPhoto") if is_multi else None
-        bill_file = request.files.get("billPhoto") if is_multi else None
-        mat_rel, err1 = _save_gate_image(mat_file, body.get("materialDataUrl"), "gatepass", gid, "material")
+        mat_files = request.files.getlist("materialPhoto") if is_multi else []
+        bill_files = request.files.getlist("billPhoto") if is_multi else []
+        mat_rels, err1 = _save_gate_image_batch(mat_files, body.get("materialDataUrls"), body.get("materialDataUrl"), "gatepass", gid, "material")
         if err1:
             return jsonify(error=err1), 400
-        bill_rel, err2 = _save_gate_image(bill_file, body.get("billDataUrl"), "gatepass", gid, "bill")
+        bill_rels, err2 = _save_gate_image_batch(bill_files, body.get("billDataUrls"), body.get("billDataUrl"), "gatepass", gid, "bill")
         if err2:
             return jsonify(error=err2), 400
+        mat_rel = mat_rels[0] if mat_rels else ""
+        bill_rel = bill_rels[0] if bill_rels else ""
         conn.execute(
-            "INSERT INTO material_gate_passes(id,tracking_token_hash,direction,factory,material_type,material_name,quantity,unit,returnable,party_name,challan_no,vehicle_no,remarks,department,for_username,for_name,material_photo,bill_photo,status,entered_by,expected_return_at,expected_days,return_note) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (gid, token_hash, direction, factory, material_type, material_name, quantity, unit, returnable, party_name, challan_no, vehicle_no, remarks, department, for_username, for_name, mat_rel, bill_rel, init_status, entered_by, expected_return_at, expected_days, return_note),
+            "INSERT INTO material_gate_passes(id,tracking_token_hash,direction,factory,material_type,material_name,quantity,unit,returnable,party_name,challan_no,vehicle_no,remarks,department,for_username,for_name,material_photo,bill_photo,material_photos,bill_photos,status,entered_by,expected_return_at,expected_days,return_note) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s,%s,%s,%s,%s)",
+            (gid, token_hash, direction, factory, material_type, material_name, quantity, unit, returnable, party_name, challan_no, vehicle_no, remarks, department, for_username, for_name, mat_rel, bill_rel, json.dumps(mat_rels), json.dumps(bill_rels), init_status, entered_by, expected_return_at, expected_days, return_note),
         )
         dir_word = "Outward (OUT)" if direction == "OUT" else "Inward (IN)"
         due_txt = f" · Return due: {expected_return_at.strftime('%d %b %Y')}" if (returnable and expected_return_at) else (" · 🔄 Returnable" if returnable else "")
@@ -5693,6 +5830,58 @@ def _start_returnable_scheduler():
         t.start()
 
 
+def _append_gatepass_photos_impl(pass_id, is_public=False):
+    body = request.get_json(silent=True) or {}
+    if is_public:
+        tok = str(body.get("token") or request.headers.get("X-Gate-Token") or "").strip()
+        if not tok:
+            return jsonify(error="Tracking token required to add photos to an existing gate pass."), 403
+        thash = hashlib.sha256(tok.encode()).hexdigest()
+    else:
+        who = session.get("profile") or {}
+        is_adm = bool(session.get("is_admin"))
+        if not is_adm and not module_access(who, "gatepass", write=True):
+            return jsonify(error="Write permission required for Material Gate Pass."), 403
+    with db() as conn:
+        row = conn.execute(f"SELECT {GATEPASS_COLS} FROM material_gate_passes WHERE id=%s FOR UPDATE", (pass_id,)).fetchone()
+        if not row:
+            abort(404)
+        cur = _gatepass_json(row)
+        if is_public:
+            if not row[1] or row[1] != thash:
+                return jsonify(error="Invalid tracking token for this gate pass."), 403
+        elif not gatepass_row_visible(cur, who, is_adm):
+            return jsonify(error="You can only update materials assigned to your account or gate scope."), 403
+        existing_mat = _merge_photo_rels(row[16], row[28] if len(row) > 28 else None)
+        existing_bill = _merge_photo_rels(row[17], row[29] if len(row) > 29 else None)
+        new_mat, err1 = _save_gate_image_batch(None, body.get("materialDataUrls"), body.get("materialDataUrl"), "gatepass", pass_id, f"material{len(existing_mat)+1}_")
+        if err1:
+            return jsonify(error=err1), 400
+        new_bill, err2 = _save_gate_image_batch(None, body.get("billDataUrls"), body.get("billDataUrl"), "gatepass", pass_id, f"bill{len(existing_bill)+1}_")
+        if err2:
+            return jsonify(error=err2), 400
+        merged_mat = (existing_mat + new_mat)[:20]
+        merged_bill = (existing_bill + new_bill)[:20]
+        conn.execute(
+            "UPDATE material_gate_passes SET material_photo=%s, bill_photo=%s, material_photos=%s::jsonb, bill_photos=%s::jsonb, updated_at=now() WHERE id=%s",
+            (merged_mat[0] if merged_mat else "", merged_bill[0] if merged_bill else "", json.dumps(merged_mat), json.dumps(merged_bill), pass_id),
+        )
+        updated = conn.execute(f"SELECT {GATEPASS_COLS} FROM material_gate_passes WHERE id=%s", (pass_id,)).fetchone()
+        _pg_emit_notify(conn, "gatepass", {"action": "photos", "id": pass_id})
+    return jsonify(ok=True, gatePass=_gatepass_json(updated, include_private=not is_public, public_token=tok if is_public else ""))
+
+
+@app.post("/api/public/gate-passes/<path:pass_id>/photos")
+def append_public_gatepass_photos(pass_id):
+    return _append_gatepass_photos_impl(pass_id, is_public=True)
+
+
+@app.post("/api/gate-passes/<path:pass_id>/photos")
+@signed_in
+def append_gatepass_photos(pass_id):
+    return _append_gatepass_photos_impl(pass_id, is_public=False)
+
+
 @app.delete("/api/gate-passes/<path:pass_id>")
 @signed_in
 def delete_gatepass(pass_id):
@@ -5700,10 +5889,11 @@ def delete_gatepass(pass_id):
     if not session.get("is_admin") and not is_gate_security_or_admin(who):
         return jsonify(error="Administrator or Security Incharge access required."), 403
     with db() as conn:
-        row = conn.execute("DELETE FROM material_gate_passes WHERE id=%s RETURNING material_photo, bill_photo", (pass_id,)).fetchone()
+        row = conn.execute("DELETE FROM material_gate_passes WHERE id=%s RETURNING material_photo, bill_photo, material_photos, bill_photos", (pass_id,)).fetchone()
         if not row:
             abort(404)
-        for rel in row:
+        all_rels = _merge_photo_rels(row[0], row[2]) + _merge_photo_rels(row[1], row[3])
+        for rel in all_rels:
             if rel:
                 try:
                     p = (UPLOAD_DIR / rel).resolve()

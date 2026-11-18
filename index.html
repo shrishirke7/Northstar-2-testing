@@ -963,6 +963,12 @@
 .gate-badge-rejected{background:#fee2e2;color:#b91c1c}
 .gate-photo-box{border:1px dashed #b9cebf;border-radius:10px;padding:10px;background:#fafdfb;display:grid;gap:6px}
 .gate-photo-preview{width:78px;height:78px;object-fit:cover;border-radius:8px;border:1px solid #cbd9d0;display:none}
+.gate-photo-strip{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.gate-photo-chip{position:relative;width:62px;height:62px;border-radius:8px;overflow:hidden;border:1px solid #cbd9d0;background:#fff}
+.gate-photo-chip img{width:100%;height:100%;object-fit:cover;cursor:pointer;display:block}
+.gate-photo-chip button{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;border:0;background:rgba(15,23,42,.78);color:#fff;font-size:11px;line-height:1;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.gate-thumb-wrap{position:relative;display:inline-block}
+.gate-thumb-cnt{position:absolute;right:-4px;bottom:-4px;background:#0f172a;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:99px;pointer-events:none}
 @media(max-width:768px){
   .gate-filter-bar{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .gate-filter-bar .gate-fcol{min-width:0}
@@ -1096,8 +1102,13 @@
 <!-- Image Preview Lightbox -->
 <div class="modal-backdrop" id="gateLightboxModal" style="z-index:2750" onclick="if(event.target===this)closeGateLightbox()">
   <div class="modal" style="max-width:720px;width:calc(100% - 20px);text-align:center;padding:14px">
-    <div class="modal-head" style="margin-bottom:8px"><h2 id="gateLightboxTitle" style="font-size:15px">Photo Preview</h2><button type="button" class="close" onclick="closeGateLightbox()">×</button></div>
-    <img id="gateLightboxImg" alt="Photo" style="max-width:100%;max-height:74vh;border-radius:10px;border:1px solid #d5e2da">
+    <div class="modal-head" style="margin-bottom:8px;gap:8px"><h2 id="gateLightboxTitle" style="font-size:15px">Photo Preview</h2><span class="ticket-meta" id="gateLightboxCount"></span><button type="button" class="close" onclick="closeGateLightbox()">×</button></div>
+    <img id="gateLightboxImg" alt="Photo" style="max-width:100%;max-height:66vh;border-radius:10px;border:1px solid #d5e2da">
+    <div id="gateLightboxNav" style="display:none;justify-content:center;gap:10px;margin-top:10px">
+      <button type="button" class="btn" id="gateLightboxPrev">◀ Prev</button>
+      <button type="button" class="btn" id="gateLightboxNext">Next ▶</button>
+    </div>
+    <div id="gateLightboxThumbs" class="gate-photo-strip" style="justify-content:center;margin-top:8px"></div>
   </div>
 </div>
 
@@ -14339,6 +14350,16 @@ let lastPulseGatepassRev = '';
   let activeDirectionTab = 'ALL';
   let camStream = null;
   let camCallback = null;
+  let gateLbList = [], gateLbIdx = 0, gateLbBaseTitle = 'Photo Preview';
+
+  if(!window.__shreeNativeCamCbs){
+    window.__shreeNativeCamCbs = {};
+    window.__shreeReceiveNativePhoto = function(cbId, dataUrl){
+      const fn = window.__shreeNativeCamCbs[cbId];
+      delete window.__shreeNativeCamCbs[cbId];
+      if(typeof fn === 'function' && dataUrl) fn(dataUrl);
+    };
+  }
 
   function toLocalInputStr(d){
     const pad = n => String(n).padStart(2, '0');
@@ -14409,20 +14430,59 @@ let lastPulseGatepassRev = '';
     });
   }
 
-  window.openGateLightbox = function(url, title){
-    const modal = document.getElementById('gateLightboxModal');
+  function renderGateLb(){
     const img = document.getElementById('gateLightboxImg');
     const tit = document.getElementById('gateLightboxTitle');
-    if(!modal || !img || !url) return;
-    img.src = url;
-    if(tit) tit.textContent = title || 'Photo Preview';
+    const cnt = document.getElementById('gateLightboxCount');
+    const nav = document.getElementById('gateLightboxNav');
+    const th = document.getElementById('gateLightboxThumbs');
+    if(!img || !gateLbList.length) return;
+    if(gateLbIdx < 0) gateLbIdx = 0;
+    if(gateLbIdx >= gateLbList.length) gateLbIdx = gateLbList.length - 1;
+    img.src = gateLbList[gateLbIdx];
+    if(tit) tit.textContent = gateLbBaseTitle;
+    if(cnt) cnt.textContent = gateLbList.length > 1 ? `Page ${gateLbIdx + 1} / ${gateLbList.length}` : '';
+    if(nav) nav.style.display = gateLbList.length > 1 ? 'flex' : 'none';
+    if(th){
+      th.innerHTML = gateLbList.length > 1 ? gateLbList.map((u, i) => `<div class="gate-photo-chip" style="${i===gateLbIdx?'outline:2.5px solid #167c56':''}"><img src="${esc(u)}" alt="Page ${i+1}"></div>`).join('') : '';
+      th.querySelectorAll('.gate-photo-chip').forEach((el, i) => el.onclick = () => { gateLbIdx = i; renderGateLb(); });
+    }
+  }
+  document.getElementById('gateLightboxPrev')?.addEventListener('click', () => { gateLbIdx = (gateLbIdx - 1 + gateLbList.length) % gateLbList.length; renderGateLb(); });
+  document.getElementById('gateLightboxNext')?.addEventListener('click', () => { gateLbIdx = (gateLbIdx + 1) % gateLbList.length; renderGateLb(); });
+
+  window.openGateLightbox = function(urlOrList, title, startIdx = 0){
+    const modal = document.getElementById('gateLightboxModal');
+    const arr = Array.isArray(urlOrList) ? urlOrList.filter(Boolean) : (urlOrList ? [urlOrList] : []);
+    if(!modal || !arr.length) return;
+    gateLbList = arr;
+    gateLbIdx = Math.max(0, Math.min(arr.length - 1, Number(startIdx) || 0));
+    gateLbBaseTitle = title || 'Photo Preview';
+    renderGateLb();
     modal.classList.add('open');
+  };
+  window.openGateGallery = function(kind, id, slot){
+    if(kind === 'vis'){
+      const v = visitorRows.find(x => x.id === id); if(!v) return;
+      const list = slot === 'selfie' ? (v.selfiePhotos?.length ? v.selfiePhotos : [v.selfiePhoto].filter(Boolean)) : (v.idCardPhotos?.length ? v.idCardPhotos : [v.idCardPhoto].filter(Boolean));
+      window.openGateLightbox(list, (slot === 'selfie' ? 'Selfie · ' : 'ID Card · ') + v.visitorName, 0);
+    } else {
+      const g = gatepassRows.find(x => x.id === id); if(!g) return;
+      const list = slot === 'bill' ? (g.billPhotos?.length ? g.billPhotos : [g.billPhoto].filter(Boolean)) : (g.materialPhotos?.length ? g.materialPhotos : [g.materialPhoto].filter(Boolean));
+      window.openGateLightbox(list, (slot === 'bill' ? 'Bill / Challan · ' : 'Material · ') + (slot === 'bill' ? (g.challanNo || g.materialName) : g.materialName), 0);
+    }
   };
   window.closeGateLightbox = function(){
     document.getElementById('gateLightboxModal')?.classList.remove('open');
   };
 
-  window.openGateCam = async function(onSnap, opts = {}){
+  window.openGateCam = function(onSnap, opts = {}){
+    if(window.ShreeAndroid && typeof window.ShreeAndroid.captureCameraPhoto === 'function'){
+      const cbId = 'gc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+      window.__shreeNativeCamCbs[cbId] = dataUrl => { if(typeof onSnap === 'function') onSnap(dataUrl); };
+      window.ShreeAndroid.captureCameraPhoto(opts.facingMode || 'environment', cbId);
+      return;
+    }
     const modal = document.getElementById('gateCamModal');
     const vid = document.getElementById('gateCamVideo');
     const hdr = modal?.querySelector('.modal-head h2');
@@ -14433,15 +14493,45 @@ let lastPulseGatepassRev = '';
       return;
     }
     camCallback = onSnap;
-    try{
-      camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: opts.facingMode || 'user', width: { ideal: 1080 }, height: { ideal: 1080 } }, audio: false });
-      vid.srcObject = camStream;
-      modal.classList.add('open');
-    }catch(err){
-      if(opts.fallbackFileEl){ opts.fallbackFileEl.click(); return; }
-      if(typeof showToast === 'function') showToast('Camera unavailable (' + (err?.message || 'permission needed') + '). Use file upload below.');
-    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: opts.facingMode || 'user', width: { ideal: 1080 }, height: { ideal: 1080 } }, audio: false })
+      .then(stream => {
+        camStream = stream;
+        vid.srcObject = camStream;
+        modal.classList.add('open');
+      })
+      .catch(err => {
+        if(opts.fallbackFileEl){ opts.fallbackFileEl.click(); return; }
+        if(typeof showToast === 'function') showToast('Camera unavailable (' + (err?.message || 'permission needed') + '). Use file upload below.');
+      });
   };
+
+  function bindModalMultiPhotoField(form, arr, camBtnId, fileId, stripId, facingMode, camTitle, previewTitle){
+    const renderStrip = () => {
+      const el = form.querySelector('#' + stripId);
+      if(!el) return;
+      el.innerHTML = arr.map((u, idx) => `<div class="gate-photo-chip"><img src="${esc(u)}" alt="${esc(previewTitle)} ${idx+1}"><button type="button" title="Remove">×</button></div>`).join('');
+      el.querySelectorAll('.gate-photo-chip img').forEach((im, idx) => im.onclick = () => window.openGateLightbox(arr, previewTitle, idx));
+      el.querySelectorAll('.gate-photo-chip button').forEach((bt, idx) => bt.onclick = () => { arr.splice(idx, 1); renderStrip(); });
+    };
+    const pushPhoto = d => {
+      if(!d || arr.length >= 12) return;
+      arr.push(d);
+      renderStrip();
+    };
+    const fEl = form.querySelector('#' + fileId);
+    const cEl = form.querySelector('#' + camBtnId);
+    if(cEl) cEl.onclick = () => window.openGateCam(pushPhoto, { facingMode, title: camTitle, fallbackFileEl: fEl });
+    if(fEl) fEl.onchange = async e => {
+      const files = Array.from(e.target.files || []);
+      for(const f of files){
+        if(arr.length >= 12) break;
+        const d = await compressImageFile(f);
+        if(d) arr.push(d);
+      }
+      renderStrip();
+      try{ e.target.value = ''; }catch(_){}
+    };
+  }
   window.closeGateCam = function(){
     if(camStream){
       try{ camStream.getTracks().forEach(t => t.stop()); }catch(_){}
@@ -14597,10 +14687,12 @@ let lastPulseGatepassRev = '';
       return;
     }
     tbody.innerHTML = list.map(v => {
+      const idArr = Array.isArray(v.idCardPhotos) && v.idCardPhotos.length ? v.idCardPhotos : (v.idCardPhoto ? [v.idCardPhoto] : []);
+      const sfArr = Array.isArray(v.selfiePhotos) && v.selfiePhotos.length ? v.selfiePhotos : (v.selfiePhoto ? [v.selfiePhoto] : []);
       const photosHtml = `<div class="gate-thumb-pair">
-        ${v.idCardPhoto ? `<img class="gate-thumb" src="${esc(v.idCardPhoto)}" alt="ID Card" title="View ID Card" onclick="openGateLightbox('${esc(v.idCardPhoto)}','ID Card · ${esc(v.visitorName)}')">` : '<span class="ticket-meta">No ID</span>'}
-        ${v.selfiePhoto ? `<img class="gate-thumb" src="${esc(v.selfiePhoto)}" alt="Selfie" title="View Visitor Selfie" onclick="openGateLightbox('${esc(v.selfiePhoto)}','Selfie · ${esc(v.visitorName)}')">` : '<span class="ticket-meta">No Selfie</span>'}
-      </div>`;
+        ${idArr.length ? `<div class="gate-thumb-wrap"><img class="gate-thumb" src="${esc(idArr[0])}" alt="ID Card" title="View ID Card (${idArr.length})" onclick="openGateGallery('vis','${esc(v.id)}','id')">${idArr.length>1?`<span class="gate-thumb-cnt">×${idArr.length}</span>`:''}</div>` : '<span class="ticket-meta">No ID</span>'}
+        ${sfArr.length ? `<div class="gate-thumb-wrap"><img class="gate-thumb" src="${esc(sfArr[0])}" alt="Selfie" title="View Visitor Selfie (${sfArr.length})" onclick="openGateGallery('vis','${esc(v.id)}','selfie')">${sfArr.length>1?`<span class="gate-thumb-cnt">×${sfArr.length}</span>`:''}</div>` : '<span class="ticket-meta">No Selfie</span>'}
+      </div>${canWrite ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px"><button type="button" class="btn" style="padding:2px 6px;font-size:9.5px" onclick="nsVisitorsModule.captureMore('${esc(v.id)}','id')">📷+ ID</button><button type="button" class="btn" style="padding:2px 6px;font-size:9.5px" onclick="nsVisitorsModule.captureMore('${esc(v.id)}','selfie')">📷+ Photo</button></div>` : ''}`;
       const actions = [];
       if(canWrite && v.status === 'Pending'){
         actions.push(`<button type="button" class="btn primary" style="padding:4px 9px;font-size:10px" onclick="nsVisitorsModule.decide('${esc(v.id)}','approve')">✓ Approve</button>`);
@@ -14659,10 +14751,12 @@ let lastPulseGatepassRev = '';
       return;
     }
     tbody.innerHTML = list.map(g => {
+      const matArr = Array.isArray(g.materialPhotos) && g.materialPhotos.length ? g.materialPhotos : (g.materialPhoto ? [g.materialPhoto] : []);
+      const billArr = Array.isArray(g.billPhotos) && g.billPhotos.length ? g.billPhotos : (g.billPhoto ? [g.billPhoto] : []);
       const photosHtml = `<div class="gate-thumb-pair">
-        ${g.materialPhoto ? `<img class="gate-thumb" src="${esc(g.materialPhoto)}" alt="Material" title="View Material Photo" onclick="openGateLightbox('${esc(g.materialPhoto)}','Material · ${esc(g.materialName)}')">` : '<span class="ticket-meta">No Photo</span>'}
-        ${g.billPhoto ? `<img class="gate-thumb" src="${esc(g.billPhoto)}" alt="Bill/Challan" title="View Bill / Challan Photo" onclick="openGateLightbox('${esc(g.billPhoto)}','Bill / Challan · ${esc(g.challanNo || g.materialName)}')">` : '<span class="ticket-meta">No Bill</span>'}
-      </div>`;
+        ${matArr.length ? `<div class="gate-thumb-wrap"><img class="gate-thumb" src="${esc(matArr[0])}" alt="Material" title="View Material Photo (${matArr.length})" onclick="openGateGallery('gp','${esc(g.id)}','mat')">${matArr.length>1?`<span class="gate-thumb-cnt">×${matArr.length}</span>`:''}</div>` : '<span class="ticket-meta">No Photo</span>'}
+        ${billArr.length ? `<div class="gate-thumb-wrap"><img class="gate-thumb" src="${esc(billArr[0])}" alt="Bill/Challan" title="View Bill / Challan Photo (${billArr.length})" onclick="openGateGallery('gp','${esc(g.id)}','bill')">${billArr.length>1?`<span class="gate-thumb-cnt">×${billArr.length}</span>`:''}</div>` : '<span class="ticket-meta">No Bill</span>'}
+      </div>${canWrite ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px"><button type="button" class="btn" style="padding:2px 6px;font-size:9.5px" onclick="nsGatePassModule.captureMore('${esc(g.id)}','mat')">📷+ Mat</button><button type="button" class="btn" style="padding:2px 6px;font-size:9.5px" onclick="nsGatePassModule.captureMore('${esc(g.id)}','bill')">📷+ Bill</button></div>` : ''}`;
       const actions = [];
       if(canWrite && g.status === 'Logged'){
         actions.push(`<button type="button" class="btn primary" style="padding:4px 9px;font-size:10px" onclick="nsGatePassModule.setStatus('${esc(g.id)}','Verified')">✓ Verify / Received</button>`);
@@ -14696,7 +14790,55 @@ let lastPulseGatepassRev = '';
     }).join('');
   }
 
+  async function captureExtraGatePhotos(kind, id, slot){
+    const sendUrls = async urls => {
+      if(!urls || !urls.length) return;
+      if(isSrv()){
+        try{
+          const endpoint = kind === 'vis'
+            ? '/api/visitors/' + encodeURIComponent(id) + '/photos'
+            : '/api/gate-passes/' + encodeURIComponent(id) + '/photos';
+          const payload = kind === 'vis'
+            ? (slot === 'selfie' ? { selfieDataUrls: urls } : { idCardDataUrls: urls })
+            : (slot === 'bill' ? { billDataUrls: urls } : { materialDataUrls: urls });
+          await apiFetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+          if(typeof showToast === 'function') showToast(`${urls.length} photo(s) added to ${id}`);
+          if(kind === 'vis') await window.nsVisitorsModule.refresh();
+          else await window.nsGatePassModule.refresh();
+        }catch(err){ if(typeof showToast === 'function') showToast(err.message || 'Upload failed'); }
+      } else {
+        if(kind === 'vis'){
+          visitorRows = visitorRows.map(v => {
+            if(v.id !== id) return v;
+            if(slot === 'selfie'){ const arr = [...(v.selfiePhotos || (v.selfiePhoto?[v.selfiePhoto]:[])), ...urls]; return { ...v, selfiePhoto: arr[0] || '', selfiePhotos: arr }; }
+            const arr = [...(v.idCardPhotos || (v.idCardPhoto?[v.idCardPhoto]:[])), ...urls]; return { ...v, idCardPhoto: arr[0] || '', idCardPhotos: arr };
+          });
+          await window.nsVisitorsModule.refresh();
+        } else {
+          gatepassRows = gatepassRows.map(g => {
+            if(g.id !== id) return g;
+            if(slot === 'bill'){ const arr = [...(g.billPhotos || (g.billPhoto?[g.billPhoto]:[])), ...urls]; return { ...g, billPhoto: arr[0] || '', billPhotos: arr }; }
+            const arr = [...(g.materialPhotos || (g.materialPhoto?[g.materialPhoto]:[])), ...urls]; return { ...g, materialPhoto: arr[0] || '', materialPhotos: arr };
+          });
+          await window.nsGatePassModule.refresh();
+        }
+      }
+    };
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true;
+    inp.onchange = async () => {
+      const urls = [];
+      for(const f of Array.from(inp.files || []).slice(0, 12)){
+        const d = await compressImageFile(f);
+        if(d) urls.push(d);
+      }
+      await sendUrls(urls);
+    };
+    window.openGateCam(d => { if(d) sendUrls([d]); }, { facingMode: slot === 'selfie' ? 'user' : 'environment', title: '📷 Add Photo / Page', fallbackFileEl: inp });
+  }
+
   window.nsVisitorsModule = {
+    captureMore(id, slot){ return captureExtraGatePhotos('vis', id, slot); },
     getRows: () => visitorRows.slice(),
     setLocalSeed(rows){ visitorRows = Array.isArray(rows) ? rows : []; seenVisitorIds = new Set(visitorRows.map(x=>x.id)); visBooted = true; },
     setDayPreset(p){ applyDayPresetRange(p, 'visFromDt', 'visToDt', 'data-vpreset'); this.refresh(); },
@@ -14792,7 +14934,7 @@ let lastPulseGatepassRev = '';
       const form = document.getElementById('gateCreateForm');
       if(!modal || !form) return;
       const facts = getFactoriesList();
-      let selfieData = '', idData = '';
+      const selfiePhotos = [], idPhotos = [];
       if(title) title.textContent = '🪪 New Visitor Pass Entry';
       form.innerHTML = `<div class="form-grid">
         <div class="field full" style="background:#eefcf4;border:1px solid #cce7d7;border-radius:8px;padding:8px 11px;font-size:11px;color:#0f5132">🕒 <b>Auto Entry Timestamp:</b> ${new Date().toLocaleString('en-IN')} (fetched automatically on save)</div>
@@ -14807,8 +14949,8 @@ let lastPulseGatepassRev = '';
         <div class="field"><label>Vehicle No. / Visitor Count</label><div style="display:flex;gap:6px"><input name="vehicleNo" placeholder="MH01..." style="flex:2"><input name="visitorCount" type="number" min="1" value="1" style="flex:1"></div></div>
         <div class="field"><label>Pass / Badge No.</label><input name="passNo" placeholder="e.g. V-12"></div>
         <div class="field"><label>Belongings / Tools Carried</label><input name="belongings" placeholder="Laptop, tool bag, etc."></div>
-        <div class="field gate-photo-box"><label>Visitor ID Card Photo</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn" id="gVisIdCamBtn">📷 Scan ID Card</button><input type="file" id="gVisIdFile" accept="image/*" capture="environment" style="flex:1;min-width:120px"></div><img id="gVisIdPrev" class="gate-photo-preview"></div>
-        <div class="field gate-photo-box"><label>Visitor Selfie / Face Photo</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn" id="gVisCamBtn">📷 Live Selfie Camera</button><input type="file" id="gVisSelfieFile" accept="image/*" capture="user" style="flex:1;min-width:120px"></div><img id="gVisSelfiePrev" class="gate-photo-preview"></div>
+        <div class="field gate-photo-box"><label>Visitor ID Card Photos (1 or more)</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn" id="gVisIdCamBtn">📷 Scan ID Card</button><input type="file" id="gVisIdFile" accept="image/*" multiple style="flex:1;min-width:120px"></div><div id="gVisIdStrip" class="gate-photo-strip"></div></div>
+        <div class="field gate-photo-box"><label>Visitor Selfie / Face Photos (1 or more)</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn" id="gVisCamBtn">📷 Live Selfie Camera</button><input type="file" id="gVisSelfieFile" accept="image/*" multiple style="flex:1;min-width:120px"></div><div id="gVisSelfieStrip" class="gate-photo-strip"></div></div>
       </div>
       <div class="modal-foot"><button type="button" class="btn" onclick="closeGateCreateModal()">Cancel</button><button type="submit" class="btn primary">Submit &amp; Notify Host</button></div>`;
       const syncDepts = () => {
@@ -14826,22 +14968,8 @@ let lastPulseGatepassRev = '';
       form.querySelector('#gVisFac').onchange = syncDepts;
       form.querySelector('#gVisDept').onchange = syncEmps;
       syncDepts();
-      form.querySelector('#gVisIdFile').onchange = async e => {
-        idData = await compressImageFile(e.target.files?.[0]);
-        const p = form.querySelector('#gVisIdPrev'); if(p && idData){ p.src = idData; p.style.display = 'block'; }
-      };
-      form.querySelector('#gVisSelfieFile').onchange = async e => {
-        selfieData = await compressImageFile(e.target.files?.[0]);
-        const p = form.querySelector('#gVisSelfiePrev'); if(p && selfieData){ p.src = selfieData; p.style.display = 'block'; }
-      };
-      form.querySelector('#gVisIdCamBtn').onclick = () => window.openGateCam(d => {
-        idData = d;
-        const p = form.querySelector('#gVisIdPrev'); if(p){ p.src = d; p.style.display = 'block'; }
-      }, { facingMode: 'environment', title: '📷 Capture Visitor ID Card', fallbackFileEl: form.querySelector('#gVisIdFile') });
-      form.querySelector('#gVisCamBtn').onclick = () => window.openGateCam(d => {
-        selfieData = d;
-        const p = form.querySelector('#gVisSelfiePrev'); if(p){ p.src = d; p.style.display = 'block'; }
-      }, { facingMode: 'user', title: '📷 Take Visitor Selfie', fallbackFileEl: form.querySelector('#gVisSelfieFile') });
+      bindModalMultiPhotoField(form, idPhotos, 'gVisIdCamBtn', 'gVisIdFile', 'gVisIdStrip', 'environment', '📷 Capture Visitor ID Card', 'Visitor ID Card');
+      bindModalMultiPhotoField(form, selfiePhotos, 'gVisCamBtn', 'gVisSelfieFile', 'gVisSelfieStrip', 'user', '📷 Take Visitor Selfie', 'Visitor Selfie');
       form.onsubmit = async e => {
         e.preventDefault();
         const fdObj = Object.fromEntries(new FormData(form));
@@ -14849,7 +14977,7 @@ let lastPulseGatepassRev = '';
           try{
             const res = await apiFetch('/api/visitors', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...fdObj, idCardDataUrl: idData, selfieDataUrl: selfieData })
+              body: JSON.stringify({ ...fdObj, idCardDataUrl: idPhotos[0] || '', idCardDataUrls: idPhotos.slice(), selfieDataUrl: selfiePhotos[0] || '', selfieDataUrls: selfiePhotos.slice() })
             });
             window.closeGateCreateModal();
             if(typeof showToast === 'function') showToast(`Visitor Pass ${res?.id || ''} created`);
@@ -14861,7 +14989,7 @@ let lastPulseGatepassRev = '';
           visitorRows.unshift({
             id, factory: fdObj.factory, department: fdObj.department, hostUsername: empUser?.username || '', hostName: empUser?.name || fdObj.hostName || fdObj.department,
             visitorName: fdObj.visitorName, phone: fdObj.phone, address: fdObj.address, purpose: fdObj.purpose, vehicleNo: fdObj.vehicleNo, passNo: fdObj.passNo,
-            visitorCount: Number(fdObj.visitorCount || 1), belongings: fdObj.belongings, idCardPhoto: idData, selfiePhoto: selfieData,
+            visitorCount: Number(fdObj.visitorCount || 1), belongings: fdObj.belongings, idCardPhoto: idPhotos[0] || '', idCardPhotos: idPhotos.slice(), selfiePhoto: selfiePhotos[0] || '', selfiePhotos: selfiePhotos.slice(),
             status: 'Pending', enteredBy: (typeof serverProfile !== 'undefined' && serverProfile?.name) || 'Gate', createdAt: new Date().toISOString()
           });
           window.closeGateCreateModal();
@@ -14873,6 +15001,7 @@ let lastPulseGatepassRev = '';
   };
 
   window.nsGatePassModule = {
+    captureMore(id, slot){ return captureExtraGatePhotos('gp', id, slot); },
     getRows: () => gatepassRows.slice(),
     setLocalSeed(rows){ gatepassRows = Array.isArray(rows) ? rows : []; seenGatepassIds = new Set(gatepassRows.map(x=>x.id)); gpBooted = true; },
     setDirectionTab(dir){
@@ -14988,7 +15117,7 @@ let lastPulseGatepassRev = '';
       const form = document.getElementById('gateCreateForm');
       if(!modal || !form) return;
       const facts = getFactoriesList();
-      let matData = '', billData = '';
+      const matPhotos = [], billPhotos = [];
       if(title) title.textContent = dir === 'OUT' ? '📤 Material Outward (OUT) Entry' : '📥 Material Inward (IN) Entry';
       form.innerHTML = `<div class="form-grid">
         <div class="field full" id="gGpDirBanner" style="background:#eefcf4;border:1px solid #cce7d7;border-radius:8px;padding:8px 11px;font-size:11px;color:#0f5132">🕒 <b>Auto Date &amp; Time:</b> ${new Date().toLocaleString('en-IN')} · Direction: <b>${dir === 'OUT' ? '📤 Material Outward (OUT)' : '📥 Material Inward (IN)'}</b></div>
@@ -15022,8 +15151,8 @@ let lastPulseGatepassRev = '';
           </div>
         </div>
         <div class="field full"><label>Remarks</label><input name="remarks" placeholder="Any notes for security or receiver"></div>
-        <div class="field gate-photo-box"><label>Material Photo</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn" id="gGpMatCamBtn">📷 Camera</button><input type="file" id="gGpMatFile" accept="image/*" capture="environment" style="flex:1;min-width:120px"></div><img id="gGpMatPrev" class="gate-photo-preview"></div>
-        <div class="field gate-photo-box"><label>Bill / Challan Photo</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn" id="gGpBillCamBtn">📷 Camera</button><input type="file" id="gGpBillFile" accept="image/*" capture="environment" style="flex:1;min-width:120px"></div><img id="gGpBillPrev" class="gate-photo-preview"></div>
+        <div class="field gate-photo-box"><label>Material Photos (1 or more)</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn" id="gGpMatCamBtn">📷 Camera</button><input type="file" id="gGpMatFile" accept="image/*" multiple style="flex:1;min-width:120px"></div><div id="gGpMatStrip" class="gate-photo-strip"></div></div>
+        <div class="field gate-photo-box"><label>Bill / Challan Photos (multi-page)</label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn" id="gGpBillCamBtn">📷 Camera</button><input type="file" id="gGpBillFile" accept="image/*" multiple style="flex:1;min-width:120px"></div><div id="gGpBillStrip" class="gate-photo-strip"></div></div>
       </div>
       <div class="modal-foot"><button type="button" class="btn" onclick="closeGateCreateModal()">Cancel</button><button type="submit" class="btn primary">Save Gate Pass</button></div>`;
       const dirSel = form.querySelector('#gGpDirSel');
@@ -15074,22 +15203,8 @@ let lastPulseGatepassRev = '';
       form.querySelector('#gGpFac').onchange = syncDepts;
       form.querySelector('#gGpDept').onchange = syncEmps;
       syncDepts();
-      form.querySelector('#gGpMatCamBtn').onclick = () => window.openGateCam(d => {
-        matData = d;
-        const p = form.querySelector('#gGpMatPrev'); if(p){ p.src = d; p.style.display = 'block'; }
-      }, { facingMode: 'environment', title: '📷 Capture Material Photo', fallbackFileEl: form.querySelector('#gGpMatFile') });
-      form.querySelector('#gGpBillCamBtn').onclick = () => window.openGateCam(d => {
-        billData = d;
-        const p = form.querySelector('#gGpBillPrev'); if(p){ p.src = d; p.style.display = 'block'; }
-      }, { facingMode: 'environment', title: '📷 Capture Bill / Challan Photo', fallbackFileEl: form.querySelector('#gGpBillFile') });
-      form.querySelector('#gGpMatFile').onchange = async e => {
-        matData = await compressImageFile(e.target.files?.[0]);
-        const p = form.querySelector('#gGpMatPrev'); if(p && matData){ p.src = matData; p.style.display = 'block'; }
-      };
-      form.querySelector('#gGpBillFile').onchange = async e => {
-        billData = await compressImageFile(e.target.files?.[0]);
-        const p = form.querySelector('#gGpBillPrev'); if(p && billData){ p.src = billData; p.style.display = 'block'; }
-      };
+      bindModalMultiPhotoField(form, matPhotos, 'gGpMatCamBtn', 'gGpMatFile', 'gGpMatStrip', 'environment', '📷 Capture Material Photo', 'Material Photo');
+      bindModalMultiPhotoField(form, billPhotos, 'gGpBillCamBtn', 'gGpBillFile', 'gGpBillStrip', 'environment', '📷 Capture Bill / Challan Page', 'Bill / Challan');
       form.onsubmit = async e => {
         e.preventDefault();
         const fdObj = Object.fromEntries(new FormData(form));
@@ -15100,7 +15215,7 @@ let lastPulseGatepassRev = '';
           try{
             const res = await apiFetch('/api/gate-passes', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...fdObj, materialDataUrl: matData, billDataUrl: billData })
+              body: JSON.stringify({ ...fdObj, materialDataUrl: matPhotos[0] || '', materialDataUrls: matPhotos.slice(), billDataUrl: billPhotos[0] || '', billDataUrls: billPhotos.slice() })
             });
             window.closeGateCreateModal();
             if(typeof showToast === 'function') showToast(`Material Pass ${res?.id || ''} logged`);
@@ -15117,7 +15232,7 @@ let lastPulseGatepassRev = '';
             returnable: !!fdObj.returnable, expectedDays: fdObj.expectedDays, expectedReturnAt: expIso, returnNote: fdObj.returnNote || '',
             returnedAt: '', isOverdue: !!(fdObj.returnable && expIso && new Date(expIso).getTime() <= Date.now()),
             partyName: fdObj.partyName, challanNo: fdObj.challanNo, vehicleNo: fdObj.vehicleNo, remarks: fdObj.remarks,
-            materialPhoto: matData, billPhoto: billData, status: 'Logged', enteredBy: (typeof serverProfile !== 'undefined' && serverProfile?.name) || 'Gate', createdAt: new Date().toISOString()
+            materialPhoto: matPhotos[0] || '', materialPhotos: matPhotos.slice(), billPhoto: billPhotos[0] || '', billPhotos: billPhotos.slice(), status: 'Logged', enteredBy: (typeof serverProfile !== 'undefined' && serverProfile?.name) || 'Gate', createdAt: new Date().toISOString()
           });
           window.closeGateCreateModal();
           this.refresh();

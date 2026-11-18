@@ -5,15 +5,21 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DownloadManager;
-import android.content.ContentValues;
+import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.util.Base64;
 import android.view.View;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
@@ -33,6 +39,10 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,9 +50,11 @@ import java.util.List;
 public class MainActivity extends Activity {
     public static volatile boolean isAppInForeground = false;
     private static final int REQ_FILE_CHOOSER = 4001;
-    private static final int REQ_NOTIF_PERM = 4002;
+    private static final int REQ_STARTUP_PERM = 4002;
     private static final int REQ_CAMERA_PERM = 4003;
     private static final int REQ_CAMERA_CHOOSER = 4004;
+    private static final int REQ_CAMERA_NATIVE = 4005;
+    private static final int REQ_NATIVE_CAMERA = 4006;
 
     private WebView webView;
     private ProgressBar progressBar;
@@ -53,6 +65,11 @@ public class MainActivity extends Activity {
     private PermissionRequest pendingPermissionRequest = null;
     private WebChromeClient.FileChooserParams pendingChooserParams = null;
     private Uri pendingCameraPhotoUri = null;
+    private File pendingCameraPhotoFile = null;
+    private String pendingNativeFacing = "environment";
+    private String pendingNativeCallbackId = "";
+    private Uri pendingNativePhotoUri = null;
+    private File pendingNativePhotoFile = null;
     private boolean sslDialogShowing = false;
     private final List<SslErrorHandler> pendingSslHandlers = new ArrayList<>();
     private String configuredHost = "";
@@ -88,15 +105,21 @@ public class MainActivity extends Activity {
         changeServerBtn.setOnClickListener(v -> openServerSetup());
 
         NotificationHelper.ensureChannels(this);
-        requestNotificationPermissionIfNeeded();
+        requestStartupPermissionsIfNeeded();
         setupWebView(serverUrl);
     }
 
-    private void requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= 33) {
-            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIF_PERM);
-            }
+    private void requestStartupPermissionsIfNeeded() {
+        if (Build.VERSION.SDK_INT < 23) return;
+        List<String> needed = new ArrayList<>();
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            needed.add(Manifest.permission.POST_NOTIFICATIONS);
+        }
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            needed.add(Manifest.permission.CAMERA);
+        }
+        if (!needed.isEmpty()) {
+            requestPermissions(needed.toArray(new String[0]), REQ_STARTUP_PERM);
         }
     }
 
@@ -361,31 +384,161 @@ public class MainActivity extends Activity {
         return false;
     }
 
+    private void grantUriPermissionsForIntent(Intent intent, Uri uri) {
+        try {
+            List<ResolveInfo> resInfos = getPackageManager().queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY);
+            for (ResolveInfo ri : resInfos) {
+                grantUriPermission(ri.activityInfo.packageName, uri,
+                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private Intent buildCameraCaptureIntent(Uri outputUri, String facing) {
+        Intent camIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        camIntent.putExtra(MediaStore.EXTRA_OUTPUT, outputUri);
+        camIntent.setClipData(ClipData.newRawUri("", outputUri));
+        camIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        if ("user".equalsIgnoreCase(facing)) {
+            camIntent.putExtra("android.intent.extras.CAMERA_FACING", 1);
+            camIntent.putExtra("android.intent.extras.LENS_FACING_FRONT", 1);
+            camIntent.putExtra("android.intent.extra.USE_FRONT_CAMERA", true);
+        } else {
+            camIntent.putExtra("android.intent.extras.CAMERA_FACING", 0);
+            camIntent.putExtra("android.intent.extras.LENS_FACING_FRONT", 0);
+            camIntent.putExtra("android.intent.extra.USE_FRONT_CAMERA", false);
+        }
+        grantUriPermissionsForIntent(camIntent, outputUri);
+        return camIntent;
+    }
+
+    private void startNativeCameraCapture(String facing, String callbackId) {
+        if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            pendingNativeFacing = facing != null ? facing : "environment";
+            pendingNativeCallbackId = callbackId != null ? callbackId : "";
+            requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA_NATIVE);
+            return;
+        }
+        launchDirectCameraIntent(facing, callbackId);
+    }
+
+    private void launchDirectCameraIntent(String facing, String callbackId) {
+        pendingNativeCallbackId = callbackId != null ? callbackId : "";
+        pendingNativePhotoUri = null;
+        pendingNativePhotoFile = null;
+        try {
+            String fname = "shree_cam_" + System.currentTimeMillis() + ".jpg";
+            File photoFile = PhotoContentProvider.getPhotoFile(this, fname);
+            Uri photoUri = PhotoContentProvider.getContentUri(this, fname);
+            pendingNativePhotoFile = photoFile;
+            pendingNativePhotoUri = photoUri;
+            Intent camIntent = buildCameraCaptureIntent(photoUri, facing);
+            startActivityForResult(camIntent, REQ_NATIVE_CAMERA);
+        } catch (Exception e) {
+            deliverNativePhoto(pendingNativeCallbackId, "");
+            Toast.makeText(this, "Cannot open device camera: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void deliverNativePhoto(String callbackId, String dataUrl) {
+        if (webView == null || callbackId == null || callbackId.isEmpty()) return;
+        String js = "if(typeof window.__shreeReceiveNativePhoto==='function'){window.__shreeReceiveNativePhoto("
+                + JSONObject.quote(callbackId) + "," + JSONObject.quote(dataUrl != null ? dataUrl : "") + ");}";
+        runOnUiThread(() -> {
+            if (webView != null) {
+                webView.evaluateJavascript(js, null);
+            }
+        });
+    }
+
+    private String encodeFileOrBitmapToDataUrl(File file, Bitmap inlineBmp) {
+        try {
+            Bitmap bmp = null;
+            if (file != null && file.exists() && file.length() > 0) {
+                BitmapFactory.Options bounds = new BitmapFactory.Options();
+                bounds.inJustDecodeBounds = true;
+                BitmapFactory.decodeFile(file.getAbsolutePath(), bounds);
+                int maxDim = Math.max(bounds.outWidth, bounds.outHeight);
+                int sample = 1;
+                while (maxDim / sample > 2048) {
+                    sample *= 2;
+                }
+                BitmapFactory.Options opts = new BitmapFactory.Options();
+                opts.inSampleSize = sample;
+                bmp = BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
+                if (bmp != null) {
+                    try {
+                        ExifInterface exif = new ExifInterface(file.getAbsolutePath());
+                        int orient = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+                        int deg = 0;
+                        if (orient == ExifInterface.ORIENTATION_ROTATE_90) deg = 90;
+                        else if (orient == ExifInterface.ORIENTATION_ROTATE_180) deg = 180;
+                        else if (orient == ExifInterface.ORIENTATION_ROTATE_270) deg = 270;
+                        if (deg != 0) {
+                            Matrix m = new Matrix();
+                            m.postRotate(deg);
+                            Bitmap rotated = Bitmap.createBitmap(bmp, 0, 0, bmp.getWidth(), bmp.getHeight(), m, true);
+                            if (rotated != bmp) {
+                                bmp.recycle();
+                                bmp = rotated;
+                            }
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
+            } else if (inlineBmp != null) {
+                bmp = inlineBmp;
+            }
+            if (bmp == null) return "";
+            int w = bmp.getWidth(), h = bmp.getHeight();
+            int target = 1280;
+            if (w > target || h > target) {
+                int nw = w >= h ? target : Math.max(1, Math.round(w * (target / (float) h)));
+                int nh = h > w ? target : Math.max(1, Math.round(h * (target / (float) w)));
+                Bitmap scaled = Bitmap.createScaledBitmap(bmp, nw, nh, true);
+                if (scaled != bmp) {
+                    bmp.recycle();
+                    bmp = scaled;
+                }
+            }
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            bmp.compress(Bitmap.CompressFormat.JPEG, 82, baos);
+            bmp.recycle();
+            return "data:image/jpeg;base64," + Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP);
+        } catch (Exception e) {
+            return "";
+        } finally {
+            if (file != null && file.exists()) {
+                try { file.delete(); } catch (Exception ignored) {}
+            }
+        }
+    }
+
     private void launchFileChooserWithCamera(WebChromeClient.FileChooserParams fileChooserParams) {
         pendingCameraPhotoUri = null;
+        pendingCameraPhotoFile = null;
         try {
             Intent contentIntent = fileChooserParams != null
                     ? fileChooserParams.createIntent()
                     : new Intent(Intent.ACTION_GET_CONTENT).setType("image/*");
+            if (fileChooserParams != null && fileChooserParams.getMode() == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE) {
+                contentIntent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+            }
             List<Intent> extraIntents = new ArrayList<>();
             if (acceptsImageTypes(fileChooserParams)
                     && (Build.VERSION.SDK_INT < 23 || checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)) {
                 try {
-                    Intent camIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                    ContentValues cv = new ContentValues();
-                    cv.put(MediaStore.Images.Media.DISPLAY_NAME, "SHREE_GATE_" + System.currentTimeMillis() + ".jpg");
-                    cv.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
-                    Uri uri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv);
-                    if (uri != null) {
-                        pendingCameraPhotoUri = uri;
-                        camIntent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
-                        camIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                        extraIntents.add(camIntent);
-                    }
+                    String fname = "shree_pick_" + System.currentTimeMillis() + ".jpg";
+                    File pf = PhotoContentProvider.getPhotoFile(this, fname);
+                    Uri uri = PhotoContentProvider.getContentUri(this, fname);
+                    pendingCameraPhotoFile = pf;
+                    pendingCameraPhotoUri = uri;
+                    extraIntents.add(buildCameraCaptureIntent(uri, "environment"));
                 } catch (Exception ignored) {
                 }
             }
-            Intent chooser = Intent.createChooser(contentIntent, "Camera or Select Photo");
+            Intent chooser = Intent.createChooser(contentIntent, "Camera or Select Photos");
             if (!extraIntents.isEmpty()) {
                 chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, extraIntents.toArray(new Intent[0]));
             }
@@ -415,18 +568,69 @@ public class MainActivity extends Activity {
             WebChromeClient.FileChooserParams cp = pendingChooserParams;
             pendingChooserParams = null;
             launchFileChooserWithCamera(cp);
+        } else if (requestCode == REQ_CAMERA_NATIVE) {
+            String cbId = pendingNativeCallbackId;
+            String facing = pendingNativeFacing;
+            pendingNativeCallbackId = "";
+            if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                launchDirectCameraIntent(facing, cbId);
+            } else {
+                deliverNativePhoto(cbId, "");
+                Toast.makeText(this, "Allow Camera permission in App Settings to capture photos.", Toast.LENGTH_LONG).show();
+            }
         }
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_NATIVE_CAMERA) {
+            final String cbId = pendingNativeCallbackId;
+            final File photoFile = pendingNativePhotoFile;
+            pendingNativeCallbackId = "";
+            pendingNativePhotoUri = null;
+            pendingNativePhotoFile = null;
+            if (resultCode != RESULT_OK) {
+                if (photoFile != null && photoFile.exists()) {
+                    try { photoFile.delete(); } catch (Exception ignored) {}
+                }
+                deliverNativePhoto(cbId, "");
+                return;
+            }
+            Bitmap thumb = null;
+            if (data != null && data.getExtras() != null) {
+                Object raw = data.getExtras().get("data");
+                if (raw instanceof Bitmap) thumb = (Bitmap) raw;
+            }
+            final Bitmap finalThumb = thumb;
+            new Thread(() -> {
+                String dataUrl = encodeFileOrBitmapToDataUrl(photoFile, finalThumb);
+                deliverNativePhoto(cbId, dataUrl);
+            }, "shree-cam-encode").start();
+            return;
+        }
         if (requestCode == REQ_FILE_CHOOSER && fileUploadCallback != null) {
-            Uri[] result = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
-            if ((result == null || result.length == 0) && resultCode == RESULT_OK && pendingCameraPhotoUri != null) {
-                result = new Uri[]{pendingCameraPhotoUri};
+            Uri[] result = null;
+            if (resultCode == RESULT_OK) {
+                if (data != null && data.getClipData() != null && data.getClipData().getItemCount() > 0) {
+                    ClipData clip = data.getClipData();
+                    List<Uri> uris = new ArrayList<>();
+                    for (int i = 0; i < clip.getItemCount(); i++) {
+                        Uri u = clip.getItemAt(i).getUri();
+                        if (u != null) uris.add(u);
+                    }
+                    if (!uris.isEmpty()) result = uris.toArray(new Uri[0]);
+                }
+                if (result == null) {
+                    result = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+                }
+                if ((result == null || result.length == 0) && pendingCameraPhotoUri != null
+                        && pendingCameraPhotoFile != null && pendingCameraPhotoFile.exists() && pendingCameraPhotoFile.length() > 0) {
+                    result = new Uri[]{pendingCameraPhotoUri};
+                }
             }
             pendingCameraPhotoUri = null;
+            pendingCameraPhotoFile = null;
             fileUploadCallback.onReceiveValue(result);
             fileUploadCallback = null;
         }
@@ -454,12 +658,22 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "1.0.2";
+            return "1.0.3";
         }
 
         @JavascriptInterface
         public boolean hasCameraSupport() {
             return true;
+        }
+
+        @JavascriptInterface
+        public boolean hasNativeCamera() {
+            return true;
+        }
+
+        @JavascriptInterface
+        public void captureCameraPhoto(String facing, String callbackId) {
+            runOnUiThread(() -> startNativeCameraCapture(facing, callbackId));
         }
     }
 }
