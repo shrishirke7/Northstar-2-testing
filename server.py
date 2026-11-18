@@ -21,6 +21,7 @@ import zipfile
 import csv
 import html
 import io
+import plistlib
 import mimetypes
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
@@ -4531,6 +4532,112 @@ def download_ios_project():
             zf.write(wf, ".github/workflows/build-ipa.yml")
     resp = Response(buf.getvalue(), mimetype="application/zip")
     resp.headers["Content-Disposition"] = 'attachment; filename="Shree-IT-iOS-iPadOS-Project.zip"'
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return resp
+
+
+def _public_request_origin():
+    proto = str(request.headers.get("X-Forwarded-Proto") or request.scheme or "https").split(",")[0].strip()
+    host = str(request.headers.get("X-Forwarded-Host") or request.host or "localhost").split(",")[0].strip()
+    return f"{proto}://{host}".rstrip("/")
+
+
+@app.get("/download/shree-ios-app.mobileconfig")
+def download_ios_mobileconfig():
+    origin = _public_request_origin()
+    target = str(request.args.get("target") or "").strip().lower()
+    is_portal = target == "portal"
+    target_url = f"{origin}/portal" if is_portal else f"{origin}/"
+    app_label = "Shree Portal" if is_portal else "Shree IT"
+
+    icon_bytes = b""
+    for icand in (
+        ROOT / "static" / "icons" / "apple-touch-icon-180.png",
+        ROOT / "apple-touch-icon.png",
+        ROOT / "static" / "icons" / "icon-192.png",
+    ):
+        if icand.is_file():
+            try:
+                icon_bytes = icand.read_bytes()
+                break
+            except OSError:
+                pass
+
+    webclip = {
+        "FullScreen": True,
+        "IgnoreManifestScope": False,
+        "IsRemovable": True,
+        "Label": app_label,
+        "PayloadDescription": f"Opens {app_label} in full-screen Apple app mode.",
+        "PayloadDisplayName": f"{app_label} Web App",
+        "PayloadIdentifier": f"com.shree.itassets.webclip.{target or 'main'}",
+        "PayloadOrganization": "Swarnshilp",
+        "PayloadType": "com.apple.webClip.managed",
+        "PayloadUUID": str(uuid.uuid4()).upper(),
+        "PayloadVersion": 1,
+        "Precomposed": True,
+        "URL": target_url,
+    }
+    if icon_bytes:
+        webclip["Icon"] = icon_bytes
+
+    payloads = [webclip]
+    if str(request.args.get("ca") or "") == "1":
+        der = _fetch_server_ca_cert_der()
+        if der:
+            payloads.append({
+                "PayloadCertificateFileName": "shree-server-ca.crt",
+                "PayloadContent": der,
+                "PayloadDescription": "Swarnshilp On-Premise Server Root CA",
+                "PayloadDisplayName": "Shree Root CA",
+                "PayloadIdentifier": "com.shree.itassets.rootca",
+                "PayloadOrganization": "Swarnshilp",
+                "PayloadType": "com.apple.security.root",
+                "PayloadUUID": str(uuid.uuid4()).upper(),
+                "PayloadVersion": 1,
+            })
+
+    profile = {
+        "PayloadContent": payloads,
+        "PayloadDescription": f"Direct 1-tap Home Screen App installer for {app_label} (iPhone & iPad).",
+        "PayloadDisplayName": f"{app_label} App",
+        "PayloadIdentifier": f"com.shree.itassets.profile.{target or 'main'}",
+        "PayloadOrganization": "Swarnshilp",
+        "PayloadRemovalDisallowed": False,
+        "PayloadType": "Configuration",
+        "PayloadUUID": str(uuid.uuid4()).upper(),
+        "PayloadVersion": 1,
+    }
+    xml_bytes = plistlib.dumps(profile, fmt=plistlib.FMT_XML)
+    fname = "Swarnshilp-Portal-iOS.mobileconfig" if is_portal else "Shree-IT-iPhone-iPad.mobileconfig"
+    resp = Response(xml_bytes, mimetype="application/x-apple-aspen-config")
+    resp.headers["Content-Disposition"] = f'attachment; filename="{fname}"'
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return resp
+
+
+@app.get("/download/shree-ios-manifest.plist")
+def download_ios_ota_manifest():
+    origin = _public_request_origin()
+    manifest = {
+        "items": [
+            {
+                "assets": [
+                    {"kind": "software-package", "url": f"{origin}/download/shree-it.ipa"},
+                    {"kind": "display-image", "url": f"{origin}/static/icons/icon-192.png"},
+                    {"kind": "full-size-image", "url": f"{origin}/static/icons/icon-512.png"},
+                ],
+                "metadata": {
+                    "bundle-identifier": "com.shree.itassets",
+                    "bundle-version": "1.0.7",
+                    "kind": "software",
+                    "title": "Shree IT",
+                },
+            }
+        ]
+    }
+    xml_bytes = plistlib.dumps(manifest, fmt=plistlib.FMT_XML)
+    resp = Response(xml_bytes, mimetype="application/xml")
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     return resp
 
