@@ -85,12 +85,30 @@ tr:hover td{background:#fafdfb}
 .queue-scope-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;background:#eefcf4;color:#147852;border:1px solid #cce7d7;margin-top:6px}
 #portalLiveToastStack{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:360px;pointer-events:none}
 .portal-live-toast{pointer-events:auto;background:#ffffff;border:1px solid #cce3d4;border-left:4px solid #16845d;border-radius:10px;padding:11px 14px;box-shadow:0 12px 28px rgba(15,23,42,.16);font-size:12.5px;color:#1b2620}
-.portal-mode-bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0 4px}
-.portal-mode-btn{background:#f3f7f4;color:#273b30;border:1.5px solid #d4e3da;border-radius:11px;padding:11px 12px;font-weight:800;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:.15s;text-align:center}
-.portal-mode-btn:hover{border-color:#16845d;background:#edf9f1}
-.portal-mode-btn.active{background:#167c56;color:#fff;border-color:#167c56;box-shadow:0 6px 16px rgba(22,124,86,.22)}
+.portal-mode-bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0 4px}
+.portal-mode-btn{position:relative;background:#ffffff;color:#1e2923;border:1.5px solid #d5e2da;border-radius:16px;padding:13px 10px;font-weight:800;font-size:12.5px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;transition:transform .14s ease,border-color .14s ease,box-shadow .14s ease,background .14s ease;text-align:center;line-height:1.25;min-height:98px;box-shadow:0 3px 10px rgba(15,23,42,.04)}
+.portal-mode-btn:hover{transform:translateY(-1px);border-color:#94c4ad;box-shadow:0 6px 16px rgba(15,23,42,.08)}
+.pm-ico-box{width:42px;height:42px;border-radius:13px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 6px 14px rgba(15,23,42,.14)}
+.pm-ico-box svg{width:23px;height:23px;display:block}
+.pm-ico-tickets{background:linear-gradient(135deg,#10b981,#047857);color:#ffffff}
+.pm-ico-visitor{background:linear-gradient(135deg,#38bdf8,#2563eb);color:#ffffff}
+.pm-ico-gatepass{background:linear-gradient(135deg,#fbbf24,#ea580c);color:#ffffff}
+.pm-title{display:block;font-size:12.5px;font-weight:800;color:#1b2a22}
+.pm-sub{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:#f1f5f9;color:#475569}
+.portal-mode-btn[data-pmode="tickets"].active{background:linear-gradient(180deg,#f0fdf4,#dcfce7);border-color:#15803d;box-shadow:0 8px 20px rgba(21,128,61,.16)}
+.portal-mode-btn[data-pmode="tickets"].active .pm-title{color:#14532d}
+.portal-mode-btn[data-pmode="tickets"].active .pm-sub{background:#15803d;color:#ffffff}
+.portal-mode-btn[data-pmode="visitor"].active{background:linear-gradient(180deg,#eff6ff,#dbeafe);border-color:#1d4ed8;box-shadow:0 8px 20px rgba(37,99,235,.16)}
+.portal-mode-btn[data-pmode="visitor"].active .pm-title{color:#1e3a8a}
+.portal-mode-btn[data-pmode="visitor"].active .pm-sub{background:#1d4ed8;color:#ffffff}
+.portal-mode-btn[data-pmode="gatepass"].active{background:linear-gradient(180deg,#fffbeb,#fef3c7);border-color:#d97706;box-shadow:0 8px 20px rgba(217,119,6,.18)}
+.portal-mode-btn[data-pmode="gatepass"].active .pm-title{color:#9a3412}
+.portal-mode-btn[data-pmode="gatepass"].active .pm-sub{background:#d97706;color:#ffffff}
 .pg-dir-bar{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-.pg-dir-btn{padding:12px 14px;border-radius:12px;border:1.5px solid #d4e3da;background:#fff;color:#1e2d24;font-weight:800;font-size:13.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s}
+.pg-dir-btn{padding:11px 12px;border-radius:14px;border:1.5px solid #d4e3da;background:#fff;color:#1e2d24;font-weight:800;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s;text-align:center}
+.pg-dir-ico{width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.pg-dir-btn.in .pg-dir-ico{background:linear-gradient(135deg,#22c55e,#15803d);color:#fff}
+.pg-dir-btn.out .pg-dir-ico{background:linear-gradient(135deg,#fb923c,#ea580c);color:#fff}
 .pg-dir-btn.in.active{background:#ecfdf5;border-color:#15803d;color:#14532d;box-shadow:0 4px 12px rgba(21,128,61,.14)}
 .pg-dir-btn.out.active{background:#fff7ed;border-color:#ea580c;color:#9a3412;box-shadow:0 4px 12px rgba(234,88,12,.14)}
 .pg-photo-box{border:1px dashed #b9cebf;border-radius:10px;padding:10px;background:#fafdfb;display:grid;gap:6px}
@@ -131,8 +149,14 @@ html,body{overflow-x:hidden;max-width:100%}
   .filters input,.filters select,.filters button{width:100%;min-width:0;box-sizing:border-box}
   .filters input[type="search"],.pg-preset-strip{grid-column:1/-1}
   .pg-photo-box input[type="file"]{max-width:100%;min-width:0;box-sizing:border-box;overflow:hidden}
-  #portalMainModes{grid-template-columns:1fr!important;gap:7px}
-  .pg-dir-bar{grid-template-columns:1fr}
+  #portalMainModes{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important}
+  .portal-mode-btn{padding:10px 5px;min-height:92px;border-radius:14px;gap:5px}
+  .pm-ico-box{width:36px;height:36px;border-radius:11px}
+  .pm-ico-box svg{width:20px;height:20px}
+  .pm-title{font-size:11px;line-height:1.18}
+  .pm-sub{font-size:9.5px;padding:2px 6px}
+  .pg-dir-bar{grid-template-columns:1fr 1fr;gap:7px}
+  .pg-dir-btn{flex-direction:column;padding:9px 6px;font-size:11px;gap:5px;border-radius:12px}
   .portal-tab{flex:1 1 140px;justify-content:center;font-size:12px;padding:9px 10px;text-align:center}
   .table-scroll{overflow-x:visible;border:0;margin-top:10px}
   #publicTable,#publicTable tbody,#publicTable tr,#publicTable td,#pubVisTable,#pubVisTable tbody,#pubVisTable tr,#pubVisTable td,#pubGpTable,#pubGpTable tbody,#pubGpTable tr,#pubGpTable td{display:block;width:100%;min-width:0!important;box-sizing:border-box}
@@ -159,15 +183,31 @@ html,body{overflow-x:hidden;max-width:100%}
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <a class="button muted" id="portalApkDownloadBtn" href="/download/shree-it.apk" download="Shree-IT.apk" style="background:#f0fdf4;color:#157a54;border:1px solid #bbf7d0">🤖 Android App (.apk)</a>
-        <a class="button muted" id="portalIosDownloadBtn" href="/download/shree-ios-app.mobileconfig?target=portal" style="background:#f8fafc;color:#0f172a;border:1px solid #cbd5e1" title="Direct 1-tap Home Screen installer for iPhone & iPad Safari"> iPhone &amp; iPad App</a>
         <a class="button muted" id="portalSignInBtn" href="/">Sign in to Swarnshilp ↗</a>
       </div>
     </div>
     <div class="portal-mode-bar" id="portalMainModes" role="tablist">
-      <button type="button" class="portal-mode-btn active" data-pmode="tickets" onclick="switchPortalMainMode('tickets')">🎫 Support &amp; Material Tickets</button>
-      <button type="button" class="portal-mode-btn" data-pmode="visitor" onclick="switchPortalMainMode('visitor')">🪪 Visitor Pass Entry (Gate)</button>
-      <button type="button" class="portal-mode-btn" data-pmode="gatepass" onclick="switchPortalMainMode('gatepass')">📦 Material Gate Pass (IN / OUT)</button>
+      <button type="button" class="portal-mode-btn active" data-pmode="tickets" onclick="switchPortalMainMode('tickets')">
+        <span class="pm-ico-box pm-ico-tickets" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7z"/><path d="M9.5 10h5M9.5 14h3" stroke="#fde047"/></svg>
+        </span>
+        <span class="pm-title">Support &amp; Material</span>
+        <span class="pm-sub">Tickets</span>
+      </button>
+      <button type="button" class="portal-mode-btn" data-pmode="visitor" onclick="switchPortalMainMode('visitor')">
+        <span class="pm-ico-box pm-ico-visitor" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="12" cy="10" r="2.6" fill="#fde047" stroke="none"/><path d="M7.8 17c.9-2 2.4-2.8 4.2-2.8s3.3.8 4.2 2.8"/></svg>
+        </span>
+        <span class="pm-title">Visitor Pass</span>
+        <span class="pm-sub">Gate Entry</span>
+      </button>
+      <button type="button" class="portal-mode-btn" data-pmode="gatepass" onclick="switchPortalMainMode('gatepass')">
+        <span class="pm-ico-box pm-ico-gatepass" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8.5 12 4 3 8.5v7L12 20l9-4.5v-7z"/><path d="M3 8.5 12 13l9-4.5M12 13v7" stroke="#fef08a"/></svg>
+        </span>
+        <span class="pm-title">Material Gate</span>
+        <span class="pm-sub">IN / OUT</span>
+      </button>
     </div>
   </section>
 
@@ -395,8 +435,14 @@ html,body{overflow-x:hidden;max-width:100%}
         <span class="queue-scope-pill" id="pubGpLiveClock">🕒 Auto Timestamp Active</span>
       </div>
       <div class="pg-dir-bar">
-        <button type="button" class="pg-dir-btn in active" data-pgdir="IN" onclick="setPubGpDirection('IN')">📥 Material Inward Entry (Factory IN)</button>
-        <button type="button" class="pg-dir-btn out" data-pgdir="OUT" onclick="setPubGpDirection('OUT')">📤 Material Outward Entry (Factory OUT)</button>
+        <button type="button" class="pg-dir-btn in active" data-pgdir="IN" onclick="setPubGpDirection('IN')">
+          <span class="pg-dir-ico" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></span>
+          <span>Material Inward (IN)</span>
+        </button>
+        <button type="button" class="pg-dir-btn out" data-pgdir="OUT" onclick="setPubGpDirection('OUT')">
+          <span class="pg-dir-ico" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0-4 4m4-4 4 4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></span>
+          <span>Material Outward (OUT)</span>
+        </button>
       </div>
       <form id="pubGpForm">
         <input type="hidden" id="pubGpDir" value="IN">
