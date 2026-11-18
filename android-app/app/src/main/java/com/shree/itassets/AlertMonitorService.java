@@ -188,6 +188,20 @@ public class AlertMonitorService extends Service {
                             }
                         }
                         JSONObject devRules = soundAlerts.optJSONObject("deviceRules");
+                        if (devRules != null) {
+                            if ("visitor".equals(kind)) {
+                                JSONObject vRule = devRules.optJSONObject("visitor pass");
+                                if (vRule != null && vRule.optBoolean("silent", false)) {
+                                    return;
+                                }
+                            } else if ("gatepass".equals(kind)) {
+                                JSONObject gRule = devRules.optJSONObject("material entry");
+                                if (gRule == null) gRule = devRules.optJSONObject("material gate entry");
+                                if (gRule != null && gRule.optBoolean("silent", false)) {
+                                    return;
+                                }
+                            }
+                        }
                         boolean isDeviceEv = !devType.isEmpty() || !devSub.isEmpty()
                                 || "online".equals(kind) || "offline".equals(kind) || "critical".equals(kind);
                         boolean anyMatched = false;

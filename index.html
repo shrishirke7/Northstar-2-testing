@@ -5245,6 +5245,8 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     volume: 0.85,
     events: {
       ticket: { enabled: true, soundId: 'builtin:ticket-chime', label: 'New Ticket / Material Request' },
+      visitor: { enabled: true, soundId: 'builtin:ticket-chime', label: 'Visitor Pass Entry / Approval' },
+      gatepass: { enabled: true, soundId: 'builtin:double-tone', label: 'Material Entry / Returnable Alert' },
       online: { enabled: true, soundId: 'builtin:online-ping', label: 'Device Came Online' },
       offline: { enabled: true, soundId: 'builtin:offline-beep', label: 'Device Went Offline' },
       critical: { enabled: true, soundId: 'builtin:critical-siren', label: 'Critical Device Alert (Firewall / Server)' }
@@ -7201,12 +7203,16 @@ let lastPulseGatepassRev = '';
 
   const EVENT_KEY_ALIASES = {
     ticketRaised: 'ticket',
+    visitorPass: 'visitor',
+    gatePass: 'gatepass',
     deviceOnline: 'online',
     deviceOffline: 'offline',
     criticalDevice: 'critical'
   };
   const EVENT_LABELS = {
     ticket: 'New Ticket / Material Request',
+    visitor: 'Visitor Pass Entry / Approval',
+    gatepass: 'Material Entry / Returnable Alert',
     online: 'Device Came Online',
     offline: 'Device Went Offline',
     critical: 'Critical Device Alert (Firewall / Server)'
@@ -7284,6 +7290,8 @@ let lastPulseGatepassRev = '';
         desktopNotifications: Boolean(n.desktopNotifications),
         events: {
           ticket: { enabled: Boolean(n.events.ticket.enabled), soundId: String(n.events.ticket.soundId) },
+          visitor: { enabled: Boolean(n.events.visitor?.enabled !== false), soundId: String(n.events.visitor?.soundId || 'builtin:ticket-chime') },
+          gatepass: { enabled: Boolean(n.events.gatepass?.enabled !== false), soundId: String(n.events.gatepass?.soundId || 'builtin:double-tone') },
           online: { enabled: Boolean(n.events.online.enabled), soundId: String(n.events.online.soundId) },
           offline: { enabled: Boolean(n.events.offline.enabled), soundId: String(n.events.offline.soundId) },
           critical: { enabled: Boolean(n.events.critical.enabled), soundId: String(n.events.critical.soundId) }
@@ -7556,7 +7564,7 @@ let lastPulseGatepassRev = '';
   }
 
   function collectDynamicDeviceTypes(){
-    const baseList = ['Server','Switch','Router','Access point','Firewall','Network','CCTV','NVR','DVR','Surveillance','Laptop','Desktop','Printer','Mobile','Tablet','Other network device'];
+    const baseList = ['Visitor Pass','Material Entry','Server','Switch','Router','Access point','Firewall','Network','CCTV','NVR','DVR','Surveillance','Laptop','Desktop','Printer','Mobile','Tablet','Other network device'];
     const counts = new Map();
     const bump = (lbl, isAssetCount) => {
       const clean = String(lbl || '').trim();
@@ -7600,9 +7608,12 @@ let lastPulseGatepassRev = '';
   }
 
   function resolveDeviceTypeCandidates(devOrMeta){
+    const evKind = String(devOrMeta?.kind || devOrMeta?.eventKey || '').trim().toLowerCase();
     const sub = String(devOrMeta?.deviceSubtype || devOrMeta?.subtype || '').trim();
     const typ = String(devOrMeta?.deviceType || devOrMeta?.type || '').trim();
     const out = [];
+    if(evKind === 'visitor' || evKind.startsWith('visitor:')) out.push('visitor pass');
+    if(evKind === 'gatepass' || evKind.startsWith('gatepass:')) out.push('material entry', 'material gate entry', 'material gate pass');
     if(sub) out.push(normalizeDtKey(sub));
     if(typ && normalizeDtKey(typ) !== normalizeDtKey(sub)) out.push(normalizeDtKey(typ));
     return out.filter(Boolean);
@@ -7611,12 +7622,16 @@ let lastPulseGatepassRev = '';
   function resolveDeviceTypeRule(cfg, devOrMeta){
     const rules = cfg?.deviceRules || {};
     const cands = resolveDeviceTypeCandidates(devOrMeta);
-    const hay = (String(devOrMeta?.title || '') + ' ' + String(devOrMeta?.body || '') + ' ' + String(devOrMeta?.deviceSubtype || devOrMeta?.subtype || '') + ' ' + String(devOrMeta?.deviceType || devOrMeta?.type || '')).toLowerCase();
-    for(const [rk, rv] of Object.entries(rules)){
-      if(!rv || !rk || cands.includes(rk)) continue;
-      const escK = rk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      if(new RegExp('(?:^|[^a-z0-9])' + escK + '(?:$|[^a-z0-9])', 'i').test(hay)){
-        cands.push(rk);
+    const evKind = String(devOrMeta?.kind || devOrMeta?.eventKey || '').trim().toLowerCase();
+    const isModAlert = evKind === 'visitor' || evKind === 'gatepass' || evKind.startsWith('visitor:') || evKind.startsWith('gatepass:');
+    if(!isModAlert){
+      const hay = (String(devOrMeta?.title || '') + ' ' + String(devOrMeta?.body || '') + ' ' + String(devOrMeta?.deviceSubtype || devOrMeta?.subtype || '') + ' ' + String(devOrMeta?.deviceType || devOrMeta?.type || '')).toLowerCase();
+      for(const [rk, rv] of Object.entries(rules)){
+        if(!rv || !rk || cands.includes(rk) || rk === 'visitor pass' || rk === 'material entry') continue;
+        const escK = rk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if(new RegExp('(?:^|[^a-z0-9])' + escK + '(?:$|[^a-z0-9])', 'i').test(hay)){
+          cands.push(rk);
+        }
       }
     }
     let firstMatch = null;
@@ -7628,7 +7643,7 @@ let lastPulseGatepassRev = '';
       }
     }
     if(firstMatch) return firstMatch;
-    if(cands.length && cfg?.defaultNewTypeSilent){
+    if(cands.length && !isModAlert && cfg?.defaultNewTypeSilent){
       return { key: cands[0], silent: true, onlineSoundId: 'inherit', offlineSoundId: 'inherit' };
     }
     return null;
@@ -7641,8 +7656,9 @@ let lastPulseGatepassRev = '';
     const kind = String(meta?.kind || '').toLowerCase();
     if(kind === 'online' || kind === 'offline') return kind;
     const ttl = String(meta?.title || '').toLowerCase();
-    if(ttl.includes('offline')) return 'offline';
+    if(ttl.includes('offline') || ttl.includes('overdue')) return 'offline';
     if(ttl.includes('online')) return 'online';
+    if(kind === 'visitor' || kind === 'gatepass' || eventKey === 'visitor' || eventKey === 'gatepass') return 'online';
     return '';
   }
 
@@ -7662,12 +7678,14 @@ let lastPulseGatepassRev = '';
       for(const [k, ts] of recentAlertDedupe.entries()){ if(ts < cut) recentAlertDedupe.delete(k); }
     }
     const cfg = loadSoundConfig();
-    const dtRule = resolveDeviceTypeRule(cfg, { ...(meta || {}), title, body });
+    const ck = resolveEventKey(eventKey);
+    const dtRule = resolveDeviceTypeRule(cfg, { eventKey: ck, ...(meta || {}), title, body });
     const isDeviceSilent = Boolean(dtRule && dtRule.silent === true);
+    const isEventDisabled = Boolean(cfg.events?.[ck] && cfg.events[ck].enabled === false);
 
     try{
       window.nsNotifCenter?.recordEvent?.({
-        eventKey,
+        eventKey: ck,
         title,
         body,
         level: level || 'info',
@@ -7675,13 +7693,12 @@ let lastPulseGatepassRev = '';
       });
     }catch(_){}
     if(window.nsNotifCenter?.isSilent?.()) return;
-    if(isDeviceSilent) return;
+    if(isDeviceSilent || isEventDisabled) return;
 
-    const ck = resolveEventKey(eventKey);
     const dir = resolveTransitionDirection(ck, { ...(meta || {}), title });
     let chosenSound = meta?.overrideSoundId || '';
     if(!chosenSound && dtRule){
-      const perTypeSid = dir === 'online' ? dtRule.onlineSoundId : (dir === 'offline' ? dtRule.offlineSoundId : '');
+      const perTypeSid = dir === 'offline' ? dtRule.offlineSoundId : dtRule.onlineSoundId;
       if(perTypeSid && perTypeSid !== 'inherit' && perTypeSid !== 'none'){
         chosenSound = perTypeSid;
       } else if(perTypeSid === 'none'){
@@ -7838,7 +7855,8 @@ let lastPulseGatepassRev = '';
       }
       host.querySelectorAll('.ns-dt-row').forEach(tr => {
         const k = tr.dataset.dtKey;
-        const rule = (liveCfg.deviceRules && liveCfg.deviceRules[k]) || { silent: Boolean(liveCfg.defaultNewTypeSilent), onlineSoundId: 'inherit', offlineSoundId: 'inherit' };
+        const isModRow = k === 'visitor pass' || k === 'material entry';
+        const rule = (liveCfg.deviceRules && liveCfg.deviceRules[k]) || { silent: !isModRow && Boolean(liveCfg.defaultNewTypeSilent), onlineSoundId: 'inherit', offlineSoundId: 'inherit' };
         const btn = tr.querySelector('.ns-dt-silent-btn');
         if(btn){
           const isSil = Boolean(rule.silent);
@@ -7867,7 +7885,7 @@ let lastPulseGatepassRev = '';
 
     const cfg = loadSoundConfig();
     const custList = cfg.soundLibrary || [];
-    const evRows = ['ticket','online','offline','critical'].map(key => {
+    const evRows = ['ticket','visitor','gatepass','online','offline','critical'].map(key => {
       const ev = cfg.events?.[key] || DEFAULT_SOUND_CFG.events[key];
       const lbl = ev.label || EVENT_LABELS[key];
       return `<div class="panel" style="padding:12px;">
@@ -7942,21 +7960,27 @@ let lastPulseGatepassRev = '';
               <thead>
                 <tr>
                   <th style="width:36px;text-align:center">SEL</th>
-                  <th>DEVICE TYPE</th>
-                  <th>ONLINE RINGTONE</th>
-                  <th>OFFLINE RINGTONE</th>
+                  <th>MODULE / DEVICE TYPE</th>
+                  <th>ENTRY / ONLINE RINGTONE</th>
+                  <th>OVERDUE / OFFLINE RINGTONE</th>
                   <th style="width:140px">ALERT STATE / SILENT</th>
                 </tr>
               </thead>
               <tbody id="nsDeviceTypeRulesBody">
                 ${collectDynamicDeviceTypes().map(dt => {
-                  const rule = (cfg.deviceRules && cfg.deviceRules[dt.key]) || { label: dt.label, silent: Boolean(cfg.defaultNewTypeSilent), onlineSoundId: 'inherit', offlineSoundId: 'inherit' };
+                  const isModRow = dt.key === 'visitor pass' || dt.key === 'material entry';
+                  const rule = (cfg.deviceRules && cfg.deviceRules[dt.key]) || { label: dt.label, silent: !isModRow && Boolean(cfg.defaultNewTypeSilent), onlineSoundId: 'inherit', offlineSoundId: 'inherit' };
                   const isSilent = Boolean(rule.silent);
+                  const subNote = dt.key === 'visitor pass'
+                    ? 'Module · Visitor Entry & Approvals'
+                    : (dt.key === 'material entry'
+                        ? 'Module · Material IN/OUT & Returnable'
+                        : (dt.count > 0 ? (dt.count + ' device' + (dt.count===1?'':'s')) : 'Auto-tracked category'));
                   return `<tr class="ns-dt-row" data-dt-key="${safeEsc(dt.key)}" data-dt-label="${safeEsc(dt.label)}">
                     <td style="text-align:center"><input type="checkbox" class="ns-dt-check" data-dt-key="${safeEsc(dt.key)}" aria-label="Select ${safeEsc(dt.label)}"></td>
                     <td>
-                      <b style="font-size:12.5px;color:#14221a">${safeEsc(dt.label)}</b>
-                      <div class="asset-id">${dt.count > 0 ? (dt.count + ' device' + (dt.count===1?'':'s')) : 'Auto-tracked category'}</div>
+                      <b style="font-size:12.5px;color:#14221a">${dt.key === 'visitor pass' ? '🛂 ' : (dt.key === 'material entry' ? '📦 ' : '')}${safeEsc(dt.label)}</b>
+                      <div class="asset-id">${subNote}</div>
                     </td>
                     <td>
                       <div style="display:flex;gap:5px;align-items:center;min-width:210px;">
@@ -14877,7 +14901,7 @@ let lastPulseGatepassRev = '';
           if(!seenVisitorIds.has(x.id)){
             seenVisitorIds.add(x.id);
             if(x.status === 'Pending'){
-              window.nsSoundEngine?.triggerEventAlert?.('ticket', `Visitor Waiting: ${x.visitorName} (${x.id})`, `${x.purpose} · Meet ${x.hostName} (${x.department} · ${x.factory})`, 'info', { kind: 'visitor', targetView: 'visitors', targetId: x.id });
+              window.nsSoundEngine?.triggerEventAlert?.('visitor', `Visitor Waiting: ${x.visitorName} (${x.id})`, `${x.purpose} · Meet ${x.hostName} (${x.department} · ${x.factory})`, 'info', { kind: 'visitor', targetView: 'visitors', targetId: x.id });
             }
           }
         });
@@ -15046,7 +15070,7 @@ let lastPulseGatepassRev = '';
         rows.forEach(x => {
           if(!seenGatepassIds.has(x.id)){
             seenGatepassIds.add(x.id);
-            window.nsSoundEngine?.triggerEventAlert?.('ticket', `Material ${x.direction}: ${x.materialName} (${x.id})`, `For ${x.forName} (${x.department} · ${x.factory})`, 'info', { kind: 'gatepass', targetView: 'gatepass', targetTab: x.direction, targetId: x.id });
+            window.nsSoundEngine?.triggerEventAlert?.('gatepass', `Material ${x.direction}: ${x.materialName} (${x.id})`, `For ${x.forName} (${x.department} · ${x.factory})`, 'info', { kind: 'gatepass', targetView: 'gatepass', targetTab: x.direction, targetId: x.id });
           }
         });
       } else {
@@ -15065,7 +15089,7 @@ let lastPulseGatepassRev = '';
         seenOverdueGpIds.add(g.id);
         const dirMsg = g.direction === 'IN' ? 'due to be SENT BACK OUT' : 'not yet RETURNED IN';
         window.nsSoundEngine?.triggerEventAlert?.(
-          'ticket',
+          'gatepass',
           `Returnable Overdue: ${g.materialName} (${g.id})`,
           `${dirMsg} · For ${g.forName || g.department} (${g.department} · ${g.factory}) · Due ${fmtGateDt(g.expectedReturnAt)}`,
           'critical',

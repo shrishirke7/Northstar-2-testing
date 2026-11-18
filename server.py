@@ -1457,6 +1457,8 @@ DEFAULT_SOUND_ALERTS = {
     "defaultNewTypeSilent": False,
     "events": {
         "ticket": {"enabled": True, "soundId": "builtin:ticket-chime"},
+        "visitor": {"enabled": True, "soundId": "builtin:ticket-chime"},
+        "gatepass": {"enabled": True, "soundId": "builtin:double-tone"},
         "online": {"enabled": True, "soundId": "builtin:online-ping"},
         "offline": {"enabled": True, "soundId": "builtin:offline-beep"},
         "critical": {"enabled": True, "soundId": "builtin:critical-siren"},
@@ -1494,7 +1496,7 @@ def normalize_sound_state(state, username=None):
     if "defaultNewTypeSilent" in saved_cfg:
         merged["defaultNewTypeSilent"] = bool(saved_cfg.get("defaultNewTypeSilent"))
     raw_events = saved_cfg.get("events") if isinstance(saved_cfg.get("events"), dict) else {}
-    for ev_key in ("ticket", "online", "offline", "critical"):
+    for ev_key in ("ticket", "visitor", "gatepass", "online", "offline", "critical"):
         ev_val = raw_events.get(ev_key)
         if isinstance(ev_val, dict):
             if "enabled" in ev_val:
