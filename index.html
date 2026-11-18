@@ -1116,8 +1116,9 @@
 #view-firmware .fw-chip-file{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:8px;background:#f0fdf4;border:1px solid #bbf7d0;color:#145b40;font-size:11px;font-weight:700;text-decoration:none;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #view-firmware .fw-chip-file:hover{background:#dcfce7}
 #view-firmware .fw-sha{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:10px;color:#64748b;margin-top:2px}
-#nsVaultLockScreen{display:flex;justify-content:center;align-items:center;padding:18px 10px 28px}
-.ns-vault-lock-card{position:relative;width:min(440px,100%);border-radius:30px;padding:28px 24px 26px;background:radial-gradient(circle at 20% 0%,rgba(28,124,84,.42),transparent 52%),radial-gradient(circle at 90% 100%,rgba(212,163,68,.24),transparent 48%),linear-gradient(160deg,#091e17 0%,#0f2922 52%,#06130f 100%);color:#f8fafc;border:1px solid rgba(255,255,255,.16);box-shadow:0 28px 65px rgba(4,16,12,.48),inset 0 1px 0 rgba(255,255,255,.18);backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);text-align:center;box-sizing:border-box;overflow:hidden}
+#nsVaultLockScreen{display:none}
+#nsVaultLockScreen.open{display:flex;justify-content:center;align-items:center;padding:14px;overflow-y:auto}
+.ns-vault-lock-card{position:relative;width:min(440px,100%);max-height:calc(100vh - 28px);overflow-y:auto;margin:auto;border-radius:30px;padding:24px 22px 22px;background:radial-gradient(circle at 20% 0%,rgba(28,124,84,.42),transparent 52%),radial-gradient(circle at 90% 100%,rgba(212,163,68,.24),transparent 48%),linear-gradient(160deg,#091e17 0%,#0f2922 52%,#06130f 100%);color:#f8fafc;border:1px solid rgba(255,255,255,.16);box-shadow:0 28px 65px rgba(4,16,12,.48),inset 0 1px 0 rgba(255,255,255,.18);backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);text-align:center;box-sizing:border-box}
 .ns-ios-padlock{width:54px;height:54px;margin:0 auto 10px;border-radius:16px;background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 8px 22px rgba(0,0,0,.28);transition:transform .35s cubic-bezier(.34,1.56,.64,1),background .25s}
 .ns-ios-padlock.unlocking{transform:scale(1.16) rotate(-6deg);background:rgba(22,163,74,.38)}
 .ns-ios-padlock.locked-crit{background:rgba(220,38,38,.28);border-color:rgba(248,113,113,.48)}
@@ -16474,16 +16475,18 @@ let lastPulseGatepassRev = '';
     vaultSyncDots();
   }
 
-  function openUnlockModal(){
+  async function openUnlockModal(){
     if(vaultStatus.unlocked && !vaultStatus.permanentlyLocked){
       toast('Vault is already unlocked');
       return;
     }
     pinBuffer = '';
+    vaultSyncDots();
     syncUnlockModalContents();
     const err = document.getElementById('nsVaultLockError');
     if(err) err.textContent = '';
     document.getElementById('nsVaultLockScreen')?.classList.add('open');
+    await vaultRefreshStatus();
   }
 
   function closeUnlockModal(){
@@ -16604,7 +16607,7 @@ let lastPulseGatepassRev = '';
   }
 
   function vaultAppendDigit(d){
-    if(vaultStatus.permanentlyLocked || !vaultStatus.initialized || vaultStatus.unlocked) return;
+    if(vaultStatus.permanentlyLocked || vaultStatus.unlocked) return;
     const maxLen = Math.max(4, Math.min(8, Number(vaultStatus.pinLength || 4)));
     if(pinBuffer.length >= maxLen) return;
     pinBuffer += String(d).replace(/\D/g, '');
