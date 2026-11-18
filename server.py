@@ -16,6 +16,7 @@ import tempfile
 import base64
 import socket
 import ssl
+import math
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
@@ -23,6 +24,9 @@ from urllib.parse import quote
 from urllib.request import Request as URLRequest, urlopen
 from urllib.error import URLError, HTTPError
 from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 import psycopg
 from flask import Flask, Response, abort, jsonify, redirect, request, send_from_directory, session
@@ -33,6 +37,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 ROOT = Path(__file__).resolve().parent
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", ROOT / "uploads"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+FIRMWARE_UPLOAD_DIR = UPLOAD_DIR / "firmware"
+FIRMWARE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 BACKUP_DIR = Path(os.getenv("BACKUP_DIR", "/backups"))
 RESTORE_LOCK_PATH = Path("/tmp/northstar-restore-in-progress")
 DEFAULT_CAMERA_PROFILES = [
@@ -80,7 +86,7 @@ app.config.update(
 
 @app.before_request
 def pause_api_during_restore():
-    request.max_content_length = 1024 * 1024 * 1024 if request.path == "/api/backups/restore" else 64 * 1024 * 1024
+    request.max_content_length = 1024 * 1024 * 1024 if request.path == "/api/backups/restore" else (256 * 1024 * 1024 if request.path.startswith("/api/firmware-backups") else 64 * 1024 * 1024)
     if request.path.startswith("/api/") and RESTORE_LOCK_PATH.exists():
         return jsonify(error="A backup restore is in progress. Please try again shortly."), 503
 DATABASE_URL = os.environ["DATABASE_URL"]
@@ -96,7 +102,7 @@ MODULE_IDS = (
     "overview", "assets", "data_center", "surveillance", "tickets",
     "visitors", "gatepass",
     "maintenance", "ageing", "parts", "users", "departments", "factories",
-    "software", "network", "snmp", "notifications", "reports", "valuation", "billing",
+    "software", "firmware", "credentials", "network", "snmp", "notifications", "reports", "valuation", "billing",
 )
 MODULE_DATA_KEYS = {
     "overview": ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "invoices"),
@@ -113,6 +119,8 @@ MODULE_DATA_KEYS = {
     "departments": ("departments", "assets", "manual_users", "maintenance", "parts_assignments"),
     "factories": ("departments", "assets", "manual_users"),
     "software": ("software", "assets", "departments", "manual_users"),
+    "firmware": ("assets", "departments", "software"),
+    "credentials": ("assets", "departments"),
     "network": ("assets", "network_ranges", "network_scan", "scanner_heartbeat", "scanner_ip_status"),
     "snmp": ("assets",),
     "notifications": ("notifications",),
@@ -123,6 +131,7 @@ MODULE_DATA_KEYS = {
 MODULE_API_PATHS = {
     "/api/invoices": "billing", "/api/tickets": "tickets",
     "/api/visitors": "visitors", "/api/gate-passes": "gatepass",
+    "/api/firmware-backups": "firmware", "/api/vault": "credentials",
     "/api/camera-profiles": "surveillance", "/api/camera-streams": "surveillance",
     "/api/cctv-media-auth": "surveillance",
     "/api/network-scans": "network", "/api/network-scan": "network",
@@ -130,6 +139,23 @@ MODULE_API_PATHS = {
     "/api/notifications": "notifications",
     "/api/snmp-metrics": "snmp", "/api/snmp-monitors": "snmp", "/api/admin/snmp-monitors": "snmp",
 }
+
+_VAULT_LOCK = threading.Lock()
+_VAULT_SESSIONS = {}
+
+
+def _vault_purge_session(sid=None, username=None):
+    with _VAULT_LOCK:
+        if sid is None and username is None:
+            _VAULT_SESSIONS.clear()
+            return
+        if sid:
+            _VAULT_SESSIONS.pop(str(sid), None)
+        if username:
+            uname_low = str(username).strip().casefold()
+            stale = [k for k, v in _VAULT_SESSIONS.items() if str(v.get("username", "")).strip().casefold() == uname_low]
+            for k in stale:
+                _VAULT_SESSIONS.pop(k, None)
 
 
 def module_permissions_for(profile):
@@ -449,6 +475,10 @@ def enforce_module_access():
     if path == "/api/snmp-metrics" and not is_write:
         if any(module_access(profile, m) for m in ("snmp", "overview", "network")):
             return None
+    if path in ("/api/vault/unlock", "/api/vault/unlock-voice", "/api/vault/lock"):
+        if not module_access(profile, "credentials", write=False):
+            return jsonify(error="You do not have access to this module."), 403
+        return None
     if module:
         if not module_access(profile, module, write=is_write):
             return jsonify(error=("This module is read-only for your account." if is_write and module_access(profile, module) else "You do not have access to this module.")), 403
@@ -2599,6 +2629,7 @@ def update_recovery_answers():
 def logout():
     sid = str(session.get("sid") or "").strip()
     if sid:
+        _vault_purge_session(sid=sid)
         try:
             with db() as conn:
                 conn.execute("DELETE FROM user_sessions WHERE sid=%s", (sid,))
@@ -2622,6 +2653,7 @@ def logout():
 def logout_all_devices():
     username = str(session["profile"].get("username", ""))
     sid = str(session.get("sid") or "").strip()
+    _vault_purge_session(sid=sid, username=username)
     with db() as conn:
         conn.execute("DELETE FROM user_sessions WHERE lower(username)=lower(%s)", (username,))
     session.clear()
@@ -5907,9 +5939,1088 @@ def delete_gatepass(pass_id):
     return jsonify(ok=True)
 
 
+_VAULT_PBKDF2_ITERS = 480000
+_VAULT_AAD_DEK = b"northstar-vault-dek-v1"
+_VAULT_AAD_VOICE_TPL = b"northstar-vault-voice-tpl-v1"
+
+
+def _vault_derive_kek(material_bytes, salt_b64):
+    salt = base64.b64decode(salt_b64)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=_VAULT_PBKDF2_ITERS,
+    )
+    return kdf.derive(material_bytes)
+
+
+def _vault_aes_encrypt(key32, plaintext_bytes, aad):
+    nonce = os.urandom(12)
+    ct = AESGCM(key32).encrypt(nonce, plaintext_bytes, aad)
+    return base64.b64encode(nonce + ct).decode("ascii")
+
+
+def _vault_aes_decrypt(key32, blob_b64, aad):
+    raw = base64.b64decode(blob_b64)
+    if len(raw) < 28:
+        raise ValueError("Invalid ciphertext payload")
+    return AESGCM(key32).decrypt(raw[:12], raw[12:], aad)
+
+
+def _vault_pin_kw_kek(pin, keyword, salt_b64):
+    return _vault_derive_kek(f"{pin}|{keyword}".encode("utf-8"), salt_b64)
+
+
+def _vault_voice_kek(norm_phrase, salt_b64):
+    return _vault_derive_kek(f"{APP_SECRET}|voice|{norm_phrase}".encode("utf-8"), salt_b64)
+
+
+def _vault_voice_tpl_key(salt_b64):
+    return _vault_derive_kek(f"{APP_SECRET}|voice-tpl|{salt_b64}".encode("utf-8"), salt_b64)
+
+
+def _norm_voice_phrase(raw_phrase):
+    cleaned = re.sub(r"[^a-z0-9]+", " ", str(raw_phrase or "").strip().lower()).strip()
+    return re.sub(r"\s+", "", cleaned)
+
+
+def _norm_vec(values, expected_len):
+    if not isinstance(values, (list, tuple)) or len(values) != expected_len:
+        return None
+    out = []
+    for x in values:
+        try:
+            v = float(x)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(v):
+            return None
+        out.append(v)
+    norm = math.sqrt(sum(v * v for v in out))
+    if norm <= 1e-9:
+        return [0.0] * expected_len
+    return [v / norm for v in out]
+
+
+def _cosine_sim(a, b):
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(x * x for x in b))
+    if na <= 1e-9 or nb <= 1e-9:
+        return 0.0
+    return max(-1.0, min(1.0, sum(x * y for x, y in zip(a, b)) / (na * nb)))
+
+
+def _pearson_sim(a, b):
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    ma = sum(a) / len(a)
+    mb = sum(b) / len(b)
+    return _cosine_sim([x - ma for x in a], [y - mb for y in b])
+
+
+def _extract_clean_voice_sig(raw):
+    if not isinstance(raw, dict):
+        return None
+    try:
+        voiced_ms = float(raw.get("voicedMs", 0))
+        rms_mean = float(raw.get("rmsMean", 0))
+        f0_median = float(raw.get("f0Median", 0))
+        zcr_mean = float(raw.get("zcrMean", 0))
+        centroid_mean = float(raw.get("centroidMean", 0))
+    except (TypeError, ValueError):
+        return None
+    bands16 = _norm_vec(raw.get("bands16"), 16)
+    energy_env12 = _norm_vec(raw.get("energyEnv12"), 12)
+    pitch_env8 = _norm_vec(raw.get("pitchEnv8"), 8)
+    if not bands16 or not energy_env12 or not pitch_env8:
+        return None
+    if not (math.isfinite(voiced_ms) and math.isfinite(rms_mean) and math.isfinite(f0_median)):
+        return None
+    return {
+        "voicedMs": voiced_ms,
+        "rmsMean": rms_mean,
+        "f0Median": f0_median,
+        "zcrMean": zcr_mean if math.isfinite(zcr_mean) else 0.0,
+        "centroidMean": centroid_mean if math.isfinite(centroid_mean) else 0.0,
+        "bands16": bands16,
+        "energyEnv12": energy_env12,
+        "pitchEnv8": pitch_env8,
+    }
+
+
+def _merge_voice_templates(samples):
+    cleaned = [_extract_clean_voice_sig(s) for s in (samples or [])]
+    cleaned = [c for c in cleaned if c and c["voicedMs"] >= 260 and c["rmsMean"] >= 0.006]
+    if not cleaned:
+        return None
+    n = float(len(cleaned))
+    bands = [sum(c["bands16"][i] for c in cleaned) / n for i in range(16)]
+    env = [sum(c["energyEnv12"][i] for c in cleaned) / n for i in range(12)]
+    p_env = [sum(c["pitchEnv8"][i] for c in cleaned) / n for i in range(8)]
+    return {
+        "voicedMs": sum(c["voicedMs"] for c in cleaned) / n,
+        "rmsMean": sum(c["rmsMean"] for c in cleaned) / n,
+        "f0Median": sum(c["f0Median"] for c in cleaned) / n,
+        "zcrMean": sum(c["zcrMean"] for c in cleaned) / n,
+        "centroidMean": sum(c["centroidMean"] for c in cleaned) / n,
+        "bands16": _norm_vec(bands, 16),
+        "energyEnv12": _norm_vec(env, 12),
+        "pitchEnv8": _norm_vec(p_env, 8),
+    }
+
+
+def _compare_voice_signatures(tpl, cand):
+    if not tpl or not cand or cand["voicedMs"] < 260 or cand["rmsMean"] < 0.006:
+        return False, 0.0, {"reason": "audio_too_quiet_or_short"}
+    bt = _norm_vec(tpl.get("bands16"), 16)
+    bc = _norm_vec(cand.get("bands16"), 16)
+    et = _norm_vec(tpl.get("energyEnv12"), 12)
+    ec = _norm_vec(cand.get("energyEnv12"), 12)
+    pt = _norm_vec(tpl.get("pitchEnv8"), 8)
+    pc = _norm_vec(cand.get("pitchEnv8"), 8)
+    if not (bt and bc and et and ec and pt and pc):
+        return False, 0.0, {"reason": "invalid_feature_vector"}
+    timbre_raw = _cosine_sim(bt, bc)
+    timbre_shape = max(0.0, _pearson_sim(bt, bc))
+    timbre_l1 = max(0.0, 1.0 - (sum(abs(x - y) for x, y in zip(bt, bc)) / 1.4))
+    timbre_sim = 0.25 * timbre_raw + 0.45 * timbre_shape + 0.30 * timbre_l1
+    energy_raw = _cosine_sim(et, ec)
+    energy_shape = max(0.0, _pearson_sim(et, ec))
+    energy_sim = 0.40 * energy_raw + 0.60 * energy_shape
+    pitch_env_sim = max(0.0, _cosine_sim(pt, pc))
+    f0_t = float(tpl.get("f0Median") or 0.0)
+    f0_c = float(cand.get("f0Median") or 0.0)
+    if f0_t >= 55.0 and f0_c >= 55.0:
+        f0_err = abs(f0_t - f0_c) / max(f0_t, f0_c)
+        f0_score = max(0.0, 1.0 - (f0_err / 0.22))
+    else:
+        f0_err = 0.0 if (f0_t < 55.0 and f0_c < 55.0) else 0.5
+        f0_score = 0.7 if f0_err == 0.0 else 0.0
+    rms_t = max(float(tpl.get("rmsMean") or 0.001), 0.001)
+    rms_c = max(float(cand.get("rmsMean") or 0.001), 0.001)
+    rms_ratio = min(rms_t, rms_c) / max(rms_t, rms_c)
+    tune_score = 0.65 * f0_score + 0.35 * pitch_env_sim
+    combined = (0.42 * timbre_sim) + (0.28 * energy_sim) + (0.22 * tune_score) + (0.08 * min(1.0, rms_ratio / 0.65))
+    passed = (
+        timbre_sim >= 0.80
+        and energy_sim >= 0.76
+        and f0_err <= 0.19
+        and rms_ratio >= 0.25
+        and combined >= 0.83
+    )
+    return passed, round(combined, 4), {
+        "timbreSim": round(timbre_sim, 4),
+        "energySim": round(energy_sim, 4),
+        "pitchRatioErr": round(f0_err, 4),
+        "tuneScore": round(tune_score, 4),
+        "intensityRatio": round(rms_ratio, 4),
+        "combined": round(combined, 4),
+    }
+
+
+def _vault_ensure_config_row(conn):
+    conn.execute("INSERT INTO vault_security_config(id) VALUES(1) ON CONFLICT(id) DO NOTHING")
+    return conn.execute("""
+        SELECT id, initialized, pin_min_len, pin_max_len, pin_length,
+               pin_hash, keyword_hash, kdf_salt, wrapped_dek_pin_kw,
+               voice_enabled, voice_phrase_hash, voice_feature_enc, wrapped_dek_voice,
+               failed_attempts, max_attempts, permanently_locked, locked_at,
+               auto_lock_minutes, updated_at, updated_by
+        FROM vault_security_config WHERE id=1
+    """).fetchone()
+
+
+def _vault_get_active_dek(sid, auto_lock_minutes=10):
+    if not sid:
+        return None, 0
+    now_m = time.monotonic()
+    ttl = max(60, min(7200, int(auto_lock_minutes or 10) * 60))
+    with _VAULT_LOCK:
+        entry = _VAULT_SESSIONS.get(str(sid))
+        if not entry:
+            return None, 0
+        if entry["expires_at"] <= now_m:
+            _VAULT_SESSIONS.pop(str(sid), None)
+            return None, 0
+        entry["expires_at"] = now_m + ttl
+        return entry["dek"], int(entry["expires_at"] - now_m)
+
+
+def _vault_set_active_dek(sid, username, dek_bytes, auto_lock_minutes=10):
+    ttl = max(60, min(7200, int(auto_lock_minutes or 10) * 60))
+    with _VAULT_LOCK:
+        _VAULT_SESSIONS[str(sid)] = {
+            "dek": dek_bytes,
+            "username": str(username or ""),
+            "expires_at": time.monotonic() + ttl,
+        }
+    return ttl
+
+
+def _vault_record_failure(conn, actor_username, reason_label):
+    row = conn.execute(
+        "SELECT failed_attempts, max_attempts FROM vault_security_config WHERE id=1 FOR UPDATE"
+    ).fetchone()
+    attempts = int(row[0] or 0) + 1 if row else 1
+    max_att = max(3, int(row[1] or 5)) if row else 5
+    tripped = attempts >= max_att
+    conn.execute(
+        """
+        UPDATE vault_security_config
+        SET failed_attempts=%s,
+            permanently_locked=%s,
+            locked_at=CASE WHEN %s THEN COALESCE(locked_at, now()) ELSE locked_at END,
+            updated_at=now(),
+            updated_by=%s
+        WHERE id=1
+        """,
+        (attempts, tripped, tripped, actor_username[:120]),
+    )
+    if tripped:
+        _vault_purge_session()
+        _record_notification_event(conn, {
+            "eventKey": f"vault-self-lock:{int(time.time())}",
+            "kind": "system",
+            "level": "critical",
+            "title": "🔐 SECURITY ALERT: Credentials Vault Self-Locked",
+            "body": f"Vault locked automatically after {attempts} failed unlock attempts ({reason_label}) by {actor_username or 'unknown'}. Administrator password reset is required.",
+            "targetView": "credentials",
+            "targetTab": "LOCKED",
+            "targetUsername": actor_username or "",
+        })
+    return attempts, max_att, tripped
+
+
+@app.get("/api/vault/status")
+@signed_in
+def get_vault_status():
+    who = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    if not is_adm and not module_access(who, "credentials"):
+        return jsonify(error="Credentials Vault access required."), 403
+    sid = str(session.get("sid") or "")
+    with db() as conn:
+        cfg = _vault_ensure_config_row(conn)
+    auto_mins = int(cfg[17] or 10)
+    dek, expires_sec = _vault_get_active_dek(sid, auto_mins)
+    if bool(cfg[15]):  # permanently_locked
+        dek = None
+        expires_sec = 0
+        _vault_purge_session(sid=sid)
+    failed = int(cfg[13] or 0)
+    max_att = max(3, int(cfg[14] or 5))
+    return jsonify(
+        initialized=bool(cfg[1]),
+        unlocked=dek is not None,
+        expiresInSec=expires_sec,
+        pinMinLen=int(cfg[2] or 4),
+        pinMaxLen=int(cfg[3] or 8),
+        pinLength=int(cfg[4] or 4),
+        voiceEnabled=bool(cfg[9]),
+        failedAttempts=failed,
+        maxAttempts=max_att,
+        remainingAttempts=max(0, max_att - failed),
+        permanentlyLocked=bool(cfg[15]),
+        lockedAt=cfg[16].isoformat() if cfg[16] else "",
+        autoLockMinutes=auto_mins,
+        canConfigure=is_adm,
+        canWrite=bool(is_adm or module_access(who, "credentials", write=True)),
+        updatedAt=cfg[18].isoformat() if cfg[18] else "",
+        updatedBy=cfg[19] or "",
+    )
+
+
+@app.post("/api/vault/config")
+@administrator
+def save_vault_config():
+    data = request.get_json(silent=True) or {}
+    who = session.get("profile") or {}
+    actor = str(who.get("name") or who.get("username") or "Administrator")
+    sid = str(session.get("sid") or "")
+    pin = str(data.get("pin") or "").strip()
+    keyword = str(data.get("keyword") or "").strip()
+    try:
+        auto_mins = max(1, min(120, int(data.get("autoLockMinutes", 10) or 10)))
+    except (TypeError, ValueError):
+        auto_mins = 10
+    voice_enabled = bool(data.get("voiceEnabled", False))
+    raw_phrase = str(data.get("voicePhrase") or "").strip()
+    norm_phrase = _norm_voice_phrase(raw_phrase)
+    voice_samples = data.get("voiceSamples")
+
+    with db() as conn:
+        cfg = _vault_ensure_config_row(conn)
+        initialized = bool(cfg[1])
+        if bool(cfg[15]):
+            return jsonify(error="Vault is self-locked after 5 failed attempts. Perform Administrator password reset first."), 423
+
+        old_salt = str(cfg[7] or "")
+        old_wrapped_pin = str(cfg[8] or "")
+        old_voice_phrase_hash = str(cfg[10] or "")
+        old_voice_feat_enc = str(cfg[11] or "")
+        old_wrapped_voice = str(cfg[12] or "")
+
+        if not initialized:
+            if not re.fullmatch(r"\d{4,8}", pin):
+                return jsonify(error="PIN must be strictly 4 to 8 numeric digits."), 400
+            if len(keyword) < 3 or len(keyword) > 80:
+                return jsonify(error="Secret keyword must be 3 to 80 characters."), 400
+            dek = os.urandom(32)
+            pin_len = len(pin)
+            pin_hash = generate_password_hash(pin)
+            kw_hash = generate_password_hash(keyword)
+        else:
+            # Preserve existing DEK either from active unlocked session OR current PIN+Keyword
+            dek, _ = _vault_get_active_dek(sid, int(cfg[17] or 10))
+            if dek is None:
+                cur_pin = str(data.get("currentPin") or "").strip()
+                cur_kw = str(data.get("currentKeyword") or "").strip()
+                if not cur_pin or not cur_kw:
+                    return jsonify(error="Unlock the vault first or provide current PIN and keyword to update settings."), 401
+                try:
+                    cur_kek = _vault_pin_kw_kek(cur_pin, cur_kw, old_salt)
+                    dek = _vault_aes_decrypt(cur_kek, old_wrapped_pin, _VAULT_AAD_DEK)
+                except Exception:
+                    return jsonify(error="Current PIN or keyword did not match."), 401
+            if pin:
+                if not re.fullmatch(r"\d{4,8}", pin):
+                    return jsonify(error="New PIN must be strictly 4 to 8 numeric digits."), 400
+                pin_len = len(pin)
+                pin_hash = generate_password_hash(pin)
+            else:
+                pin_len = int(cfg[4] or 4)
+                pin_hash = str(cfg[5] or "")
+            if keyword:
+                if len(keyword) < 3 or len(keyword) > 80:
+                    return jsonify(error="Secret keyword must be 3 to 80 characters."), 400
+                kw_hash = generate_password_hash(keyword)
+            else:
+                kw_hash = str(cfg[6] or "")
+
+        if not initialized or (pin and keyword) or not old_salt:
+            new_salt = base64.b64encode(os.urandom(32)).decode("ascii")
+        else:
+            new_salt = old_salt
+
+        if pin and keyword:
+            wrapped_pin_kw = _vault_aes_encrypt(_vault_pin_kw_kek(pin, keyword, new_salt), dek, _VAULT_AAD_DEK)
+        elif not initialized:
+            return jsonify(error="Both PIN and Secret Keyword are required."), 400
+        elif pin or keyword:
+            return jsonify(error="Provide both new PIN and Secret Keyword together when rotating keys."), 400
+        else:
+            wrapped_pin_kw = old_wrapped_pin
+
+        new_voice_phrase_hash = ""
+        new_voice_feat_enc = ""
+        new_wrapped_voice = ""
+        if voice_enabled:
+            if isinstance(voice_samples, list) and len(voice_samples) > 0:
+                if len(norm_phrase) < 3 or len(norm_phrase) > 64:
+                    return jsonify(error="Voice unlock phrase must be 3 to 64 letters/digits (e.g. blackpearl)."), 400
+                merged_tpl = _merge_voice_templates(voice_samples)
+                if not merged_tpl:
+                    return jsonify(error="Voice recording was too quiet or short. Speak the phrase clearly and try again."), 400
+                new_voice_phrase_hash = generate_password_hash(norm_phrase)
+                new_voice_feat_enc = _vault_aes_encrypt(
+                    _vault_voice_tpl_key(new_salt),
+                    json.dumps(merged_tpl).encode("utf-8"),
+                    _VAULT_AAD_VOICE_TPL,
+                )
+                new_wrapped_voice = _vault_aes_encrypt(_vault_voice_kek(norm_phrase, new_salt), dek, _VAULT_AAD_DEK)
+            elif old_voice_phrase_hash and old_voice_feat_enc and old_wrapped_voice:
+                if new_salt != old_salt:
+                    return jsonify(error="Re-record your Voice Lock sample when rotating vault PIN & Keyword."), 400
+                new_voice_phrase_hash = old_voice_phrase_hash
+                new_voice_feat_enc = old_voice_feat_enc
+                new_wrapped_voice = old_wrapped_voice
+            else:
+                return jsonify(error="Record at least one clear voice sample and enter your secret voice phrase."), 400
+
+        conn.execute(
+            """
+            UPDATE vault_security_config
+            SET initialized=true,
+                pin_length=%s,
+                pin_hash=%s,
+                keyword_hash=%s,
+                kdf_salt=%s,
+                wrapped_dek_pin_kw=%s,
+                voice_enabled=%s,
+                voice_phrase_hash=%s,
+                voice_feature_enc=%s,
+                wrapped_dek_voice=%s,
+                failed_attempts=0,
+                permanently_locked=false,
+                locked_at=NULL,
+                auto_lock_minutes=%s,
+                updated_at=now(),
+                updated_by=%s
+            WHERE id=1
+            """,
+            (
+                pin_len, pin_hash, kw_hash, new_salt, wrapped_pin_kw,
+                voice_enabled, new_voice_phrase_hash, new_voice_feat_enc, new_wrapped_voice,
+                auto_mins, actor[:120],
+            ),
+        )
+    ttl = _vault_set_active_dek(sid, who.get("username", ""), dek, auto_mins)
+    return jsonify(ok=True, unlocked=True, expiresInSec=ttl, pinLength=pin_len, voiceEnabled=voice_enabled, autoLockMinutes=auto_mins)
+
+
+@app.post("/api/vault/unlock")
+@signed_in
+def unlock_vault_pin_keyword():
+    who = session.get("profile") or {}
+    if not session.get("is_admin") and not module_access(who, "credentials"):
+        return jsonify(error="Credentials Vault access required."), 403
+    data = request.get_json(silent=True) or {}
+    pin = str(data.get("pin") or "").strip()
+    keyword = str(data.get("keyword") or "").strip()
+    sid = str(session.get("sid") or "")
+    actor = str(who.get("username") or who.get("name") or "User")
+
+    with db() as conn:
+        cfg = _vault_ensure_config_row(conn)
+        if not bool(cfg[1]):
+            return jsonify(error="Credentials Vault is not configured yet. Ask Administrator to set PIN & Keyword."), 400
+        if bool(cfg[15]):
+            return jsonify(error="Vault is self-locked after 5 failed attempts. Administrator password reset required.", permanentlyLocked=True, remainingAttempts=0), 423
+        auto_mins = int(cfg[17] or 10)
+        dek = None
+        if re.fullmatch(r"\d{4,8}", pin) and keyword:
+            try:
+                kek = _vault_pin_kw_kek(pin, keyword, str(cfg[7] or ""))
+                dek = _vault_aes_decrypt(kek, str(cfg[8] or ""), _VAULT_AAD_DEK)
+            except Exception:
+                dek = None
+        if dek is None:
+            attempts, max_att, tripped = _vault_record_failure(conn, actor, "PIN/Keyword mismatch")
+            rem = max(0, max_att - attempts)
+            code = 423 if tripped else 401
+            msg = (
+                "5 failed attempts reached — Vault is now self-locked! Administrator password required to reset."
+                if tripped
+                else f"Invalid PIN or secret keyword. {rem} attempt(s) remaining before self-lock."
+            )
+            return jsonify(error=msg, failedAttempts=attempts, maxAttempts=max_att, remainingAttempts=rem, permanentlyLocked=tripped), code
+        conn.execute("UPDATE vault_security_config SET failed_attempts=0, updated_at=now() WHERE id=1")
+    ttl = _vault_set_active_dek(sid, actor, dek, auto_mins)
+    return jsonify(ok=True, unlocked=True, expiresInSec=ttl)
+
+
+@app.post("/api/vault/unlock-voice")
+@signed_in
+def unlock_vault_voice():
+    who = session.get("profile") or {}
+    if not session.get("is_admin") and not module_access(who, "credentials"):
+        return jsonify(error="Credentials Vault access required."), 403
+    data = request.get_json(silent=True) or {}
+    norm_phrase = _norm_voice_phrase(data.get("phrase"))
+    cand = _extract_clean_voice_sig(data.get("sample"))
+    sid = str(session.get("sid") or "")
+    actor = str(who.get("username") or who.get("name") or "User")
+
+    with db() as conn:
+        cfg = _vault_ensure_config_row(conn)
+        if not bool(cfg[1]) or not bool(cfg[9]):
+            return jsonify(error="Voice matching lock is not enabled on this Vault."), 400
+        if bool(cfg[15]):
+            return jsonify(error="Vault is self-locked after 5 failed attempts. Administrator password reset required.", permanentlyLocked=True, remainingAttempts=0), 423
+        auto_mins = int(cfg[17] or 10)
+        salt_b64 = str(cfg[7] or "")
+        phrase_ok = bool(norm_phrase) and check_password_hash(str(cfg[10] or ""), norm_phrase)
+        match_ok = False
+        score = 0.0
+        details = {}
+        dek = None
+        if phrase_ok and cand:
+            try:
+                tpl_bytes = _vault_aes_decrypt(_vault_voice_tpl_key(salt_b64), str(cfg[11] or ""), _VAULT_AAD_VOICE_TPL)
+                tpl = json.loads(tpl_bytes.decode("utf-8"))
+                match_ok, score, details = _compare_voice_signatures(tpl, cand)
+                if match_ok:
+                    dek = _vault_aes_decrypt(_vault_voice_kek(norm_phrase, salt_b64), str(cfg[12] or ""), _VAULT_AAD_DEK)
+            except Exception:
+                match_ok = False
+                dek = None
+        if dek is None:
+            attempts, max_att, tripped = _vault_record_failure(conn, actor, "Voice signature/phrase mismatch")
+            rem = max(0, max_att - attempts)
+            code = 423 if tripped else 401
+            reason = "Spoken secret phrase did not match." if not phrase_ok else "Voice tone, tune, or intensity did not match owner's voiceprint."
+            msg = (
+                "5 failed attempts reached — Vault is now self-locked! Administrator password required to reset."
+                if tripped
+                else f"{reason} {rem} attempt(s) remaining before self-lock."
+            )
+            return jsonify(error=msg, failedAttempts=attempts, maxAttempts=max_att, remainingAttempts=rem, permanentlyLocked=tripped, matchScore=score, matchDetails=details), code
+        conn.execute("UPDATE vault_security_config SET failed_attempts=0, updated_at=now() WHERE id=1")
+    ttl = _vault_set_active_dek(sid, actor, dek, auto_mins)
+    return jsonify(ok=True, unlocked=True, expiresInSec=ttl, matchScore=score, matchDetails=details)
+
+
+@app.post("/api/vault/lock")
+@signed_in
+def lock_vault_session():
+    sid = str(session.get("sid") or "")
+    _vault_purge_session(sid=sid)
+    return jsonify(ok=True, unlocked=False)
+
+
+@app.post("/api/vault/admin-reset-lock")
+@administrator
+def admin_reset_vault_lock():
+    who = session.get("profile") or {}
+    username = str(who.get("username") or "").strip()
+    data = request.get_json(silent=True) or {}
+    admin_password = str(data.get("adminPassword") or "")
+    wipe_and_reinit = bool(data.get("wipeAndReinit", False))
+    if not admin_password:
+        return jsonify(error="Administrator account password is required."), 400
+
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
+        users = row[0] if row else []
+        account = next((u for u in users if str(u.get("username", "")).casefold() == username.casefold()), None)
+        if not account or account.get("role") != "Administrator" or not account.get("password_hash") or not check_password_hash(account["password_hash"], admin_password):
+            return jsonify(error="Administrator account password is incorrect."), 401
+        if wipe_and_reinit:
+            pin = str(data.get("pin") or "").strip()
+            keyword = str(data.get("keyword") or "").strip()
+            if not re.fullmatch(r"\d{4,8}", pin) or len(keyword) < 3 or len(keyword) > 80:
+                return jsonify(error="Enter a valid 4–8 digit PIN and 3–80 character keyword to re-initialize the Vault."), 400
+            dek = os.urandom(32)
+            new_salt = base64.b64encode(os.urandom(32)).decode("ascii")
+            wrapped_pin_kw = _vault_aes_encrypt(_vault_pin_kw_kek(pin, keyword, new_salt), dek, _VAULT_AAD_DEK)
+            conn.execute("DELETE FROM vault_credentials")
+            conn.execute(
+                """
+                UPDATE vault_security_config
+                SET initialized=true, pin_length=%s, pin_hash=%s, keyword_hash=%s,
+                    kdf_salt=%s, wrapped_dek_pin_kw=%s, voice_enabled=false,
+                    voice_phrase_hash='', voice_feature_enc='', wrapped_dek_voice='',
+                    failed_attempts=0, permanently_locked=false, locked_at=NULL,
+                    updated_at=now(), updated_by=%s
+                WHERE id=1
+                """,
+                (len(pin), generate_password_hash(pin), generate_password_hash(keyword), new_salt, wrapped_pin_kw, username[:120]),
+            )
+            _vault_purge_session()
+            return jsonify(ok=True, resetMode="wiped_reinit", permanentlyLocked=False)
+
+        conn.execute(
+            """
+            UPDATE vault_security_config
+            SET failed_attempts=0, permanently_locked=false, locked_at=NULL,
+                updated_at=now(), updated_by=%s
+            WHERE id=1
+            """,
+            (username[:120],),
+        )
+    return jsonify(ok=True, resetMode="lockout_cleared", permanentlyLocked=False)
+
+
+def _vault_require_unlocked_dek(conn):
+    who = session.get("profile") or {}
+    if not session.get("is_admin") and not module_access(who, "credentials"):
+        return None, (jsonify(error="Credentials Vault access required."), 403)
+    cfg = _vault_ensure_config_row(conn)
+    if not bool(cfg[1]):
+        return None, (jsonify(error="vault_not_initialized"), 428)
+    if bool(cfg[15]):
+        _vault_purge_session(sid=str(session.get("sid") or ""))
+        return None, (jsonify(error="vault_self_locked", permanentlyLocked=True), 423)
+    dek, _ = _vault_get_active_dek(str(session.get("sid") or ""), int(cfg[17] or 10))
+    if dek is None:
+        return None, (jsonify(error="vault_locked"), 423)
+    return dek, None
+
+
+def _vault_cred_aad(cred_id):
+    return f"northstar-vault-cred-v1:{cred_id}".encode("utf-8")
+
+
+@app.get("/api/vault/credentials")
+@signed_in
+def list_vault_credentials():
+    q = str(request.args.get("q") or "").strip().lower()
+    factory = str(request.args.get("factory") or "").strip()
+    service_type = str(request.args.get("service_type") or "").strip()
+    asset_tag = str(request.args.get("asset_tag") or "").strip()
+    with db() as conn:
+        dek, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        rows = conn.execute("""
+            SELECT id, asset_tag, asset_name, device_type, factory, service_type,
+                   host_url, port, label, ciphertext, created_by, updated_by,
+                   rotated_at, created_at, updated_at
+            FROM vault_credentials
+            ORDER BY updated_at DESC, created_at DESC
+        """).fetchall()
+    out = []
+    for r in rows:
+        cid = r[0]
+        secret_obj = {}
+        try:
+            raw_json = _vault_aes_decrypt(dek, r[9], _vault_cred_aad(cid))
+            secret_obj = json.loads(raw_json.decode("utf-8"))
+        except Exception:
+            secret_obj = {"username": "", "password": "", "notes": "Decryption key mismatch"}
+        rec = {
+            "id": cid,
+            "assetTag": r[1] or "",
+            "assetName": r[2] or "",
+            "deviceType": r[3] or "",
+            "factory": r[4] or "",
+            "serviceType": r[5] or "Web GUI",
+            "hostUrl": r[6] or "",
+            "port": r[7] or "",
+            "label": r[8] or "",
+            "username": str(secret_obj.get("username") or ""),
+            "password": str(secret_obj.get("password") or ""),
+            "enableSecret": str(secret_obj.get("enableSecret") or ""),
+            "snmpAuth": str(secret_obj.get("snmpAuth") or ""),
+            "snmpPriv": str(secret_obj.get("snmpPriv") or ""),
+            "apiToken": str(secret_obj.get("apiToken") or ""),
+            "recoveryCodes": str(secret_obj.get("recoveryCodes") or ""),
+            "notes": str(secret_obj.get("notes") or ""),
+            "createdBy": r[10] or "",
+            "updatedBy": r[11] or "",
+            "rotatedAt": r[12].isoformat() if r[12] else "",
+            "createdAt": r[13].isoformat() if r[13] else "",
+            "updatedAt": r[14].isoformat() if r[14] else "",
+        }
+        if factory and factory.lower() != "all" and rec["factory"].lower() != factory.lower():
+            continue
+        if service_type and service_type.lower() != "all" and rec["serviceType"].lower() != service_type.lower():
+            continue
+        if asset_tag and rec["assetTag"].lower() != asset_tag.lower():
+            continue
+        if q:
+            hay = " ".join([
+                rec["assetTag"], rec["assetName"], rec["deviceType"], rec["factory"],
+                rec["serviceType"], rec["hostUrl"], rec["label"], rec["username"], rec["notes"],
+            ]).lower()
+            if q not in hay:
+                continue
+        out.append(rec)
+    return jsonify(items=out, total=len(out))
+
+
+@app.post("/api/vault/credentials")
+@signed_in
+def create_vault_credential():
+    who = session.get("profile") or {}
+    if not session.get("is_admin") and not module_access(who, "credentials", write=True):
+        return jsonify(error="Write access on Credentials Vault is required."), 403
+    data = request.get_json(silent=True) or {}
+    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    label = str(data.get("label") or data.get("assetName") or data.get("hostUrl") or "").strip()[:160]
+    if not label:
+        return jsonify(error="Credential title / label or device name is required."), 400
+    cid = f"CRD-{secrets.token_hex(4).upper()}"
+    secret_payload = {
+        "username": str(data.get("username") or "")[:200],
+        "password": str(data.get("password") or "")[:500],
+        "enableSecret": str(data.get("enableSecret") or "")[:300],
+        "snmpAuth": str(data.get("snmpAuth") or "")[:300],
+        "snmpPriv": str(data.get("snmpPriv") or "")[:300],
+        "apiToken": str(data.get("apiToken") or "")[:2000],
+        "recoveryCodes": str(data.get("recoveryCodes") or "")[:2000],
+        "notes": str(data.get("notes") or "")[:4000],
+    }
+    with db() as conn:
+        dek, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        ct = _vault_aes_encrypt(dek, json.dumps(secret_payload).encode("utf-8"), _vault_cred_aad(cid))
+        conn.execute(
+            """
+            INSERT INTO vault_credentials(
+                id, asset_tag, asset_name, device_type, factory, service_type,
+                host_url, port, label, ciphertext, created_by, updated_by, rotated_at
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,now())
+            """,
+            (
+                cid,
+                str(data.get("assetTag") or "")[:80],
+                str(data.get("assetName") or "")[:160],
+                str(data.get("deviceType") or "")[:80],
+                str(data.get("factory") or "")[:120],
+                str(data.get("serviceType") or "Web GUI")[:60],
+                str(data.get("hostUrl") or "")[:240],
+                str(data.get("port") or "")[:16],
+                label,
+                ct,
+                actor,
+                actor,
+            ),
+        )
+    return jsonify(ok=True, id=cid), 201
+
+
+@app.put("/api/vault/credentials/<path:cred_id>")
+@signed_in
+def update_vault_credential(cred_id):
+    who = session.get("profile") or {}
+    if not session.get("is_admin") and not module_access(who, "credentials", write=True):
+        return jsonify(error="Write access on Credentials Vault is required."), 403
+    data = request.get_json(silent=True) or {}
+    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    label = str(data.get("label") or data.get("assetName") or data.get("hostUrl") or "").strip()[:160]
+    if not label:
+        return jsonify(error="Credential title / label is required."), 400
+    secret_payload = {
+        "username": str(data.get("username") or "")[:200],
+        "password": str(data.get("password") or "")[:500],
+        "enableSecret": str(data.get("enableSecret") or "")[:300],
+        "snmpAuth": str(data.get("snmpAuth") or "")[:300],
+        "snmpPriv": str(data.get("snmpPriv") or "")[:300],
+        "apiToken": str(data.get("apiToken") or "")[:2000],
+        "recoveryCodes": str(data.get("recoveryCodes") or "")[:2000],
+        "notes": str(data.get("notes") or "")[:4000],
+    }
+    with db() as conn:
+        dek, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        ct = _vault_aes_encrypt(dek, json.dumps(secret_payload).encode("utf-8"), _vault_cred_aad(cred_id))
+        cur = conn.execute(
+            """
+            UPDATE vault_credentials
+            SET asset_tag=%s, asset_name=%s, device_type=%s, factory=%s, service_type=%s,
+                host_url=%s, port=%s, label=%s, ciphertext=%s, updated_by=%s,
+                rotated_at=now(), updated_at=now()
+            WHERE id=%s
+            """,
+            (
+                str(data.get("assetTag") or "")[:80],
+                str(data.get("assetName") or "")[:160],
+                str(data.get("deviceType") or "")[:80],
+                str(data.get("factory") or "")[:120],
+                str(data.get("serviceType") or "Web GUI")[:60],
+                str(data.get("hostUrl") or "")[:240],
+                str(data.get("port") or "")[:16],
+                label,
+                ct,
+                actor,
+                cred_id,
+            ),
+        )
+        if cur.rowcount == 0:
+            abort(404)
+    return jsonify(ok=True, id=cred_id)
+
+
+@app.delete("/api/vault/credentials/<path:cred_id>")
+@signed_in
+def delete_vault_credential(cred_id):
+    who = session.get("profile") or {}
+    if not session.get("is_admin") and not module_access(who, "credentials", write=True):
+        return jsonify(error="Write access on Credentials Vault is required."), 403
+    with db() as conn:
+        _, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        cur = conn.execute("DELETE FROM vault_credentials WHERE id=%s", (cred_id,))
+        if cur.rowcount == 0:
+            abort(404)
+    return jsonify(ok=True)
+
+
+def _save_firmware_upload(file_storage, item_id, slot):
+    if not file_storage or not getattr(file_storage, "filename", ""):
+        return None
+    orig_name = Path(file_storage.filename).name[:180]
+    safe = secure_filename(orig_name) or f"{slot}.bin"
+    raw = file_storage.read()
+    if not raw:
+        return None
+    sha256_hex = hashlib.sha256(raw).hexdigest()
+    folder = FIRMWARE_UPLOAD_DIR / re.sub(r"[^A-Za-z0-9_-]", "", item_id)
+    folder.mkdir(parents=True, exist_ok=True)
+    disk_name = f"{slot}_{secrets.token_hex(4)}_{safe}"
+    target = folder / disk_name
+    target.write_bytes(raw)
+    rel = f"{folder.name}/{disk_name}"
+    ext = Path(orig_name).suffix.lower().lstrip(".").upper() or "FILE"
+    return rel, orig_name, len(raw), sha256_hex, ext
+
+
+def _unlink_firmware_rel(rel_path):
+    if not rel_path:
+        return
+    try:
+        target = (FIRMWARE_UPLOAD_DIR / rel_path).resolve()
+        if target.is_relative_to(FIRMWARE_UPLOAD_DIR.resolve()):
+            target.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
+def _firmware_row_json(r):
+    cfg_rel = r[11] or ""
+    fw_rel = r[16] or ""
+    return {
+        "id": r[0],
+        "assetTag": r[1] or "",
+        "assetName": r[2] or "",
+        "deviceType": r[3] or "",
+        "manufacturer": r[4] or "",
+        "model": r[5] or "",
+        "factory": r[6] or "",
+        "recordKind": r[7] or "Config Backup",
+        "firmwareVersion": r[8] or "",
+        "previousVersion": r[9] or "",
+        "releaseDate": r[10] or "",
+        "configFileRel": cfg_rel,
+        "configFileName": r[12] or "",
+        "configFileSize": int(r[13] or 0),
+        "configSha256": r[14] or "",
+        "configFormat": r[15] or "",
+        "configDownloadUrl": f"/api/firmware-backups/file/{quote(cfg_rel)}" if cfg_rel else "",
+        "firmwareFileRel": fw_rel,
+        "firmwareFileName": r[17] or "",
+        "firmwareFileSize": int(r[18] or 0),
+        "firmwareSha256": r[19] or "",
+        "firmwareDownloadUrl": f"/api/firmware-backups/file/{quote(fw_rel)}" if fw_rel else "",
+        "firmwareUrl": r[20] or "",
+        "backupTakenAt": r[21] or "",
+        "nextBackupDue": r[22] or "",
+        "eolStatus": r[23] or "Supported",
+        "restoreSteps": r[24] or "",
+        "notes": r[25] or "",
+        "uploadedBy": r[26] or "",
+        "createdAt": r[27].isoformat() if r[27] else "",
+        "updatedAt": r[28].isoformat() if r[28] else "",
+    }
+
+
+@app.get("/api/firmware-backups")
+@signed_in
+def list_firmware_backups():
+    who = session.get("profile") or {}
+    if not session.get("is_admin") and not module_access(who, "firmware"):
+        return jsonify(error="Backups & Firmware access required."), 403
+    q = str(request.args.get("q") or "").strip().lower()
+    factory = str(request.args.get("factory") or "").strip()
+    kind = str(request.args.get("record_kind") or "").strip()
+    dtype = str(request.args.get("device_type") or "").strip()
+    asset_tag = str(request.args.get("asset_tag") or "").strip()
+    with db() as conn:
+        rows = conn.execute("""
+            SELECT id, asset_tag, asset_name, device_type, manufacturer, model, factory,
+                   record_kind, firmware_version, previous_version, release_date,
+                   config_file_rel, config_file_name, config_file_size, config_sha256, config_format,
+                   firmware_file_rel, firmware_file_name, firmware_file_size, firmware_sha256,
+                   firmware_url, backup_taken_at, next_backup_due, eol_status,
+                   restore_steps, notes, uploaded_by, created_at, updated_at
+            FROM device_firmware_backups
+            ORDER BY updated_at DESC, created_at DESC
+        """).fetchall()
+    items = []
+    for r in rows:
+        item = _firmware_row_json(r)
+        if factory and factory.lower() != "all" and item["factory"].lower() != factory.lower():
+            continue
+        if kind and kind.lower() != "all" and item["recordKind"].lower() != kind.lower():
+            continue
+        if dtype and dtype.lower() != "all" and item["deviceType"].lower() != dtype.lower():
+            continue
+        if asset_tag and item["assetTag"].lower() != asset_tag.lower():
+            continue
+        if q:
+            hay = " ".join([
+                item["id"], item["assetTag"], item["assetName"], item["deviceType"],
+                item["manufacturer"], item["model"], item["factory"], item["firmwareVersion"],
+                item["configFileName"], item["firmwareFileName"], item["notes"],
+            ]).lower()
+            if q not in hay:
+                continue
+        items.append(item)
+    return jsonify(items=items, total=len(items))
+
+
+@app.post("/api/firmware-backups")
+@signed_in
+def create_firmware_backup():
+    who = session.get("profile") or {}
+    if not session.get("is_admin") and not module_access(who, "firmware", write=True):
+        return jsonify(error="Write access on Backups & Firmware is required."), 403
+    data = request.form if request.form else (request.get_json(silent=True) or {})
+    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    asset_name = str(data.get("assetName") or "").strip()[:160]
+    fw_ver = str(data.get("firmwareVersion") or "").strip()[:80]
+    if not asset_name and not fw_ver and not request.files:
+        return jsonify(error="Select a device or upload a backup / firmware file."), 400
+    item_id = f"FWB-{secrets.token_hex(4).upper()}"
+    cfg_saved = _save_firmware_upload(request.files.get("config_file"), item_id, "cfg")
+    fw_saved = _save_firmware_upload(request.files.get("firmware_file"), item_id, "fw")
+    with db() as conn:
+        conn.execute(
+            """
+            INSERT INTO device_firmware_backups(
+                id, asset_tag, asset_name, device_type, manufacturer, model, factory,
+                record_kind, firmware_version, previous_version, release_date,
+                config_file_rel, config_file_name, config_file_size, config_sha256, config_format,
+                firmware_file_rel, firmware_file_name, firmware_file_size, firmware_sha256,
+                firmware_url, backup_taken_at, next_backup_due, eol_status,
+                restore_steps, notes, uploaded_by
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """,
+            (
+                item_id,
+                str(data.get("assetTag") or "")[:80],
+                asset_name,
+                str(data.get("deviceType") or "")[:80],
+                str(data.get("manufacturer") or "")[:120],
+                str(data.get("model") or "")[:120],
+                str(data.get("factory") or "")[:120],
+                str(data.get("recordKind") or "Config Backup")[:60],
+                fw_ver,
+                str(data.get("previousVersion") or "")[:80],
+                str(data.get("releaseDate") or "")[:40],
+                cfg_saved[0] if cfg_saved else "",
+                cfg_saved[1] if cfg_saved else "",
+                cfg_saved[2] if cfg_saved else 0,
+                cfg_saved[3] if cfg_saved else "",
+                (cfg_saved[4] if cfg_saved else str(data.get("configFormat") or ""))[:40],
+                fw_saved[0] if fw_saved else "",
+                fw_saved[1] if fw_saved else "",
+                fw_saved[2] if fw_saved else 0,
+                fw_saved[3] if fw_saved else "",
+                str(data.get("firmwareUrl") or "")[:400],
+                str(data.get("backupTakenAt") or "")[:40],
+                str(data.get("nextBackupDue") or "")[:40],
+                str(data.get("eolStatus") or "Supported")[:40],
+                str(data.get("restoreSteps") or "")[:4000],
+                str(data.get("notes") or "")[:4000],
+                actor,
+            ),
+        )
+    return jsonify(ok=True, id=item_id), 201
+
+
+@app.put("/api/firmware-backups/<path:item_id>")
+@signed_in
+def update_firmware_backup(item_id):
+    who = session.get("profile") or {}
+    if not session.get("is_admin") and not module_access(who, "firmware", write=True):
+        return jsonify(error="Write access on Backups & Firmware is required."), 403
+    data = request.form if request.form else (request.get_json(silent=True) or {})
+    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    cfg_new = _save_firmware_upload(request.files.get("config_file"), item_id, "cfg")
+    fw_new = _save_firmware_upload(request.files.get("firmware_file"), item_id, "fw")
+    clear_cfg = str(data.get("clearConfigFile") or "").lower() in ("1", "true", "yes")
+    clear_fw = str(data.get("clearFirmwareFile") or "").lower() in ("1", "true", "yes")
+
+    with db() as conn:
+        prior = conn.execute(
+            "SELECT config_file_rel, config_file_name, config_file_size, config_sha256, config_format, firmware_file_rel, firmware_file_name, firmware_file_size, firmware_sha256 FROM device_firmware_backups WHERE id=%s",
+            (item_id,),
+        ).fetchone()
+        if not prior:
+            abort(404)
+        old_cfg_rel, old_fw_rel = prior[0], prior[5]
+        if cfg_new:
+            cfg_rel, cfg_name, cfg_size, cfg_sha, cfg_fmt = cfg_new
+            _unlink_firmware_rel(old_cfg_rel)
+        elif clear_cfg:
+            cfg_rel, cfg_name, cfg_size, cfg_sha, cfg_fmt = "", "", 0, "", ""
+            _unlink_firmware_rel(old_cfg_rel)
+        else:
+            cfg_rel, cfg_name, cfg_size, cfg_sha, cfg_fmt = prior[0], prior[1], prior[2], prior[3], prior[4]
+
+        if fw_new:
+            fw_rel, fw_name, fw_size, fw_sha, _ = fw_new
+            _unlink_firmware_rel(old_fw_rel)
+        elif clear_fw:
+            fw_rel, fw_name, fw_size, fw_sha = "", "", 0, ""
+            _unlink_firmware_rel(old_fw_rel)
+        else:
+            fw_rel, fw_name, fw_size, fw_sha = prior[5], prior[6], prior[7], prior[8]
+
+        conn.execute(
+            """
+            UPDATE device_firmware_backups
+            SET asset_tag=%s, asset_name=%s, device_type=%s, manufacturer=%s, model=%s, factory=%s,
+                record_kind=%s, firmware_version=%s, previous_version=%s, release_date=%s,
+                config_file_rel=%s, config_file_name=%s, config_file_size=%s, config_sha256=%s, config_format=%s,
+                firmware_file_rel=%s, firmware_file_name=%s, firmware_file_size=%s, firmware_sha256=%s,
+                firmware_url=%s, backup_taken_at=%s, next_backup_due=%s, eol_status=%s,
+                restore_steps=%s, notes=%s, uploaded_by=%s, updated_at=now()
+            WHERE id=%s
+            """,
+            (
+                str(data.get("assetTag") or "")[:80],
+                str(data.get("assetName") or "")[:160],
+                str(data.get("deviceType") or "")[:80],
+                str(data.get("manufacturer") or "")[:120],
+                str(data.get("model") or "")[:120],
+                str(data.get("factory") or "")[:120],
+                str(data.get("recordKind") or "Config Backup")[:60],
+                str(data.get("firmwareVersion") or "")[:80],
+                str(data.get("previousVersion") or "")[:80],
+                str(data.get("releaseDate") or "")[:40],
+                cfg_rel, cfg_name, cfg_size, cfg_sha, cfg_fmt[:40],
+                fw_rel, fw_name, fw_size, fw_sha,
+                str(data.get("firmwareUrl") or "")[:400],
+                str(data.get("backupTakenAt") or "")[:40],
+                str(data.get("nextBackupDue") or "")[:40],
+                str(data.get("eolStatus") or "Supported")[:40],
+                str(data.get("restoreSteps") or "")[:4000],
+                str(data.get("notes") or "")[:4000],
+                actor,
+                item_id,
+            ),
+        )
+    return jsonify(ok=True, id=item_id)
+
+
+@app.delete("/api/firmware-backups/<path:item_id>")
+@signed_in
+def delete_firmware_backup(item_id):
+    who = session.get("profile") or {}
+    if not session.get("is_admin") and not module_access(who, "firmware", write=True):
+        return jsonify(error="Write access on Backups & Firmware is required."), 403
+    with db() as conn:
+        row = conn.execute(
+            "DELETE FROM device_firmware_backups WHERE id=%s RETURNING config_file_rel, firmware_file_rel",
+            (item_id,),
+        ).fetchone()
+        if not row:
+            abort(404)
+        _unlink_firmware_rel(row[0])
+        _unlink_firmware_rel(row[1])
+    return jsonify(ok=True)
+
+
+@app.get("/api/firmware-backups/file/<path:rel_path>")
+@signed_in
+def download_firmware_backup_file(rel_path):
+    who = session.get("profile") or {}
+    if not session.get("is_admin") and not module_access(who, "firmware"):
+        abort(403)
+    base = FIRMWARE_UPLOAD_DIR.resolve()
+    target = (base / rel_path).resolve()
+    if not target.is_relative_to(base) or not target.is_file():
+        abort(404)
+    return send_from_directory(str(target.parent), target.name, as_attachment=True)
+
+
 @app.errorhandler(413)
 def too_large(_):
-    limit = "1 GB" if request.path == "/api/backups/restore" else "64 MB"
+    if request.path == "/api/backups/restore":
+        limit = "1 GB"
+    elif request.path.startswith("/api/firmware-backups"):
+        limit = "256 MB"
+    else:
+        limit = "64 MB"
     return jsonify(error=f"Request too large (maximum {limit})"), 413
 
 

@@ -12,7 +12,10 @@ import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
 import android.media.ExifInterface;
+import android.media.MediaRecorder;
 import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
@@ -55,6 +58,8 @@ public class MainActivity extends Activity {
     private static final int REQ_CAMERA_CHOOSER = 4004;
     private static final int REQ_CAMERA_NATIVE = 4005;
     private static final int REQ_NATIVE_CAMERA = 4006;
+    private static final int REQ_AUDIO_PERM = 4007;
+    private static final int REQ_AUDIO_NATIVE = 4008;
 
     private WebView webView;
     private ProgressBar progressBar;
@@ -63,6 +68,7 @@ public class MainActivity extends Activity {
 
     private ValueCallback<Uri[]> fileUploadCallback = null;
     private PermissionRequest pendingPermissionRequest = null;
+    private String[] pendingGrantResources = null;
     private WebChromeClient.FileChooserParams pendingChooserParams = null;
     private Uri pendingCameraPhotoUri = null;
     private File pendingCameraPhotoFile = null;
@@ -70,6 +76,8 @@ public class MainActivity extends Activity {
     private String pendingNativeCallbackId = "";
     private Uri pendingNativePhotoUri = null;
     private File pendingNativePhotoFile = null;
+    private int pendingAudioDurationMs = 2400;
+    private String pendingAudioCallbackId = "";
     private boolean sslDialogShowing = false;
     private final List<SslErrorHandler> pendingSslHandlers = new ArrayList<>();
     private String configuredHost = "";
@@ -232,24 +240,34 @@ public class MainActivity extends Activity {
             public void onPermissionRequest(PermissionRequest request) {
                 runOnUiThread(() -> {
                     String[] resources = request.getResources();
-                    boolean wantsVideo = false;
+                    List<String> requested = new ArrayList<>();
+                    List<String> neededPerms = new ArrayList<>();
                     for (String res : resources) {
                         if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(res)) {
-                            wantsVideo = true;
+                            requested.add(res);
+                            if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                                neededPerms.add(Manifest.permission.CAMERA);
+                            }
+                        } else if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(res)) {
+                            requested.add(res);
+                            if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                                neededPerms.add(Manifest.permission.RECORD_AUDIO);
+                            }
                         }
                     }
-                    if (!wantsVideo) {
+                    if (requested.isEmpty()) {
                         request.deny();
                         return;
                     }
-                    if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                    if (!neededPerms.isEmpty() && Build.VERSION.SDK_INT >= 23) {
                         if (pendingPermissionRequest != null) {
                             try { pendingPermissionRequest.deny(); } catch (Exception ignored) {}
                         }
                         pendingPermissionRequest = request;
-                        requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA_PERM);
+                        pendingGrantResources = requested.toArray(new String[0]);
+                        requestPermissions(neededPerms.toArray(new String[0]), REQ_CAMERA_PERM);
                     } else {
-                        request.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
+                        request.grant(requested.toArray(new String[0]));
                     }
                 });
             }
@@ -558,11 +576,25 @@ public class MainActivity extends Activity {
         boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
         if (requestCode == REQ_CAMERA_PERM && pendingPermissionRequest != null) {
             PermissionRequest req = pendingPermissionRequest;
+            String[] grantRes = pendingGrantResources;
             pendingPermissionRequest = null;
-            if (granted) {
-                req.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
+            pendingGrantResources = null;
+            boolean allOk = grantResults.length > 0;
+            for (int r : grantResults) { if (r != PackageManager.PERMISSION_GRANTED) { allOk = false; break; } }
+            if (allOk) {
+                req.grant(grantRes != null ? grantRes : new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
             } else {
                 req.deny();
+            }
+        } else if (requestCode == REQ_AUDIO_NATIVE) {
+            String cbId = pendingAudioCallbackId;
+            int dur = pendingAudioDurationMs;
+            pendingAudioCallbackId = "";
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                recordNativeVoicePcm(dur, cbId);
+            } else {
+                deliverNativeVoicePcm(cbId, "", 16000);
+                Toast.makeText(this, "Allow Microphone permission in App Settings to use Voice Lock.", Toast.LENGTH_LONG).show();
             }
         } else if (requestCode == REQ_CAMERA_CHOOSER) {
             WebChromeClient.FileChooserParams cp = pendingChooserParams;
@@ -645,6 +677,66 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void startNativeVoiceRecord(int durationMs, String callbackId) {
+        int dur = Math.max(1200, Math.min(3500, durationMs));
+        if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            pendingAudioDurationMs = dur;
+            pendingAudioCallbackId = callbackId != null ? callbackId : "";
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_AUDIO_NATIVE);
+            return;
+        }
+        recordNativeVoicePcm(dur, callbackId);
+    }
+
+    private void recordNativeVoicePcm(int durationMs, String callbackId) {
+        final String cbId = callbackId != null ? callbackId : "";
+        new Thread(() -> {
+            AudioRecord rec = null;
+            try {
+                int sampleRate = 16000;
+                int minBuf = AudioRecord.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+                int targetSamples = Math.max(16000, Math.round(sampleRate * (durationMs / 1000f)));
+                int bufBytes = Math.max(minBuf, targetSamples * 2);
+                rec = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufBytes);
+                if (rec.getState() != AudioRecord.STATE_INITIALIZED) {
+                    deliverNativeVoicePcm(cbId, "", sampleRate);
+                    return;
+                }
+                short[] pcm = new short[targetSamples];
+                rec.startRecording();
+                int offset = 0;
+                while (offset < targetSamples) {
+                    int read = rec.read(pcm, offset, targetSamples - offset);
+                    if (read <= 0) break;
+                    offset += read;
+                }
+                rec.stop();
+                byte[] out = new byte[offset * 2];
+                for (int i = 0; i < offset; i++) {
+                    out[i * 2] = (byte) (pcm[i] & 0xFF);
+                    out[i * 2 + 1] = (byte) ((pcm[i] >> 8) & 0xFF);
+                }
+                String b64 = Base64.encodeToString(out, Base64.NO_WRAP);
+                deliverNativeVoicePcm(cbId, b64, sampleRate);
+            } catch (Exception e) {
+                deliverNativeVoicePcm(cbId, "", 16000);
+            } finally {
+                if (rec != null) {
+                    try { rec.release(); } catch (Exception ignored) {}
+                }
+            }
+        }, "shree-voice-rec").start();
+    }
+
+    private void deliverNativeVoicePcm(String callbackId, String b64, int sampleRate) {
+        if (webView == null || callbackId == null || callbackId.isEmpty()) return;
+        String js = "if(typeof window.__shreeReceiveVoicePcm==='function'){window.__shreeReceiveVoicePcm("
+                + JSONObject.quote(callbackId) + "," + JSONObject.quote(b64 != null ? b64 : "") + "," + sampleRate + ");}";
+        runOnUiThread(() -> {
+            if (webView != null) webView.evaluateJavascript(js, null);
+        });
+    }
+
     private final class ShreeBridge {
         @JavascriptInterface
         public void notify(String title, String body, String targetView, String targetId) {
@@ -658,7 +750,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "1.0.4";
+            return "1.0.5";
         }
 
         @JavascriptInterface
@@ -672,8 +764,18 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public boolean hasNativeVoiceRecorder() {
+            return true;
+        }
+
+        @JavascriptInterface
         public void captureCameraPhoto(String facing, String callbackId) {
             runOnUiThread(() -> startNativeCameraCapture(facing, callbackId));
+        }
+
+        @JavascriptInterface
+        public void captureVoicePcm(int durationMs, String callbackId) {
+            runOnUiThread(() -> startNativeVoiceRecord(durationMs, callbackId));
         }
     }
 }

@@ -140,3 +140,82 @@ CREATE INDEX IF NOT EXISTS material_gate_dir_idx ON material_gate_passes(directi
 CREATE INDEX IF NOT EXISTS material_gate_factory_idx ON material_gate_passes(factory);
 CREATE INDEX IF NOT EXISTS material_gate_dept_idx ON material_gate_passes(department);
 CREATE INDEX IF NOT EXISTS material_gate_ret_due_idx ON material_gate_passes(returnable, expected_return_at);
+
+CREATE TABLE IF NOT EXISTS vault_security_config (
+  id integer PRIMARY KEY DEFAULT 1,
+  initialized boolean NOT NULL DEFAULT false,
+  pin_min_len integer NOT NULL DEFAULT 4,
+  pin_max_len integer NOT NULL DEFAULT 8,
+  pin_length integer NOT NULL DEFAULT 4,
+  pin_hash text NOT NULL DEFAULT '',
+  keyword_hash text NOT NULL DEFAULT '',
+  kdf_salt text NOT NULL DEFAULT '',
+  wrapped_dek_pin_kw text NOT NULL DEFAULT '',
+  voice_enabled boolean NOT NULL DEFAULT false,
+  voice_phrase_hash text NOT NULL DEFAULT '',
+  voice_feature_enc text NOT NULL DEFAULT '',
+  wrapped_dek_voice text NOT NULL DEFAULT '',
+  failed_attempts integer NOT NULL DEFAULT 0,
+  max_attempts integer NOT NULL DEFAULT 5,
+  permanently_locked boolean NOT NULL DEFAULT false,
+  locked_at timestamptz,
+  auto_lock_minutes integer NOT NULL DEFAULT 10,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  updated_by text NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS vault_credentials (
+  id text PRIMARY KEY,
+  asset_tag text NOT NULL DEFAULT '',
+  asset_name text NOT NULL DEFAULT '',
+  device_type text NOT NULL DEFAULT '',
+  factory text NOT NULL DEFAULT '',
+  service_type text NOT NULL DEFAULT 'Web GUI',
+  host_url text NOT NULL DEFAULT '',
+  port text NOT NULL DEFAULT '',
+  label text NOT NULL DEFAULT '',
+  ciphertext text NOT NULL,
+  created_by text NOT NULL DEFAULT '',
+  updated_by text NOT NULL DEFAULT '',
+  rotated_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS vault_creds_asset_idx ON vault_credentials(asset_tag);
+CREATE INDEX IF NOT EXISTS vault_creds_factory_idx ON vault_credentials(factory);
+
+CREATE TABLE IF NOT EXISTS device_firmware_backups (
+  id text PRIMARY KEY,
+  asset_tag text NOT NULL DEFAULT '',
+  asset_name text NOT NULL DEFAULT '',
+  device_type text NOT NULL DEFAULT '',
+  manufacturer text NOT NULL DEFAULT '',
+  model text NOT NULL DEFAULT '',
+  factory text NOT NULL DEFAULT '',
+  record_kind text NOT NULL DEFAULT 'Config Backup',
+  firmware_version text NOT NULL DEFAULT '',
+  previous_version text NOT NULL DEFAULT '',
+  release_date text NOT NULL DEFAULT '',
+  config_file_rel text NOT NULL DEFAULT '',
+  config_file_name text NOT NULL DEFAULT '',
+  config_file_size bigint NOT NULL DEFAULT 0,
+  config_sha256 text NOT NULL DEFAULT '',
+  config_format text NOT NULL DEFAULT '',
+  firmware_file_rel text NOT NULL DEFAULT '',
+  firmware_file_name text NOT NULL DEFAULT '',
+  firmware_file_size bigint NOT NULL DEFAULT 0,
+  firmware_sha256 text NOT NULL DEFAULT '',
+  firmware_url text NOT NULL DEFAULT '',
+  backup_taken_at text NOT NULL DEFAULT '',
+  next_backup_due text NOT NULL DEFAULT '',
+  eol_status text NOT NULL DEFAULT 'Supported',
+  restore_steps text NOT NULL DEFAULT '',
+  notes text NOT NULL DEFAULT '',
+  uploaded_by text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS firmware_asset_idx ON device_firmware_backups(asset_tag);
+CREATE INDEX IF NOT EXISTS firmware_factory_idx ON device_firmware_backups(factory);
+CREATE INDEX IF NOT EXISTS firmware_kind_idx ON device_firmware_backups(record_kind);
+CREATE INDEX IF NOT EXISTS firmware_updated_idx ON device_firmware_backups(updated_at DESC);
