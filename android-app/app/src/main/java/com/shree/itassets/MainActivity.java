@@ -24,6 +24,7 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.view.View;
+import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
@@ -750,7 +751,18 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "1.0.5";
+            return "1.0.6";
+        }
+
+        @JavascriptInterface
+        public void setSecureScreen(final boolean secure) {
+            runOnUiThread(() -> {
+                if (secure) {
+                    getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+                } else {
+                    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+                }
+            });
         }
 
         @JavascriptInterface

@@ -219,3 +219,54 @@ CREATE INDEX IF NOT EXISTS firmware_asset_idx ON device_firmware_backups(asset_t
 CREATE INDEX IF NOT EXISTS firmware_factory_idx ON device_firmware_backups(factory);
 CREATE INDEX IF NOT EXISTS firmware_kind_idx ON device_firmware_backups(record_kind);
 CREATE INDEX IF NOT EXISTS firmware_updated_idx ON device_firmware_backups(updated_at DESC);
+
+ALTER TABLE vault_security_config ADD COLUMN IF NOT EXISTS download_password_hash text NOT NULL DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS vault_active_sessions (
+  sid text PRIMARY KEY,
+  username text NOT NULL DEFAULT '',
+  wrapped_dek text NOT NULL,
+  expires_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS vault_sess_exp_idx ON vault_active_sessions(expires_at);
+
+CREATE TABLE IF NOT EXISTS vault_doc_folders (
+  id text PRIMARY KEY,
+  parent_id text NOT NULL DEFAULT '',
+  name text NOT NULL,
+  color text NOT NULL DEFAULT '#157a54',
+  icon text NOT NULL DEFAULT '📁',
+  created_by text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS vault_documents (
+  id text PRIMARY KEY,
+  folder_id text NOT NULL DEFAULT '',
+  title text NOT NULL,
+  orig_filename text NOT NULL,
+  file_ext text NOT NULL DEFAULT '',
+  mime_type text NOT NULL DEFAULT 'application/octet-stream',
+  file_size bigint NOT NULL DEFAULT 0,
+  sha256 text NOT NULL DEFAULT '',
+  enc_rel_path text NOT NULL,
+  meta_ciphertext text NOT NULL DEFAULT '',
+  uploaded_by text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS vault_docs_folder_idx ON vault_documents(folder_id);
+CREATE INDEX IF NOT EXISTS vault_docs_updated_idx ON vault_documents(updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS vault_audit_logs (
+  id bigserial PRIMARY KEY,
+  event_type text NOT NULL,
+  actor text NOT NULL DEFAULT '',
+  target text NOT NULL DEFAULT '',
+  detail text NOT NULL DEFAULT '',
+  ip_address text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS vault_audit_created_idx ON vault_audit_logs(created_at DESC);

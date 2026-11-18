@@ -17,6 +17,12 @@ import base64
 import socket
 import ssl
 import math
+import zipfile
+import csv
+import html
+import io
+import mimetypes
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
@@ -39,6 +45,8 @@ UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", ROOT / "uploads"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 FIRMWARE_UPLOAD_DIR = UPLOAD_DIR / "firmware"
 FIRMWARE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+VAULT_DOCS_DIR = UPLOAD_DIR / "vault_docs"
+VAULT_DOCS_DIR.mkdir(parents=True, exist_ok=True)
 BACKUP_DIR = Path(os.getenv("BACKUP_DIR", "/backups"))
 RESTORE_LOCK_PATH = Path("/tmp/northstar-restore-in-progress")
 DEFAULT_CAMERA_PROFILES = [
@@ -142,20 +150,61 @@ MODULE_API_PATHS = {
 
 _VAULT_LOCK = threading.Lock()
 _VAULT_SESSIONS = {}
+_VAULT_BOOT_KEY_PATH = Path(tempfile.gettempdir()) / ".ns_vault_boot.key"
 
 
-def _vault_purge_session(sid=None, username=None):
+def _vault_boot_key():
+    for _ in range(5):
+        if _VAULT_BOOT_KEY_PATH.exists():
+            raw = _VAULT_BOOT_KEY_PATH.read_bytes()
+            if len(raw) == 32:
+                return raw
+        try:
+            fd = os.open(str(_VAULT_BOOT_KEY_PATH), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            key = os.urandom(32)
+            try:
+                os.write(fd, key)
+            finally:
+                os.close(fd)
+            return key
+        except FileExistsError:
+            time.sleep(0.02)
+    return hashlib.sha256((APP_SECRET + "|fallback-boot").encode("utf-8")).digest()
+
+
+def _vault_session_wrap_key():
+    return hashlib.sha256(_vault_boot_key() + b"|" + APP_SECRET.encode("utf-8")).digest()
+
+
+def _vault_purge_session(sid=None, username=None, conn=None):
     with _VAULT_LOCK:
         if sid is None and username is None:
             _VAULT_SESSIONS.clear()
-            return
-        if sid:
-            _VAULT_SESSIONS.pop(str(sid), None)
-        if username:
-            uname_low = str(username).strip().casefold()
-            stale = [k for k, v in _VAULT_SESSIONS.items() if str(v.get("username", "")).strip().casefold() == uname_low]
-            for k in stale:
-                _VAULT_SESSIONS.pop(k, None)
+        else:
+            if sid:
+                _VAULT_SESSIONS.pop(str(sid), None)
+            if username:
+                uname_low = str(username).strip().casefold()
+                stale = [k for k, v in _VAULT_SESSIONS.items() if str(v.get("username", "")).strip().casefold() == uname_low]
+                for k in stale:
+                    _VAULT_SESSIONS.pop(k, None)
+    try:
+        def _run_del(c):
+            if sid is None and username is None:
+                c.execute("DELETE FROM vault_active_sessions")
+            elif sid and username:
+                c.execute("DELETE FROM vault_active_sessions WHERE sid=%s OR lower(username)=lower(%s)", (str(sid), str(username)))
+            elif sid:
+                c.execute("DELETE FROM vault_active_sessions WHERE sid=%s", (str(sid),))
+            elif username:
+                c.execute("DELETE FROM vault_active_sessions WHERE lower(username)=lower(%s)", (str(username),))
+        if conn is not None:
+            _run_del(conn)
+        else:
+            with db() as c:
+                _run_del(c)
+    except Exception:
+        pass
 
 
 def module_permissions_for(profile):
@@ -475,7 +524,7 @@ def enforce_module_access():
     if path == "/api/snmp-metrics" and not is_write:
         if any(module_access(profile, m) for m in ("snmp", "overview", "network")):
             return None
-    if path in ("/api/vault/unlock", "/api/vault/unlock-voice", "/api/vault/lock"):
+    if path in ("/api/vault/unlock", "/api/vault/unlock-voice", "/api/vault/lock") or (path.startswith("/api/vault/documents/") and path.endswith("/download")):
         if not module_access(profile, "credentials", write=False):
             return jsonify(error="You do not have access to this module."), 403
         return None
@@ -6121,6 +6170,17 @@ def _compare_voice_signatures(tpl, cand):
     }
 
 
+def _vault_log_audit(conn, event_type, actor="", target="", detail=""):
+    try:
+        ip = str(request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()[:64]
+        conn.execute(
+            "INSERT INTO vault_audit_logs(event_type, actor, target, detail, ip_address) VALUES(%s,%s,%s,%s,%s)",
+            (str(event_type)[:60], str(actor)[:120], str(target)[:160], str(detail)[:400], ip),
+        )
+    except Exception:
+        pass
+
+
 def _vault_ensure_config_row(conn):
     conn.execute("INSERT INTO vault_security_config(id) VALUES(1) ON CONFLICT(id) DO NOTHING")
     return conn.execute("""
@@ -6128,35 +6188,79 @@ def _vault_ensure_config_row(conn):
                pin_hash, keyword_hash, kdf_salt, wrapped_dek_pin_kw,
                voice_enabled, voice_phrase_hash, voice_feature_enc, wrapped_dek_voice,
                failed_attempts, max_attempts, permanently_locked, locked_at,
-               auto_lock_minutes, updated_at, updated_by
+               auto_lock_minutes, updated_at, updated_by, download_password_hash
         FROM vault_security_config WHERE id=1
     """).fetchone()
 
 
-def _vault_get_active_dek(sid, auto_lock_minutes=10):
+def _vault_sess_aad(sid):
+    return f"ns-vsess:{sid}".encode("utf-8")
+
+
+def _vault_get_active_dek(sid, auto_lock_minutes=10, conn=None):
     if not sid:
         return None, 0
-    now_m = time.monotonic()
+    sid_str = str(sid)
     ttl = max(60, min(7200, int(auto_lock_minutes or 10) * 60))
-    with _VAULT_LOCK:
-        entry = _VAULT_SESSIONS.get(str(sid))
-        if not entry:
+
+    def _lookup_and_refresh(c):
+        c.execute("DELETE FROM vault_active_sessions WHERE expires_at <= now()")
+        row = c.execute(
+            "SELECT wrapped_dek, extract(epoch FROM (expires_at - now())) FROM vault_active_sessions WHERE sid=%s AND expires_at > now()",
+            (sid_str,),
+        ).fetchone()
+        if not row:
+            with _VAULT_LOCK:
+                _VAULT_SESSIONS.pop(sid_str, None)
             return None, 0
-        if entry["expires_at"] <= now_m:
-            _VAULT_SESSIONS.pop(str(sid), None)
+        try:
+            dek = _vault_aes_decrypt(_vault_session_wrap_key(), str(row[0]), _vault_sess_aad(sid_str))
+        except Exception:
+            c.execute("DELETE FROM vault_active_sessions WHERE sid=%s", (sid_str,))
+            with _VAULT_LOCK:
+                _VAULT_SESSIONS.pop(sid_str, None)
             return None, 0
-        entry["expires_at"] = now_m + ttl
-        return entry["dek"], int(entry["expires_at"] - now_m)
+        c.execute(
+            "UPDATE vault_active_sessions SET expires_at=now() + (%s * interval '1 second') WHERE sid=%s",
+            (ttl, sid_str),
+        )
+        with _VAULT_LOCK:
+            _VAULT_SESSIONS[sid_str] = {"dek": dek, "expires_at": time.monotonic() + ttl, "username": ""}
+        return dek, ttl
+
+    try:
+        if conn is not None:
+            return _lookup_and_refresh(conn)
+        with db() as c:
+            return _lookup_and_refresh(c)
+    except Exception:
+        return None, 0
 
 
-def _vault_set_active_dek(sid, username, dek_bytes, auto_lock_minutes=10):
+def _vault_set_active_dek(sid, username, dek_bytes, auto_lock_minutes=10, conn=None):
+    sid_str = str(sid)
     ttl = max(60, min(7200, int(auto_lock_minutes or 10) * 60))
+    wrapped = _vault_aes_encrypt(_vault_session_wrap_key(), dek_bytes, _vault_sess_aad(sid_str))
+
+    def _upsert(c):
+        c.execute("DELETE FROM vault_active_sessions WHERE expires_at <= now()")
+        c.execute(
+            """
+            INSERT INTO vault_active_sessions(sid, username, wrapped_dek, expires_at)
+            VALUES(%s, %s, %s, now() + (%s * interval '1 second'))
+            ON CONFLICT(sid) DO UPDATE
+            SET username=excluded.username, wrapped_dek=excluded.wrapped_dek, expires_at=excluded.expires_at
+            """,
+            (sid_str, str(username or "")[:120], wrapped, ttl),
+        )
+
+    if conn is not None:
+        _upsert(conn)
+    else:
+        with db() as c:
+            _upsert(c)
     with _VAULT_LOCK:
-        _VAULT_SESSIONS[str(sid)] = {
-            "dek": dek_bytes,
-            "username": str(username or ""),
-            "expires_at": time.monotonic() + ttl,
-        }
+        _VAULT_SESSIONS[sid_str] = {"dek": dek_bytes, "username": str(username or ""), "expires_at": time.monotonic() + ttl}
     return ttl
 
 
@@ -6179,8 +6283,10 @@ def _vault_record_failure(conn, actor_username, reason_label):
         """,
         (attempts, tripped, tripped, actor_username[:120]),
     )
+    _vault_log_audit(conn, "vault_unlock_failed", actor_username, f"Attempt {attempts}/{max_att}", reason_label)
     if tripped:
-        _vault_purge_session()
+        _vault_purge_session(conn=conn)
+        _vault_log_audit(conn, "vault_self_locked", actor_username, f"{attempts} failures", reason_label)
         _record_notification_event(conn, {
             "eventKey": f"vault-self-lock:{int(time.time())}",
             "kind": "system",
@@ -6204,12 +6310,12 @@ def get_vault_status():
     sid = str(session.get("sid") or "")
     with db() as conn:
         cfg = _vault_ensure_config_row(conn)
-    auto_mins = int(cfg[17] or 10)
-    dek, expires_sec = _vault_get_active_dek(sid, auto_mins)
-    if bool(cfg[15]):  # permanently_locked
-        dek = None
-        expires_sec = 0
-        _vault_purge_session(sid=sid)
+        auto_mins = int(cfg[17] or 10)
+        dek, expires_sec = _vault_get_active_dek(sid, auto_mins, conn=conn)
+        if bool(cfg[15]):  # permanently_locked
+            dek = None
+            expires_sec = 0
+            _vault_purge_session(sid=sid, conn=conn)
     failed = int(cfg[13] or 0)
     max_att = max(3, int(cfg[14] or 5))
     return jsonify(
@@ -6220,6 +6326,7 @@ def get_vault_status():
         pinMaxLen=int(cfg[3] or 8),
         pinLength=int(cfg[4] or 4),
         voiceEnabled=bool(cfg[9]),
+        hasDownloadPassword=bool(cfg[20]),
         failedAttempts=failed,
         maxAttempts=max_att,
         remainingAttempts=max(0, max_att - failed),
@@ -6250,6 +6357,7 @@ def save_vault_config():
     raw_phrase = str(data.get("voicePhrase") or "").strip()
     norm_phrase = _norm_voice_phrase(raw_phrase)
     voice_samples = data.get("voiceSamples")
+    dl_pwd = str(data.get("downloadPassword") or "").strip()
 
     with db() as conn:
         cfg = _vault_ensure_config_row(conn)
@@ -6262,6 +6370,13 @@ def save_vault_config():
         old_voice_phrase_hash = str(cfg[10] or "")
         old_voice_feat_enc = str(cfg[11] or "")
         old_wrapped_voice = str(cfg[12] or "")
+        old_dl_hash = str(cfg[20] or "")
+        if dl_pwd:
+            if len(dl_pwd) < 4 or len(dl_pwd) > 200:
+                return jsonify(error="Document download password must be 4 to 200 characters."), 400
+            new_dl_hash = generate_password_hash(dl_pwd)
+        else:
+            new_dl_hash = old_dl_hash
 
         if not initialized:
             if not re.fullmatch(r"\d{4,8}", pin):
@@ -6274,7 +6389,7 @@ def save_vault_config():
             kw_hash = generate_password_hash(keyword)
         else:
             # Preserve existing DEK either from active unlocked session OR current PIN+Keyword
-            dek, _ = _vault_get_active_dek(sid, int(cfg[17] or 10))
+            dek, _ = _vault_get_active_dek(sid, int(cfg[17] or 10), conn=conn)
             if dek is None:
                 cur_pin = str(data.get("currentPin") or "").strip()
                 cur_kw = str(data.get("currentKeyword") or "").strip()
@@ -6353,6 +6468,7 @@ def save_vault_config():
                 voice_phrase_hash=%s,
                 voice_feature_enc=%s,
                 wrapped_dek_voice=%s,
+                download_password_hash=%s,
                 failed_attempts=0,
                 permanently_locked=false,
                 locked_at=NULL,
@@ -6364,11 +6480,12 @@ def save_vault_config():
             (
                 pin_len, pin_hash, kw_hash, new_salt, wrapped_pin_kw,
                 voice_enabled, new_voice_phrase_hash, new_voice_feat_enc, new_wrapped_voice,
-                auto_mins, actor[:120],
+                new_dl_hash, auto_mins, actor[:120],
             ),
         )
-    ttl = _vault_set_active_dek(sid, who.get("username", ""), dek, auto_mins)
-    return jsonify(ok=True, unlocked=True, expiresInSec=ttl, pinLength=pin_len, voiceEnabled=voice_enabled, autoLockMinutes=auto_mins)
+        _vault_log_audit(conn, "vault_config_updated", actor, f"PIN {pin_len}d · Voice={'On' if voice_enabled else 'Off'}", f"DownloadPwd={'Set' if bool(new_dl_hash) else 'Unset'}")
+        ttl = _vault_set_active_dek(sid, who.get("username", ""), dek, auto_mins, conn=conn)
+    return jsonify(ok=True, unlocked=True, expiresInSec=ttl, pinLength=pin_len, voiceEnabled=voice_enabled, hasDownloadPassword=bool(new_dl_hash), autoLockMinutes=auto_mins)
 
 
 @app.post("/api/vault/unlock")
@@ -6408,7 +6525,8 @@ def unlock_vault_pin_keyword():
             )
             return jsonify(error=msg, failedAttempts=attempts, maxAttempts=max_att, remainingAttempts=rem, permanentlyLocked=tripped), code
         conn.execute("UPDATE vault_security_config SET failed_attempts=0, updated_at=now() WHERE id=1")
-    ttl = _vault_set_active_dek(sid, actor, dek, auto_mins)
+        _vault_log_audit(conn, "vault_unlocked_pin", actor, "Credentials Vault", "PIN + Secret Keyword verified")
+        ttl = _vault_set_active_dek(sid, actor, dek, auto_mins, conn=conn)
     return jsonify(ok=True, unlocked=True, expiresInSec=ttl)
 
 
@@ -6459,15 +6577,20 @@ def unlock_vault_voice():
             )
             return jsonify(error=msg, failedAttempts=attempts, maxAttempts=max_att, remainingAttempts=rem, permanentlyLocked=tripped, matchScore=score, matchDetails=details), code
         conn.execute("UPDATE vault_security_config SET failed_attempts=0, updated_at=now() WHERE id=1")
-    ttl = _vault_set_active_dek(sid, actor, dek, auto_mins)
+        _vault_log_audit(conn, "vault_unlocked_voice", actor, "Credentials Vault", f"Voice biometric match ({round(score*100,1)}%)")
+        ttl = _vault_set_active_dek(sid, actor, dek, auto_mins, conn=conn)
     return jsonify(ok=True, unlocked=True, expiresInSec=ttl, matchScore=score, matchDetails=details)
 
 
 @app.post("/api/vault/lock")
 @signed_in
 def lock_vault_session():
+    who = session.get("profile") or {}
+    actor = str(who.get("username") or who.get("name") or "User")
     sid = str(session.get("sid") or "")
-    _vault_purge_session(sid=sid)
+    with db() as conn:
+        _vault_purge_session(sid=sid, conn=conn)
+        _vault_log_audit(conn, "vault_locked", actor, "Credentials Vault", "Manual session lock")
     return jsonify(ok=True, unlocked=False)
 
 
@@ -6497,19 +6620,27 @@ def admin_reset_vault_lock():
             new_salt = base64.b64encode(os.urandom(32)).decode("ascii")
             wrapped_pin_kw = _vault_aes_encrypt(_vault_pin_kw_kek(pin, keyword, new_salt), dek, _VAULT_AAD_DEK)
             conn.execute("DELETE FROM vault_credentials")
+            conn.execute("DELETE FROM vault_documents")
+            conn.execute("DELETE FROM vault_doc_folders")
+            for p in VAULT_DOCS_DIR.glob("*.enc"):
+                try:
+                    p.unlink(missing_ok=True)
+                except Exception:
+                    pass
             conn.execute(
                 """
                 UPDATE vault_security_config
                 SET initialized=true, pin_length=%s, pin_hash=%s, keyword_hash=%s,
                     kdf_salt=%s, wrapped_dek_pin_kw=%s, voice_enabled=false,
                     voice_phrase_hash='', voice_feature_enc='', wrapped_dek_voice='',
-                    failed_attempts=0, permanently_locked=false, locked_at=NULL,
+                    download_password_hash='', failed_attempts=0, permanently_locked=false, locked_at=NULL,
                     updated_at=now(), updated_by=%s
                 WHERE id=1
                 """,
                 (len(pin), generate_password_hash(pin), generate_password_hash(keyword), new_salt, wrapped_pin_kw, username[:120]),
             )
-            _vault_purge_session()
+            _vault_purge_session(conn=conn)
+            _vault_log_audit(conn, "vault_wiped_reinit", username, "Credentials Vault", "Full wipe & key reset after self-lock")
             return jsonify(ok=True, resetMode="wiped_reinit", permanentlyLocked=False)
 
         conn.execute(
@@ -6521,6 +6652,7 @@ def admin_reset_vault_lock():
             """,
             (username[:120],),
         )
+        _vault_log_audit(conn, "vault_lockout_cleared", username, "Credentials Vault", "Admin verified account password to clear 5-attempt lockout")
     return jsonify(ok=True, resetMode="lockout_cleared", permanentlyLocked=False)
 
 
@@ -6532,9 +6664,9 @@ def _vault_require_unlocked_dek(conn):
     if not bool(cfg[1]):
         return None, (jsonify(error="vault_not_initialized"), 428)
     if bool(cfg[15]):
-        _vault_purge_session(sid=str(session.get("sid") or ""))
+        _vault_purge_session(sid=str(session.get("sid") or ""), conn=conn)
         return None, (jsonify(error="vault_self_locked", permanentlyLocked=True), 423)
-    dek, _ = _vault_get_active_dek(str(session.get("sid") or ""), int(cfg[17] or 10))
+    dek, _ = _vault_get_active_dek(str(session.get("sid") or ""), int(cfg[17] or 10), conn=conn)
     if dek is None:
         return None, (jsonify(error="vault_locked"), 423)
     return dek, None
@@ -6721,16 +6853,668 @@ def update_vault_credential(cred_id):
 @signed_in
 def delete_vault_credential(cred_id):
     who = session.get("profile") or {}
+    actor = str(who.get("name") or who.get("username") or "User")[:120]
     if not session.get("is_admin") and not module_access(who, "credentials", write=True):
         return jsonify(error="Write access on Credentials Vault is required."), 403
     with db() as conn:
         _, err = _vault_require_unlocked_dek(conn)
         if err:
             return err
-        cur = conn.execute("DELETE FROM vault_credentials WHERE id=%s", (cred_id,))
+        cur = conn.execute("DELETE FROM vault_credentials WHERE id=%s RETURNING label", (cred_id,))
+        row = cur.fetchone()
+        if not row:
+            abort(404)
+        _vault_log_audit(conn, "credential_deleted", actor, row[0] or cred_id, cred_id)
+    return jsonify(ok=True)
+
+
+@app.post("/api/vault/credentials/bulk")
+@signed_in
+def bulk_create_vault_credentials():
+    who = session.get("profile") or {}
+    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    if not session.get("is_admin") and not module_access(who, "credentials", write=True):
+        return jsonify(error="Write access on Credentials Vault is required."), 403
+    data = request.get_json(silent=True) or {}
+    items = data.get("items")
+    if not isinstance(items, list) or not items:
+        return jsonify(error="Provide a non-empty list of credentials."), 400
+    if len(items) > 2000:
+        return jsonify(error="Maximum 2,000 credentials per batch import."), 400
+    inserted = 0
+    with db() as conn:
+        dek, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        for entry in items:
+            if not isinstance(entry, dict):
+                continue
+            label = str(entry.get("label") or entry.get("assetName") or entry.get("hostUrl") or "").strip()[:160]
+            if not label:
+                continue
+            cid = f"CRD-{secrets.token_hex(4).upper()}"
+            secret_payload = {
+                "username": str(entry.get("username") or "")[:200],
+                "password": str(entry.get("password") or "")[:500],
+                "enableSecret": str(entry.get("enableSecret") or "")[:300],
+                "snmpAuth": str(entry.get("snmpAuth") or "")[:300],
+                "snmpPriv": str(entry.get("snmpPriv") or "")[:300],
+                "apiToken": str(entry.get("apiToken") or "")[:2000],
+                "recoveryCodes": str(entry.get("recoveryCodes") or "")[:2000],
+                "notes": str(entry.get("notes") or "")[:4000],
+            }
+            ct = _vault_aes_encrypt(dek, json.dumps(secret_payload).encode("utf-8"), _vault_cred_aad(cid))
+            conn.execute(
+                """
+                INSERT INTO vault_credentials(
+                    id, asset_tag, asset_name, device_type, factory, service_type,
+                    host_url, port, label, ciphertext, created_by, updated_by, rotated_at
+                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,now())
+                """,
+                (
+                    cid,
+                    str(entry.get("assetTag") or "")[:80],
+                    str(entry.get("assetName") or "")[:160],
+                    str(entry.get("deviceType") or "")[:80],
+                    str(entry.get("factory") or "")[:120],
+                    str(entry.get("serviceType") or "Web GUI")[:60],
+                    str(entry.get("hostUrl") or "")[:240],
+                    str(entry.get("port") or "")[:16],
+                    label,
+                    ct,
+                    actor,
+                    actor,
+                ),
+            )
+            inserted += 1
+        _vault_log_audit(conn, "credential_bulk_import", actor, f"{inserted} device credentials", "Encrypted with AES-256-GCM")
+    return jsonify(ok=True, imported=inserted), 201
+
+
+@app.get("/api/vault/audit")
+@signed_in
+def list_vault_audit_logs():
+    with db() as conn:
+        _, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        rows = conn.execute(
+            "SELECT id, event_type, actor, target, detail, ip_address, created_at FROM vault_audit_logs ORDER BY id DESC LIMIT 150"
+        ).fetchall()
+    return jsonify(items=[{
+        "id": r[0], "eventType": r[1], "actor": r[2], "target": r[3],
+        "detail": r[4], "ipAddress": r[5], "createdAt": r[6].isoformat() if r[6] else "",
+    } for r in rows])
+
+
+def _vault_doc_aad(doc_id):
+    return f"northstar-vault-doc-v1:{doc_id}".encode("utf-8")
+
+
+@app.get("/api/vault/folders")
+@signed_in
+def list_vault_folders():
+    with db() as conn:
+        _, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        rows = conn.execute(
+            "SELECT id, parent_id, name, color, icon, created_by, created_at, updated_at FROM vault_doc_folders ORDER BY name ASC"
+        ).fetchall()
+        counts = dict(conn.execute("SELECT folder_id, count(*) FROM vault_documents GROUP BY folder_id").fetchall())
+    return jsonify(items=[{
+        "id": r[0], "parentId": r[1] or "", "name": r[2], "color": r[3] or "#157a54",
+        "icon": r[4] or "📁", "createdBy": r[5] or "",
+        "docCount": int(counts.get(r[0], 0)),
+        "createdAt": r[6].isoformat() if r[6] else "",
+        "updatedAt": r[7].isoformat() if r[7] else "",
+    } for r in rows])
+
+
+@app.post("/api/vault/folders")
+@signed_in
+def create_vault_folder():
+    who = session.get("profile") or {}
+    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    if not session.get("is_admin") and not module_access(who, "credentials", write=True):
+        return jsonify(error="Write access on Credentials Vault is required."), 403
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name") or "").strip()[:100]
+    if not name:
+        return jsonify(error="Folder name is required."), 400
+    fid = f"VFLD-{secrets.token_hex(4).upper()}"
+    with db() as conn:
+        _, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        conn.execute(
+            "INSERT INTO vault_doc_folders(id, parent_id, name, color, icon, created_by) VALUES(%s,%s,%s,%s,%s,%s)",
+            (fid, str(data.get("parentId") or "")[:40], name, str(data.get("color") or "#157a54")[:24], str(data.get("icon") or "📁")[:16], actor),
+        )
+        _vault_log_audit(conn, "folder_created", actor, name, fid)
+    return jsonify(ok=True, id=fid, name=name), 201
+
+
+@app.put("/api/vault/folders/<path:folder_id>")
+@signed_in
+def update_vault_folder(folder_id):
+    who = session.get("profile") or {}
+    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    if not session.get("is_admin") and not module_access(who, "credentials", write=True):
+        return jsonify(error="Write access on Credentials Vault is required."), 403
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name") or "").strip()[:100]
+    if not name:
+        return jsonify(error="Folder name is required."), 400
+    with db() as conn:
+        _, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        cur = conn.execute(
+            "UPDATE vault_doc_folders SET name=%s, color=%s, icon=%s, updated_at=now() WHERE id=%s",
+            (name, str(data.get("color") or "#157a54")[:24], str(data.get("icon") or "📁")[:16], folder_id),
+        )
         if cur.rowcount == 0:
             abort(404)
+        _vault_log_audit(conn, "folder_renamed", actor, name, folder_id)
+    return jsonify(ok=True, id=folder_id)
+
+
+@app.delete("/api/vault/folders/<path:folder_id>")
+@signed_in
+def delete_vault_folder(folder_id):
+    who = session.get("profile") or {}
+    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    if not session.get("is_admin") and not module_access(who, "credentials", write=True):
+        return jsonify(error="Write access on Credentials Vault is required."), 403
+    with db() as conn:
+        _, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        conn.execute("UPDATE vault_documents SET folder_id='', updated_at=now() WHERE folder_id=%s", (folder_id,))
+        cur = conn.execute("DELETE FROM vault_doc_folders WHERE id=%s RETURNING name", (folder_id,))
+        row = cur.fetchone()
+        if not row:
+            abort(404)
+        _vault_log_audit(conn, "folder_deleted", actor, row[0] or folder_id, "Documents moved to Root")
     return jsonify(ok=True)
+
+
+@app.get("/api/vault/documents")
+@signed_in
+def list_vault_documents():
+    folder_id = str(request.args.get("folder_id") or "").strip()
+    q = str(request.args.get("q") or "").strip().lower()
+    with db() as conn:
+        dek, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        rows = conn.execute(
+            """
+            SELECT id, folder_id, title, orig_filename, file_ext, mime_type,
+                   file_size, sha256, enc_rel_path, meta_ciphertext, uploaded_by, created_at, updated_at
+            FROM vault_documents
+            ORDER BY updated_at DESC, created_at DESC
+            """
+        ).fetchall()
+    out = []
+    for r in rows:
+        did = r[0]
+        if folder_id and folder_id != "ALL":
+            if folder_id == "ROOT" and r[1]:
+                continue
+            elif folder_id != "ROOT" and r[1] != folder_id:
+                continue
+        notes = ""
+        if r[9]:
+            try:
+                m_obj = json.loads(_vault_aes_decrypt(dek, r[9], _vault_doc_aad(did + ":meta")).decode("utf-8"))
+                notes = str(m_obj.get("notes") or "")
+            except Exception:
+                notes = ""
+        item = {
+            "id": did, "folderId": r[1] or "", "title": r[2], "origFilename": r[3],
+            "fileExt": r[4] or "", "mimeType": r[5] or "", "fileSize": int(r[6] or 0),
+            "sha256": r[7] or "", "notes": notes, "uploadedBy": r[10] or "",
+            "createdAt": r[11].isoformat() if r[11] else "",
+            "updatedAt": r[12].isoformat() if r[12] else "",
+        }
+        if q:
+            hay = " ".join([item["title"], item["origFilename"], item["fileExt"], item["notes"]]).lower()
+            if q not in hay:
+                continue
+        out.append(item)
+    return jsonify(items=out, total=len(out))
+
+
+@app.post("/api/vault/documents")
+@signed_in
+def upload_vault_document():
+    who = session.get("profile") or {}
+    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    if not session.get("is_admin") and not module_access(who, "credentials", write=True):
+        return jsonify(error="Write access on Credentials Vault is required."), 403
+    f = request.files.get("file")
+    if not f or not getattr(f, "filename", ""):
+        return jsonify(error="Choose a secret document file to upload."), 400
+    orig_name = Path(f.filename).name[:200]
+    raw_bytes = f.read()
+    if not raw_bytes:
+        return jsonify(error="Uploaded file is empty."), 400
+    ext = Path(orig_name).suffix.lower().lstrip(".")
+    mime = f.mimetype or mimetypes.guess_type(orig_name)[0] or "application/octet-stream"
+    title = str(request.form.get("title") or "").strip()[:160] or Path(orig_name).stem[:160]
+    folder_id = str(request.form.get("folderId") or "").strip()[:40]
+    notes = str(request.form.get("notes") or "")[:3000]
+    doc_id = f"VDOC-{secrets.token_hex(4).upper()}"
+    sha_hex = hashlib.sha256(raw_bytes).hexdigest()
+
+    with db() as conn:
+        dek, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        ct_file = _vault_aes_encrypt(dek, raw_bytes, _vault_doc_aad(doc_id))
+        enc_name = f"{doc_id}.enc"
+        (VAULT_DOCS_DIR / enc_name).write_text(ct_file, encoding="ascii")
+        meta_ct = _vault_aes_encrypt(dek, json.dumps({"notes": notes}).encode("utf-8"), _vault_doc_aad(doc_id + ":meta"))
+        conn.execute(
+            """
+            INSERT INTO vault_documents(
+                id, folder_id, title, orig_filename, file_ext, mime_type,
+                file_size, sha256, enc_rel_path, meta_ciphertext, uploaded_by
+            ) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """,
+            (doc_id, folder_id, title, orig_name, ext, mime[:120], len(raw_bytes), sha_hex, enc_name, meta_ct, actor),
+        )
+        _vault_log_audit(conn, "document_uploaded", actor, title, f"{orig_name} ({len(raw_bytes)} bytes) encrypted AES-256-GCM")
+    return jsonify(ok=True, id=doc_id, sha256=sha_hex), 201
+
+
+@app.delete("/api/vault/documents/<path:doc_id>")
+@signed_in
+def delete_vault_document(doc_id):
+    who = session.get("profile") or {}
+    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    if not session.get("is_admin") and not module_access(who, "credentials", write=True):
+        return jsonify(error="Write access on Credentials Vault is required."), 403
+    with db() as conn:
+        _, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        row = conn.execute("DELETE FROM vault_documents WHERE id=%s RETURNING enc_rel_path, title", (doc_id,)).fetchone()
+        if not row:
+            abort(404)
+        try:
+            target = (VAULT_DOCS_DIR / row[0]).resolve()
+            if target.is_relative_to(VAULT_DOCS_DIR.resolve()):
+                target.unlink(missing_ok=True)
+        except Exception:
+            pass
+        _vault_log_audit(conn, "document_deleted", actor, row[1] or doc_id, doc_id)
+    return jsonify(ok=True)
+
+
+def _col_letters_to_idx(ref_str):
+    idx = 0
+    for ch in ref_str:
+        if ch.isalpha():
+            idx = idx * 26 + (ord(ch.upper()) - ord("A") + 1)
+        else:
+            break
+    return max(0, idx - 1)
+
+
+def _preview_office_xlsx(raw_bytes):
+    sheets = []
+    with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
+        shared = []
+        if "xl/sharedStrings.xml" in zf.namelist():
+            root_ss = ET.fromstring(zf.read("xl/sharedStrings.xml"))
+            for si in root_ss.iter():
+                if si.tag.endswith("}si") or si.tag == "si":
+                    txt = "".join(t.text or "" for t in si.iter() if t.tag.endswith("}t") or t.tag == "t")
+                    shared.append(txt)
+        sheet_meta = []
+        if "xl/workbook.xml" in zf.namelist():
+            wb_root = ET.fromstring(zf.read("xl/workbook.xml"))
+            rels = {}
+            if "xl/_rels/workbook.xml.rels" in zf.namelist():
+                rr = ET.fromstring(zf.read("xl/_rels/workbook.xml.rels"))
+                for rel in rr.iter():
+                    if rel.tag.endswith("}Relationship") or rel.tag == "Relationship":
+                        rid = rel.attrib.get("Id", "")
+                        tgt = rel.attrib.get("Target", "").lstrip("/")
+                        if not tgt.startswith("xl/"):
+                            tgt = "xl/" + tgt
+                        rels[rid] = tgt
+            for sh in wb_root.iter():
+                if sh.tag.endswith("}sheet") or sh.tag == "sheet":
+                    nm = sh.attrib.get("name", f"Sheet {len(sheet_meta)+1}")
+                    rid = next((v for k, v in sh.attrib.items() if k.endswith("}id") or k == "r:id"), "")
+                    path = rels.get(rid) or f"xl/worksheets/sheet{len(sheet_meta)+1}.xml"
+                    if path in zf.namelist():
+                        sheet_meta.append((nm, path))
+        if not sheet_meta:
+            for nm in sorted(zf.namelist()):
+                if nm.startswith("xl/worksheets/sheet") and nm.endswith(".xml"):
+                    sheet_meta.append((Path(nm).stem, nm))
+        for s_name, s_path in sheet_meta[:12]:
+            s_root = ET.fromstring(zf.read(s_path))
+            rows = []
+            for row_el in s_root.iter():
+                if not (row_el.tag.endswith("}row") or row_el.tag == "row"):
+                    continue
+                if len(rows) >= 500:
+                    break
+                cur = []
+                for c_el in row_el:
+                    if not (c_el.tag.endswith("}c") or c_el.tag == "c"):
+                        continue
+                    c_idx = _col_letters_to_idx(c_el.attrib.get("r", "")) if c_el.attrib.get("r") else len(cur)
+                    while len(cur) <= c_idx:
+                        cur.append("")
+                    ctype = c_el.attrib.get("t", "")
+                    val = ""
+                    if ctype == "s":
+                        v_el = next((x for x in c_el if x.tag.endswith("}v") or x.tag == "v"), None)
+                        if v_el is not None and v_el.text and v_el.text.isdigit():
+                            si_i = int(v_el.text)
+                            val = shared[si_i] if 0 <= si_i < len(shared) else ""
+                    elif ctype == "inlineStr":
+                        val = "".join(t.text or "" for t in c_el.iter() if t.tag.endswith("}t") or t.tag == "t")
+                    else:
+                        v_el = next((x for x in c_el if x.tag.endswith("}v") or x.tag == "v"), None)
+                        val = v_el.text if v_el is not None and v_el.text is not None else ""
+                    cur[c_idx] = str(val)[:240]
+                if any(cur):
+                    rows.append(cur[:40])
+            sheets.append({"name": s_name, "rows": rows})
+    return {"kind": "sheets", "sheets": sheets}
+
+
+def _preview_office_ods(raw_bytes):
+    sheets = []
+    with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
+        root = ET.fromstring(zf.read("content.xml"))
+        for tbl in root.iter():
+            if not (tbl.tag.endswith("}table") or tbl.tag == "table"):
+                continue
+            s_name = next((v for k, v in tbl.attrib.items() if k.endswith("}name") or k == "name"), f"Sheet {len(sheets)+1}")
+            rows = []
+            for r_el in tbl:
+                if not (r_el.tag.endswith("}table-row") or r_el.tag == "table-row"):
+                    continue
+                if len(rows) >= 500:
+                    break
+                cur = []
+                for c_el in r_el:
+                    if not (c_el.tag.endswith("}table-cell") or c_el.tag == "table-cell"):
+                        continue
+                    rep = next((int(v) for k, v in c_el.attrib.items() if k.endswith("}number-columns-repeated") and str(v).isdigit()), 1)
+                    rep = min(rep, 20)
+                    txt = " ".join("".join(c_el.itertext()).split())[:240]
+                    cur.extend([txt] * rep)
+                while cur and not cur[-1]:
+                    cur.pop()
+                if any(cur):
+                    rows.append(cur[:40])
+            sheets.append({"name": s_name, "rows": rows})
+            if len(sheets) >= 12:
+                break
+    return {"kind": "sheets", "sheets": sheets}
+
+
+def _preview_office_docx(raw_bytes):
+    blocks = []
+    with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
+        doc_xml = zf.read("word/document.xml")
+        root = ET.fromstring(doc_xml)
+        body = next((el for el in root.iter() if el.tag.endswith("}body") or el.tag == "body"), root)
+        for child in body:
+            if child.tag.endswith("}p") or child.tag == "p":
+                pstyle = ""
+                is_list = False
+                for el in child.iter():
+                    if el.tag.endswith("}pStyle"):
+                        pstyle = next((v for k, v in el.attrib.items() if k.endswith("}val")), "")
+                    elif el.tag.endswith("}numPr"):
+                        is_list = True
+                runs_html = []
+                for r in child:
+                    if not (r.tag.endswith("}r") or r.tag == "r"):
+                        continue
+                    txt = "".join(t.text or "" for t in r.iter() if t.tag.endswith("}t") or t.tag == "t")
+                    if not txt:
+                        continue
+                    esc_t = html.escape(txt)
+                    bold = any(e.tag.endswith("}b") for e in r.iter())
+                    italic = any(e.tag.endswith("}i") for e in r.iter())
+                    if bold:
+                        esc_t = f"<b>{esc_t}</b>"
+                    if italic:
+                        esc_t = f"<i>{esc_t}</i>"
+                    runs_html.append(esc_t)
+                line = "".join(runs_html).strip()
+                if not line:
+                    blocks.append("<p style='height:8px;margin:0'></p>")
+                elif pstyle.lower().startswith("heading1") or pstyle.lower() == "title":
+                    blocks.append(f"<h2 style='margin:14px 0 6px;color:#0f172a'>{line}</h2>")
+                elif pstyle.lower().startswith("heading"):
+                    blocks.append(f"<h3 style='margin:11px 0 5px;color:#145b40'>{line}</h3>")
+                elif is_list:
+                    blocks.append(f"<div style='padding-left:16px;margin:3px 0'>• {line}</div>")
+                else:
+                    blocks.append(f"<p style='margin:5px 0;line-height:1.55'>{line}</p>")
+            elif child.tag.endswith("}tbl") or child.tag == "tbl":
+                tr_html = []
+                for tr in child:
+                    if not tr.tag.endswith("}tr"):
+                        continue
+                    tds = []
+                    for tc in tr:
+                        if not tc.tag.endswith("}tc"):
+                            continue
+                        cell_txt = " ".join("".join(tc.itertext()).split())
+                        tds.append(f"<td>{html.escape(cell_txt)}</td>")
+                    if tds:
+                        tr_html.append("<tr>" + "".join(tds) + "</tr>")
+                if tr_html:
+                    blocks.append("<table class='ns-vault-doc-tbl'>" + "".join(tr_html) + "</table>")
+    return {"kind": "doc_html", "html": "".join(blocks) or "<p>Empty document.</p>"}
+
+
+def _preview_office_odt(raw_bytes):
+    blocks = []
+    with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
+        root = ET.fromstring(zf.read("content.xml"))
+        txt_body = next((el for el in root.iter() if el.tag.endswith("}text") or el.tag == "text"), root)
+        for child in txt_body:
+            tname = child.tag.split("}")[-1]
+            if tname == "h":
+                blocks.append(f"<h3 style='margin:12px 0 5px;color:#145b40'>{html.escape(''.join(child.itertext()))}</h3>")
+            elif tname == "p":
+                txt = "".join(child.itertext()).strip()
+                blocks.append(f"<p style='margin:5px 0;line-height:1.55'>{html.escape(txt)}</p>" if txt else "<p style='height:8px;margin:0'></p>")
+            elif tname == "list":
+                for li in child:
+                    txt = "".join(li.itertext()).strip()
+                    if txt:
+                        blocks.append(f"<div style='padding-left:16px;margin:3px 0'>• {html.escape(txt)}</div>")
+            elif tname == "table":
+                tr_html = []
+                for tr in child:
+                    if not tr.tag.endswith("}table-row"):
+                        continue
+                    tds = [f"<td>{html.escape(' '.join(''.join(tc.itertext()).split()))}</td>" for tc in tr if tc.tag.endswith("}table-cell")]
+                    if tds:
+                        tr_html.append("<tr>" + "".join(tds) + "</tr>")
+                if tr_html:
+                    blocks.append("<table class='ns-vault-doc-tbl'>" + "".join(tr_html) + "</table>")
+    return {"kind": "doc_html", "html": "".join(blocks) or "<p>Empty OpenOffice document.</p>"}
+
+
+def _preview_office_slides(raw_bytes, ext):
+    slides = []
+    with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
+        if ext == "pptx":
+            names = [n for n in zf.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)]
+            names.sort(key=lambda x: int(re.search(r"(\d+)", Path(x).stem).group(1)))
+            for idx, nm in enumerate(names[:50], 1):
+                root = ET.fromstring(zf.read(nm))
+                lines = []
+                for p in root.iter():
+                    if p.tag.endswith("}p"):
+                        txt = "".join(t.text or "" for t in p.iter() if t.tag.endswith("}t")).strip()
+                        if txt:
+                            lines.append(txt)
+                slides.append({"index": idx, "title": lines[0] if lines else f"Slide {idx}", "bullets": lines[1:] if len(lines) > 1 else []})
+        else:
+            root = ET.fromstring(zf.read("content.xml"))
+            idx = 0
+            for pg in root.iter():
+                if pg.tag.endswith("}page"):
+                    idx += 1
+                    lines = [" ".join("".join(p.itertext()).split()) for p in pg.iter() if p.tag.endswith("}p")]
+                    lines = [l for l in lines if l]
+                    slides.append({"index": idx, "title": lines[0] if lines else f"Slide {idx}", "bullets": lines[1:] if len(lines) > 1 else []})
+    return {"kind": "slides", "slides": slides}
+
+
+def _vault_build_preview(raw_bytes, doc_id, ext, mime):
+    ext_l = str(ext or "").lower().lstrip(".")
+    if ext_l in ("png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"):
+        if ext_l == "svg":
+            return {"kind": "text", "text": raw_bytes[:200000].decode("utf-8", errors="replace")}
+        m = mime if mime.startswith("image/") else f"image/{'jpeg' if ext_l == 'jpg' else ext_l}"
+        return {"kind": "image", "mime": m, "dataUrl": f"data:{m};base64,{base64.b64encode(raw_bytes).decode('ascii')}"}
+    if ext_l == "pdf":
+        pdftoppm_bin = shutil.which("pdftoppm")
+        if pdftoppm_bin:
+            try:
+                with tempfile.TemporaryDirectory() as td:
+                    pdf_p = Path(td) / "in.pdf"
+                    pdf_p.write_bytes(raw_bytes)
+                    subprocess.run([pdftoppm_bin, "-png", "-r", "140", "-f", "1", "-l", "30", str(pdf_p), str(Path(td) / "page")], check=True, timeout=35)
+                    pages = sorted(Path(td).glob("page-*.png"))
+                    if pages:
+                        return {
+                            "kind": "pdf_pages",
+                            "pages": [f"data:image/png;base64,{base64.b64encode(p.read_bytes()).decode('ascii')}" for p in pages],
+                            "pageCount": len(pages),
+                        }
+            except Exception:
+                pass
+        return {"kind": "pdf_stream", "url": f"/api/vault/documents/{quote(doc_id)}/inline"}
+    if ext_l in ("xlsx", "xlsm"):
+        return _preview_office_xlsx(raw_bytes)
+    if ext_l == "ods":
+        return _preview_office_ods(raw_bytes)
+    if ext_l in ("csv", "tsv"):
+        delim = "\t" if ext_l == "tsv" else ","
+        txt = raw_bytes[:1024 * 1024].decode("utf-8-sig", errors="replace")
+        rows = list(csv.reader(io.StringIO(txt), delimiter=delim))[:600]
+        return {"kind": "sheets", "sheets": [{"name": ext_l.upper(), "rows": [r[:40] for r in rows]}]}
+    if ext_l == "docx":
+        return _preview_office_docx(raw_bytes)
+    if ext_l == "odt":
+        return _preview_office_odt(raw_bytes)
+    if ext_l in ("pptx", "odp"):
+        return _preview_office_slides(raw_bytes, ext_l)
+    if ext_l in ("txt", "log", "json", "xml", "yaml", "yml", "md", "ini", "cfg", "conf", "rsc", "pem", "crt", "key", "env", "sql", "py", "js", "html", "htm", "css", "sh", "bat", "ps1"):
+        return {"kind": "text", "text": raw_bytes[:250000].decode("utf-8", errors="replace")}
+    if ext_l in ("doc", "xls", "ppt", "rtf"):
+        ascii_runs = re.findall(rb"[ -~\r\n\t]{6,}", raw_bytes[:512000])
+        utf16_runs = re.findall(rb"(?:[ -~]\x00){5,}", raw_bytes[:512000])
+        lines = [b.decode("ascii", errors="ignore").strip() for b in ascii_runs] + [b.decode("utf-16-le", errors="ignore").strip() for b in utf16_runs]
+        if ext_l == "rtf":
+            raw_t = raw_bytes[:300000].decode("latin-1", errors="ignore")
+            raw_t = re.sub(r"\\[a-zA-Z]+\-?\d* ?|[{}]", "", raw_t)
+            return {"kind": "text", "text": raw_t.strip()}
+        joined = "\n".join(dict.fromkeys(l for l in lines if len(l) >= 6))
+        return {"kind": "text", "text": joined[:120000] or "Legacy Office binary detected. Save as .docx/.xlsx/.odt for rich layout or Download with Download Password."}
+    return {"kind": "binary", "message": f"Binary .{ext_l or 'file'} format stored safely with AES-256-GCM encryption. Use Password-Protected Download to retrieve the original file."}
+
+
+@app.get("/api/vault/documents/<path:doc_id>/preview")
+@signed_in
+def preview_vault_document(doc_id):
+    who = session.get("profile") or {}
+    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    with db() as conn:
+        dek, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        row = conn.execute(
+            "SELECT id, title, orig_filename, file_ext, mime_type, enc_rel_path FROM vault_documents WHERE id=%s",
+            (doc_id,),
+        ).fetchone()
+        if not row:
+            abort(404)
+        enc_path = (VAULT_DOCS_DIR / row[5]).resolve()
+        if not enc_path.is_relative_to(VAULT_DOCS_DIR.resolve()) or not enc_path.is_file():
+            abort(404)
+        raw_bytes = _vault_aes_decrypt(dek, enc_path.read_text(encoding="ascii"), _vault_doc_aad(doc_id))
+        _vault_log_audit(conn, "document_previewed", actor, row[1] or row[2], doc_id)
+    try:
+        preview_obj = _vault_build_preview(raw_bytes, doc_id, row[3], row[4])
+    except Exception as exc:
+        preview_obj = {"kind": "binary", "message": f"Could not render inline preview ({exc}). Use Password-Protected Download."}
+    watermark = f"{actor} · {who.get('username','')} · {request.headers.get('X-Forwarded-For') or request.remote_addr or ''} · {datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime('%d %b %Y %H:%M')}"
+    return jsonify(id=row[0], title=row[1], origFilename=row[2], fileExt=row[3], watermark=watermark, preview=preview_obj)
+
+
+@app.get("/api/vault/documents/<path:doc_id>/inline")
+@signed_in
+def inline_vault_document_pdf(doc_id):
+    with db() as conn:
+        dek, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        row = conn.execute("SELECT orig_filename, mime_type, enc_rel_path FROM vault_documents WHERE id=%s", (doc_id,)).fetchone()
+        if not row:
+            abort(404)
+        enc_path = (VAULT_DOCS_DIR / row[2]).resolve()
+        if not enc_path.is_relative_to(VAULT_DOCS_DIR.resolve()) or not enc_path.is_file():
+            abort(404)
+        raw_bytes = _vault_aes_decrypt(dek, enc_path.read_text(encoding="ascii"), _vault_doc_aad(doc_id))
+    resp = Response(raw_bytes, mimetype=row[1] or "application/pdf")
+    resp.headers["Content-Disposition"] = f'inline; filename="{secure_filename(row[0]) or "document.pdf"}"'
+    resp.headers["X-Frame-Options"] = "SAMEORIGIN"
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return resp
+
+
+@app.post("/api/vault/documents/<path:doc_id>/download")
+@signed_in
+def download_vault_document_protected(doc_id):
+    who = session.get("profile") or {}
+    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    data = request.get_json(silent=True) or {}
+    dl_pwd = str(data.get("downloadPassword") or "")
+    with db() as conn:
+        dek, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        cfg = _vault_ensure_config_row(conn)
+        dl_hash = str(cfg[20] or "")
+        if not dl_hash:
+            return jsonify(error="Download Password not configured yet. Ask Administrator to set the Separate Document Download Password in Vault Security."), 428
+        if not dl_pwd or not check_password_hash(dl_hash, dl_pwd):
+            _vault_log_audit(conn, "doc_download_denied", actor, doc_id, "Incorrect Separate Download Password")
+            return jsonify(error="Incorrect Document Download Password."), 401
+        row = conn.execute("SELECT title, orig_filename, mime_type, enc_rel_path FROM vault_documents WHERE id=%s", (doc_id,)).fetchone()
+        if not row:
+            abort(404)
+        enc_path = (VAULT_DOCS_DIR / row[3]).resolve()
+        if not enc_path.is_relative_to(VAULT_DOCS_DIR.resolve()) or not enc_path.is_file():
+            abort(404)
+        raw_bytes = _vault_aes_decrypt(dek, enc_path.read_text(encoding="ascii"), _vault_doc_aad(doc_id))
+        _vault_log_audit(conn, "document_downloaded", actor, row[0] or row[1], row[1])
+    resp = Response(raw_bytes, mimetype=row[2] or "application/octet-stream")
+    safe_dl = row[1].replace('"', "").replace("\r", "").replace("\n", "")
+    resp.headers["Content-Disposition"] = f'attachment; filename="{safe_dl}"'
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return resp
 
 
 def _save_firmware_upload(file_storage, item_id, slot):

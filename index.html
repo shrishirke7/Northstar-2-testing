@@ -1158,6 +1158,23 @@
 @keyframes nsVoicePulse{0%,100%{height:8px;opacity:.55}50%{height:36px;opacity:1}}
 .ns-secret-mask{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;background:#f8fafc;border:1px solid #e2e8f0;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:6px;max-width:210px}
 .ns-secret-val{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;display:inline-block;vertical-align:middle}
+.ns-vault-sealed-card{margin:16px auto;max-width:540px;padding:34px 24px;text-align:center;border-radius:20px;border:1px dashed #b9d3c3;background:linear-gradient(180deg,#f9fcfb,#f2f8f5)}
+.ns-vault-lock-close{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.1);color:#fff;font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.ns-vault-lock-close:hover{background:rgba(255,255,255,.22)}
+.ns-dev-chip-bar{display:flex;flex-wrap:wrap;gap:6px;padding:10px 15px 4px}
+.ns-dev-chip{border:1px solid #d5e2da;background:#fff;color:#334155;border-radius:99px;padding:5px 11px;font-size:11.5px;font-weight:700;cursor:pointer;transition:all .15s}
+.ns-dev-chip.active{background:#157a54;color:#fff;border-color:#157a54}
+.ns-folder-strip{display:flex;flex-wrap:wrap;gap:8px;padding:12px 15px;border-bottom:1px solid #e6eee9;background:#fafdfb;align-items:center}
+.ns-folder-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:10px;border:1px solid #d5e2da;background:#fff;color:#1e293b;font-size:12px;font-weight:700;cursor:pointer}
+.ns-folder-pill.active{background:#0f5132;color:#fff;border-color:#0f5132}
+.ns-vault-doc-tbl{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+.ns-vault-doc-tbl td,.ns-vault-doc-tbl th{border:1px solid #cbd5e1;padding:6px 9px;vertical-align:top;background:#fff}
+.ns-vault-preview-shell{position:relative;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;background:#f8fafc;border:1px solid #dce6df;border-radius:12px;min-height:280px;max-height:70vh;overflow:auto;padding:16px}
+.ns-vault-watermark{position:fixed;inset:0;pointer-events:none;z-index:2950;display:none;overflow:hidden;opacity:.14;background-image:repeating-linear-gradient(-30deg,transparent 0 110px,rgba(15,23,42,.04) 110px 112px)}
+.ns-vault-wm-grid{position:absolute;inset:-40%;display:grid;grid-template-columns:repeat(4,1fr);gap:70px;transform:rotate(-24deg);align-content:center;justify-items:center;font:700 13px/1.3 Manrope,sans-serif;color:#0f172a;white-space:nowrap}
+#nsVaultPrivacyVeil{position:fixed;inset:0;background:#000;color:#f8fafc;z-index:999999;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:12px}
+#nsVaultPrivacyVeil.active{display:flex}
+@media print{#view-credentials,#nsVaultLockScreen,#nsVaultDocPreviewModal,#vaultCredModal{display:none!important}body::before{content:"RESTRICTED CREDENTIALS VAULT — PRINTING DISABLED";display:block;padding:40px;font:800 18px sans-serif;color:#b91c1c}}
 @media(max-width:768px){
   .ns-vault-lock-card{padding:22px 14px 20px;border-radius:24px}
   .ns-ios-keypad{grid-template-columns:repeat(3,64px);gap:10px 14px}
@@ -1178,7 +1195,6 @@
       <p>Store switch, firewall, router, NVR &amp; PC configuration backups (any format) and latest firmware/software packages linked to Asset Inventory.</p>
     </div>
     <div class="head-actions" style="flex-wrap:wrap">
-      <button type="button" class="btn" onclick="go('credentials')">🔐 &nbsp;Credentials Vault →</button>
       <button type="button" class="btn" onclick="nsFirmwareModule.refresh()">↻ &nbsp;Refresh</button>
       <button type="button" class="btn primary" onclick="nsFirmwareModule.openForm()">＋ &nbsp;Upload Backup / Firmware</button>
     </div>
@@ -1208,118 +1224,199 @@
 <section class="view" id="view-credentials">
   <div class="page-head">
     <div>
-      <div class="eyebrow">AES-256-GCM · PBKDF2-480K · Zero-Plaintext Vault</div>
-      <h1>🔐 Credentials Vault</h1>
-      <p>Ultra-secure encrypted repository for firewall, switch, router, server, CCTV &amp; software passwords protected by PIN + Secret Keyword + optional Voice Lock.</p>
+      <div class="eyebrow">AES-256-GCM · PBKDF2-480K · Anti-Capture Vault</div>
+      <h1>🔐 Credentials &amp; Secret Documents Vault</h1>
+      <p>Encrypted store for switches, firewalls, servers, NAS, CCTV &amp; software passwords plus password-protected Secret Document folders.</p>
     </div>
-    <div class="head-actions ns-vault-read-allow" style="flex-wrap:wrap">
-      <button type="button" class="btn" onclick="go('firmware')">💾 &nbsp;Backups &amp; Firmware →</button>
+    <div class="head-actions" style="flex-wrap:wrap;align-items:center">
       <span class="status healthy" id="nsVaultTimerBadge" style="display:none;padding:7px 11px">🔓 Unlocked</span>
+      <button type="button" class="btn primary ns-vault-read-allow" id="nsVaultHeaderUnlockBtn" onclick="nsVaultModule.openUnlockModal()" title="Open PIN / Keyword / Voice Keypad">🔓 &nbsp;Unlock</button>
       <button type="button" class="btn ns-vault-read-allow" id="nsVaultLockNowBtn" style="display:none" onclick="nsVaultModule.lockNow()">🔒 Lock Vault</button>
       <button type="button" class="btn" id="nsVaultConfigBtn" style="display:none" onclick="nsVaultModule.openSecurityConfig()">⚙ &nbsp;Vault Security</button>
+      <button type="button" class="btn" id="nsVaultBulkImportBtn" style="display:none" onclick="nsVaultModule.openBulkModal()">↑ &nbsp;Bulk Import</button>
       <button type="button" class="btn primary" id="nsVaultAddBtn" style="display:none" onclick="nsVaultModule.openCredModal()">＋ &nbsp;Add Credential</button>
     </div>
   </div>
 
-  <div id="nsVaultLockScreen">
-    <div class="ns-vault-lock-card">
-      <div class="ns-ios-padlock" id="nsVaultPadlockIco">🔒</div>
-      <h2 class="ns-vault-title" id="nsVaultLockTitle">Credentials Vault Locked</h2>
-      <p class="ns-vault-sub" id="nsVaultLockSub">Enter your numeric PIN and secret keyword to decrypt your AES-256 credentials session.</p>
-      <div class="ns-vault-attempts-pill" id="nsVaultAttemptsPill">🛡 5 attempts remaining</div>
-
-      <div id="nsVaultNotInitPane" style="display:none">
-        <p style="font-size:12.5px;color:#cbd5e1;line-height:1.55;margin:6px 0 16px">Vault security PIN &amp; secret keyword have not been configured yet.</p>
-        <button type="button" class="ns-ios-unlock-btn" id="nsVaultInitBtn" onclick="nsVaultModule.openSecurityConfig()" style="display:none">⚙ Setup Vault PIN, Keyword &amp; Voice Lock</button>
-        <div id="nsVaultInitNonAdminMsg" style="font-size:12px;color:#fde68a">Ask an Administrator to initialize Vault PIN &amp; Keyword.</div>
+  <!-- Clean Sealed Placeholder (Shown when Vault is locked — ZERO secrets loaded or shown!) -->
+  <div id="nsVaultSealedPlaceholder">
+    <div class="ns-vault-sealed-card">
+      <div style="font-size:44px;margin-bottom:8px" id="nsVaultSealedIco">🔐</div>
+      <h2 style="margin:0 0 6px;font:800 19px Manrope" id="nsVaultSealedTitle">Vault Is Sealed &amp; Encrypted</h2>
+      <p style="font-size:13px;color:#475569;line-height:1.55;margin:0 auto 16px" id="nsVaultSealedSub">No device credentials or secret documents can be viewed while locked. Click the <b>🔓 Unlock</b> button beside Vault Security above to enter your PIN, Secret Keyword or Voice Match.</p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button type="button" class="btn primary ns-vault-read-allow" id="nsVaultSealedUnlockBtn" onclick="nsVaultModule.openUnlockModal()">🔓 &nbsp;Unlock Credentials Vault</button>
       </div>
-
-      <div id="nsVaultSelfLockedPane" style="display:none;text-align:left">
-        <div style="padding:12px 14px;border-radius:14px;background:rgba(220,38,38,.22);border:1px solid rgba(248,113,113,.45);color:#fee2e2;font-size:12.5px;line-height:1.5;margin-bottom:14px">
-          <b>🚨 Self-Lock Engaged (5 Failed Attempts)</b><br>All active vault keys were wiped from memory and a security alert was sent. Only an Administrator can clear this lockout using their account password.
-        </div>
-        <div id="nsVaultAdminResetBox" style="display:none">
-          <label style="display:block;font-size:11px;font-weight:700;color:#cbd5e1;margin-bottom:5px">Administrator Account Password *</label>
-          <input type="password" class="ns-kw-input" id="nsVaultAdminPwdInput" placeholder="Enter your Administrator login password" style="margin-bottom:10px">
-          <label style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:#fde68a;margin-bottom:10px;cursor:pointer">
-            <input type="checkbox" id="nsVaultWipeCheck" onchange="document.getElementById('nsVaultWipeFields').style.display=this.checked?'grid':'none'">
-            Forgot old PIN &amp; Keyword? (Wipes stored vault rows &amp; sets new keys)
-          </label>
-          <div id="nsVaultWipeFields" style="display:none;gap:8px;margin-bottom:10px">
-            <input type="text" inputmode="numeric" maxlength="8" class="ns-kw-input" id="nsVaultWipePin" placeholder="New 4–8 digit numeric PIN">
-            <input type="password" maxlength="80" class="ns-kw-input" id="nsVaultWipeKw" placeholder="New secret keyword (e.g. jungle)">
-          </div>
-          <button type="button" class="ns-ios-unlock-btn" onclick="nsVaultModule.submitAdminReset()" style="background:linear-gradient(135deg,#dc2626,#991b1b);box-shadow:0 8px 20px rgba(185,28,28,.4)">🔓 Verify Admin Password &amp; Clear Lockout</button>
-        </div>
-        <div id="nsVaultNonAdminLockMsg" style="text-align:center;font-size:12px;color:#fecaca;display:none">Contact your IT Administrator to verify their password and unlock the Vault.</div>
-      </div>
-
-      <div id="nsVaultUnlockInteractive">
-        <div class="ns-vault-mode-tabs" id="nsVaultModeTabs" style="display:none">
-          <button type="button" class="ns-vault-mode-btn active" data-vmode="pin" onclick="nsVaultModule.setUnlockMode('pin')">🔢 PIN + Keyword</button>
-          <button type="button" class="ns-vault-mode-btn" data-vmode="voice" onclick="nsVaultModule.setUnlockMode('voice')">🎙 Voice Lock</button>
-        </div>
-
-        <div id="nsVaultPinPane">
-          <div class="ns-pin-dots" id="nsVaultPinDots"></div>
-          <div class="ns-ios-keypad" id="nsVaultKeypad">
-            <button type="button" class="ns-ios-key" data-digit="1"><b>1</b><span>&nbsp;</span></button>
-            <button type="button" class="ns-ios-key" data-digit="2"><b>2</b><span>ABC</span></button>
-            <button type="button" class="ns-ios-key" data-digit="3"><b>3</b><span>DEF</span></button>
-            <button type="button" class="ns-ios-key" data-digit="4"><b>4</b><span>GHI</span></button>
-            <button type="button" class="ns-ios-key" data-digit="5"><b>5</b><span>JKL</span></button>
-            <button type="button" class="ns-ios-key" data-digit="6"><b>6</b><span>MNO</span></button>
-            <button type="button" class="ns-ios-key" data-digit="7"><b>7</b><span>PQRS</span></button>
-            <button type="button" class="ns-ios-key" data-digit="8"><b>8</b><span>TUV</span></button>
-            <button type="button" class="ns-ios-key" data-digit="9"><b>9</b><span>WXYZ</span></button>
-            <button type="button" class="ns-ios-key util" onclick="nsVaultModule.clearPin()">Clear</button>
-            <button type="button" class="ns-ios-key" data-digit="0"><b>0</b><span>+</span></button>
-            <button type="button" class="ns-ios-key util" onclick="nsVaultModule.backspacePin()">⌫</button>
-          </div>
-          <div class="ns-kw-wrap">
-            <input type="password" class="ns-kw-input" id="nsVaultKeywordInput" placeholder="Enter secret keyword (e.g. jungle)" autocomplete="off">
-            <button type="button" class="ns-kw-eye" onclick="nsVaultModule.toggleKwEye()" aria-label="Toggle keyword visibility">👁</button>
-          </div>
-          <button type="button" class="ns-ios-unlock-btn" id="nsVaultUnlockSubmitBtn" onclick="nsVaultModule.submitPinUnlock()">🔓 Verify PIN &amp; Keyword</button>
-        </div>
-
-        <div id="nsVaultVoicePane" style="display:none">
-          <div class="ns-voice-wave" id="nsVaultVoiceWave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-          <p id="nsVaultVoiceStatus" style="font-size:12px;color:#d1fae5;margin:4px 0 12px;min-height:18px">Speak your registered voice phrase in your natural tone &amp; pitch.</p>
-          <div class="ns-kw-wrap">
-            <input type="password" class="ns-kw-input" id="nsVaultVoicePhraseInput" placeholder="Spoken secret phrase (e.g. blackpearl)" autocomplete="off">
-            <button type="button" class="ns-kw-eye" onclick="nsVaultModule.toggleVoicePhraseEye()" aria-label="Toggle phrase visibility">👁</button>
-          </div>
-          <button type="button" class="ns-ios-unlock-btn" id="nsVaultVoiceRecordBtn" onclick="nsVaultModule.captureAndUnlockVoice()" style="background:linear-gradient(135deg,#0d9488,#0f766e)">🎙 Record Voice (3s) &amp; Unlock</button>
-          <div style="font-size:10.5px;color:rgba(226,232,240,.66);margin-top:9px;line-height:1.45">Matches your vocal timbre, pitch (tune), loudness intensity &amp; secret word. Counts toward 5-attempt self-lock.</div>
-        </div>
-      </div>
-      <div id="nsVaultLockError" style="margin-top:12px;font-size:12px;color:#fda4af;min-height:18px;font-weight:700"></div>
     </div>
   </div>
 
+  <!-- Unlocked Workspace (Appears smoothly ONLY after accurate PIN+Keyword or Voice Match) -->
   <div id="nsVaultWorkspace" style="display:none">
-    <div class="grid-4" style="margin-bottom:14px">
-      <div class="card metric"><div class="metric-top"><span>Stored credentials</span><span class="metric-icon">🔑</span></div><div class="metric-value" id="vcKpiTotal">0</div><div class="metric-foot">AES-256-GCM decrypted</div></div>
-      <div class="card metric"><div class="metric-top"><span>Linked assets</span><span class="metric-icon">🛡</span></div><div class="metric-value" id="vcKpiLinked">0</div><div class="metric-foot">Matched to Asset Inventory</div></div>
-      <div class="card metric"><div class="metric-top"><span>Network &amp; firewalls</span><span class="metric-icon">⌁</span></div><div class="metric-value" id="vcKpiNet">0</div><div class="metric-foot">Switches · Routers · Firewalls</div></div>
-      <div class="card metric"><div class="metric-top"><span>Vault cipher</span><span class="metric-icon">🧊</span></div><div class="metric-value" style="font-size:19px">AES-256</div><div class="metric-foot">PBKDF2 480k + Session RAM</div></div>
+    <div class="ns-section-tabs ns-vault-read-allow" style="margin-bottom:14px">
+      <button type="button" class="ns-sec-tab active ns-vault-read-allow" id="vcTabCredsBtn" onclick="nsVaultModule.switchTab('creds')">🔑 Device &amp; Software Credentials <span class="ns-tab-badge" id="vcTabCredsCnt">0</span></button>
+      <button type="button" class="ns-sec-tab ns-vault-read-allow" id="vcTabDocsBtn" onclick="nsVaultModule.switchTab('docs')">📁 Important Secret Documents <span class="ns-tab-badge" id="vcTabDocsCnt">0</span></button>
+      <button type="button" class="ns-sec-tab ns-vault-read-allow" id="vcTabAuditBtn" onclick="nsVaultModule.switchTab('audit')">🛡 Security Audit Log</button>
     </div>
-    <div class="panel">
-      <div class="section-toolbar" style="flex-wrap:wrap">
-        <input class="filter-input" id="vcSearchInput" placeholder="⌕ Search device, IP/URL, label, username, notes...">
-        <select class="filter-select" id="vcFactoryFilter"><option value="">All factories</option></select>
-        <select class="filter-select" id="vcServiceFilter"><option value="">All service types</option><option>Web GUI</option><option>SSH</option><option>Console / Serial</option><option>SNMPv3</option><option>Wi-Fi / RADIUS</option><option>ISP / PPPoE</option><option>RDP / VNC</option><option>NVR / CCTV</option><option>Cloud / ERP / License</option><option>Other</option></select>
+
+    <!-- TAB 1: DEVICE-WISE CREDENTIALS -->
+    <div id="nsVaultTabCreds">
+      <div class="grid-4" style="margin-bottom:14px">
+        <div class="card metric"><div class="metric-top"><span>Stored credentials</span><span class="metric-icon">🔑</span></div><div class="metric-value" id="vcKpiTotal">0</div><div class="metric-foot">Switches · Firewalls · NAS · PCs</div></div>
+        <div class="card metric"><div class="metric-top"><span>Linked assets</span><span class="metric-icon">🛡</span></div><div class="metric-value" id="vcKpiLinked">0</div><div class="metric-foot">Matched to Asset Inventory</div></div>
+        <div class="card metric"><div class="metric-top"><span>Infra &amp; storage</span><span class="metric-icon">⌁</span></div><div class="metric-value" id="vcKpiNet">0</div><div class="metric-foot">Firewalls · Switches · Servers · NAS</div></div>
+        <div class="card metric"><div class="metric-top"><span>Protection active</span><span class="metric-icon">🧊</span></div><div class="metric-value" style="font-size:18px">AES-256</div><div class="metric-foot">Auto-clear clipboard (25s)</div></div>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>DEVICE / ASSET LINK</th><th>SERVICE &amp; HOST</th><th>USERNAME</th><th>PASSWORD (MASKED)</th><th>EXTRA SECRETS &amp; NOTES</th><th>ROTATED / BY</th><th>ACTIONS</th></tr></thead>
-          <tbody id="vcCredTableBody"></tbody>
-        </table>
+      <div class="panel">
+        <div class="ns-dev-chip-bar ns-vault-read-allow" id="vcDevChipBar">
+          <button type="button" class="ns-dev-chip active ns-vault-read-allow" data-dtype="" onclick="nsVaultModule.setDeviceTypeFilter('')">🌐 All Devices</button>
+          <button type="button" class="ns-dev-chip ns-vault-read-allow" data-dtype="Firewall" onclick="nsVaultModule.setDeviceTypeFilter('Firewall')">🛡 Firewalls</button>
+          <button type="button" class="ns-dev-chip ns-vault-read-allow" data-dtype="Switch" onclick="nsVaultModule.setDeviceTypeFilter('Switch')">🔀 Switches</button>
+          <button type="button" class="ns-dev-chip ns-vault-read-allow" data-dtype="Router" onclick="nsVaultModule.setDeviceTypeFilter('Router')">🖧 Routers</button>
+          <button type="button" class="ns-dev-chip ns-vault-read-allow" data-dtype="Server" onclick="nsVaultModule.setDeviceTypeFilter('Server')">🖥 Servers</button>
+          <button type="button" class="ns-dev-chip ns-vault-read-allow" data-dtype="NAS" onclick="nsVaultModule.setDeviceTypeFilter('NAS')">💾 NAS / Storage</button>
+          <button type="button" class="ns-dev-chip ns-vault-read-allow" data-dtype="CCTV" onclick="nsVaultModule.setDeviceTypeFilter('CCTV')">📷 CCTV / NVR</button>
+          <button type="button" class="ns-dev-chip ns-vault-read-allow" data-dtype="Software" onclick="nsVaultModule.setDeviceTypeFilter('Software')">💻 Software / Cloud</button>
+        </div>
+        <div class="section-toolbar" style="flex-wrap:wrap">
+          <input class="filter-input" id="vcSearchInput" placeholder="⌕ Search device, switch, firewall, NAS, IP, username...">
+          <select class="filter-select" id="vcFactoryFilter"><option value="">All factories</option></select>
+          <select class="filter-select" id="vcServiceFilter"><option value="">All protocols / services</option><option>Web GUI</option><option>SSH</option><option>Console / Serial</option><option>SNMPv3</option><option>SMB / NAS Share</option><option>Wi-Fi / RADIUS</option><option>ISP / PPPoE</option><option>RDP / VNC</option><option>NVR / CCTV</option><option>Database</option><option>Cloud / ERP / License</option><option>Other</option></select>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>DEVICE / ASSET LINK</th><th>PROTOCOL &amp; HOST</th><th>USERNAME</th><th>PASSWORD (MASKED)</th><th>EXTRA SECRETS &amp; NOTES</th><th>ROTATED / BY</th><th>ACTIONS</th></tr></thead>
+            <tbody id="vcCredTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: IMPORTANT SECRET DOCUMENTS & ENCRYPTED FOLDERS -->
+    <div id="nsVaultTabDocs" style="display:none">
+      <div class="panel">
+        <div class="panel-head" style="flex-wrap:wrap;gap:10px">
+          <div>
+            <div class="panel-title">📁 Important Secret Documents (AES-256-GCM Encrypted Files)</div>
+            <div class="panel-sub">Organize confidential PDFs, Word, Excel, OpenOffice, Images &amp; Keys inside custom folders. Preview in-app with screenshot guard; downloads require Separate Download Password.</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn" id="vcNewFolderBtn" onclick="nsVaultModule.openFolderModal()">📁＋ &nbsp;New Folder</button>
+            <button type="button" class="btn primary" id="vcUploadDocBtn" onclick="nsVaultModule.openDocUploadModal()">↑ &nbsp;Upload Secret Document</button>
+          </div>
+        </div>
+        <div class="ns-folder-strip ns-vault-read-allow" id="vcFolderStrip"></div>
+        <div class="section-toolbar" style="flex-wrap:wrap">
+          <input class="filter-input" id="vcDocSearchInput" placeholder="⌕ Search document title, filename, notes...">
+          <span class="ticket-meta" id="vcDlPwdBanner"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>DOCUMENT TITLE &amp; FORMAT</th><th>FOLDER</th><th>SIZE &amp; SHA-256</th><th>NOTES</th><th>UPLOADED BY / DATE</th><th>ACTIONS</th></tr></thead>
+            <tbody id="vcDocsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: SECURITY AUDIT LOG -->
+    <div id="nsVaultTabAudit" style="display:none">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">🛡 Vault Security Audit Trail</div>
+            <div class="panel-sub">Tracks every unlock, failed PIN/voice attempt, 5-attempt self-lock, document preview &amp; password-gated download.</div>
+          </div>
+          <button type="button" class="btn ns-vault-read-allow" onclick="nsVaultModule.loadAudit()">↻ &nbsp;Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>TIME</th><th>EVENT</th><th>ACTOR</th><th>TARGET</th><th>DETAIL</th><th>IP</th></tr></thead>
+            <tbody id="vcAuditTableBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 </section>
+
+<!-- Apple iOS Frosted-Glass Unlock Modal Popup (Triggered by 🔓 Unlock button beside Vault Security) -->
+<div class="modal-backdrop" id="nsVaultLockScreen" style="z-index:2675" onclick="if(event.target===this)nsVaultModule.closeUnlockModal()">
+  <div class="ns-vault-lock-card">
+    <button type="button" class="ns-vault-lock-close ns-vault-read-allow" onclick="nsVaultModule.closeUnlockModal()" aria-label="Close Unlock">×</button>
+    <div class="ns-ios-padlock" id="nsVaultPadlockIco">🔒</div>
+    <h2 class="ns-vault-title" id="nsVaultLockTitle">Credentials Vault Locked</h2>
+    <p class="ns-vault-sub" id="nsVaultLockSub">Enter your numeric PIN and secret keyword to decrypt your AES-256 credentials session.</p>
+    <div class="ns-vault-attempts-pill" id="nsVaultAttemptsPill">🛡 5 attempts remaining</div>
+
+    <div id="nsVaultNotInitPane" style="display:none">
+      <p style="font-size:12.5px;color:#cbd5e1;line-height:1.55;margin:6px 0 16px">Vault security PIN &amp; secret keyword have not been configured yet.</p>
+      <button type="button" class="ns-ios-unlock-btn" id="nsVaultInitBtn" onclick="nsVaultModule.closeUnlockModal();nsVaultModule.openSecurityConfig()" style="display:none">⚙ Setup Vault PIN, Keyword &amp; Voice Lock</button>
+      <div id="nsVaultInitNonAdminMsg" style="font-size:12px;color:#fde68a">Ask an Administrator to initialize Vault PIN &amp; Keyword.</div>
+    </div>
+
+    <div id="nsVaultSelfLockedPane" style="display:none;text-align:left">
+      <div style="padding:12px 14px;border-radius:14px;background:rgba(220,38,38,.22);border:1px solid rgba(248,113,113,.45);color:#fee2e2;font-size:12.5px;line-height:1.5;margin-bottom:14px">
+        <b>🚨 Self-Lock Engaged (5 Failed Attempts)</b><br>All active vault keys were wiped from memory and a security alert was sent. Only an Administrator can clear this lockout using their account password.
+      </div>
+      <div id="nsVaultAdminResetBox" style="display:none">
+        <label style="display:block;font-size:11px;font-weight:700;color:#cbd5e1;margin-bottom:5px">Administrator Account Password *</label>
+        <input type="password" class="ns-kw-input" id="nsVaultAdminPwdInput" placeholder="Enter your Administrator login password" style="margin-bottom:10px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:#fde68a;margin-bottom:10px;cursor:pointer">
+          <input type="checkbox" id="nsVaultWipeCheck" onchange="document.getElementById('nsVaultWipeFields').style.display=this.checked?'grid':'none'">
+          Forgot old PIN &amp; Keyword? (Wipes stored vault rows &amp; sets new keys)
+        </label>
+        <div id="nsVaultWipeFields" style="display:none;gap:8px;margin-bottom:10px">
+          <input type="text" inputmode="numeric" maxlength="8" class="ns-kw-input" id="nsVaultWipePin" placeholder="New 4–8 digit numeric PIN">
+          <input type="password" maxlength="80" class="ns-kw-input" id="nsVaultWipeKw" placeholder="New secret keyword (e.g. jungle)">
+        </div>
+        <button type="button" class="ns-ios-unlock-btn ns-vault-read-allow" onclick="nsVaultModule.submitAdminReset()" style="background:linear-gradient(135deg,#dc2626,#991b1b);box-shadow:0 8px 20px rgba(185,28,28,.4)">🔓 Verify Admin Password &amp; Clear Lockout</button>
+      </div>
+      <div id="nsVaultNonAdminLockMsg" style="text-align:center;font-size:12px;color:#fecaca;display:none">Contact your IT Administrator to verify their password and unlock the Vault.</div>
+    </div>
+
+    <div id="nsVaultUnlockInteractive">
+      <div class="ns-vault-mode-tabs ns-vault-read-allow" id="nsVaultModeTabs" style="display:none">
+        <button type="button" class="ns-vault-mode-btn active ns-vault-read-allow" data-vmode="pin" onclick="nsVaultModule.setUnlockMode('pin')">🔢 PIN + Keyword</button>
+        <button type="button" class="ns-vault-mode-btn ns-vault-read-allow" data-vmode="voice" onclick="nsVaultModule.setUnlockMode('voice')">🎙 Voice Lock</button>
+      </div>
+
+      <div id="nsVaultPinPane">
+        <div class="ns-pin-dots" id="nsVaultPinDots"></div>
+        <div class="ns-ios-keypad" id="nsVaultKeypad">
+          <button type="button" class="ns-ios-key ns-vault-read-allow" data-digit="1"><b>1</b><span>&nbsp;</span></button>
+          <button type="button" class="ns-ios-key ns-vault-read-allow" data-digit="2"><b>2</b><span>ABC</span></button>
+          <button type="button" class="ns-ios-key ns-vault-read-allow" data-digit="3"><b>3</b><span>DEF</span></button>
+          <button type="button" class="ns-ios-key ns-vault-read-allow" data-digit="4"><b>4</b><span>GHI</span></button>
+          <button type="button" class="ns-ios-key ns-vault-read-allow" data-digit="5"><b>5</b><span>JKL</span></button>
+          <button type="button" class="ns-ios-key ns-vault-read-allow" data-digit="6"><b>6</b><span>MNO</span></button>
+          <button type="button" class="ns-ios-key ns-vault-read-allow" data-digit="7"><b>7</b><span>PQRS</span></button>
+          <button type="button" class="ns-ios-key ns-vault-read-allow" data-digit="8"><b>8</b><span>TUV</span></button>
+          <button type="button" class="ns-ios-key ns-vault-read-allow" data-digit="9"><b>9</b><span>WXYZ</span></button>
+          <button type="button" class="ns-ios-key util ns-vault-read-allow" onclick="nsVaultModule.clearPin()">Clear</button>
+          <button type="button" class="ns-ios-key ns-vault-read-allow" data-digit="0"><b>0</b><span>+</span></button>
+          <button type="button" class="ns-ios-key util ns-vault-read-allow" onclick="nsVaultModule.backspacePin()">⌫</button>
+        </div>
+        <div class="ns-kw-wrap">
+          <input type="password" class="ns-kw-input" id="nsVaultKeywordInput" placeholder="Enter secret keyword (e.g. jungle)" autocomplete="off">
+          <button type="button" class="ns-kw-eye ns-vault-read-allow" onclick="nsVaultModule.toggleKwEye()" aria-label="Toggle keyword visibility">👁</button>
+        </div>
+        <button type="button" class="ns-ios-unlock-btn ns-vault-read-allow" id="nsVaultUnlockSubmitBtn" onclick="nsVaultModule.submitPinUnlock()">🔓 Verify PIN &amp; Keyword</button>
+      </div>
+
+      <div id="nsVaultVoicePane" style="display:none">
+        <div class="ns-voice-wave" id="nsVaultVoiceWave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <p id="nsVaultVoiceStatus" style="font-size:12px;color:#d1fae5;margin:4px 0 12px;min-height:18px">Speak your registered voice phrase in your natural tone &amp; pitch.</p>
+        <div class="ns-kw-wrap">
+          <input type="password" class="ns-kw-input" id="nsVaultVoicePhraseInput" placeholder="Spoken secret phrase (e.g. blackpearl)" autocomplete="off">
+          <button type="button" class="ns-kw-eye ns-vault-read-allow" onclick="nsVaultModule.toggleVoicePhraseEye()" aria-label="Toggle phrase visibility">👁</button>
+        </div>
+        <button type="button" class="ns-ios-unlock-btn ns-vault-read-allow" id="nsVaultVoiceRecordBtn" onclick="nsVaultModule.captureAndUnlockVoice()" style="background:linear-gradient(135deg,#0d9488,#0f766e)">🎙 Record Voice (3s) &amp; Unlock</button>
+        <div style="font-size:10.5px;color:rgba(226,232,240,.66);margin-top:9px;line-height:1.45">Matches your vocal timbre, pitch (tune), loudness intensity &amp; secret word. Counts toward 5-attempt self-lock.</div>
+      </div>
+    </div>
+    <div id="nsVaultLockError" style="margin-top:12px;font-size:12px;color:#fda4af;min-height:18px;font-weight:700"></div>
+  </div>
+</div>
 
 <!-- Firmware & Config Backup Upload Modal -->
 <div class="modal-backdrop" id="firmwareUploadModal" style="z-index:2660" onclick="if(event.target===this)nsFirmwareModule.closeForm()">
@@ -1370,34 +1467,35 @@
 
 <!-- Vault Credential Create / Edit Modal -->
 <div class="modal-backdrop" id="vaultCredModal" style="z-index:2660" onclick="if(event.target===this)nsVaultModule.closeCredModal()">
-  <div class="modal form-modal" style="max-width:660px;width:calc(100% - 20px);max-height:92vh;overflow-y:auto">
+  <div class="modal form-modal" style="max-width:680px;width:calc(100% - 20px);max-height:92vh;overflow-y:auto">
     <div class="modal-head"><h2 id="vcModalTitle">Add Encrypted Credential</h2><button type="button" class="close" onclick="nsVaultModule.closeCredModal()">×</button></div>
     <form id="vcCredForm" onsubmit="event.preventDefault();nsVaultModule.submitCredModal()">
       <input type="hidden" id="vcEditId" value="">
       <div class="form-grid">
         <div class="field full">
-          <label>Link to Asset Inventory Device (Optional — auto-fills device &amp; IP)</label>
-          <select id="vcAssetPicker" onchange="nsVaultModule.onPickAsset(this.value)"><option value="">-- Custom / Software / Service Account --</option></select>
+          <label>Link to Asset Inventory Device (Optional — or leave blank for Synology NAS, ISP, Cloudflare, Switch not yet in Inventory)</label>
+          <select id="vcAssetPicker" onchange="nsVaultModule.onPickAsset(this.value)"><option value="">-- Custom / Standalone Device / NAS / Software --</option></select>
         </div>
-        <div class="field"><label>Credential Title / Label *</label><input id="vcLabel" required maxlength="160" placeholder="e.g. Sophos Firewall Web Admin / Core Switch SSH"></div>
-        <div class="field"><label>Service / Protocol *</label><select id="vcServiceType"><option>Web GUI</option><option>SSH</option><option>Console / Serial</option><option>SNMPv3</option><option>Wi-Fi / RADIUS</option><option>ISP / PPPoE</option><option>RDP / VNC</option><option>NVR / CCTV</option><option>Cloud / ERP / License</option><option>Other</option></select></div>
-        <div class="field"><label>Asset Tag</label><input id="vcAssetTag" maxlength="80" placeholder="e.g. SS-NET-102"></div>
-        <div class="field"><label>Device Name</label><input id="vcAssetName" maxlength="160" placeholder="e.g. ARB Core Switch"></div>
-        <div class="field"><label>Device Type</label><input id="vcDeviceType" maxlength="80" placeholder="Switch, Firewall, Router, Server..."></div>
+        <div class="field"><label>Credential Title / Label *</label><input id="vcLabel" required maxlength="160" placeholder="e.g. Synology NAS DSM / Sophos Firewall / Core Switch"></div>
+        <div class="field"><label>Protocol / Service *</label><select id="vcServiceType"><option>Web GUI</option><option>SSH</option><option>Console / Serial</option><option>SNMPv3</option><option>SMB / NAS Share</option><option>Wi-Fi / RADIUS</option><option>ISP / PPPoE</option><option>RDP / VNC</option><option>NVR / CCTV</option><option>Database</option><option>Cloud / ERP / License</option><option>Other</option></select></div>
+        <div class="field"><label>Device Category *</label><select id="vcDeviceType"><option>Switch</option><option>Firewall</option><option>Router</option><option>Server</option><option>NAS / Storage</option><option>Access point</option><option>CCTV / NVR</option><option>UPS / PDU</option><option>Desktop / Laptop</option><option>Database</option><option>Software / Cloud</option><option>Other</option></select></div>
         <div class="field"><label>Factory</label><select id="vcFactory"></select></div>
-        <div class="field"><label>Host IP / Management URL</label><input id="vcHostUrl" maxlength="240" placeholder="e.g. 192.168.10.1 or https://fw.local"></div>
-        <div class="field"><label>Port</label><input id="vcPort" maxlength="16" placeholder="22, 443, 8443..."></div>
+        <div class="field"><label>Asset Tag (Optional)</label><input id="vcAssetTag" maxlength="80" placeholder="e.g. SS-NAS-01"></div>
+        <div class="field"><label>Device / Appliance Name</label><input id="vcAssetName" maxlength="160" placeholder="e.g. Synology RS2423+ / Cisco 2960X"></div>
+        <div class="field"><label>Host IP / Management URL</label><input id="vcHostUrl" maxlength="240" placeholder="e.g. 192.168.10.20 or https://nas.local"></div>
+        <div class="field"><label>Port</label><input id="vcPort" maxlength="16" placeholder="22, 443, 5001..."></div>
         <div class="field"><label>Username / Account ID</label><input id="vcUsername" maxlength="200" placeholder="admin / root / support" autocomplete="off"></div>
         <div class="field">
           <label>Password / Secret Key <button type="button" class="link-btn" style="font-size:11px;margin-left:6px" onclick="nsVaultModule.generateStrongPassword()">🎲 Generate strong</button></label>
-          <input type="text" id="vcPassword" maxlength="500" placeholder="Encrypted with AES-256-GCM" autocomplete="off">
+          <input type="text" id="vcPassword" maxlength="500" placeholder="Encrypted with AES-256-GCM" autocomplete="off" oninput="nsVaultModule.updatePwdStrength(this.value)">
+          <div id="vcPwdStrength" class="ticket-meta" style="margin-top:2px"></div>
         </div>
         <div class="field"><label>Enable / Privilege Secret (Cisco/Switch)</label><input type="text" id="vcEnableSecret" maxlength="300" autocomplete="off" placeholder="Optional enable password"></div>
         <div class="field"><label>API Key / Token / Pre-Shared Key</label><input type="text" id="vcApiToken" maxlength="1500" autocomplete="off" placeholder="Optional PSK / API Token"></div>
         <div class="field"><label>SNMPv3 Auth Key / Passphrase</label><input type="text" id="vcSnmpAuth" maxlength="300" autocomplete="off"></div>
         <div class="field"><label>SNMPv3 Privacy Key</label><input type="text" id="vcSnmpPriv" maxlength="300" autocomplete="off"></div>
         <div class="field full"><label>Recovery / Backup Codes</label><input type="text" id="vcRecoveryCodes" maxlength="1500" autocomplete="off" placeholder="2FA backup codes, serial license key, etc."></div>
-        <div class="field full"><label>Encrypted Security Notes</label><textarea id="vcNotes" rows="2" maxlength="3000" placeholder="VLAN/ACL restrictions, ISP customer ID, renewal contact..."></textarea></div>
+        <div class="field full"><label>Encrypted Security Notes</label><textarea id="vcNotes" rows="2" maxlength="3000" placeholder="VLAN/ACL restrictions, ISP customer ID, RAID volume key hint..."></textarea></div>
       </div>
       <div class="form-actions">
         <button type="button" class="btn" onclick="nsVaultModule.closeCredModal()">Cancel</button>
@@ -1407,10 +1505,88 @@
   </div>
 </div>
 
-<!-- Vault Security Settings Modal (Admin Only: 4-8 PIN + Keyword + Auto-Lock + Optional Voice Lock) -->
+<!-- Bulk Import Credentials Modal (For 1,000+ Switches, Firewalls, Servers, NAS...) -->
+<div class="modal-backdrop" id="vaultCredBulkModal" style="z-index:2680" onclick="if(event.target===this)nsVaultModule.closeBulkModal()">
+  <div class="modal" style="max-width:860px;width:calc(100% - 20px);max-height:92vh;overflow-y:auto">
+    <div class="modal-head">
+      <div><h2>↑ Bulk Import Device Credentials (AES-256 Encrypted)</h2><div class="form-note">Import hundreds/thousands of Switches, Firewalls, Routers, Servers, NAS &amp; CCTV logins from Excel/CSV cleanly into the unlocked Vault.</div></div>
+      <button type="button" class="close" onclick="nsVaultModule.closeBulkModal()">×</button>
+    </div>
+    <div id="vcBulkBody" style="padding:14px 18px"></div>
+  </div>
+</div>
+
+<!-- Vault Document Folder Modal -->
+<div class="modal-backdrop" id="vaultFolderModal" style="z-index:2680" onclick="if(event.target===this)nsVaultModule.closeFolderModal()">
+  <div class="modal form-modal" style="max-width:440px;width:calc(100% - 20px)">
+    <div class="modal-head"><h2 id="vcFolderModalTitle">New Secret Folder</h2><button type="button" class="close" onclick="nsVaultModule.closeFolderModal()">×</button></div>
+    <form onsubmit="event.preventDefault();nsVaultModule.submitFolderModal()">
+      <input type="hidden" id="vcEditFolderId" value="">
+      <div class="form-grid" style="grid-template-columns:1fr">
+        <div class="field"><label>Folder Name *</label><input id="vcFolderName" required maxlength="100" placeholder="e.g. Company Legal &amp; KYC, Firewall Licenses, SSL Certs"></div>
+        <div class="field"><label>Icon</label><select id="vcFolderIcon"><option value="📁">📁 Standard Folder</option><option value="🔐">🔐 Top Secret</option><option value="🛡">🛡 Security / Network</option><option value="📜">📜 Legal / Compliance</option><option value="💾">💾 Keys &amp; Backups</option><option value="🏢">🏢 Company / Finance</option></select></div>
+      </div>
+      <div class="form-actions"><button type="button" class="btn" onclick="nsVaultModule.closeFolderModal()">Cancel</button><button type="submit" class="btn primary">Save Folder</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Vault Upload Secret Document Modal -->
+<div class="modal-backdrop" id="vaultDocUploadModal" style="z-index:2680" onclick="if(event.target===this)nsVaultModule.closeDocUploadModal()">
+  <div class="modal form-modal" style="max-width:560px;width:calc(100% - 20px)">
+    <div class="modal-head"><h2>↑ Upload Secret Document (AES-256 Encrypted)</h2><button type="button" class="close" onclick="nsVaultModule.closeDocUploadModal()">×</button></div>
+    <form onsubmit="event.preventDefault();nsVaultModule.submitDocUpload()">
+      <div class="form-grid" style="grid-template-columns:1fr">
+        <div class="field"><label>Target Folder</label><select id="vcDocFolderSelect"></select></div>
+        <div class="field"><label>Document Title *</label><input id="vcDocTitle" required maxlength="160" placeholder="e.g. Sophos Master License Agreement / GST Cert"></div>
+        <div class="field"><label>Choose File (PDF, Word, Excel, OpenOffice, Images, Text, Keys — Any format up to 64 MB) *</label><input type="file" id="vcDocFileInput" required></div>
+        <div class="field"><label>Encrypted Notes (Optional)</label><textarea id="vcDocNotes" rows="2" maxlength="2000" placeholder="Authorized signers, renewal details..."></textarea></div>
+      </div>
+      <div class="form-actions"><button type="button" class="btn" onclick="nsVaultModule.closeDocUploadModal()">Cancel</button><button type="submit" class="btn primary" id="vcDocUploadSubmitBtn">🔐 Encrypt &amp; Store Document</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Separate Document Download Password Modal -->
+<div class="modal-backdrop" id="vaultDownloadPwdModal" style="z-index:2890" onclick="if(event.target===this)nsVaultModule.closeDownloadPrompt()">
+  <div class="modal form-modal" style="max-width:440px;width:calc(100% - 20px)">
+    <div class="modal-head"><h2>🔒 Separate Document Download Password</h2><button type="button" class="close" onclick="nsVaultModule.closeDownloadPrompt()">×</button></div>
+    <form onsubmit="event.preventDefault();nsVaultModule.submitDownloadPassword()">
+      <div class="form-grid" style="grid-template-columns:1fr">
+        <div class="form-note">Viewing is allowed inside Vault, but downloading <b id="vcDlTargetName">this file</b> requires the dedicated Document Download Password configured in Vault Security.</div>
+        <div class="field"><label>Document Download Password *</label><input type="password" id="vcDlPwdInput" required placeholder="Enter separate download password" autocomplete="off"></div>
+      </div>
+      <div class="form-actions"><button type="button" class="btn ns-vault-read-allow" onclick="nsVaultModule.closeDownloadPrompt()">Cancel</button><button type="submit" class="btn primary ns-vault-read-allow" id="vcDlSubmitBtn">⬇ Verify &amp; Download</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Protected In-App Document Preview Modal + Watermark + Anti-Capture Veil -->
+<div class="modal-backdrop" id="vaultDocPreviewModal" style="z-index:2850" onclick="if(event.target===this)nsVaultModule.closeDocPreview()">
+  <div class="modal" style="max-width:980px;width:calc(100% - 18px);max-height:94vh;display:flex;flex-direction:column" oncontextmenu="return false">
+    <div class="modal-head" style="gap:10px;flex-wrap:wrap">
+      <div><h2 id="vcPrevTitle" style="font-size:16px;margin:0">Document Preview</h2><div class="ticket-meta" id="vcPrevMeta"></div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="status healthy" style="font-size:11px">🛡 Capture Guard Active</span>
+        <button type="button" class="btn primary ns-vault-read-allow" id="vcPrevDlBtn">⬇ Download</button>
+        <button type="button" class="close ns-vault-read-allow" onclick="nsVaultModule.closeDocPreview()">×</button>
+      </div>
+    </div>
+    <div class="ns-vault-preview-shell" id="nsVaultDocPreviewBody" oncontextmenu="return false" ondragstart="return false"></div>
+  </div>
+</div>
+<div class="ns-vault-watermark" id="nsVaultDocWatermark"><div class="ns-vault-wm-grid" id="nsVaultDocWmGrid"></div></div>
+<div id="nsVaultPrivacyVeil">
+  <div style="font-size:48px">🛡</div>
+  <h2 style="margin:0;font:800 22px Manrope">Screen Capture &amp; Preview Shield Engaged</h2>
+  <p style="max-width:440px;font-size:13px;color:#cbd5e1;line-height:1.6">Sensitive Vault content was blacked out automatically because focus left, Print/Save/Screenshot shortcut was detected, or window switched.</p>
+  <button type="button" class="btn primary ns-vault-read-allow" onclick="nsVaultModule.dismissPrivacyVeil()">Resume Protected View</button>
+</div>
+
+<!-- Vault Security Settings Modal (Admin Only: 4-8 PIN + Keyword + Download Password + Voice Lock) -->
 <div class="modal-backdrop" id="vaultSecurityModal" style="z-index:2680" onclick="if(event.target===this)nsVaultModule.closeSecurityConfig()">
-  <div class="modal form-modal" style="max-width:600px;width:calc(100% - 20px);max-height:92vh;overflow-y:auto">
-    <div class="modal-head"><h2>⚙ Vault Security: PIN, Secret Keyword &amp; Voice Lock</h2><button type="button" class="close" onclick="nsVaultModule.closeSecurityConfig()">×</button></div>
+  <div class="modal form-modal" style="max-width:620px;width:calc(100% - 20px);max-height:92vh;overflow-y:auto">
+    <div class="modal-head"><h2>⚙ Vault Security: PIN, Keyword, Download Password &amp; Voice Lock</h2><button type="button" class="close" onclick="nsVaultModule.closeSecurityConfig()">×</button></div>
     <form id="vcSecForm" onsubmit="event.preventDefault();nsVaultModule.submitSecurityConfig()">
       <div class="form-grid">
         <div class="field full form-note">Vault DEK (256-bit) is wrapped via PBKDF2-HMAC-SHA256 (480,000 iterations) using your <b>4–8 digit numeric PIN + Secret Keyword</b>. 5 failed attempts permanently self-lock the Vault until Administrator password verification.</div>
@@ -1427,12 +1603,12 @@
           <input type="password" minlength="3" maxlength="80" id="vcCfgKw" placeholder="e.g. jungle" autocomplete="off">
         </div>
         <div class="field">
-          <label>Auto-Lock Session Timeout (minutes)</label>
-          <input type="number" min="1" max="120" id="vcCfgAutoLock" value="10">
+          <label>Separate Document Download Password (4+ chars) <span id="vcCfgDlState" class="ticket-meta" style="color:#157a54;font-weight:700"></span></label>
+          <input type="password" minlength="4" maxlength="200" id="vcCfgDownloadPwd" placeholder="Leave blank to keep existing" autocomplete="off">
         </div>
         <div class="field">
-          <label>5-Attempt Self-Lock Protection</label>
-          <input type="text" readonly value="Active (5 wrong attempts = Auto-Lock)" style="background:#f8fafc;color:#15803d;font-weight:700">
+          <label>Auto-Lock Session Timeout (minutes)</label>
+          <input type="number" min="1" max="120" id="vcCfgAutoLock" value="10">
         </div>
 
         <div class="field full" style="border:1px solid #cce3d6;border-radius:12px;padding:12px;background:#f7fbf9">
@@ -1582,8 +1758,8 @@ function applyModuleAccess(profile=serverProfile){
 }
 function applyReadOnlyControls(){
  if(!serverMode||serverAdmin)return;
- const mutating=/^(add|new|save|edit|delete|remove|issue|assign|return|upload|restore|complete|mark|log|create|update|cancel|resolve|close|reopen|submit|import|scan|reset)\b/i;
- const mutatingOnclick=/\b(add|edit|delete|remove|openModal|openAssetImportModal|openUserImportModal|openUserForm|openDepartmentForm|openSoftwareForm|openMaintenance|openRepair|openPart|openFaulty|openInvoice|openVendor|openCreate|openConfig|save|create|movePart|returnPart|renameFactory|promptCreatePartGroup)\w*/i;
+ const mutating=/^(add|new|bulk|save|edit|delete|remove|issue|assign|return|upload|restore|complete|mark|log|create|update|cancel|resolve|close|reopen|submit|import|scan|reset)\b/i;
+ const mutatingOnclick=/\b(add|edit|delete|remove|openModal|openAssetImportModal|openUserImportModal|openUserForm|openDepartmentForm|openSoftwareForm|openMaintenance|openRepair|openPart|openFaulty|openInvoice|openVendor|openCreate|openConfig|openBulkModal|openFolderModal|openDocUploadModal|openCredModal|openSecurityConfig|save|create|movePart|returnPart|renameFactory|promptCreatePartGroup)\w*/i;
  for(const [view,module] of Object.entries(permissionViewMap)){
   if(effectiveModuleGrant(serverProfile,module)!=='read')continue;
   let root=document.getElementById('view-'+view);if(!root)continue;
@@ -15778,7 +15954,6 @@ let lastPulseGatepassRev = '';
       const fwLinkHtml = item.firmwareUrl
         ? `<div style="margin-top:3px"><a class="link-btn" style="font-size:11px" href="${hEsc(item.firmwareUrl)}" target="_blank" rel="noopener noreferrer">Vendor Link ↗</a></div>`
         : '';
-      const credsAllowed = !isSrv() || !!serverAdmin || (typeof canAccessMod === 'function' && canAccessMod('credentials'));
       return `<tr>
         <td><b>${hEsc(item.assetName || 'Unnamed Device')}</b><div class="ticket-meta">${hEsc([item.assetTag, item.deviceType, item.factory].filter(Boolean).join(' · '))}</div><div class="ticket-meta">${hEsc([item.manufacturer, item.model].filter(Boolean).join(' '))}</div></td>
         <td><b>${hEsc(item.recordKind)}</b><div style="margin-top:4px"><span class="status ${eolCls}">${hEsc(item.eolStatus || 'Supported')}</span></div></td>
@@ -15786,7 +15961,7 @@ let lastPulseGatepassRev = '';
         <td>${cfgHtml}</td>
         <td>${(fwFileHtml || fwLinkHtml) ? fwFileHtml + fwLinkHtml : '<span class="ticket-meta">—</span>'}</td>
         <td style="white-space:normal;min-width:170px">${item.backupTakenAt ? '<div><b>Taken:</b> '+hEsc(item.backupTakenAt)+'</div>' : ''}${item.nextBackupDue ? '<div class="ticket-meta">Next: '+hEsc(item.nextBackupDue)+'</div>' : ''}${item.restoreSteps ? '<div class="ticket-meta" style="margin-top:3px">🛠 '+hEsc(item.restoreSteps)+'</div>' : ''}${item.notes ? '<div class="ticket-meta">'+hEsc(item.notes)+'</div>' : ''}</td>
-        <td><div style="display:flex;gap:5px;flex-wrap:wrap">${credsAllowed ? `<button type="button" class="btn ns-vault-read-allow" style="padding:4px 8px;font-size:11px" onclick="nsVaultModule.openForAsset('${hEsc(item.assetTag)}')">🔐 Creds</button>` : ''}${canW ? `<button type="button" class="btn" style="padding:4px 8px;font-size:11px" onclick="nsFirmwareModule.openForm('${hEsc(item.id)}')">Edit</button><button type="button" class="btn" style="padding:4px 8px;font-size:11px;color:#b91c1c;border-color:#fecaca" onclick="nsFirmwareModule.remove('${hEsc(item.id)}')">Delete</button>` : ''}</div></td>
+        <td><div style="display:flex;gap:5px;flex-wrap:wrap">${canW ? `<button type="button" class="btn" style="padding:4px 8px;font-size:11px" onclick="nsFirmwareModule.openForm('${hEsc(item.id)}')">Edit</button><button type="button" class="btn" style="padding:4px 8px;font-size:11px;color:#b91c1c;border-color:#fecaca" onclick="nsFirmwareModule.remove('${hEsc(item.id)}')">Delete</button>` : ''}</div></td>
       </tr>`;
     }).join('');
   }
@@ -16172,15 +16347,24 @@ let lastPulseGatepassRev = '';
   }
 
   // =========================================================================
-  // 3. ENCRYPTED CREDENTIALS VAULT MODULE (Apple iOS Lockscreen + Voice Lock)
+  // 3. ENCRYPTED CREDENTIALS & SECRET DOCUMENTS VAULT MODULE
   // =========================================================================
-  let vaultStatus = { initialized: false, unlocked: false, pinLength: 4, voiceEnabled: false, remainingAttempts: 5, maxAttempts: 5, permanentlyLocked: false, autoLockMinutes: 10, canConfigure: false, canWrite: false, expiresInSec: 0 };
+  let vaultStatus = { initialized: false, unlocked: false, pinLength: 4, voiceEnabled: false, hasDownloadPassword: false, remainingAttempts: 5, maxAttempts: 5, permanentlyLocked: false, autoLockMinutes: 10, canConfigure: false, canWrite: false, expiresInSec: 0 };
   let pinBuffer = '';
   let vaultCreds = [];
+  let vaultFolders = [];
+  let vaultDocs = [];
+  let vaultAuditRows = [];
   let revealedCredIds = new Set();
   let enrolledSamples = [null, null];
   let vaultTimerInterval = null;
   let pendingAssetFilter = '';
+  let activeVaultTab = 'creds';
+  let activeDevTypeFilter = '';
+  let activeFolderFilter = 'ALL';
+  let pendingDownloadDocId = '';
+  let clipClearTimer = null;
+  let previewWmTimer = null;
 
   function vaultSyncDots(){
     const wrap = document.getElementById('nsVaultPinDots');
@@ -16201,6 +16385,27 @@ let lastPulseGatepassRev = '';
     card.classList.add('ns-shake');
   }
 
+  function syncScreenCaptureGuard(){
+    const inCredsView = !!document.getElementById('view-credentials')?.classList.contains('active');
+    const inPrev = !!document.getElementById('vaultDocPreviewModal')?.classList.contains('open');
+    const protect = (inCredsView && !!vaultStatus.unlocked) || inPrev;
+    try{ window.ShreeAndroid?.setSecureScreen?.(protect); }catch(_){}
+    const wm = document.getElementById('nsVaultDocWatermark');
+    if(wm) wm.style.display = inPrev ? 'block' : 'none';
+  }
+
+  function engagePrivacyVeil(reason = ''){
+    const inPrev = !!document.getElementById('vaultDocPreviewModal')?.classList.contains('open');
+    const inUnlockedVault = !!document.getElementById('view-credentials')?.classList.contains('active') && !!vaultStatus.unlocked;
+    if(!inPrev && !(inUnlockedVault && revealedCredIds.size > 0)) return;
+    document.getElementById('nsVaultPrivacyVeil')?.classList.add('active');
+    if(reason) toast(reason);
+  }
+
+  function dismissPrivacyVeil(){
+    document.getElementById('nsVaultPrivacyVeil')?.classList.remove('active');
+  }
+
   function startCountdownTimer(){
     if(vaultTimerInterval) clearInterval(vaultTimerInterval);
     vaultTimerInterval = setInterval(() => {
@@ -16218,45 +16423,7 @@ let lastPulseGatepassRev = '';
     }, 1000);
   }
 
-  async function vaultRefreshStatus(){
-    if(!isSrv()){
-      document.getElementById('nsVaultLockScreen').style.display = 'flex';
-      document.getElementById('nsVaultWorkspace').style.display = 'none';
-      return;
-    }
-    if(typeof canAccessMod === 'function' && !canAccessMod('credentials')) return;
-    try{
-      vaultStatus = await apiFetch('/api/vault/status', { cache: 'no-store' });
-    }catch(e){
-      return;
-    }
-    const lockSc = document.getElementById('nsVaultLockScreen');
-    const workSc = document.getElementById('nsVaultWorkspace');
-    const timerB = document.getElementById('nsVaultTimerBadge');
-    const lockBtn = document.getElementById('nsVaultLockNowBtn');
-    const cfgBtn = document.getElementById('nsVaultConfigBtn');
-    const addBtn = document.getElementById('nsVaultAddBtn');
-
-    if(cfgBtn) cfgBtn.style.display = vaultStatus.canConfigure ? '' : 'none';
-
-    if(vaultStatus.unlocked && !vaultStatus.permanentlyLocked){
-      lockSc.style.display = 'none';
-      workSc.style.display = 'block';
-      if(timerB) timerB.style.display = '';
-      if(lockBtn) lockBtn.style.display = '';
-      if(addBtn) addBtn.style.display = vaultStatus.canWrite ? '' : 'none';
-      startCountdownTimer();
-      await vaultLoadCreds();
-      return;
-    }
-
-    if(vaultTimerInterval) clearInterval(vaultTimerInterval);
-    lockSc.style.display = 'flex';
-    workSc.style.display = 'none';
-    if(timerB) timerB.style.display = 'none';
-    if(lockBtn) lockBtn.style.display = 'none';
-    if(addBtn) addBtn.style.display = 'none';
-
+  function syncUnlockModalContents(){
     const pad = document.getElementById('nsVaultPadlockIco');
     const title = document.getElementById('nsVaultLockTitle');
     const sub = document.getElementById('nsVaultLockSub');
@@ -16267,16 +16434,16 @@ let lastPulseGatepassRev = '';
     const modeTabs = document.getElementById('nsVaultModeTabs');
 
     pad?.classList.remove('unlocking','locked-crit');
-    notInit.style.display = 'none';
-    selfLocked.style.display = 'none';
-    interactive.style.display = 'none';
+    if(notInit) notInit.style.display = 'none';
+    if(selfLocked) selfLocked.style.display = 'none';
+    if(interactive) interactive.style.display = 'none';
 
     if(!vaultStatus.initialized){
       if(pad) pad.textContent = '🛠';
       if(title) title.textContent = 'Setup Encrypted Vault';
       if(sub) sub.textContent = 'Configure a 4–8 digit PIN & Secret Keyword to enable AES-256-GCM encryption.';
       if(pill){ pill.className = 'ns-vault-attempts-pill'; pill.textContent = 'AES-256-GCM Ready'; }
-      notInit.style.display = 'block';
+      if(notInit) notInit.style.display = 'block';
       document.getElementById('nsVaultInitBtn').style.display = vaultStatus.canConfigure ? '' : 'none';
       document.getElementById('nsVaultInitNonAdminMsg').style.display = vaultStatus.canConfigure ? 'none' : '';
       return;
@@ -16287,7 +16454,7 @@ let lastPulseGatepassRev = '';
       if(title) title.textContent = 'Vault Self-Locked';
       if(sub) sub.textContent = '5 consecutive invalid unlock attempts triggered automatic self-lock.';
       if(pill){ pill.className = 'ns-vault-attempts-pill crit'; pill.textContent = '⛔ 0 attempts remaining · Self-Locked'; }
-      selfLocked.style.display = 'block';
+      if(selfLocked) selfLocked.style.display = 'block';
       document.getElementById('nsVaultAdminResetBox').style.display = vaultStatus.canConfigure ? '' : 'none';
       document.getElementById('nsVaultNonAdminLockMsg').style.display = vaultStatus.canConfigure ? 'none' : '';
       return;
@@ -16301,10 +16468,129 @@ let lastPulseGatepassRev = '';
       pill.className = 'ns-vault-attempts-pill' + (rem <= 2 ? ' crit' : rem <= 3 ? ' warn' : '');
       pill.textContent = `🛡 ${rem} of ${vaultStatus.maxAttempts || 5} attempts remaining`;
     }
-    interactive.style.display = 'block';
-    modeTabs.style.display = vaultStatus.voiceEnabled ? 'inline-flex' : 'none';
+    if(interactive) interactive.style.display = 'block';
+    if(modeTabs) modeTabs.style.display = vaultStatus.voiceEnabled ? 'inline-flex' : 'none';
     if(!vaultStatus.voiceEnabled) vaultSetUnlockMode('pin');
     vaultSyncDots();
+  }
+
+  function openUnlockModal(){
+    if(vaultStatus.unlocked && !vaultStatus.permanentlyLocked){
+      toast('Vault is already unlocked');
+      return;
+    }
+    pinBuffer = '';
+    syncUnlockModalContents();
+    const err = document.getElementById('nsVaultLockError');
+    if(err) err.textContent = '';
+    document.getElementById('nsVaultLockScreen')?.classList.add('open');
+  }
+
+  function closeUnlockModal(){
+    document.getElementById('nsVaultLockScreen')?.classList.remove('open');
+  }
+
+  async function vaultRefreshStatus(){
+    const sealedEl = document.getElementById('nsVaultSealedPlaceholder');
+    const workSc = document.getElementById('nsVaultWorkspace');
+    const lockSc = document.getElementById('nsVaultLockScreen');
+    const hdrUnlockBtn = document.getElementById('nsVaultHeaderUnlockBtn');
+    const timerB = document.getElementById('nsVaultTimerBadge');
+    const lockBtn = document.getElementById('nsVaultLockNowBtn');
+    const cfgBtn = document.getElementById('nsVaultConfigBtn');
+    const addBtn = document.getElementById('nsVaultAddBtn');
+    const bulkBtn = document.getElementById('nsVaultBulkImportBtn');
+
+    if(!isSrv()){
+      if(sealedEl) sealedEl.style.display = 'block';
+      if(workSc) workSc.style.display = 'none';
+      if(hdrUnlockBtn) hdrUnlockBtn.style.display = '';
+      syncScreenCaptureGuard();
+      return;
+    }
+    if(typeof canAccessMod === 'function' && !canAccessMod('credentials')) return;
+    try{
+      vaultStatus = await apiFetch('/api/vault/status', { cache: 'no-store' });
+    }catch(e){
+      return;
+    }
+    if(isSrv() && !serverAdmin && typeof canAccessMod === 'function'){
+      vaultStatus.canConfigure = false;
+      vaultStatus.canWrite = Boolean(vaultStatus.canWrite && canAccessMod('credentials', true));
+    }
+
+    if(cfgBtn) cfgBtn.style.display = vaultStatus.canConfigure ? '' : 'none';
+
+    if(vaultStatus.unlocked && !vaultStatus.permanentlyLocked){
+      lockSc?.classList.remove('open');
+      if(sealedEl) sealedEl.style.display = 'none';
+      if(workSc) workSc.style.display = 'block';
+      if(hdrUnlockBtn) hdrUnlockBtn.style.display = 'none';
+      if(timerB) timerB.style.display = '';
+      if(lockBtn) lockBtn.style.display = '';
+      if(addBtn) addBtn.style.display = vaultStatus.canWrite ? '' : 'none';
+      if(bulkBtn) bulkBtn.style.display = vaultStatus.canWrite ? '' : 'none';
+      const nfBtn = document.getElementById('vcNewFolderBtn');
+      const udBtn = document.getElementById('vcUploadDocBtn');
+      if(nfBtn) nfBtn.style.display = vaultStatus.canWrite ? '' : 'none';
+      if(udBtn) udBtn.style.display = vaultStatus.canWrite ? '' : 'none';
+      startCountdownTimer();
+      syncScreenCaptureGuard();
+      await Promise.all([vaultLoadCreds(), vaultLoadDocsData()]);
+      if(activeVaultTab === 'audit') await vaultLoadAudit();
+      return;
+    }
+
+    // Locked — completely purge sensitive client arrays from memory!
+    vaultCreds = [];
+    vaultFolders = [];
+    vaultDocs = [];
+    vaultAuditRows = [];
+    revealedCredIds.clear();
+    if(vaultTimerInterval) clearInterval(vaultTimerInterval);
+    if(sealedEl) sealedEl.style.display = 'block';
+    if(workSc) workSc.style.display = 'none';
+    if(hdrUnlockBtn){
+      hdrUnlockBtn.style.display = '';
+      hdrUnlockBtn.textContent = vaultStatus.permanentlyLocked ? '🚨 Self-Locked' : '🔓  Unlock';
+    }
+    if(timerB) timerB.style.display = 'none';
+    if(lockBtn) lockBtn.style.display = 'none';
+    if(addBtn) addBtn.style.display = 'none';
+    if(bulkBtn) bulkBtn.style.display = 'none';
+
+    const sIco = document.getElementById('nsVaultSealedIco');
+    const sTit = document.getElementById('nsVaultSealedTitle');
+    const sSub = document.getElementById('nsVaultSealedSub');
+    if(vaultStatus.permanentlyLocked){
+      if(sIco) sIco.textContent = '🚨';
+      if(sTit) sTit.textContent = 'Vault Self-Locked (5 Failed Attempts)';
+      if(sSub) sSub.innerHTML = 'Vault locked automatically after 5 wrong unlock attempts. Click <b>Unlock Vault</b> and verify your Administrator login password to reset.';
+    }else if(!vaultStatus.initialized){
+      if(sIco) sIco.textContent = '🛠';
+      if(sTit) sTit.textContent = 'Vault Security Setup Required';
+      if(sSub) sSub.innerHTML = 'Click <b>⚙ Vault Security</b> above (or Unlock below) to configure your 4–8 digit numeric PIN, Secret Keyword &amp; Document Download Password.';
+    }else{
+      if(sIco) sIco.textContent = '🔐';
+      if(sTit) sTit.textContent = 'Vault Is Sealed & Encrypted';
+      if(sSub) sSub.innerHTML = 'No device credentials or secret documents can be viewed while locked. Click <b>🔓 Unlock</b> beside Vault Security above to enter your PIN, Secret Keyword or Voice Match.';
+    }
+    syncUnlockModalContents();
+    syncScreenCaptureGuard();
+  }
+
+  function vaultSwitchTab(tab){
+    activeVaultTab = tab;
+    const map = { creds: 'nsVaultTabCreds', docs: 'nsVaultTabDocs', audit: 'nsVaultTabAudit' };
+    const bmap = { creds: 'vcTabCredsBtn', docs: 'vcTabDocsBtn', audit: 'vcTabAuditBtn' };
+    Object.keys(map).forEach(k => {
+      const el = document.getElementById(map[k]);
+      const btn = document.getElementById(bmap[k]);
+      if(el) el.style.display = k === tab ? 'block' : 'none';
+      if(btn) btn.classList.toggle('active', k === tab);
+    });
+    if(tab === 'docs' && vaultStatus.unlocked) vaultLoadDocsData();
+    if(tab === 'audit' && vaultStatus.unlocked) vaultLoadAudit();
   }
 
   function vaultSetUnlockMode(mode){
@@ -16367,16 +16653,16 @@ let lastPulseGatepassRev = '';
       if(err) err.textContent = '';
       const pad = document.getElementById('nsVaultPadlockIco');
       if(pad){ pad.textContent = '🔓'; pad.classList.add('unlocking'); }
-      await new Promise(r => setTimeout(r, 240));
+      await new Promise(r => setTimeout(r, 220));
+      closeUnlockModal();
       await vaultRefreshStatus();
       toast('Credentials Vault unlocked');
     }catch(e){
       pinBuffer = '';
       vaultSyncDots();
       vaultTriggerShake();
-      if(err) err.textContent = e.message || 'Invalid PIN or Keyword';
       await vaultRefreshStatus();
-      if(err && e.message) err.textContent = e.message;
+      if(err) err.textContent = e.message || 'Invalid PIN or Keyword';
     }finally{
       if(btn){ btn.disabled = false; btn.textContent = '🔓 Verify PIN & Keyword'; }
     }
@@ -16416,13 +16702,13 @@ let lastPulseGatepassRev = '';
       });
       if(phraseInp) phraseInp.value = '';
       const pct = Math.round(Number(resp.matchScore || 0.9) * 100);
+      closeUnlockModal();
       toast(`Voice authenticated (${pct}% biometric match)`);
       await vaultRefreshStatus();
     }catch(e){
       vaultTriggerShake();
-      if(errEl) errEl.textContent = e.message || 'Voice authentication failed';
       await vaultRefreshStatus();
-      if(errEl && e.message) errEl.textContent = e.message;
+      if(errEl) errEl.textContent = e.message || 'Voice authentication failed';
     }finally{
       waveEl?.classList.remove('listening');
       if(btn){ btn.disabled = false; btn.textContent = '🎙 Record Voice (3s) & Unlock'; }
@@ -16432,9 +16718,8 @@ let lastPulseGatepassRev = '';
   async function vaultLockNow(){
     try{
       await apiFetch('/api/vault/lock', { method: 'POST', headers:{'Content-Type':'application/json'}, body:'{}' });
-      vaultCreds = [];
-      revealedCredIds.clear();
-      toast('Vault locked cleanly');
+      vaultCloseDocPreview();
+      toast('Vault locked & keys cleared from screen');
       await vaultRefreshStatus();
     }catch(e){
       toast(e.message || 'Could not lock vault');
@@ -16463,6 +16748,12 @@ let lastPulseGatepassRev = '';
     }
   }
 
+  function vaultSetDeviceTypeFilter(dtype){
+    activeDevTypeFilter = dtype || '';
+    document.querySelectorAll('#vcDevChipBar .ns-dev-chip').forEach(b => b.classList.toggle('active', b.dataset.dtype === activeDevTypeFilter));
+    vaultRenderCreds();
+  }
+
   async function vaultLoadCreds(){
     populateFactorySelect(document.getElementById('vcFactoryFilter'), true);
     try{
@@ -16476,6 +16767,8 @@ let lastPulseGatepassRev = '';
       if(pendingAssetFilter) p.set('asset_tag', pendingAssetFilter);
       const r = await apiFetch('/api/vault/credentials' + (p.toString() ? '?' + p.toString() : ''), { cache: 'no-store' });
       vaultCreds = Array.isArray(r.items) ? r.items : [];
+      const b = document.getElementById('vcTabCredsCnt');
+      if(b) b.textContent = String(vaultCreds.length);
       vaultRenderCreds();
     }catch(e){
       if(String(e.message || '').includes('vault_locked') || String(e.message || '').includes('423')){
@@ -16492,14 +16785,23 @@ let lastPulseGatepassRev = '';
     const set = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = String(v); };
     set('vcKpiTotal', vaultCreds.length);
     set('vcKpiLinked', vaultCreds.filter(c => c.assetTag).length);
-    set('vcKpiNet', vaultCreds.filter(c => /firewall|switch|router|network|access point|ap/i.test(c.deviceType + ' ' + c.label)).length);
+    set('vcKpiNet', vaultCreds.filter(c => /firewall|switch|router|server|nas|storage|network|access point/i.test(c.deviceType + ' ' + c.label)).length);
 
-    if(!vaultCreds.length){
-      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No credentials stored in this view yet.' + (pendingAssetFilter ? ` (Filtered by ${hEsc(pendingAssetFilter)} — <button type="button" class="link-btn" onclick="nsVaultModule.clearAssetFilter()">Show all</button>)` : '') + '</td></tr>';
+    let list = vaultCreds;
+    if(activeDevTypeFilter){
+      const rx = activeDevTypeFilter === 'CCTV' ? /cctv|nvr|dvr|surveillance|camera/i
+        : activeDevTypeFilter === 'NAS' ? /nas|storage|synology|qnap|truenas/i
+        : activeDevTypeFilter === 'Software' ? /software|cloud|erp|saas|database|license/i
+        : new RegExp(activeDevTypeFilter, 'i');
+      list = vaultCreds.filter(c => rx.test([c.deviceType, c.label, c.assetName, c.serviceType].join(' ')));
+    }
+
+    if(!list.length){
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No credentials stored in this view yet. Click <b>+ Add Credential</b> or <b>↑ Bulk Import</b> above to add Switches, Firewalls, Servers, NAS or Software logins.' + (pendingAssetFilter ? ` (<button type="button" class="link-btn ns-vault-read-allow" onclick="nsVaultModule.clearAssetFilter()">Show all</button>)` : '') + '</td></tr>';
       return;
     }
     const canW = !!vaultStatus.canWrite;
-    tbody.innerHTML = vaultCreds.map(c => {
+    tbody.innerHTML = list.map(c => {
       const shown = revealedCredIds.has(c.id);
       const pwDisp = c.password ? (shown ? hEsc(c.password) : '••••••••••••') : '—';
       const extras = [
@@ -16509,10 +16811,10 @@ let lastPulseGatepassRev = '';
         c.notes ? `📝 ${c.notes}` : '',
       ].filter(Boolean);
       return `<tr>
-        <td><b>${hEsc(c.label)}</b><div class="ticket-meta">${hEsc([c.assetTag, c.assetName, c.deviceType, c.factory].filter(Boolean).join(' · '))}</div></td>
+        <td><b>${hEsc(c.label)}</b><div class="ticket-meta">${hEsc([c.deviceType, c.assetTag, c.assetName, c.factory].filter(Boolean).join(' · '))}</div></td>
         <td><span class="status healthy">${hEsc(c.serviceType)}</span><div class="ticket-meta" style="margin-top:3px">${hEsc(c.hostUrl)}${c.port ? ':' + hEsc(c.port) : ''}</div></td>
         <td><span class="ns-secret-mask"><span class="ns-secret-val">${hEsc(c.username || '—')}</span>${c.username ? `<button type="button" class="link-btn ns-vault-read-allow" style="font-size:11px;padding:0 3px" onclick="nsVaultModule.copySecret('${hEsc(c.id)}','username')" title="Copy username">📋</button>` : ''}</span></td>
-        <td><span class="ns-secret-mask"><span class="ns-secret-val">${pwDisp}</span>${c.password ? `<button type="button" class="link-btn ns-vault-read-allow" style="font-size:11px;padding:0 3px" onclick="nsVaultModule.toggleReveal('${hEsc(c.id)}')" title="Show/Hide">${shown ? '🙈' : '👁'}</button><button type="button" class="link-btn ns-vault-read-allow" style="font-size:11px;padding:0 3px" onclick="nsVaultModule.copySecret('${hEsc(c.id)}','password')" title="Copy password">📋</button>` : ''}</span></td>
+        <td><span class="ns-secret-mask"><span class="ns-secret-val">${pwDisp}</span>${c.password ? `<button type="button" class="link-btn ns-vault-read-allow" style="font-size:11px;padding:0 3px" onclick="nsVaultModule.toggleReveal('${hEsc(c.id)}')" title="Show/Hide">${shown ? '🙈' : '👁'}</button><button type="button" class="link-btn ns-vault-read-allow" style="font-size:11px;padding:0 3px" onclick="nsVaultModule.copySecret('${hEsc(c.id)}','password')" title="Copy password (auto-clears in 25s)">📋</button>` : ''}</span></td>
         <td style="white-space:normal;min-width:170px">${extras.length ? extras.map(x => `<div class="ticket-meta">${hEsc(x)}</div>`).join('') : '<span class="ticket-meta">—</span>'}</td>
         <td><div class="ticket-meta">${fmtIsoShort(c.rotatedAt || c.updatedAt)}</div><div class="ticket-meta">${hEsc(c.updatedBy || '')}</div></td>
         <td><div style="display:flex;gap:5px;flex-wrap:wrap">${canW ? `<button type="button" class="btn" style="padding:4px 8px;font-size:11px" onclick="nsVaultModule.openCredModal('${hEsc(c.id)}')">Edit</button><button type="button" class="btn" style="padding:4px 8px;font-size:11px;color:#b91c1c;border-color:#fecaca" onclick="nsVaultModule.deleteCred('${hEsc(c.id)}')">Delete</button>` : '<span class="ticket-meta">Read only</span>'}</div></td>
@@ -16531,10 +16833,31 @@ let lastPulseGatepassRev = '';
     if(!c || !c[field]) return;
     try{
       await navigator.clipboard.writeText(c[field]);
-      toast(field === 'password' ? 'Password copied to clipboard' : 'Username copied to clipboard');
+      if(field === 'password'){
+        toast('Password copied (clipboard auto-wipes in 25s)');
+        clearTimeout(clipClearTimer);
+        clipClearTimer = setTimeout(() => { try{ navigator.clipboard.writeText(''); }catch(_){} }, 25000);
+      }else{
+        toast('Username copied to clipboard');
+      }
     }catch(_){
       toast('Copied: ' + c[field]);
     }
+  }
+
+  function vaultUpdatePwdStrength(pwd){
+    const el = document.getElementById('vcPwdStrength');
+    if(!el) return;
+    const p = String(pwd || '');
+    if(!p){ el.textContent = ''; return; }
+    let score = 0;
+    if(p.length >= 8) score++;
+    if(p.length >= 14) score++;
+    if(/[A-Z]/.test(p) && /[a-z]/.test(p)) score++;
+    if(/\d/.test(p)) score++;
+    if(/[^A-Za-z0-9]/.test(p)) score++;
+    const label = score >= 4 ? '🟢 Strong password' : score >= 3 ? '🟡 Medium password' : '🔴 Weak password';
+    el.textContent = `${label} (${p.length} chars)`;
   }
 
   function vaultOpenCredModal(editId = ''){
@@ -16551,7 +16874,12 @@ let lastPulseGatepassRev = '';
     setV('vcServiceType', item?.serviceType || 'Web GUI');
     setV('vcAssetTag', item?.assetTag || '');
     setV('vcAssetName', item?.assetName || '');
-    setV('vcDeviceType', item?.deviceType || '');
+    const dtEl = document.getElementById('vcDeviceType');
+    if(dtEl){
+      const want = item?.deviceType || 'Switch';
+      if([...dtEl.options].some(o => o.value === want)) dtEl.value = want;
+      else dtEl.value = 'Other';
+    }
     setV('vcFactory', item?.factory || fCodes()[0] || 'ARG');
     setV('vcHostUrl', item?.hostUrl || '');
     setV('vcPort', item?.port || '');
@@ -16563,6 +16891,7 @@ let lastPulseGatepassRev = '';
     setV('vcSnmpPriv', item?.snmpPriv || '');
     setV('vcRecoveryCodes', item?.recoveryCodes || '');
     setV('vcNotes', item?.notes || '');
+    vaultUpdatePwdStrength(item?.password || '');
     document.getElementById('vaultCredModal')?.classList.add('open');
   }
 
@@ -16575,7 +16904,12 @@ let lastPulseGatepassRev = '';
     if(!a) return;
     document.getElementById('vcAssetTag').value = a.tag || '';
     document.getElementById('vcAssetName').value = a.name || '';
-    document.getElementById('vcDeviceType').value = a.subtype || a.type || '';
+    const dtSel = document.getElementById('vcDeviceType');
+    const cand = a.subtype || a.type || '';
+    if(dtSel){
+      const match = [...dtSel.options].find(o => o.value.toLowerCase().includes(String(cand).toLowerCase()));
+      if(match) dtSel.value = match.value;
+    }
     const fSel = document.getElementById('vcFactory');
     if(fSel && a.site && [...fSel.options].some(o => o.value === a.site)) fSel.value = a.site;
     const ip = a.managementUrl || a.ipAddress || a.ip_address || '';
@@ -16590,6 +16924,7 @@ let lastPulseGatepassRev = '';
     let out = '';
     for(let i = 0; i < arr.length; i++) out += chars[arr[i] % chars.length];
     document.getElementById('vcPassword').value = out;
+    vaultUpdatePwdStrength(out);
   }
 
   async function vaultSubmitCredModal(){
@@ -16599,7 +16934,7 @@ let lastPulseGatepassRev = '';
       serviceType: document.getElementById('vcServiceType').value,
       assetTag: document.getElementById('vcAssetTag').value.trim(),
       assetName: document.getElementById('vcAssetName').value.trim(),
-      deviceType: document.getElementById('vcDeviceType').value.trim(),
+      deviceType: document.getElementById('vcDeviceType').value,
       factory: document.getElementById('vcFactory').value,
       hostUrl: document.getElementById('vcHostUrl').value.trim(),
       port: document.getElementById('vcPort').value.trim(),
@@ -16638,6 +16973,380 @@ let lastPulseGatepassRev = '';
     }
   }
 
+  // --- Bulk Import Credentials (1,000+ Switches, Firewalls, Servers, NAS...) ---
+  const CRED_BULK_HEADERS = [
+    'Credential Title / Label*', 'Device Category', 'Factory', 'Asset Tag',
+    'Device Name', 'Protocol / Service', 'Host IP / URL', 'Port',
+    'Username', 'Password', 'Enable Secret', 'API Token / PSK', 'Notes'
+  ];
+  let credBulkRows = [];
+
+  function downloadCredBulkTemplate(fmt){
+    const sample = [
+      ['ARG Sophos XGS Firewall', 'Firewall', fCodes()[0]||'ARG', 'SS-FW-01', 'Sophos XGS 2100', 'Web GUI', 'https://192.168.10.1', '4444', 'admin', 'ReplacePass!1', '', '', 'WAN dual ISP gateway'],
+      ['ARB Core Switch Cisco 2960X', 'Switch', fCodes()[1]||'ARB', 'SS-SW-02', 'Cisco 2960X', 'SSH', '192.168.20.2', '22', 'netadmin', 'ReplacePass!2', 'En@bleSecret', '', 'Floor 2 IDF closet'],
+      ['HQ Synology NAS RS2423+', 'NAS / Storage', fCodes()[0]||'ARG', 'SS-NAS-01', 'Synology NAS', 'SMB / NAS Share', '192.168.10.50', '5001', 'backupadmin', 'ReplacePass!3', '', '', 'Nightly Veeam target'],
+    ];
+    if(fmt === 'xlsx' && typeof window.__buildXlsxBytes === 'function'){
+      const bytes = window.__buildXlsxBytes([{ name:'Credentials Import', rows:[CRED_BULK_HEADERS, ...sample], freezeTop:true, headerRow:0 }]);
+      downloadBlob(bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'northstar-vault-credentials-template.xlsx');
+    }else{
+      const csv = [CRED_BULK_HEADERS, ...sample].map(r => r.map(v => '"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\r\n');
+      downloadBlob('\ufeff'+csv, 'text/csv;charset=utf-8', 'northstar-vault-credentials-template.csv');
+    }
+    toast('Device credentials bulk template downloaded');
+  }
+
+  function renderCredBulkModal(){
+    const host = document.getElementById('vcBulkBody');
+    if(!host) return;
+    if(!credBulkRows.length){
+      host.innerHTML = `<div style="display:grid;gap:12px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px;border:1px solid #d5e5dc;border-radius:10px;background:#f4fbf7">
+          <div style="flex:1"><b style="color:#145b40">1. Download Sample Template</b><div class="ticket-meta">Ready rows for Firewall, Switch &amp; Synology NAS logins.</div></div>
+          <button type="button" class="btn primary" onclick="nsVaultModule.dlCredTemplate('xlsx')">📊 Excel (.xlsx)</button>
+          <button type="button" class="btn" onclick="nsVaultModule.dlCredTemplate('csv')">📄 CSV (.csv)</button>
+        </div>
+        <label style="display:grid;place-items:center;gap:6px;padding:28px;border:2px dashed #9ec5b0;border-radius:12px;cursor:pointer;text-align:center">
+          <span style="font-size:26px">📂</span>
+          <b>2. Pick filled Excel (.xlsx / .xls) or CSV file (up to 2,000 rows)</b>
+          <input type="file" id="vcBulkFileInput" accept=".xlsx,.xls,.csv,.tsv">
+        </label>
+      </div>`;
+      document.getElementById('vcBulkFileInput')?.addEventListener('change', async e => {
+        const f = e.target.files?.[0];
+        if(!f) return;
+        try{
+          const sheets = await window.__assetImportTestHooks.parseUploadedSpreadsheet(f);
+          const rows = sheets?.[0]?.rows || [];
+          if(rows.length < 2) throw new Error('File needs a header row + at least 1 credential row.');
+          const hdr = rows[0].map(x => String(x||'').toLowerCase().trim());
+          const col = name => hdr.findIndex(h => h.includes(name));
+          const iLbl = Math.max(0, col('label') >= 0 ? col('label') : col('title'));
+          const iCat = col('category') >= 0 ? col('category') : col('type');
+          const iFac = col('factory') >= 0 ? col('factory') : col('site');
+          const iTag = col('tag');
+          const iDev = col('device name');
+          const iSvc = col('protocol') >= 0 ? col('protocol') : col('service');
+          const iHost = col('host') >= 0 ? col('host') : col('ip');
+          const iPort = col('port');
+          const iUsr = col('user');
+          const iPwd = col('pass');
+          const iEn = col('enable');
+          const iTok = col('token') >= 0 ? col('token') : col('api');
+          const iNote = col('note');
+          credBulkRows = rows.slice(1).filter(r => r.some(c => String(c||'').trim())).map(r => ({
+            label: String(r[iLbl]||'').trim(),
+            deviceType: iCat>=0 ? String(r[iCat]||'').trim() : 'Network',
+            factory: iFac>=0 ? String(r[iFac]||'').trim() : (fCodes()[0]||'ARG'),
+            assetTag: iTag>=0 ? String(r[iTag]||'').trim() : '',
+            assetName: iDev>=0 ? String(r[iDev]||'').trim() : '',
+            serviceType: iSvc>=0 ? String(r[iSvc]||'Web GUI').trim() : 'Web GUI',
+            hostUrl: iHost>=0 ? String(r[iHost]||'').trim() : '',
+            port: iPort>=0 ? String(r[iPort]||'').trim() : '',
+            username: iUsr>=0 ? String(r[iUsr]??'') : '',
+            password: iPwd>=0 ? String(r[iPwd]??'') : '',
+            enableSecret: iEn>=0 ? String(r[iEn]??'') : '',
+            apiToken: iTok>=0 ? String(r[iTok]??'') : '',
+            notes: iNote>=0 ? String(r[iNote]??'') : '',
+          })).filter(x => x.label || x.assetName || x.hostUrl);
+          renderCredBulkModal();
+        }catch(err){ toast(err.message || 'Parse failed'); }
+      });
+      return;
+    }
+    host.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span class="status healthy">✓ ${credBulkRows.length} device credentials parsed — ready for AES-256-GCM encryption</span>
+      <button type="button" class="btn" onclick="nsVaultModule.resetBulk()">↺ Another File</button>
+    </div>
+    <div class="table-wrap" style="max-height:290px"><table><thead><tr><th>TITLE</th><th>CATEGORY · FACTORY</th><th>HOST · PORT</th><th>USERNAME</th><th>PASSWORD</th></tr></thead>
+    <tbody>${credBulkRows.slice(0,80).map(r => `<tr><td><b>${hEsc(r.label)}</b></td><td>${hEsc(r.deviceType)} · ${hEsc(r.factory)}</td><td>${hEsc(r.hostUrl)}${r.port?':'+hEsc(r.port):''}</td><td>${hEsc(r.username)}</td><td>••••••••</td></tr>`).join('')}</tbody></table></div>
+    <div class="form-actions" style="margin-top:12px">
+      <button type="button" class="btn" onclick="nsVaultModule.closeBulkModal()">Cancel</button>
+      <button type="button" class="btn primary" id="vcBulkCommitBtn" onclick="nsVaultModule.commitBulk()">🔐 Encrypt &amp; Import ${credBulkRows.length} Credentials</button>
+    </div>`;
+  }
+
+  async function commitCredBulk(){
+    if(!credBulkRows.length) return;
+    const btn = document.getElementById('vcBulkCommitBtn');
+    if(btn){ btn.disabled = true; btn.textContent = 'Encrypting with AES-256-GCM...'; }
+    try{
+      const r = await apiFetch('/api/vault/credentials/bulk', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ items: credBulkRows }),
+      });
+      toast(`Encrypted & imported ${r.imported} credentials safely`);
+      credBulkRows = [];
+      document.getElementById('vaultCredBulkModal')?.classList.remove('open');
+      await vaultLoadCreds();
+    }catch(e){ toast(e.message || 'Bulk import failed'); }
+    finally{ if(btn){ btn.disabled = false; btn.textContent = 'Encrypt & Import'; } }
+  }
+
+  // --- Secret Document Folders & Files + Universal Preview + Separate Download Password ---
+  async function vaultLoadDocsData(){
+    try{
+      const [fr, dr] = await Promise.all([
+        apiFetch('/api/vault/folders', { cache: 'no-store' }),
+        apiFetch('/api/vault/documents?' + new URLSearchParams({ folder_id: activeFolderFilter, q: document.getElementById('vcDocSearchInput')?.value?.trim() || '' }).toString(), { cache: 'no-store' }),
+      ]);
+      vaultFolders = Array.isArray(fr.items) ? fr.items : [];
+      vaultDocs = Array.isArray(dr.items) ? dr.items : [];
+      const b = document.getElementById('vcTabDocsCnt');
+      if(b) b.textContent = String(vaultDocs.length);
+      vaultRenderFoldersAndDocs();
+    }catch(e){
+      if(String(e.message || '').includes('vault_locked') || String(e.message || '').includes('423')) vaultRefreshStatus();
+    }
+  }
+
+  function vaultRenderFoldersAndDocs(){
+    const strip = document.getElementById('vcFolderStrip');
+    const tbody = document.getElementById('vcDocsTableBody');
+    const dlBanner = document.getElementById('vcDlPwdBanner');
+    if(dlBanner){
+      dlBanner.innerHTML = vaultStatus.hasDownloadPassword
+        ? '<span style="color:#157a54;font-weight:700">🔒 Separate Download Password: Configured</span>'
+        : '<span style="color:#b45309;font-weight:700">⚠ Admin: Set "Separate Document Download Password" in ⚙ Vault Security to enable protected downloads.</span>';
+    }
+    if(strip){
+      const canW = !!vaultStatus.canWrite;
+      const pills = [
+        `<button type="button" class="ns-folder-pill ns-vault-read-allow ${activeFolderFilter==='ALL'?'active':''}" onclick="nsVaultModule.selectFolder('ALL')">🌐 All Secret Docs</button>`,
+        `<button type="button" class="ns-folder-pill ns-vault-read-allow ${activeFolderFilter==='ROOT'?'active':''}" onclick="nsVaultModule.selectFolder('ROOT')">📄 Unfiled / Root</button>`,
+        ...vaultFolders.map(f => `<span style="display:inline-flex;align-items:center;gap:3px"><button type="button" class="ns-folder-pill ns-vault-read-allow ${activeFolderFilter===f.id?'active':''}" onclick="nsVaultModule.selectFolder('${hEsc(f.id)}')">${hEsc(f.icon||'📁')} ${hEsc(f.name)} <b>(${f.docCount})</b></button>${canW ? `<button type="button" class="link-btn" title="Rename" onclick="nsVaultModule.openFolderModal('${hEsc(f.id)}')" style="font-size:11px;padding:0 3px">✎</button><button type="button" class="link-btn" title="Delete folder" onclick="nsVaultModule.deleteFolder('${hEsc(f.id)}')" style="font-size:11px;color:#b91c1c;padding:0 3px">✕</button>` : ''}</span>`),
+      ];
+      strip.innerHTML = pills.join('');
+    }
+    if(!tbody) return;
+    if(!vaultDocs.length){
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No secret documents in this folder yet. Create a folder or click <b>↑ Upload Secret Document</b> (PDF, Word, Excel, OpenOffice, Images, Keys — any format encrypted with AES-256-GCM).</td></tr>';
+      return;
+    }
+    const fMap = Object.fromEntries(vaultFolders.map(f => [f.id, (f.icon||'📁') + ' ' + f.name]));
+    const iconFor = ext => {
+      const e = String(ext||'').toLowerCase();
+      if(e === 'pdf') return '📕';
+      if(['doc','docx','odt','rtf'].includes(e)) return '📘';
+      if(['xls','xlsx','xlsm','ods','csv','tsv'].includes(e)) return '📗';
+      if(['ppt','pptx','odp'].includes(e)) return '📙';
+      if(['png','jpg','jpeg','gif','webp','bmp','svg'].includes(e)) return '🖼';
+      return '📄';
+    };
+    const canW = !!vaultStatus.canWrite;
+    tbody.innerHTML = vaultDocs.map(d => `<tr>
+      <td><b>${iconFor(d.fileExt)} ${hEsc(d.title)}</b><div class="ticket-meta">${hEsc(d.origFilename)} · <span class="status healthy">${hEsc((d.fileExt||'FILE').toUpperCase())}</span></div></td>
+      <td>${hEsc(d.folderId ? (fMap[d.folderId] || 'Folder') : '📄 Root')}</td>
+      <td><div>${fmtBytes(d.fileSize)}</div><div class="ticket-meta" style="font-family:monospace">SHA ${hEsc((d.sha256||'').slice(0,12))}</div></td>
+      <td style="white-space:normal;min-width:140px">${d.notes ? hEsc(d.notes) : '<span class="ticket-meta">—</span>'}</td>
+      <td><div>${hEsc(d.uploadedBy)}</div><div class="ticket-meta">${fmtIsoShort(d.createdAt)}</div></td>
+      <td><div style="display:flex;gap:5px;flex-wrap:wrap">
+        <button type="button" class="btn primary ns-vault-read-allow ns-vault-doc-preview-btn" style="padding:4px 9px;font-size:11px" onclick="nsVaultModule.openDocPreview('${hEsc(d.id)}')">👁 Preview</button>
+        <button type="button" class="btn ns-vault-read-allow ns-vault-doc-dl-btn" style="padding:4px 9px;font-size:11px" onclick="nsVaultModule.promptDownloadDoc('${hEsc(d.id)}')">⬇ Download</button>
+        ${canW ? `<button type="button" class="btn" style="padding:4px 8px;font-size:11px;color:#b91c1c;border-color:#fecaca" onclick="nsVaultModule.deleteDoc('${hEsc(d.id)}')">Delete</button>` : ''}
+      </div></td>
+    </tr>`).join('');
+  }
+
+  function vaultOpenFolderModal(editId = ''){
+    if(!vaultStatus.canWrite) return toast('Read & write permission required');
+    const f = editId ? vaultFolders.find(x => x.id === editId) : null;
+    document.getElementById('vcFolderModalTitle').textContent = f ? 'Rename Secret Folder' : 'New Secret Folder';
+    document.getElementById('vcEditFolderId').value = editId || '';
+    document.getElementById('vcFolderName').value = f?.name || '';
+    document.getElementById('vcFolderIcon').value = f?.icon || '📁';
+    document.getElementById('vaultFolderModal')?.classList.add('open');
+  }
+  function vaultCloseFolderModal(){ document.getElementById('vaultFolderModal')?.classList.remove('open'); }
+  async function vaultSubmitFolderModal(){
+    const fid = document.getElementById('vcEditFolderId').value;
+    const body = { name: document.getElementById('vcFolderName').value.trim(), icon: document.getElementById('vcFolderIcon').value };
+    try{
+      if(fid) await apiFetch('/api/vault/folders/' + encodeURIComponent(fid), { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      else await apiFetch('/api/vault/folders', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      vaultCloseFolderModal();
+      toast('Folder saved');
+      await vaultLoadDocsData();
+    }catch(e){ toast(e.message || 'Folder save failed'); }
+  }
+  async function vaultDeleteFolder(fid){
+    if(!confirm('Delete this folder? Files inside will safely remain under Unfiled / Root.')) return;
+    try{
+      await apiFetch('/api/vault/folders/' + encodeURIComponent(fid), { method:'DELETE' });
+      if(activeFolderFilter === fid) activeFolderFilter = 'ALL';
+      toast('Folder deleted');
+      await vaultLoadDocsData();
+    }catch(e){ toast(e.message || 'Delete failed'); }
+  }
+
+  function vaultOpenDocUploadModal(){
+    if(!vaultStatus.canWrite) return toast('Read & write permission required');
+    const sel = document.getElementById('vcDocFolderSelect');
+    if(sel){
+      sel.innerHTML = `<option value="">📄 Unfiled / Root</option>` + vaultFolders.map(f => `<option value="${hEsc(f.id)}">${hEsc((f.icon||'📁')+' '+f.name)}</option>`).join('');
+      if(activeFolderFilter && activeFolderFilter !== 'ALL' && activeFolderFilter !== 'ROOT') sel.value = activeFolderFilter;
+    }
+    document.getElementById('vcDocTitle').value = '';
+    document.getElementById('vcDocFileInput').value = '';
+    document.getElementById('vcDocNotes').value = '';
+    document.getElementById('vaultDocUploadModal')?.classList.add('open');
+  }
+  function vaultCloseDocUploadModal(){ document.getElementById('vaultDocUploadModal')?.classList.remove('open'); }
+  async function vaultSubmitDocUpload(){
+    const file = document.getElementById('vcDocFileInput')?.files?.[0];
+    if(!file) return toast('Choose a document file first');
+    const btn = document.getElementById('vcDocUploadSubmitBtn');
+    if(btn){ btn.disabled = true; btn.textContent = 'Encrypting & Uploading...'; }
+    try{
+      const fd = new FormData();
+      fd.append('folderId', document.getElementById('vcDocFolderSelect').value);
+      fd.append('title', document.getElementById('vcDocTitle').value.trim() || file.name);
+      fd.append('notes', document.getElementById('vcDocNotes').value);
+      fd.append('file', file);
+      await apiFetch('/api/vault/documents', { method:'POST', body: fd });
+      vaultCloseDocUploadModal();
+      toast('Document encrypted (AES-256-GCM) & stored');
+      await vaultLoadDocsData();
+    }catch(e){ toast(e.message || 'Upload failed'); }
+    finally{ if(btn){ btn.disabled = false; btn.textContent = '🔐 Encrypt & Store Document'; } }
+  }
+  async function vaultDeleteDoc(did){
+    if(!confirm('Permanently delete this encrypted document from Vault?')) return;
+    try{
+      await apiFetch('/api/vault/documents/' + encodeURIComponent(did), { method:'DELETE' });
+      toast('Document removed');
+      await vaultLoadDocsData();
+    }catch(e){ toast(e.message || 'Delete failed'); }
+  }
+
+  async function vaultOpenDocPreview(did){
+    const body = document.getElementById('nsVaultDocPreviewBody');
+    const tit = document.getElementById('vcPrevTitle');
+    const meta = document.getElementById('vcPrevMeta');
+    const dlBtn = document.getElementById('vcPrevDlBtn');
+    if(body) body.innerHTML = '<div style="padding:36px;text-align:center;color:#64748b">🔓 Decrypting protected preview in RAM...</div>';
+    document.getElementById('vaultDocPreviewModal')?.classList.add('open');
+    syncScreenCaptureGuard();
+    try{
+      const r = await apiFetch('/api/vault/documents/' + encodeURIComponent(did) + '/preview', { cache:'no-store' });
+      if(tit) tit.textContent = r.title || r.origFilename;
+      if(meta) meta.textContent = `${r.origFilename} · ${(r.fileExt||'').toUpperCase()} · Capture Guard Active`;
+      if(dlBtn) dlBtn.onclick = () => vaultPromptDownloadDoc(did);
+      const wmGrid = document.getElementById('nsVaultDocWmGrid');
+      if(wmGrid){
+        const wmText = hEsc(r.watermark || 'CONFIDENTIAL');
+        wmGrid.innerHTML = new Array(16).fill(`<span>${wmText}</span>`).join('');
+      }
+      const p = r.preview || {};
+      if(p.kind === 'image'){
+        body.innerHTML = `<div style="text-align:center"><img src="${hEsc(p.dataUrl)}" draggable="false" style="max-width:100%;border-radius:8px;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.1)"></div>`;
+      }else if(p.kind === 'pdf_pages'){
+        body.innerHTML = `<div style="display:grid;gap:14px">${(p.pages||[]).map((u,idx)=>`<div style="background:#fff;padding:6px;border-radius:8px;box-shadow:0 3px 12px rgba(0,0,0,.08)"><div class="ticket-meta" style="margin-bottom:4px">Page ${idx+1} of ${p.pageCount}</div><img src="${hEsc(u)}" draggable="false" style="width:100%;display:block;pointer-events:none"></div>`).join('')}</div>`;
+      }else if(p.kind === 'pdf_stream'){
+        body.innerHTML = `<iframe src="${hEsc(p.url)}#toolbar=0&navpanes=0" style="width:100%;height:64vh;border:0;border-radius:8px;background:#fff"></iframe>`;
+      }else if(p.kind === 'sheets'){
+        const sheets = p.sheets || [];
+        if(!sheets.length){ body.innerHTML = '<div class="empty-state">Empty spreadsheet.</div>'; return; }
+        body.innerHTML = `
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="vcSheetTabBar">${sheets.map((s,i)=>`<button type="button" class="btn ns-vault-read-allow ${i===0?'primary':''}" style="padding:4px 10px;font-size:11px" onclick="nsVaultModule.showPreviewSheet(${i})">${hEsc(s.name)}</button>`).join('')}</div>
+          <div id="vcSheetGridHost"></div>`;
+        window.__vcPreviewSheets = sheets;
+        showPreviewSheet(0);
+      }else if(p.kind === 'doc_html'){
+        body.innerHTML = `<div style="background:#fff;padding:24px;border-radius:10px;border:1px solid #e2e8f0;color:#1e293b;max-width:780px;margin:0 auto">${p.html}</div>`;
+      }else if(p.kind === 'slides'){
+        body.innerHTML = `<div style="display:grid;gap:14px">${(p.slides||[]).map(sl=>`<div style="background:#fff;border:1px solid #cbd5e1;border-radius:12px;padding:18px;box-shadow:0 4px 12px rgba(0,0,0,.05)"><div class="ticket-meta">Slide ${sl.index}</div><h3 style="margin:4px 0 8px;color:#0f172a">${hEsc(sl.title)}</h3>${(sl.bullets||[]).map(b=>`<div style="margin:3px 0;font-size:13px">• ${hEsc(b)}</div>`).join('')}</div>`).join('')}</div>`;
+      }else if(p.kind === 'text'){
+        body.innerHTML = `<pre style="margin:0;white-space:pre-wrap;word-break:break-word;font:12.5px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;background:#fff;padding:16px;border-radius:10px;border:1px solid #e2e8f0">${hEsc(p.text||'')}</pre>`;
+      }else{
+        body.innerHTML = `<div style="padding:28px;text-align:center"><div style="font-size:38px;margin-bottom:8px">📦</div><b>${hEsc(p.message || 'Protected Binary File')}</b></div>`;
+      }
+    }catch(e){
+      body.innerHTML = `<div class="empty-state" style="color:#b91c1c">${hEsc(e.message || 'Could not decrypt preview')}</div>`;
+    }
+  }
+  function showPreviewSheet(idx){
+    const sheets = window.__vcPreviewSheets || [];
+    const sh = sheets[idx];
+    document.querySelectorAll('#vcSheetTabBar button').forEach((b,i) => b.classList.toggle('primary', i === idx));
+    const host = document.getElementById('vcSheetGridHost');
+    if(!host || !sh) return;
+    host.innerHTML = `<div style="overflow:auto;max-height:56vh;border:1px solid #cbd5e1;border-radius:8px"><table class="ns-vault-doc-tbl">${(sh.rows||[]).map((r,ri)=>`<tr>${r.map(c=>ri===0?`<th style="background:#f1f5f9">${hEsc(c)}</th>`:`<td>${hEsc(c)}</td>`).join('')}</tr>`).join('')}</table></div>`;
+  }
+  function vaultCloseDocPreview(){
+    document.getElementById('vaultDocPreviewModal')?.classList.remove('open');
+    const body = document.getElementById('nsVaultDocPreviewBody');
+    if(body) body.innerHTML = '';
+    dismissPrivacyVeil();
+    syncScreenCaptureGuard();
+  }
+
+  function vaultPromptDownloadDoc(did){
+    const doc = vaultDocs.find(x => x.id === did);
+    pendingDownloadDocId = did;
+    document.getElementById('vcDlTargetName').textContent = doc ? (doc.origFilename || doc.title) : did;
+    document.getElementById('vcDlPwdInput').value = '';
+    document.getElementById('vaultDownloadPwdModal')?.classList.add('open');
+    setTimeout(() => document.getElementById('vcDlPwdInput')?.focus(), 60);
+  }
+  function vaultCloseDownloadPrompt(){
+    pendingDownloadDocId = '';
+    document.getElementById('vaultDownloadPwdModal')?.classList.remove('open');
+  }
+  async function vaultSubmitDownloadPassword(){
+    const pwd = document.getElementById('vcDlPwdInput')?.value || '';
+    if(!pendingDownloadDocId || !pwd) return toast('Enter the Separate Document Download Password.');
+    const btn = document.getElementById('vcDlSubmitBtn');
+    if(btn){ btn.disabled = true; btn.textContent = 'Verifying...'; }
+    try{
+      const res = await fetch('/api/vault/documents/' + encodeURIComponent(pendingDownloadDocId) + '/download', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type':'application/json', 'X-Requested-With':'NorthstarIT' },
+        body: JSON.stringify({ downloadPassword: pwd }),
+      });
+      if(!res.ok){
+        const j = await res.json().catch(()=>({}));
+        throw new Error(j.error || `Download rejected (${res.status})`);
+      }
+      const blob = await res.blob();
+      const doc = vaultDocs.find(x => x.id === pendingDownloadDocId);
+      const fname = doc?.origFilename || 'vault-document';
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2500);
+      vaultCloseDownloadPrompt();
+      toast('Verified & downloaded cleanly');
+    }catch(e){
+      toast(e.message || 'Download password incorrect');
+    }finally{
+      if(btn){ btn.disabled = false; btn.textContent = '⬇ Verify & Download'; }
+    }
+  }
+
+  async function vaultLoadAudit(){
+    const tbody = document.getElementById('vcAuditTableBody');
+    if(!tbody) return;
+    try{
+      const r = await apiFetch('/api/vault/audit', { cache:'no-store' });
+      vaultAuditRows = Array.isArray(r.items) ? r.items : [];
+      tbody.innerHTML = vaultAuditRows.length ? vaultAuditRows.map(a => `<tr>
+        <td class="ticket-meta">${fmtIsoShort(a.createdAt)}</td>
+        <td><span class="status ${/fail|lock|denied/i.test(a.eventType)?'open':'healthy'}">${hEsc(a.eventType)}</span></td>
+        <td><b>${hEsc(a.actor)}</b></td>
+        <td>${hEsc(a.target)}</td>
+        <td style="white-space:normal">${hEsc(a.detail)}</td>
+        <td class="ticket-meta">${hEsc(a.ipAddress)}</td>
+      </tr>`).join('') : '<tr><td colspan="6" class="empty-state">No audit logs recorded yet.</td></tr>';
+    }catch(e){ tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${hEsc(e.message)}</td></tr>`; }
+  }
+
   function vaultOpenSecurityConfig(){
     if(!vaultStatus.canConfigure) return toast('Only Administrator can configure Vault Security.');
     document.getElementById('vcSecForm')?.reset();
@@ -16646,6 +17355,8 @@ let lastPulseGatepassRev = '';
     document.getElementById('vcCfgPin').required = !vaultStatus.initialized;
     document.getElementById('vcCfgKw').required = !vaultStatus.initialized;
     document.getElementById('vcCfgAutoLock').value = String(vaultStatus.autoLockMinutes || 10);
+    const dlSt = document.getElementById('vcCfgDlState');
+    if(dlSt) dlSt.textContent = vaultStatus.hasDownloadPassword ? '✓ Configured' : '(Set to allow downloads)';
     const vCb = document.getElementById('vcCfgVoiceEnable');
     if(vCb){
       vCb.checked = !!vaultStatus.voiceEnabled;
@@ -16687,12 +17398,14 @@ let lastPulseGatepassRev = '';
     const keyword = document.getElementById('vcCfgKw').value.trim();
     const curPin = document.getElementById('vcCfgCurPin')?.value?.trim() || '';
     const curKw = document.getElementById('vcCfgCurKw')?.value?.trim() || '';
+    const downloadPassword = document.getElementById('vcCfgDownloadPwd')?.value?.trim() || '';
     const autoLockMinutes = Number(document.getElementById('vcCfgAutoLock').value || 10);
     const voiceEnabled = !!document.getElementById('vcCfgVoiceEnable')?.checked;
     const voicePhrase = document.getElementById('vcCfgVoicePhrase')?.value?.trim() || '';
     const voiceSamples = enrolledSamples.filter(Boolean);
     if(pin && !/^\d{4,8}$/.test(pin)) return toast('PIN must be 4 to 8 numeric digits.');
     if(pin && !keyword) return toast('Provide both PIN and Secret Keyword.');
+    if(downloadPassword && downloadPassword.length < 4) return toast('Separate Download Password must be at least 4 characters.');
     if(voiceEnabled && !vaultStatus.voiceEnabled && !voiceSamples.length) return toast('Record at least 1 voice sample and enter your voice phrase.');
     const btn = document.getElementById('vcSecSaveBtn');
     if(btn){ btn.disabled = true; btn.textContent = 'Encrypting Vault Keys...'; }
@@ -16700,7 +17413,7 @@ let lastPulseGatepassRev = '';
       await apiFetch('/api/vault/config', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ pin, keyword, currentPin: curPin, currentKeyword: curKw, autoLockMinutes, voiceEnabled, voicePhrase, voiceSamples }),
+        body: JSON.stringify({ pin, keyword, currentPin: curPin, currentKeyword: curKw, downloadPassword, autoLockMinutes, voiceEnabled, voicePhrase, voiceSamples }),
       });
       vaultCloseSecurityConfig();
       toast('Vault security keys saved (AES-256-GCM + PBKDF2-480K)');
@@ -16712,7 +17425,7 @@ let lastPulseGatepassRev = '';
     }
   }
 
-  // Bind iOS Keypad + Keyboard input on Lockscreen
+  // Bind iOS Keypad + Keyboard input + Screen Capture Guards
   document.getElementById('nsVaultKeypad')?.addEventListener('click', e => {
     const k = e.target.closest('button[data-digit]');
     if(k) vaultAppendDigit(k.dataset.digit);
@@ -16721,20 +17434,39 @@ let lastPulseGatepassRev = '';
     if(e.key === 'Enter'){ e.preventDefault(); vaultSubmitPinUnlock(); }
   });
   document.addEventListener('keydown', e => {
-    const vcView = document.getElementById('view-credentials');
+    // PrintScreen / Save / Print / Screenshot key blackout inside secret preview or revealed vault
+    if(e.key === 'PrintScreen' || ((e.ctrlKey || e.metaKey) && ['p','s'].includes(e.key.toLowerCase())) || ((e.ctrlKey || e.metaKey) && e.shiftKey && ['s','3','4','5'].includes(e.key.toLowerCase()))){
+      const inPrev = !!document.getElementById('vaultDocPreviewModal')?.classList.contains('open');
+      const inCreds = !!document.getElementById('view-credentials')?.classList.contains('active') && !!vaultStatus.unlocked;
+      if(inPrev || inCreds){
+        e.preventDefault();
+        engagePrivacyVeil('Screen capture / print shortcut blocked by Vault Privacy Shield');
+        return;
+      }
+    }
     const lockSc = document.getElementById('nsVaultLockScreen');
-    if(!vcView?.classList.contains('active') || lockSc?.style.display === 'none') return;
+    if(!lockSc?.classList.contains('open')) return;
     if(document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
     if(/^\d$/.test(e.key)) vaultAppendDigit(e.key);
     else if(e.key === 'Backspace') vaultBackspacePin();
-    else if(e.key === 'Escape') vaultClearPin();
+    else if(e.key === 'Escape') closeUnlockModal();
     else if(e.key === 'Enter') vaultSubmitPinUnlock();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden && document.getElementById('vaultDocPreviewModal')?.classList.contains('open')){
+      engagePrivacyVeil();
+    }
   });
   ['vcFactoryFilter','vcServiceFilter'].forEach(id => document.getElementById(id)?.addEventListener('change', () => { if(vaultStatus.unlocked) vaultLoadCreds(); }));
   document.getElementById('vcSearchInput')?.addEventListener('input', () => { clearTimeout(window.__vcSearchT); window.__vcSearchT = setTimeout(() => { if(vaultStatus.unlocked) vaultLoadCreds(); }, 200); });
+  document.getElementById('vcDocSearchInput')?.addEventListener('input', () => { clearTimeout(window.__vcDocSearchT); window.__vcDocSearchT = setTimeout(() => { if(vaultStatus.unlocked) vaultLoadDocsData(); }, 220); });
 
   window.nsVaultModule = {
     openView: () => { vaultRefreshStatus(); },
+    openUnlockModal,
+    closeUnlockModal,
+    switchTab: vaultSwitchTab,
+    setDeviceTypeFilter: vaultSetDeviceTypeFilter,
     openForAsset: tag => { pendingAssetFilter = tag || ''; if(typeof go === 'function') go('credentials'); },
     clearAssetFilter: () => { pendingAssetFilter = ''; vaultLoadCreds(); },
     setUnlockMode: vaultSetUnlockMode,
@@ -16750,10 +17482,33 @@ let lastPulseGatepassRev = '';
     closeCredModal: vaultCloseCredModal,
     onPickAsset: vaultOnPickAsset,
     generateStrongPassword: vaultGenerateStrongPassword,
+    updatePwdStrength: vaultUpdatePwdStrength,
     submitCredModal: vaultSubmitCredModal,
     deleteCred: vaultDeleteCred,
     toggleReveal: vaultToggleReveal,
     copySecret: vaultCopySecret,
+    openBulkModal: () => { credBulkRows = []; renderCredBulkModal(); document.getElementById('vaultCredBulkModal')?.classList.add('open'); },
+    closeBulkModal: () => document.getElementById('vaultCredBulkModal')?.classList.remove('open'),
+    dlCredTemplate: downloadCredBulkTemplate,
+    resetBulk: () => { credBulkRows = []; renderCredBulkModal(); },
+    commitBulk: commitCredBulk,
+    selectFolder: fid => { activeFolderFilter = fid || 'ALL'; vaultLoadDocsData(); },
+    openFolderModal: vaultOpenFolderModal,
+    closeFolderModal: vaultCloseFolderModal,
+    submitFolderModal: vaultSubmitFolderModal,
+    deleteFolder: vaultDeleteFolder,
+    openDocUploadModal: vaultOpenDocUploadModal,
+    closeDocUploadModal: vaultCloseDocUploadModal,
+    submitDocUpload: vaultSubmitDocUpload,
+    deleteDoc: vaultDeleteDoc,
+    openDocPreview: vaultOpenDocPreview,
+    showPreviewSheet,
+    closeDocPreview: vaultCloseDocPreview,
+    promptDownloadDoc: vaultPromptDownloadDoc,
+    closeDownloadPrompt: vaultCloseDownloadPrompt,
+    submitDownloadPassword: vaultSubmitDownloadPassword,
+    dismissPrivacyVeil,
+    loadAudit: vaultLoadAudit,
     openSecurityConfig: vaultOpenSecurityConfig,
     closeSecurityConfig: vaultCloseSecurityConfig,
     enrollVoiceSample: vaultEnrollVoiceSample,
@@ -16766,6 +17521,7 @@ let lastPulseGatepassRev = '';
       const res = prevGo.apply(this, arguments);
       if(key === 'firmware') fwRefresh();
       if(key === 'credentials') vaultRefreshStatus();
+      else syncScreenCaptureGuard();
       return res;
     };
   }
