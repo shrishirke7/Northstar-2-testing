@@ -1500,7 +1500,19 @@ def _queue_asset_status_notifications(conn, state, asset, previous, current, che
     asset_tag = str(asset.get("tag", ""))
     asset_type = str(asset.get("type", ""))
     event = current
-    for rule in state.get("rules", []):
+    user_rules_map = state.get("userRules") if isinstance(state.get("userRules"), dict) else None
+    rules_iter = []
+    if user_rules_map is not None:
+        for owner_u, rlist in user_rules_map.items():
+            if isinstance(rlist, list):
+                for r in rlist:
+                    if isinstance(r, dict):
+                        rules_iter.append((str(owner_u or ""), r))
+    else:
+        for r in state.get("rules", []):
+            if isinstance(r, dict):
+                rules_iter.append(("", r))
+    for owner_u, rule in rules_iter:
         if not isinstance(rule, dict) or not rule.get("enabled", True) or event not in rule.get("events", []):
             continue
         if rule.get("scope") == "device":
@@ -1519,6 +1531,8 @@ def _queue_asset_status_notifications(conn, state, asset, previous, current, che
                     continue
                 state.setdefault("queue", []).append({
                     "id": str(uuid.uuid4()), "rule": str(rule.get("name", "Status alert"))[:100],
+                    "ownerUsername": owner_u,
+                    "recipientUsername": str(user.get("username") or user.get("id") or "").strip().casefold(),
                     "asset": str(asset.get("name", asset_tag))[:160], "tag": asset_tag[:100],
                     "category": asset_type[:40], "factory": str(asset.get("site", ""))[:40],
                     "ip": str(asset.get("ipAddress", asset.get("ip_address", "")))[:45],
@@ -1557,12 +1571,12 @@ DEFAULT_SOUND_ALERTS = {
 
 def normalize_sound_state(state, username=None):
     raw = state if isinstance(state, dict) else {}
-    saved_cfg = raw.get("soundAlerts") if isinstance(raw.get("soundAlerts"), dict) else {}
-    if username:
-        ukey = str(username or "").strip().casefold()
+    ukey = str(username or "").strip().casefold()
+    if ukey:
         user_map = raw.get("userSoundAlerts") if isinstance(raw.get("userSoundAlerts"), dict) else {}
-        if ukey and isinstance(user_map.get(ukey), dict):
-            saved_cfg = user_map[ukey]
+        saved_cfg = user_map.get(ukey) if isinstance(user_map.get(ukey), dict) else {}
+    else:
+        saved_cfg = raw.get("soundAlerts") if isinstance(raw.get("soundAlerts"), dict) else {}
     merged = json.loads(json.dumps(DEFAULT_SOUND_ALERTS))
     if "masterEnabled" in saved_cfg:
         merged["masterEnabled"] = bool(saved_cfg.get("masterEnabled"))
@@ -1603,7 +1617,18 @@ def normalize_sound_state(state, username=None):
             "offlineSoundId": str(rv.get("offlineSoundId") or "inherit").strip()[:120] or "inherit",
         }
     merged["deviceRules"] = clean_dev_rules
-    lib = raw.get("soundLibrary") if isinstance(raw.get("soundLibrary"), list) else []
+    user_libs = raw.get("userSoundLibraries") if isinstance(raw.get("userSoundLibraries"), dict) else {}
+    if ukey and ukey in user_libs and isinstance(user_libs.get(ukey), list):
+        lib = user_libs[ukey]
+    elif ukey:
+        used_ids = {v.get("soundId") for v in merged["events"].values() if isinstance(v, dict) and v.get("soundId")}
+        for rv in clean_dev_rules.values():
+            used_ids.add(rv.get("onlineSoundId"))
+            used_ids.add(rv.get("offlineSoundId"))
+        legacy_lib = raw.get("soundLibrary") if isinstance(raw.get("soundLibrary"), list) else []
+        lib = [it for it in legacy_lib if isinstance(it, dict) and it.get("id") in used_ids] if used_ids else []
+    else:
+        lib = raw.get("soundLibrary") if isinstance(raw.get("soundLibrary"), list) else []
     clean_lib = []
     for item in lib[:12]:
         if not isinstance(item, dict):
@@ -1621,6 +1646,7 @@ def normalize_sound_state(state, username=None):
 @app.get("/api/admin/notifications")
 @signed_in
 def get_notification_rules():
+    username_key = str((session.get("profile") or {}).get("username") or "").strip().casefold() or "_default"
     with db() as conn:
         row = conn.execute("SELECT value FROM app_state WHERE key='notifications'").fetchone()
         state = row[0] if row else {"rules": [], "queue": []}
@@ -1628,11 +1654,27 @@ def get_notification_rules():
         users = users_row[0] if users_row else []
         asset_row = conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone()
         assets = asset_row[0] if asset_row else []
-    history = [{k: item.get(k) for k in ("id", "rule", "asset", "tag", "category", "status", "channel", "recipient", "state", "createdAt", "error")} for item in state.get("queue", [])[-100:]]
-    username_key = str((session.get("profile") or {}).get("username") or "").strip().casefold()
+    user_rules_map = state.get("userRules") if isinstance(state.get("userRules"), dict) else None
+    if user_rules_map is not None:
+        user_rules = user_rules_map.get(username_key, [])
+    elif session.get("is_admin"):
+        user_rules = state.get("rules", [])
+    else:
+        user_rules = []
+    if not isinstance(user_rules, list):
+        user_rules = []
+    history = [
+        {k: item.get(k) for k in ("id", "rule", "asset", "tag", "category", "status", "channel", "recipient", "state", "createdAt", "error")}
+        for item in state.get("queue", [])[-200:]
+        if isinstance(item, dict) and (
+            str(item.get("ownerUsername") or "").casefold() == username_key
+            or str(item.get("recipientUsername") or "").casefold() == username_key
+            or (not item.get("ownerUsername") and session.get("is_admin"))
+        )
+    ][-100:]
     sound_alerts, sound_library = normalize_sound_state(state, username=username_key)
-    return jsonify(rules=state.get("rules", []), history=history, channels=_notification_channel_status(),
-                   soundAlerts=sound_alerts, soundLibrary=sound_library,
+    return jsonify(rules=user_rules, history=history, channels=_notification_channel_status(),
+                   soundAlerts=sound_alerts, soundLibrary=sound_library, userScoped=True,
                    users=[{"username": u.get("username") or u.get("id", ""), "name": u.get("name") or u.get("username") or u.get("id", ""), "email": u.get("email", ""), "phone": u.get("phone") or u.get("phone_number", "")} for u in users],
                    assets=[{"tag": a.get("tag", ""), "name": a.get("name", ""), "type": a.get("type", ""), "subtype": a.get("subtype", ""), "site": a.get("site", "")} for a in assets])
 
@@ -1645,7 +1687,7 @@ def get_notification_sounds():
         row = conn.execute("SELECT value FROM app_state WHERE key='notifications'").fetchone()
         state = row[0] if row else {}
     sound_alerts, sound_library = normalize_sound_state(state, username=username_key)
-    return jsonify(soundAlerts=sound_alerts, soundLibrary=sound_library)
+    return jsonify(soundAlerts=sound_alerts, soundLibrary=sound_library, userScoped=True)
 
 
 @app.put("/api/notifications/sounds")
@@ -1679,16 +1721,14 @@ def save_notification_sounds():
         user_sounds = dict(state.get("userSoundAlerts") or {}) if isinstance(state.get("userSoundAlerts"), dict) else {}
         user_sounds[username_key] = sound_alerts
         state["userSoundAlerts"] = user_sounds
-        if session.get("is_admin") or not state.get("soundAlerts"):
-            state["soundAlerts"] = sound_alerts
+        user_libs = dict(state.get("userSoundLibraries") or {}) if isinstance(state.get("userSoundLibraries"), dict) else {}
         if "soundLibrary" in body:
-            state["soundLibrary"] = sound_library
-        else:
-            _, existing_lib = normalize_sound_state(state)
-            state["soundLibrary"] = existing_lib
+            user_libs[username_key] = sound_library
+            state["userSoundLibraries"] = user_libs
+        _, out_lib = normalize_sound_state(state, username=username_key)
         conn.execute("INSERT INTO app_state(key,value) VALUES('notifications',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(state),))
         _pg_emit_notify(conn, "pulse", {"source": "sounds", "username": username_key})
-    return jsonify(ok=True, soundAlerts=sound_alerts, soundLibrary=state["soundLibrary"])
+    return jsonify(ok=True, soundAlerts=sound_alerts, soundLibrary=out_lib, userScoped=True)
 
 
 def _pulse_versions(conn, include_internal=False):
@@ -2221,11 +2261,20 @@ def save_notification_rules():
                           "events": list(dict.fromkeys(events)), "recipients": recipients,
                           "channels": {"email": bool(channels.get("email")), "whatsapp": bool(channels.get("whatsapp"))},
                           "whatsappOptInConfirmed": bool(item.get("whatsappOptInConfirmed"))})
+        username_key = str((session.get("profile") or {}).get("username") or "").strip().casefold() or "_default"
         current = conn.execute("SELECT value FROM app_state WHERE key='notifications' FOR UPDATE").fetchone()
-        state = current[0] if current else {"rules": [], "queue": []}
-        state["rules"] = clean
+        state = dict(current[0]) if current and isinstance(current[0], dict) else {"rules": [], "queue": []}
+        user_rules_map = dict(state.get("userRules") or {}) if isinstance(state.get("userRules"), dict) else {}
+        if "userRules" not in state and isinstance(state.get("rules"), list) and state["rules"] and not session.get("is_admin"):
+            pass
+        for item in clean:
+            item["ownerUsername"] = username_key
+        user_rules_map[username_key] = clean
+        state["userRules"] = user_rules_map
+        state["rules"] = []
         conn.execute("INSERT INTO app_state(key,value) VALUES('notifications',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(state),))
-    return jsonify(ok=True, rules=clean)
+        _pg_emit_notify(conn, "pulse", {"source": "notifications", "username": username_key})
+    return jsonify(ok=True, rules=clean, userScoped=True)
 
 
 @app.get("/api/internal/notification-task")
@@ -2727,20 +2776,25 @@ def profile():
 @app.get("/api/profile/preferences")
 @signed_in
 def get_profile_preferences():
-    username = str(session["profile"].get("username", ""))
+    raw_user = str(session["profile"].get("username", "")).strip()
+    ukey = raw_user.casefold()
     with db() as conn:
         row = conn.execute("SELECT value FROM app_state WHERE key='profile_preferences'").fetchone()
     preferences = row[0] if row and isinstance(row[0], dict) else {}
-    return jsonify(preferences=preferences.get(username, {}))
+    user_prefs = preferences.get(ukey) or (preferences.get(raw_user) if raw_user != ukey else None) or {}
+    return jsonify(preferences=user_prefs, userScoped=True)
 
 
 @app.put("/api/profile/preferences")
 @signed_in
 def save_profile_preferences():
     payload = request.get_json(silent=True) or {}
-    valid_views = {"dashboard", "assets", "datacenter", "tickets", "maintenance", "ageing",
-                   "users", "departments", "factories", "valuation", "billing", "software",
-                   "monitoring", "networkmap", "snmp", "notifications", "surveillance", "parts", "reports"}
+    valid_views = {
+        "dashboard", "assets", "datacenter", "tickets", "ticketing", "visitors", "gatepass",
+        "maintenance", "ageing", "users", "departments", "factories", "valuation", "billing",
+        "software", "firmware", "credentials", "monitoring", "networkmap", "snmp",
+        "notifications", "surveillance", "parts", "reports", "backups", "settings"
+    }
     order = payload.get("order")
     hidden = payload.get("hidden", [])
     if (not isinstance(order, list) or not isinstance(hidden, list)
@@ -2750,14 +2804,17 @@ def save_profile_preferences():
     normalized_order = list(dict.fromkeys(order))
     normalized_order.extend(sorted(valid_views - set(normalized_order)))
     normalized = {"order": normalized_order, "hidden": list(dict.fromkeys(hidden))}
-    username = str(session["profile"].get("username", ""))
+    raw_user = str(session["profile"].get("username", "")).strip()
+    ukey = raw_user.casefold() or "_default"
     with db() as conn:
         conn.execute("INSERT INTO app_state(key,value) VALUES('profile_preferences','{}') ON CONFLICT(key) DO NOTHING")
         row = conn.execute("SELECT value FROM app_state WHERE key='profile_preferences' FOR UPDATE").fetchone()
         preferences = row[0] if row and isinstance(row[0], dict) else {}
-        preferences[username] = normalized
+        if raw_user and raw_user != ukey and raw_user in preferences:
+            preferences.pop(raw_user, None)
+        preferences[ukey] = normalized
         conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='profile_preferences'", (json.dumps(preferences),))
-    return jsonify(ok=True, preferences=normalized)
+    return jsonify(ok=True, preferences=normalized, userScoped=True)
 
 
 @app.get("/portal")
@@ -3859,6 +3916,66 @@ def list_invoices():
     return jsonify(invoices=rows)
 
 
+def _invoice_audit_val(key, val):
+    if key in ("subtotal", "gst", "total"):
+        try:
+            num = round(float(val or 0), 2)
+            return f"₹{num:,.2f}".rstrip("0").rstrip(".")
+        except (TypeError, ValueError):
+            return str(val or "0")
+    s = str(val or "").strip()
+    return s if s else "—"
+
+
+def _invoice_materials_summary(mats):
+    if not isinstance(mats, list) or not mats:
+        return "None"
+    parts = []
+    for m in mats[:25]:
+        if isinstance(m, dict):
+            desc = str(m.get("description") or "Item").strip()[:60]
+            q = m.get("quantity", 1)
+            up = m.get("unitPrice", 0)
+            gr = m.get("gstRate", 0)
+            parts.append(f"{desc} × {q} @ ₹{up} (+{gr}% GST)")
+    return "; ".join(parts) if parts else "None"
+
+
+def _compute_invoice_diff(old_rec, new_rec, added_files_names=None):
+    fields = (
+        ("number", "Invoice No."),
+        ("date", "Invoice Date"),
+        ("invoiceType", "Bill Type"),
+        ("vendor", "Vendor / Supplier"),
+        ("requestedFor", "Requested For"),
+        ("factory", "Factory"),
+        ("department", "Department"),
+        ("user", "Assigned User"),
+        ("status", "Payment Status"),
+        ("subtotal", "Subtotal"),
+        ("gst", "GST"),
+        ("total", "Total"),
+        ("notes", "Notes"),
+    )
+    changes = []
+    for fk, lbl in fields:
+        old_s = _invoice_audit_val(fk, old_rec.get(fk))
+        new_s = _invoice_audit_val(fk, new_rec.get(fk))
+        if old_s != new_s:
+            changes.append({"field": lbl, "from": old_s[:160], "to": new_s[:160]})
+    old_m = _invoice_materials_summary(old_rec.get("materials"))
+    new_m = _invoice_materials_summary(new_rec.get("materials"))
+    if old_m != new_m:
+        changes.append({"field": "Line Items", "from": old_m[:240], "to": new_m[:240]})
+    if added_files_names:
+        changes.append({
+            "field": "Attachments Added",
+            "from": f"{len(old_rec.get('attachments') or [])} file(s)",
+            "to": ", ".join(added_files_names)[:200],
+        })
+    return changes
+
+
 def save_invoice_request(invoice_id=None):
     if not session.get("is_admin") and not module_access(session.get("profile", {}), "billing", write=True):
         abort(403)
@@ -3892,18 +4009,73 @@ def save_invoice_request(invoice_id=None):
             return jsonify(error="The WebP attachment is invalid."), 400
         safe_name = secure_filename(upload.filename)[:150] or ("attachment" + ext)
         attachments.append((safe_name, ext, data, upload.mimetype or "application/octet-stream"))
+    profile = session.get("profile") or {}
+    actor_name = str(profile.get("name") or profile.get("username") or "User").strip()[:120]
+    actor_user = str(profile.get("username") or "").strip()[:80]
+    now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    clean_payload = {
+        k: v for k, v in payload.items()
+        if k not in ("createdBy", "createdByUsername", "createdAt", "updatedBy", "updatedByUsername", "updatedAt", "editHistory", "lastChanges")
+    }
     with db() as conn:
         rows = invoice_rows(conn)
         old = next((r for r in rows if r.get("id") == invoice_id), None) if invoice_id else None
         if invoice_id and not old:
             abort(404)
+        added_names = [a[0] for a in attachments]
         if old:
             old_files = list(old.get("attachments", []))
             if len(old_files) + len(attachments) > 5:
                 return jsonify(error="An invoice can have up to five attachments in total."), 400
-            record = {**old, **payload, "id": invoice_id, "attachments": old_files, "updatedAt": datetime.now(timezone.utc).isoformat()}
+            changes = _compute_invoice_diff(old, clean_payload, added_names)
+            prev_hist = list(old.get("editHistory") if isinstance(old.get("editHistory"), list) else [])
+            summary = "; ".join(f"{c['field']}: {c['from']} -> {c['to']}" for c in changes[:8]) if changes else "Saved without field modifications"
+            prev_hist.insert(0, {
+                "action": "updated",
+                "at": now_iso,
+                "by": actor_name,
+                "username": actor_user,
+                "summary": summary[:600],
+                "changes": changes,
+            })
+            record = {
+                **old,
+                **clean_payload,
+                "id": invoice_id,
+                "attachments": old_files,
+                "createdBy": old.get("createdBy") or actor_name,
+                "createdByUsername": old.get("createdByUsername") or actor_user,
+                "createdAt": old.get("createdAt") or now_iso,
+                "updatedBy": actor_name,
+                "updatedByUsername": actor_user,
+                "updatedAt": now_iso,
+                "lastChanges": changes,
+                "editHistory": prev_hist[:100],
+            }
         else:
-            record = {**payload, "id": "inv-" + uuid.uuid4().hex, "attachments": [], "createdAt": datetime.now(timezone.utc).isoformat()}
+            init_changes = [{"field": "Total", "from": "—", "to": _invoice_audit_val("total", clean_payload.get("total"))}]
+            if added_names:
+                init_changes.append({"field": "Attachments", "from": "0", "to": ", ".join(added_names)[:200]})
+            record = {
+                **clean_payload,
+                "id": "inv-" + uuid.uuid4().hex,
+                "attachments": [],
+                "createdBy": actor_name,
+                "createdByUsername": actor_user,
+                "createdAt": now_iso,
+                "updatedBy": actor_name,
+                "updatedByUsername": actor_user,
+                "updatedAt": now_iso,
+                "lastChanges": init_changes,
+                "editHistory": [{
+                    "action": "created",
+                    "at": now_iso,
+                    "by": actor_name,
+                    "username": actor_user,
+                    "summary": f"Created invoice {number} ({_invoice_audit_val('total', clean_payload.get('total'))})",
+                    "changes": init_changes,
+                }],
+            }
         folder = INVOICE_UPLOAD_DIR / record["id"]
         folder.mkdir(parents=True, exist_ok=True)
         for safe_name, ext, data, mime_type in attachments:
@@ -5438,6 +5610,16 @@ def _normalize_tile_module_cfg(raw):
     return {"groups": groups, "tiles": tiles}
 
 
+def _normalize_overview_prefs(raw):
+    p = raw if isinstance(raw, dict) else {}
+    hidden_cats = [str(x).strip()[:80] for x in (p.get("hiddenCategories") if isinstance(p.get("hiddenCategories"), list) else []) if str(x).strip()][:100]
+    hidden_secs = [str(x).strip()[:80] for x in (p.get("hiddenSections") if isinstance(p.get("hiddenSections"), list) else []) if str(x).strip()][:50]
+    return {
+        "hiddenCategories": list(dict.fromkeys(hidden_cats)),
+        "hiddenSections": list(dict.fromkeys(hidden_secs)),
+    }
+
+
 def _normalize_tile_configs_doc(raw):
     doc = dict(raw) if isinstance(raw, dict) else {}
     out = {"rev": int(doc.get("rev") or 0), "updatedAt": str(doc.get("updatedAt") or "")}
@@ -5445,15 +5627,26 @@ def _normalize_tile_configs_doc(raw):
         nm = _normalize_tile_module_cfg(doc.get(mod))
         if nm is not None:
             out[mod] = nm
+    if isinstance(doc.get("overviewPrefs"), dict):
+        out["overviewPrefs"] = _normalize_overview_prefs(doc.get("overviewPrefs"))
     return out
 
 
 @app.get("/api/tile-configs")
 @signed_in
 def get_tile_configs():
+    username_key = str((session.get("profile") or {}).get("username") or "").strip().casefold() or "_default"
     with db() as conn:
         row = conn.execute("SELECT value FROM app_state WHERE key='tile_configs'").fetchone()
-    return jsonify(_normalize_tile_configs_doc(row[0] if row else {}))
+    raw = row[0] if row and isinstance(row[0], dict) else {}
+    users_map = raw.get("users") if isinstance(raw.get("users"), dict) else {}
+    user_doc = users_map.get(username_key)
+    if isinstance(user_doc, dict):
+        out = _normalize_tile_configs_doc(user_doc)
+    else:
+        out = {"rev": int(raw.get("rev") or 0), "updatedAt": str(raw.get("updatedAt") or "")}
+    out["userScoped"] = True
+    return jsonify(out)
 
 
 @app.put("/api/tile-configs")
@@ -5467,22 +5660,38 @@ def save_tile_configs():
         return jsonify(error="Invalid tile configuration payload."), 400
     if len(json.dumps(body)) > 4 * 1024 * 1024:
         return jsonify(error="Tile configuration exceeds 4 MB limit."), 400
+    username_key = str(profile.get("username") or "").strip().casefold() or "_default"
     with db() as conn:
         row = conn.execute("SELECT value FROM app_state WHERE key='tile_configs' FOR UPDATE").fetchone()
-        existing = _normalize_tile_configs_doc(row[0] if row else {})
-        incoming = _normalize_tile_configs_doc(body)
-        for mod in ("overview", "datacenter", "surveillance"):
-            if mod in incoming:
-                existing[mod] = incoming[mod]
+        store = dict(row[0]) if row and isinstance(row[0], dict) else {}
+        users_map = dict(store.get("users") or {}) if isinstance(store.get("users"), dict) else {}
+        existing = _normalize_tile_configs_doc(users_map.get(username_key) or {})
+        if body.get("resetDefaults"):
+            for mod in ("overview", "datacenter", "surveillance"):
+                if body.get("module") == mod:
+                    existing.pop(mod, None)
+            if body.get("module") in (None, "overview", "all"):
+                existing.pop("overviewPrefs", None)
+        else:
+            incoming = _normalize_tile_configs_doc(body)
+            for mod in ("overview", "datacenter", "surveillance"):
+                if mod in incoming:
+                    existing[mod] = incoming[mod]
+            if "overviewPrefs" in incoming:
+                existing["overviewPrefs"] = incoming["overviewPrefs"]
         existing["rev"] = int(existing.get("rev") or 0) + 1
         existing["updatedAt"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        users_map[username_key] = existing
+        store["users"] = users_map
+        store["rev"] = int(store.get("rev") or 0) + 1
+        store["updatedAt"] = existing["updatedAt"]
         conn.execute(
             "INSERT INTO app_state(key,value) VALUES('tile_configs',%s::jsonb) "
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
-            (json.dumps(existing),),
+            (json.dumps(store),),
         )
-        _pg_emit_notify(conn, "pulse", {"source": "tile_configs", "rev": existing["rev"]})
-    return jsonify(ok=True, **existing)
+        _pg_emit_notify(conn, "pulse", {"source": "tile_configs", "username": username_key, "rev": existing["rev"]})
+    return jsonify(ok=True, userScoped=True, **existing)
 
 
 # ======================== VISITOR PASS & MATERIAL GATE PASS ========================
