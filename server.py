@@ -525,7 +525,18 @@ def enforce_module_access():
     if path == "/api/snmp-metrics" and not is_write:
         if any(module_access(profile, m) for m in ("snmp", "overview", "network")):
             return None
-    if path in ("/api/vault/unlock", "/api/vault/unlock-voice", "/api/vault/lock", "/api/vault/capture-alert") or (path.startswith("/api/vault/documents/") and path.endswith("/download")):
+    if (
+        path in (
+            "/api/vault/unlock",
+            "/api/vault/unlock-voice",
+            "/api/vault/lock",
+            "/api/vault/capture-alert",
+            "/api/vault/config",
+            "/api/vault/share-targets",
+        )
+        or (path.startswith("/api/vault/documents/") and path.endswith("/download"))
+        or (request.method == "PUT" and (path.startswith("/api/vault/credentials/") or path.startswith("/api/vault/documents/")))
+    ):
         if not module_access(profile, "credentials", write=False):
             return jsonify(error="You do not have access to this module."), 403
         return None
@@ -1191,6 +1202,7 @@ def save_login_branding():
         current["loginBranding"] = branding
         with db() as conn:
             conn.execute("INSERT INTO app_state(key,value) VALUES('settings',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(current),))
+            _pg_emit_notify(conn, "pulse", {"source": "settings"})
         return jsonify(ok=True, branding=branding)
     except (ValueError, OSError) as exc:
         return jsonify(error=str(exc)), 400
@@ -3871,9 +3883,19 @@ def save_data():
                     s_cur_row = conn.execute("SELECT value FROM app_state WHERE key='settings' FOR UPDATE").fetchone()
                     s_cur = dict(s_cur_row[0]) if s_cur_row and isinstance(s_cur_row[0], dict) else {}
                     merged_s = dict(value)
-                    for keep_k in ("portalConfig", "complaintDesks", "showAllDesksOnPortal"):
+                    for keep_k in ("portalConfig", "complaintDesks", "showAllDesksOnPortal", "loginBranding", "uiFontFamily", "customFonts"):
                         if keep_k not in merged_s and keep_k in s_cur:
                             merged_s[keep_k] = s_cur[keep_k]
+                    # Never let stale client localStorage overwrite saved login slideshow/logo assets
+                    cur_lb = s_cur.get("loginBranding")
+                    if isinstance(cur_lb, dict) and (cur_lb.get("slides") or cur_lb.get("logoUrl")):
+                        inc_lb = merged_s.get("loginBranding")
+                        preserved_lb = dict(cur_lb)
+                        if isinstance(inc_lb, dict) and inc_lb.get("companyName"):
+                            preserved_lb["companyName"] = inc_lb["companyName"]
+                        elif merged_s.get("companyName"):
+                            preserved_lb["companyName"] = merged_s["companyName"]
+                        merged_s["loginBranding"] = preserved_lb
                     t_norm = normalize_ticketing_settings(merged_s)
                     merged_s["portalConfig"] = t_norm["portalConfig"]
                     value = merged_s
@@ -6831,46 +6853,185 @@ def _compare_voice_signatures(tpl, cand):
     }
 
 
-def _vault_log_audit(conn, event_type, actor="", target="", detail=""):
+_VAULT_SHARE_KEY_PATH = UPLOAD_DIR / ".ns_vault_share.key"
+_VAULT_SHARE_KEY_CACHE = None
+
+
+def _vault_ukey(username):
+    return str(username or "").strip().casefold()[:120]
+
+
+def _vault_current_ukey(who=None):
+    w = who if isinstance(who, dict) else (session.get("profile") or {})
+    return _vault_ukey(w.get("username") or session.get("user") or "")
+
+
+def _vault_share_wrap_key():
+    global _VAULT_SHARE_KEY_CACHE
+    if _VAULT_SHARE_KEY_CACHE is not None:
+        return _VAULT_SHARE_KEY_CACHE
+    raw_bytes = None
+    try:
+        if _VAULT_SHARE_KEY_PATH.exists():
+            b = _VAULT_SHARE_KEY_PATH.read_bytes()
+            if len(b) == 32:
+                raw_bytes = b
+        if raw_bytes is None:
+            UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+            b = os.urandom(32)
+            fd = os.open(str(_VAULT_SHARE_KEY_PATH), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            try:
+                os.write(fd, b)
+            finally:
+                os.close(fd)
+            raw_bytes = b
+    except FileExistsError:
+        try:
+            raw_bytes = _VAULT_SHARE_KEY_PATH.read_bytes()
+        except Exception:
+            raw_bytes = None
+    except Exception:
+        raw_bytes = None
+    if not raw_bytes or len(raw_bytes) != 32:
+        raw_bytes = hashlib.sha256((APP_SECRET + "|fallback-share-wrap").encode("utf-8")).digest()
+    _VAULT_SHARE_KEY_CACHE = hashlib.sha256(raw_bytes + b"|ns-share-v1|" + APP_SECRET.encode("utf-8")).digest()
+    return _VAULT_SHARE_KEY_CACHE
+
+
+def _vault_user_lookup_map(conn):
+    u_row = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
+    users = u_row[0] if u_row and isinstance(u_row[0], list) else []
+    d_row = conn.execute("SELECT value FROM app_state WHERE key='departments'").fetchone()
+    depts = d_row[0] if d_row and isinstance(d_row[0], list) else []
+    by_ukey = {}
+    for u in users:
+        if isinstance(u, dict):
+            uk = _vault_ukey(u.get("username"))
+            if uk:
+                by_ukey[uk] = u
+    return by_ukey, users, depts
+
+
+def _vault_user_dept_lower(by_ukey, ukey, who=None):
+    u = by_ukey.get(_vault_ukey(ukey)) or (who if isinstance(who, dict) else {})
+    return str(u.get("dept") or u.get("department") or "").strip().casefold()
+
+
+def _vault_log_audit(conn, event_type, actor="", target="", detail="", owner_scope=""):
+    scope = _vault_ukey(owner_scope or actor)
     try:
         ip = str(request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()[:64]
         conn.execute(
-            "INSERT INTO vault_audit_logs(event_type, actor, target, detail, ip_address) VALUES(%s,%s,%s,%s,%s)",
-            (str(event_type)[:60], str(actor)[:120], str(target)[:160], str(detail)[:400], ip),
+            "INSERT INTO vault_audit_logs(event_type, actor, target, detail, ip_address, owner_scope) VALUES(%s,%s,%s,%s,%s,%s)",
+            (str(event_type)[:60], str(actor)[:120], str(target)[:160], str(detail)[:400], ip, scope),
         )
+    except Exception:
+        try:
+            ip = str(request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()[:64]
+            conn.execute(
+                "INSERT INTO vault_audit_logs(event_type, actor, target, detail, ip_address) VALUES(%s,%s,%s,%s,%s)",
+                (str(event_type)[:60], str(actor)[:120], str(target)[:160], str(detail)[:400], ip),
+            )
+        except Exception:
+            pass
+
+
+def _vault_migrate_legacy_if_needed(conn):
+    try:
+        cnt_row = conn.execute("SELECT count(*) FROM vault_user_security").fetchone()
+        if cnt_row and int(cnt_row[0] or 0) > 0:
+            return
+        legacy = conn.execute("""
+            SELECT id, initialized, pin_min_len, pin_max_len, pin_length,
+                   pin_hash, keyword_hash, kdf_salt, wrapped_dek_pin_kw,
+                   voice_enabled, voice_phrase_hash, voice_feature_enc, wrapped_dek_voice,
+                   failed_attempts, max_attempts, permanently_locked, locked_at,
+                   auto_lock_minutes, updated_at, updated_by, download_password_hash
+            FROM vault_security_config WHERE id=1
+        """).fetchone()
+        if not legacy or not bool(legacy[1]):
+            return
+        by_ukey, users, _ = _vault_user_lookup_map(conn)
+        hint = _vault_ukey(legacy[19])
+        legacy_ukey = hint if hint in by_ukey else ""
+        if not legacy_ukey and legacy[19]:
+            hint_low = str(legacy[19]).strip().casefold()
+            for uk, u in by_ukey.items():
+                if str(u.get("name") or "").strip().casefold() == hint_low:
+                    legacy_ukey = uk
+                    break
+        if not legacy_ukey:
+            for u in users:
+                if isinstance(u, dict) and u.get("enabled", True) and u.get("role") == "Administrator":
+                    legacy_ukey = _vault_ukey(u.get("username"))
+                    if legacy_ukey:
+                        break
+        if not legacy_ukey:
+            legacy_ukey = _vault_current_ukey() or "admin"
+        conn.execute(
+            """
+            INSERT INTO vault_user_security(
+                username, initialized, pin_length, pin_hash, keyword_hash, kdf_salt,
+                wrapped_dek_pin_kw, voice_enabled, voice_phrase_hash, voice_feature_enc,
+                wrapped_dek_voice, download_password_hash, failed_attempts, max_attempts,
+                permanently_locked, locked_at, auto_lock_minutes, updated_at, updated_by
+            ) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,COALESCE(%s,now()),%s)
+            ON CONFLICT(username) DO NOTHING
+            """,
+            (
+                legacy_ukey, bool(legacy[1]), int(legacy[4] or 4), str(legacy[5] or ""), str(legacy[6] or ""),
+                str(legacy[7] or ""), str(legacy[8] or ""), bool(legacy[9]), str(legacy[10] or ""),
+                str(legacy[11] or ""), str(legacy[12] or ""), str(legacy[20] or ""),
+                int(legacy[13] or 0), max(3, int(legacy[14] or 5)), bool(legacy[15]),
+                legacy[16], int(legacy[17] or 10), legacy[18], str(legacy[19] or legacy_ukey),
+            ),
+        )
+        conn.execute("UPDATE vault_credentials SET owner_username=%s WHERE owner_username=''", (legacy_ukey,))
+        conn.execute("UPDATE vault_documents SET owner_username=%s WHERE owner_username=''", (legacy_ukey,))
+        conn.execute("UPDATE vault_doc_folders SET owner_username=%s WHERE owner_username=''", (legacy_ukey,))
     except Exception:
         pass
 
 
-def _vault_ensure_config_row(conn):
-    conn.execute("INSERT INTO vault_security_config(id) VALUES(1) ON CONFLICT(id) DO NOTHING")
+def _vault_ensure_config_row(conn, username_ukey=None):
+    ukey = _vault_ukey(username_ukey) or _vault_current_ukey()
+    if not ukey:
+        ukey = "admin"
+    _vault_migrate_legacy_if_needed(conn)
+    conn.execute("INSERT INTO vault_user_security(username) VALUES(%s) ON CONFLICT(username) DO NOTHING", (ukey,))
     return conn.execute("""
-        SELECT id, initialized, pin_min_len, pin_max_len, pin_length,
+        SELECT username, initialized, 4 AS pin_min_len, 8 AS pin_max_len, pin_length,
                pin_hash, keyword_hash, kdf_salt, wrapped_dek_pin_kw,
                voice_enabled, voice_phrase_hash, voice_feature_enc, wrapped_dek_voice,
                failed_attempts, max_attempts, permanently_locked, locked_at,
                auto_lock_minutes, updated_at, updated_by, download_password_hash
-        FROM vault_security_config WHERE id=1
-    """).fetchone()
+        FROM vault_user_security WHERE username=%s
+    """, (ukey,)).fetchone()
 
 
 def _vault_sess_aad(sid):
     return f"ns-vsess:{sid}".encode("utf-8")
 
 
-def _vault_get_active_dek(sid, auto_lock_minutes=10, conn=None):
+def _vault_get_active_dek(sid, auto_lock_minutes=10, conn=None, expected_ukey=None):
     if not sid:
         return None, 0
     sid_str = str(sid)
+    exp_u = _vault_ukey(expected_ukey) if expected_ukey is not None else _vault_current_ukey()
     ttl = max(60, min(7200, int(auto_lock_minutes or 10) * 60))
 
     def _lookup_and_refresh(c):
         c.execute("DELETE FROM vault_active_sessions WHERE expires_at <= now()")
         row = c.execute(
-            "SELECT wrapped_dek, extract(epoch FROM (expires_at - now())) FROM vault_active_sessions WHERE sid=%s AND expires_at > now()",
+            "SELECT wrapped_dek, extract(epoch FROM (expires_at - now())), username FROM vault_active_sessions WHERE sid=%s AND expires_at > now()",
             (sid_str,),
         ).fetchone()
         if not row:
+            with _VAULT_LOCK:
+                _VAULT_SESSIONS.pop(sid_str, None)
+            return None, 0
+        sess_u = _vault_ukey(row[2] if len(row) > 2 else "")
+        if exp_u and sess_u != exp_u:
             with _VAULT_LOCK:
                 _VAULT_SESSIONS.pop(sid_str, None)
             return None, 0
@@ -6886,7 +7047,7 @@ def _vault_get_active_dek(sid, auto_lock_minutes=10, conn=None):
             (ttl, sid_str),
         )
         with _VAULT_LOCK:
-            _VAULT_SESSIONS[sid_str] = {"dek": dek, "expires_at": time.monotonic() + ttl, "username": ""}
+            _VAULT_SESSIONS[sid_str] = {"dek": dek, "expires_at": time.monotonic() + ttl, "username": sess_u}
         return dek, ttl
 
     try:
@@ -6900,6 +7061,7 @@ def _vault_get_active_dek(sid, auto_lock_minutes=10, conn=None):
 
 def _vault_set_active_dek(sid, username, dek_bytes, auto_lock_minutes=10, conn=None):
     sid_str = str(sid)
+    ukey = _vault_ukey(username)
     ttl = max(60, min(7200, int(auto_lock_minutes or 10) * 60))
     wrapped = _vault_aes_encrypt(_vault_session_wrap_key(), dek_bytes, _vault_sess_aad(sid_str))
 
@@ -6912,7 +7074,7 @@ def _vault_set_active_dek(sid, username, dek_bytes, auto_lock_minutes=10, conn=N
             ON CONFLICT(sid) DO UPDATE
             SET username=excluded.username, wrapped_dek=excluded.wrapped_dek, expires_at=excluded.expires_at
             """,
-            (sid_str, str(username or "")[:120], wrapped, ttl),
+            (sid_str, ukey, wrapped, ttl),
         )
 
     if conn is not None:
@@ -6921,70 +7083,140 @@ def _vault_set_active_dek(sid, username, dek_bytes, auto_lock_minutes=10, conn=N
         with db() as c:
             _upsert(c)
     with _VAULT_LOCK:
-        _VAULT_SESSIONS[sid_str] = {"dek": dek_bytes, "username": str(username or ""), "expires_at": time.monotonic() + ttl}
+        _VAULT_SESSIONS[sid_str] = {"dek": dek_bytes, "username": ukey, "expires_at": time.monotonic() + ttl}
     return ttl
 
 
-def _vault_record_failure(conn, actor_username, reason_label):
+def _vault_record_failure(conn, owner_ukey, actor_display, reason_label):
+    ukey = _vault_ukey(owner_ukey) or _vault_current_ukey()
     row = conn.execute(
-        "SELECT failed_attempts, max_attempts FROM vault_security_config WHERE id=1 FOR UPDATE"
+        "SELECT failed_attempts, max_attempts FROM vault_user_security WHERE username=%s FOR UPDATE",
+        (ukey,),
     ).fetchone()
     attempts = int(row[0] or 0) + 1 if row else 1
     max_att = max(3, int(row[1] or 5)) if row else 5
     tripped = attempts >= max_att
     conn.execute(
         """
-        UPDATE vault_security_config
+        UPDATE vault_user_security
         SET failed_attempts=%s,
             permanently_locked=%s,
             locked_at=CASE WHEN %s THEN COALESCE(locked_at, now()) ELSE locked_at END,
             updated_at=now(),
             updated_by=%s
-        WHERE id=1
+        WHERE username=%s
         """,
-        (attempts, tripped, tripped, actor_username[:120]),
+        (attempts, tripped, tripped, str(actor_display or ukey)[:120], ukey),
     )
-    _vault_log_audit(conn, "vault_unlock_failed", actor_username, f"Attempt {attempts}/{max_att}", reason_label)
+    _vault_log_audit(conn, "vault_unlock_failed", actor_display, f"Attempt {attempts}/{max_att}", reason_label, owner_scope=ukey)
     if tripped:
-        _vault_purge_session(conn=conn)
-        _vault_log_audit(conn, "vault_self_locked", actor_username, f"{attempts} failures", reason_label)
+        _vault_purge_session(sid=str(session.get("sid") or ""), username=ukey, conn=conn)
+        _vault_log_audit(conn, "vault_self_locked", actor_display, f"{attempts} failures", reason_label, owner_scope=ukey)
         _record_notification_event(conn, {
-            "eventKey": f"vault-self-lock:{int(time.time())}",
+            "eventKey": f"vault-self-lock:{ukey}:{int(time.time())}",
             "kind": "system",
             "level": "critical",
-            "title": "🔐 SECURITY ALERT: Credentials Vault Self-Locked",
-            "body": f"Vault locked automatically after {attempts} failed unlock attempts ({reason_label}) by {actor_username or 'unknown'}. Administrator password reset is required.",
+            "title": "🔐 SECURITY ALERT: Personal Credentials Vault Self-Locked",
+            "body": f"Vault locked automatically after {attempts} failed unlock attempts ({reason_label}) for account {actor_display or ukey}. Administrator verification required.",
             "targetView": "credentials",
             "targetTab": "LOCKED",
-            "targetUsername": actor_username or "",
+            "targetUsername": ukey,
         })
     return attempts, max_att, tripped
+
+
+def _vault_norm_shares(shared_users_raw, shared_depts_raw, owner_ukey=""):
+    o_uk = _vault_ukey(owner_ukey)
+    u_map = {}
+    if isinstance(shared_users_raw, dict):
+        for k, v in shared_users_raw.items():
+            uk = _vault_ukey(k)
+            perm = str(v or "").strip().lower()
+            if uk and uk != o_uk and perm in ("read", "edit"):
+                u_map[uk] = perm
+    d_map = {}
+    if isinstance(shared_depts_raw, dict):
+        for k, v in shared_depts_raw.items():
+            dk = str(k or "").strip().casefold()[:120]
+            perm = str(v or "").strip().lower()
+            if dk and perm in ("read", "edit"):
+                d_map[dk] = perm
+    return u_map, d_map
+
+
+def _vault_item_access(owner_ukey, shared_users, shared_depts, my_ukey, my_dept_lower):
+    o_uk = _vault_ukey(owner_ukey)
+    me = _vault_ukey(my_ukey)
+    if me and o_uk == me:
+        return "owner"
+    u_perm = (shared_users or {}).get(me) if isinstance(shared_users, dict) else None
+    d_perm = (shared_depts or {}).get(my_dept_lower) if (isinstance(shared_depts, dict) and my_dept_lower) else None
+    grants = [p for p in (u_perm, d_perm) if p in ("read", "edit")]
+    if "edit" in grants:
+        return "edit"
+    if "read" in grants:
+        return "read"
+    return None
+
+
+def _vault_resolve_item_key(user_dek, shared_item_key_enc, aad_prefix):
+    if shared_item_key_enc:
+        return _vault_aes_decrypt(_vault_share_wrap_key(), str(shared_item_key_enc), aad_prefix + b":skey")
+    return user_dek
 
 
 @app.get("/api/vault/status")
 @signed_in
 def get_vault_status():
     who = session.get("profile") or {}
-    is_adm = bool(session.get("is_admin"))
+    is_adm = bool(session.get("is_admin") or who.get("role") == "Administrator")
     if not is_adm and not module_access(who, "credentials"):
         return jsonify(error="Credentials Vault access required."), 403
+    my_ukey = _vault_current_ukey(who)
     sid = str(session.get("sid") or "")
+    locked_users = []
+    shared_count = 0
     with db() as conn:
-        cfg = _vault_ensure_config_row(conn)
+        cfg = _vault_ensure_config_row(conn, my_ukey)
         auto_mins = int(cfg[17] or 10)
-        dek, expires_sec = _vault_get_active_dek(sid, auto_mins, conn=conn)
+        dek, expires_sec = _vault_get_active_dek(sid, auto_mins, conn=conn, expected_ukey=my_ukey)
         if bool(cfg[15]):  # permanently_locked
             dek = None
             expires_sec = 0
             _vault_purge_session(sid=sid, conn=conn)
+        by_ukey, _, _ = _vault_user_lookup_map(conn)
+        my_dept_low = _vault_user_dept_lower(by_ukey, my_ukey, who)
+        try:
+            c_rows = conn.execute("SELECT owner_username, shared_users, shared_depts FROM vault_credentials").fetchall()
+            d_rows = conn.execute("SELECT owner_username, shared_users, shared_depts FROM vault_documents").fetchall()
+            for r in list(c_rows) + list(d_rows):
+                if _vault_ukey(r[0]) != my_ukey and _vault_item_access(r[0], r[1], r[2], my_ukey, my_dept_low):
+                    shared_count += 1
+        except Exception:
+            shared_count = 0
+        if is_adm:
+            try:
+                l_rows = conn.execute("SELECT username, failed_attempts, locked_at FROM vault_user_security WHERE permanently_locked=true ORDER BY locked_at DESC NULLS LAST").fetchall()
+                for lr in l_rows:
+                    u_obj = by_ukey.get(_vault_ukey(lr[0])) or {}
+                    locked_users.append({
+                        "username": lr[0],
+                        "name": u_obj.get("name") or lr[0],
+                        "dept": u_obj.get("dept") or u_obj.get("department") or "",
+                        "failedAttempts": int(lr[1] or 0),
+                        "lockedAt": lr[2].isoformat() if lr[2] else "",
+                    })
+            except Exception:
+                locked_users = []
     failed = int(cfg[13] or 0)
     max_att = max(3, int(cfg[14] or 5))
     return jsonify(
+        ownerUsername=my_ukey,
         initialized=bool(cfg[1]),
         unlocked=dek is not None,
         expiresInSec=expires_sec,
-        pinMinLen=int(cfg[2] or 4),
-        pinMaxLen=int(cfg[3] or 8),
+        pinMinLen=4,
+        pinMaxLen=8,
         pinLength=int(cfg[4] or 4),
         voiceEnabled=bool(cfg[9]),
         hasDownloadPassword=bool(cfg[20]),
@@ -6994,19 +7226,26 @@ def get_vault_status():
         permanentlyLocked=bool(cfg[15]),
         lockedAt=cfg[16].isoformat() if cfg[16] else "",
         autoLockMinutes=auto_mins,
-        canConfigure=is_adm,
+        canConfigure=True,
         canWrite=bool(is_adm or module_access(who, "credentials", write=True)),
+        isAdmin=is_adm,
+        sharedWithMeCount=shared_count,
+        lockedUsers=locked_users,
         updatedAt=cfg[18].isoformat() if cfg[18] else "",
         updatedBy=cfg[19] or "",
     )
 
 
 @app.post("/api/vault/config")
-@administrator
+@signed_in
 def save_vault_config():
     data = request.get_json(silent=True) or {}
     who = session.get("profile") or {}
-    actor = str(who.get("name") or who.get("username") or "Administrator")
+    is_adm = bool(session.get("is_admin") or who.get("role") == "Administrator")
+    if not is_adm and not module_access(who, "credentials"):
+        return jsonify(error="Credentials Vault access required."), 403
+    my_ukey = _vault_current_ukey(who)
+    actor = str(who.get("name") or who.get("username") or my_ukey or "User")[:120]
     sid = str(session.get("sid") or "")
     pin = str(data.get("pin") or "").strip()
     keyword = str(data.get("keyword") or "").strip()
@@ -7021,10 +7260,10 @@ def save_vault_config():
     dl_pwd = str(data.get("downloadPassword") or "").strip()
 
     with db() as conn:
-        cfg = _vault_ensure_config_row(conn)
+        cfg = _vault_ensure_config_row(conn, my_ukey)
         initialized = bool(cfg[1])
         if bool(cfg[15]):
-            return jsonify(error="Vault is self-locked after 5 failed attempts. Perform Administrator password reset first."), 423
+            return jsonify(error="Your personal Vault is self-locked after 5 failed attempts. Ask Administrator to reset lockout first."), 423
 
         old_salt = str(cfg[7] or "")
         old_wrapped_pin = str(cfg[8] or "")
@@ -7049,13 +7288,12 @@ def save_vault_config():
             pin_hash = generate_password_hash(pin)
             kw_hash = generate_password_hash(keyword)
         else:
-            # Preserve existing DEK either from active unlocked session OR current PIN+Keyword
-            dek, _ = _vault_get_active_dek(sid, int(cfg[17] or 10), conn=conn)
+            dek, _ = _vault_get_active_dek(sid, int(cfg[17] or 10), conn=conn, expected_ukey=my_ukey)
             if dek is None:
                 cur_pin = str(data.get("currentPin") or "").strip()
                 cur_kw = str(data.get("currentKeyword") or "").strip()
                 if not cur_pin or not cur_kw:
-                    return jsonify(error="Unlock the vault first or provide current PIN and keyword to update settings."), 401
+                    return jsonify(error="Unlock your Vault first or provide your current PIN and keyword to update settings."), 401
                 try:
                     cur_kek = _vault_pin_kw_kek(cur_pin, cur_kw, old_salt)
                     dek = _vault_aes_decrypt(cur_kek, old_wrapped_pin, _VAULT_AAD_DEK)
@@ -7118,7 +7356,7 @@ def save_vault_config():
 
         conn.execute(
             """
-            UPDATE vault_security_config
+            UPDATE vault_user_security
             SET initialized=true,
                 pin_length=%s,
                 pin_hash=%s,
@@ -7136,17 +7374,17 @@ def save_vault_config():
                 auto_lock_minutes=%s,
                 updated_at=now(),
                 updated_by=%s
-            WHERE id=1
+            WHERE username=%s
             """,
             (
                 pin_len, pin_hash, kw_hash, new_salt, wrapped_pin_kw,
                 voice_enabled, new_voice_phrase_hash, new_voice_feat_enc, new_wrapped_voice,
-                new_dl_hash, auto_mins, actor[:120],
+                new_dl_hash, auto_mins, actor, my_ukey,
             ),
         )
-        _vault_log_audit(conn, "vault_config_updated", actor, f"PIN {pin_len}d · Voice={'On' if voice_enabled else 'Off'}", f"DownloadPwd={'Set' if bool(new_dl_hash) else 'Unset'}")
-        ttl = _vault_set_active_dek(sid, who.get("username", ""), dek, auto_mins, conn=conn)
-    return jsonify(ok=True, unlocked=True, expiresInSec=ttl, pinLength=pin_len, voiceEnabled=voice_enabled, hasDownloadPassword=bool(new_dl_hash), autoLockMinutes=auto_mins)
+        _vault_log_audit(conn, "vault_user_initialized" if not initialized else "vault_config_updated", actor, f"PIN {pin_len}d · Voice={'On' if voice_enabled else 'Off'}", f"DownloadPwd={'Set' if bool(new_dl_hash) else 'Unset'}", owner_scope=my_ukey)
+        ttl = _vault_set_active_dek(sid, my_ukey, dek, auto_mins, conn=conn)
+    return jsonify(ok=True, ownerUsername=my_ukey, unlocked=True, expiresInSec=ttl, pinLength=pin_len, voiceEnabled=voice_enabled, hasDownloadPassword=bool(new_dl_hash), autoLockMinutes=auto_mins)
 
 
 @app.post("/api/vault/unlock")
@@ -7159,14 +7397,15 @@ def unlock_vault_pin_keyword():
     pin = str(data.get("pin") or "").strip()
     keyword = str(data.get("keyword") or "").strip()
     sid = str(session.get("sid") or "")
-    actor = str(who.get("username") or who.get("name") or "User")
+    my_ukey = _vault_current_ukey(who)
+    actor = str(who.get("username") or who.get("name") or my_ukey or "User")
 
     with db() as conn:
-        cfg = _vault_ensure_config_row(conn)
+        cfg = _vault_ensure_config_row(conn, my_ukey)
         if not bool(cfg[1]):
-            return jsonify(error="Credentials Vault is not configured yet. Ask Administrator to set PIN & Keyword."), 400
+            return jsonify(error="Set up your personal Vault PIN & Secret Keyword first before unlocking."), 400
         if bool(cfg[15]):
-            return jsonify(error="Vault is self-locked after 5 failed attempts. Administrator password reset required.", permanentlyLocked=True, remainingAttempts=0), 423
+            return jsonify(error="Your Vault is self-locked after 5 failed attempts. Administrator password reset required.", permanentlyLocked=True, remainingAttempts=0), 423
         auto_mins = int(cfg[17] or 10)
         dek = None
         if re.fullmatch(r"\d{4,8}", pin) and keyword:
@@ -7176,18 +7415,18 @@ def unlock_vault_pin_keyword():
             except Exception:
                 dek = None
         if dek is None:
-            attempts, max_att, tripped = _vault_record_failure(conn, actor, "PIN/Keyword mismatch")
+            attempts, max_att, tripped = _vault_record_failure(conn, my_ukey, actor, "PIN/Keyword mismatch")
             rem = max(0, max_att - attempts)
             code = 423 if tripped else 401
             msg = (
-                "5 failed attempts reached — Vault is now self-locked! Administrator password required to reset."
+                "5 failed attempts reached — Your Vault is now self-locked! Administrator password required to reset."
                 if tripped
                 else f"Invalid PIN or secret keyword. {rem} attempt(s) remaining before self-lock."
             )
             return jsonify(error=msg, failedAttempts=attempts, maxAttempts=max_att, remainingAttempts=rem, permanentlyLocked=tripped), code
-        conn.execute("UPDATE vault_security_config SET failed_attempts=0, updated_at=now() WHERE id=1")
-        _vault_log_audit(conn, "vault_unlocked_pin", actor, "Credentials Vault", "PIN + Secret Keyword verified")
-        ttl = _vault_set_active_dek(sid, actor, dek, auto_mins, conn=conn)
+        conn.execute("UPDATE vault_user_security SET failed_attempts=0, updated_at=now() WHERE username=%s", (my_ukey,))
+        _vault_log_audit(conn, "vault_unlocked_pin", actor, "Personal Vault", "PIN + Secret Keyword verified", owner_scope=my_ukey)
+        ttl = _vault_set_active_dek(sid, my_ukey, dek, auto_mins, conn=conn)
     return jsonify(ok=True, unlocked=True, expiresInSec=ttl)
 
 
@@ -7201,14 +7440,15 @@ def unlock_vault_voice():
     norm_phrase = _norm_voice_phrase(data.get("phrase"))
     cand = _extract_clean_voice_sig(data.get("sample"))
     sid = str(session.get("sid") or "")
-    actor = str(who.get("username") or who.get("name") or "User")
+    my_ukey = _vault_current_ukey(who)
+    actor = str(who.get("username") or who.get("name") or my_ukey or "User")
 
     with db() as conn:
-        cfg = _vault_ensure_config_row(conn)
+        cfg = _vault_ensure_config_row(conn, my_ukey)
         if not bool(cfg[1]) or not bool(cfg[9]):
-            return jsonify(error="Voice matching lock is not enabled on this Vault."), 400
+            return jsonify(error="Voice matching lock is not enabled on your personal Vault."), 400
         if bool(cfg[15]):
-            return jsonify(error="Vault is self-locked after 5 failed attempts. Administrator password reset required.", permanentlyLocked=True, remainingAttempts=0), 423
+            return jsonify(error="Your Vault is self-locked after 5 failed attempts. Administrator password reset required.", permanentlyLocked=True, remainingAttempts=0), 423
         auto_mins = int(cfg[17] or 10)
         salt_b64 = str(cfg[7] or "")
         phrase_ok = bool(norm_phrase) and check_password_hash(str(cfg[10] or ""), norm_phrase)
@@ -7227,19 +7467,19 @@ def unlock_vault_voice():
                 match_ok = False
                 dek = None
         if dek is None:
-            attempts, max_att, tripped = _vault_record_failure(conn, actor, "Voice signature/phrase mismatch")
+            attempts, max_att, tripped = _vault_record_failure(conn, my_ukey, actor, "Voice signature/phrase mismatch")
             rem = max(0, max_att - attempts)
             code = 423 if tripped else 401
             reason = "Spoken secret phrase did not match." if not phrase_ok else "Voice tone, tune, or intensity did not match owner's voiceprint."
             msg = (
-                "5 failed attempts reached — Vault is now self-locked! Administrator password required to reset."
+                "5 failed attempts reached — Your Vault is now self-locked! Administrator password required to reset."
                 if tripped
                 else f"{reason} {rem} attempt(s) remaining before self-lock."
             )
             return jsonify(error=msg, failedAttempts=attempts, maxAttempts=max_att, remainingAttempts=rem, permanentlyLocked=tripped, matchScore=score, matchDetails=details), code
-        conn.execute("UPDATE vault_security_config SET failed_attempts=0, updated_at=now() WHERE id=1")
-        _vault_log_audit(conn, "vault_unlocked_voice", actor, "Credentials Vault", f"Voice biometric match ({round(score*100,1)}%)")
-        ttl = _vault_set_active_dek(sid, actor, dek, auto_mins, conn=conn)
+        conn.execute("UPDATE vault_user_security SET failed_attempts=0, updated_at=now() WHERE username=%s", (my_ukey,))
+        _vault_log_audit(conn, "vault_unlocked_voice", actor, "Personal Vault", f"Voice biometric match ({round(score*100,1)}%)", owner_scope=my_ukey)
+        ttl = _vault_set_active_dek(sid, my_ukey, dek, auto_mins, conn=conn)
     return jsonify(ok=True, unlocked=True, expiresInSec=ttl, matchScore=score, matchDetails=details)
 
 
@@ -7247,11 +7487,12 @@ def unlock_vault_voice():
 @signed_in
 def lock_vault_session():
     who = session.get("profile") or {}
-    actor = str(who.get("username") or who.get("name") or "User")
+    my_ukey = _vault_current_ukey(who)
+    actor = str(who.get("username") or who.get("name") or my_ukey or "User")
     sid = str(session.get("sid") or "")
     with db() as conn:
         _vault_purge_session(sid=sid, conn=conn)
-        _vault_log_audit(conn, "vault_locked", actor, "Credentials Vault", "Manual session lock")
+        _vault_log_audit(conn, "vault_locked", actor, "Personal Vault", "Manual session lock", owner_scope=my_ukey)
     return jsonify(ok=True, unlocked=False)
 
 
@@ -7259,8 +7500,9 @@ def lock_vault_session():
 @administrator
 def admin_reset_vault_lock():
     who = session.get("profile") or {}
-    username = str(who.get("username") or "").strip()
+    admin_ukey = _vault_current_ukey(who)
     data = request.get_json(silent=True) or {}
+    target_ukey = _vault_ukey(data.get("targetUsername") or admin_ukey)
     admin_password = str(data.get("adminPassword") or "")
     wipe_and_reinit = bool(data.get("wipeAndReinit", False))
     if not admin_password:
@@ -7269,9 +7511,10 @@ def admin_reset_vault_lock():
     with db() as conn:
         row = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
         users = row[0] if row else []
-        account = next((u for u in users if str(u.get("username", "")).casefold() == username.casefold()), None)
+        account = next((u for u in users if _vault_ukey(u.get("username")) == admin_ukey), None)
         if not account or account.get("role") != "Administrator" or not account.get("password_hash") or not check_password_hash(account["password_hash"], admin_password):
             return jsonify(error="Administrator account password is incorrect."), 401
+        _vault_ensure_config_row(conn, target_ukey)
         if wipe_and_reinit:
             pin = str(data.get("pin") or "").strip()
             keyword = str(data.get("keyword") or "").strip()
@@ -7280,54 +7523,57 @@ def admin_reset_vault_lock():
             dek = os.urandom(32)
             new_salt = base64.b64encode(os.urandom(32)).decode("ascii")
             wrapped_pin_kw = _vault_aes_encrypt(_vault_pin_kw_kek(pin, keyword, new_salt), dek, _VAULT_AAD_DEK)
-            conn.execute("DELETE FROM vault_credentials")
-            conn.execute("DELETE FROM vault_documents")
-            conn.execute("DELETE FROM vault_doc_folders")
-            for p in VAULT_DOCS_DIR.glob("*.enc"):
+            conn.execute("DELETE FROM vault_credentials WHERE owner_username=%s", (target_ukey,))
+            deleted_docs = conn.execute("DELETE FROM vault_documents WHERE owner_username=%s RETURNING enc_rel_path", (target_ukey,)).fetchall()
+            conn.execute("DELETE FROM vault_doc_folders WHERE owner_username=%s", (target_ukey,))
+            for dr in deleted_docs:
                 try:
-                    p.unlink(missing_ok=True)
+                    p = (VAULT_DOCS_DIR / str(dr[0])).resolve()
+                    if p.is_relative_to(VAULT_DOCS_DIR.resolve()):
+                        p.unlink(missing_ok=True)
                 except Exception:
                     pass
             conn.execute(
                 """
-                UPDATE vault_security_config
+                UPDATE vault_user_security
                 SET initialized=true, pin_length=%s, pin_hash=%s, keyword_hash=%s,
                     kdf_salt=%s, wrapped_dek_pin_kw=%s, voice_enabled=false,
                     voice_phrase_hash='', voice_feature_enc='', wrapped_dek_voice='',
                     download_password_hash='', failed_attempts=0, permanently_locked=false, locked_at=NULL,
                     updated_at=now(), updated_by=%s
-                WHERE id=1
+                WHERE username=%s
                 """,
-                (len(pin), generate_password_hash(pin), generate_password_hash(keyword), new_salt, wrapped_pin_kw, username[:120]),
+                (len(pin), generate_password_hash(pin), generate_password_hash(keyword), new_salt, wrapped_pin_kw, admin_ukey, target_ukey),
             )
-            _vault_purge_session(conn=conn)
-            _vault_log_audit(conn, "vault_wiped_reinit", username, "Credentials Vault", "Full wipe & key reset after self-lock")
-            return jsonify(ok=True, resetMode="wiped_reinit", permanentlyLocked=False)
+            _vault_purge_session(username=target_ukey, conn=conn)
+            _vault_log_audit(conn, "vault_wiped_reinit", admin_ukey, target_ukey, "Personal vault wipe & key reset after self-lock", owner_scope=target_ukey)
+            return jsonify(ok=True, resetMode="wiped_reinit", targetUsername=target_ukey, permanentlyLocked=False)
 
         conn.execute(
             """
-            UPDATE vault_security_config
+            UPDATE vault_user_security
             SET failed_attempts=0, permanently_locked=false, locked_at=NULL,
                 updated_at=now(), updated_by=%s
-            WHERE id=1
+            WHERE username=%s
             """,
-            (username[:120],),
+            (admin_ukey, target_ukey),
         )
-        _vault_log_audit(conn, "vault_lockout_cleared", username, "Credentials Vault", "Admin verified account password to clear 5-attempt lockout")
-    return jsonify(ok=True, resetMode="lockout_cleared", permanentlyLocked=False)
+        _vault_log_audit(conn, "vault_lockout_cleared", admin_ukey, target_ukey, "Admin verified account password to clear 5-attempt lockout", owner_scope=target_ukey)
+    return jsonify(ok=True, resetMode="lockout_cleared", targetUsername=target_ukey, permanentlyLocked=False)
 
 
 def _vault_require_unlocked_dek(conn):
     who = session.get("profile") or {}
     if not session.get("is_admin") and not module_access(who, "credentials"):
         return None, (jsonify(error="Credentials Vault access required."), 403)
-    cfg = _vault_ensure_config_row(conn)
+    my_ukey = _vault_current_ukey(who)
+    cfg = _vault_ensure_config_row(conn, my_ukey)
     if not bool(cfg[1]):
         return None, (jsonify(error="vault_not_initialized"), 428)
     if bool(cfg[15]):
         _vault_purge_session(sid=str(session.get("sid") or ""), conn=conn)
         return None, (jsonify(error="vault_self_locked", permanentlyLocked=True), 423)
-    dek, _ = _vault_get_active_dek(str(session.get("sid") or ""), int(cfg[17] or 10), conn=conn)
+    dek, _ = _vault_get_active_dek(str(session.get("sid") or ""), int(cfg[17] or 10), conn=conn, expected_ukey=my_ukey)
     if dek is None:
         return None, (jsonify(error="vault_locked"), 423)
     return dek, None
@@ -7337,33 +7583,234 @@ def _vault_cred_aad(cred_id):
     return f"northstar-vault-cred-v1:{cred_id}".encode("utf-8")
 
 
-@app.get("/api/vault/credentials")
+@app.get("/api/vault/share-targets")
 @signed_in
-def list_vault_credentials():
-    q = str(request.args.get("q") or "").strip().lower()
-    factory = str(request.args.get("factory") or "").strip()
-    service_type = str(request.args.get("service_type") or "").strip()
-    asset_tag = str(request.args.get("asset_tag") or "").strip()
+def list_vault_share_targets():
+    who = session.get("profile") or {}
+    if not session.get("is_admin") and not module_access(who, "credentials"):
+        return jsonify(error="Credentials Vault access required."), 403
+    my_ukey = _vault_current_ukey(who)
+    with db() as conn:
+        _, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        by_ukey, users, depts = _vault_user_lookup_map(conn)
+    clean_users = []
+    dept_counts = {}
+    for u in users:
+        if not isinstance(u, dict) or u.get("enabled") is False:
+            continue
+        if str(u.get("employment") or "Active").strip().lower() == "inactive":
+            continue
+        uk = _vault_ukey(u.get("username"))
+        if not uk:
+            continue
+        dp = str(u.get("dept") or u.get("department") or "").strip()
+        if dp:
+            dept_counts[dp.casefold()] = dept_counts.get(dp.casefold(), 0) + 1
+        if uk == my_ukey:
+            continue
+        clean_users.append({
+            "username": uk,
+            "name": str(u.get("name") or uk),
+            "dept": dp,
+            "site": str(u.get("site") or u.get("factory") or ""),
+            "role": str(u.get("role") or "User"),
+        })
+    clean_users.sort(key=lambda x: (x["name"].lower(), x["username"]))
+    seen_depts = set()
+    clean_depts = []
+    for d in depts:
+        if isinstance(d, list) and d:
+            dn = str(d[0] or "").strip()
+            fac = str(d[6] if len(d) > 6 and d[6] else (d[1] if len(d) > 1 else "")).strip()
+        elif isinstance(d, dict):
+            dn = str(d.get("name") or "").strip()
+            fac = str(d.get("factory") or d.get("site") or "").strip()
+        else:
+            continue
+        if not dn:
+            continue
+        dk = dn.casefold()
+        if dk in seen_depts:
+            continue
+        seen_depts.add(dk)
+        clean_depts.append({"key": dk, "name": dn, "factory": fac, "userCount": int(dept_counts.get(dk, 0))})
+    for u in users:
+        if not isinstance(u, dict) or u.get("enabled") is False:
+            continue
+        dp = str(u.get("dept") or u.get("department") or "").strip()
+        if dp and dp.casefold() not in seen_depts:
+            dk = dp.casefold()
+            seen_depts.add(dk)
+            clean_depts.append({"key": dk, "name": dp, "factory": "", "userCount": int(dept_counts.get(dk, 0))})
+    clean_depts.sort(key=lambda x: x["name"].lower())
+    return jsonify(users=clean_users, departments=clean_depts)
+
+
+@app.post("/api/vault/shares")
+@signed_in
+def update_vault_shares():
+    who = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin") or who.get("role") == "Administrator")
+    if not is_adm and not module_access(who, "credentials", write=True):
+        return jsonify(error="Write access on Credentials Vault is required."), 403
+    my_ukey = _vault_current_ukey(who)
+    actor = str(who.get("name") or who.get("username") or my_ukey or "User")[:120]
+    data = request.get_json(silent=True) or {}
+    item_type = str(data.get("itemType") or "").strip().lower()
+    if item_type not in ("credential", "document"):
+        return jsonify(error="itemType must be credential or document."), 400
+    raw_ids = data.get("itemIds")
+    if not isinstance(raw_ids, list) or not raw_ids:
+        return jsonify(error="Select at least one credential or document to share."), 400
+    item_ids = [str(x).strip() for x in raw_ids if str(x).strip()][:500]
+    mode = str(data.get("mode") or "replace").strip().lower()
+    req_users, req_depts = _vault_norm_shares(data.get("sharedUsers"), data.get("sharedDepts"), owner_ukey=my_ukey)
+
+    updated = 0
     with db() as conn:
         dek, err = _vault_require_unlocked_dek(conn)
         if err:
             return err
+        for iid in item_ids:
+            if item_type == "credential":
+                row = conn.execute(
+                    "SELECT owner_username, ciphertext, shared_item_key_enc, shared_users, shared_depts, label FROM vault_credentials WHERE id=%s FOR UPDATE",
+                    (iid,),
+                ).fetchone()
+                if not row:
+                    continue
+                if _vault_ukey(row[0]) != my_ukey:
+                    return jsonify(error=f"Only the creator/owner can change sharing permissions on {row[5] or iid}."), 403
+                cur_u = dict(row[3]) if isinstance(row[3], dict) else {}
+                cur_d = dict(row[4]) if isinstance(row[4], dict) else {}
+                if mode == "merge":
+                    new_u, new_d = dict(cur_u), dict(cur_d)
+                    new_u.update(req_users)
+                    new_d.update(req_depts)
+                else:
+                    new_u, new_d = dict(req_users), dict(req_depts)
+                new_u, new_d = _vault_norm_shares(new_u, new_d, owner_ukey=my_ukey)
+                has_share = bool(new_u or new_d)
+                cur_key = _vault_resolve_item_key(dek, row[2], _vault_cred_aad(iid))
+                plain_ct = _vault_aes_decrypt(cur_key, row[1], _vault_cred_aad(iid))
+                if has_share:
+                    item_key = cur_key if row[2] else os.urandom(32)
+                    new_ct = _vault_aes_encrypt(item_key, plain_ct, _vault_cred_aad(iid))
+                    new_skey_enc = _vault_aes_encrypt(_vault_share_wrap_key(), item_key, _vault_cred_aad(iid) + b":skey") if not row[2] else row[2]
+                else:
+                    new_ct = _vault_aes_encrypt(dek, plain_ct, _vault_cred_aad(iid))
+                    new_skey_enc = ""
+                conn.execute(
+                    """
+                    UPDATE vault_credentials
+                    SET ciphertext=%s, shared_item_key_enc=%s, shared_users=%s::jsonb, shared_depts=%s::jsonb, updated_at=now()
+                    WHERE id=%s
+                    """,
+                    (new_ct, new_skey_enc, json.dumps(new_u), json.dumps(new_d), iid),
+                )
+                updated += 1
+            else:
+                row = conn.execute(
+                    "SELECT owner_username, enc_rel_path, meta_ciphertext, shared_item_key_enc, shared_users, shared_depts, title FROM vault_documents WHERE id=%s FOR UPDATE",
+                    (iid,),
+                ).fetchone()
+                if not row:
+                    continue
+                if _vault_ukey(row[0]) != my_ukey:
+                    return jsonify(error=f"Only the creator/owner can share document {row[6] or iid}."), 403
+                cur_u = dict(row[4]) if isinstance(row[4], dict) else {}
+                cur_d = dict(row[5]) if isinstance(row[5], dict) else {}
+                if mode == "merge":
+                    new_u, new_d = dict(cur_u), dict(cur_d)
+                    new_u.update(req_users)
+                    new_d.update(req_depts)
+                else:
+                    new_u, new_d = dict(req_users), dict(req_depts)
+                new_u, new_d = _vault_norm_shares(new_u, new_d, owner_ukey=my_ukey)
+                has_share = bool(new_u or new_d)
+                enc_path = (VAULT_DOCS_DIR / str(row[1])).resolve()
+                if not enc_path.is_relative_to(VAULT_DOCS_DIR.resolve()) or not enc_path.is_file():
+                    continue
+                cur_key = _vault_resolve_item_key(dek, row[3], _vault_doc_aad(iid))
+                raw_file = _vault_aes_decrypt(cur_key, enc_path.read_text(encoding="ascii"), _vault_doc_aad(iid))
+                plain_meta = _vault_aes_decrypt(cur_key, row[2], _vault_doc_aad(iid + ":meta")) if row[2] else b"{}"
+                if has_share:
+                    item_key = cur_key if row[3] else os.urandom(32)
+                    enc_path.write_text(_vault_aes_encrypt(item_key, raw_file, _vault_doc_aad(iid)), encoding="ascii")
+                    new_meta_ct = _vault_aes_encrypt(item_key, plain_meta, _vault_doc_aad(iid + ":meta"))
+                    new_skey_enc = _vault_aes_encrypt(_vault_share_wrap_key(), item_key, _vault_doc_aad(iid) + b":skey") if not row[3] else row[3]
+                else:
+                    enc_path.write_text(_vault_aes_encrypt(dek, raw_file, _vault_doc_aad(iid)), encoding="ascii")
+                    new_meta_ct = _vault_aes_encrypt(dek, plain_meta, _vault_doc_aad(iid + ":meta"))
+                    new_skey_enc = ""
+                conn.execute(
+                    """
+                    UPDATE vault_documents
+                    SET meta_ciphertext=%s, shared_item_key_enc=%s, shared_users=%s::jsonb, shared_depts=%s::jsonb, updated_at=now()
+                    WHERE id=%s
+                    """,
+                    (new_meta_ct, new_skey_enc, json.dumps(new_u), json.dumps(new_d), iid),
+                )
+                updated += 1
+        _vault_log_audit(
+            conn,
+            "vault_shares_updated",
+            actor,
+            f"{updated} {item_type}(s)",
+            f"Users={len(req_users)} Depts={len(req_depts)} ({mode})",
+            owner_scope=my_ukey,
+        )
+    return jsonify(ok=True, updated=updated)
+
+
+@app.get("/api/vault/credentials")
+@signed_in
+def list_vault_credentials():
+    who = session.get("profile") or {}
+    my_ukey = _vault_current_ukey(who)
+    q = str(request.args.get("q") or "").strip().lower()
+    factory = str(request.args.get("factory") or "").strip()
+    service_type = str(request.args.get("service_type") or "").strip()
+    asset_tag = str(request.args.get("asset_tag") or "").strip()
+    scope = str(request.args.get("scope") or "").strip().lower()
+    with db() as conn:
+        dek, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        by_ukey, _, _ = _vault_user_lookup_map(conn)
+        my_dept_low = _vault_user_dept_lower(by_ukey, my_ukey, who)
         rows = conn.execute("""
             SELECT id, asset_tag, asset_name, device_type, factory, service_type,
                    host_url, port, label, ciphertext, created_by, updated_by,
-                   rotated_at, created_at, updated_at
+                   rotated_at, created_at, updated_at, owner_username,
+                   shared_item_key_enc, shared_users, shared_depts
             FROM vault_credentials
             ORDER BY updated_at DESC, created_at DESC
         """).fetchall()
     out = []
     for r in rows:
         cid = r[0]
+        owner_u = _vault_ukey(r[15] or "")
+        s_users = r[17] if isinstance(r[17], dict) else {}
+        s_depts = r[18] if isinstance(r[18], dict) else {}
+        access = _vault_item_access(owner_u, s_users, s_depts, my_ukey, my_dept_low)
+        if not access:
+            continue
+        if scope == "shared" and access == "owner":
+            continue
+        if scope == "mine" and access != "owner":
+            continue
         secret_obj = {}
         try:
-            raw_json = _vault_aes_decrypt(dek, r[9], _vault_cred_aad(cid))
+            item_key = _vault_resolve_item_key(dek, r[16], _vault_cred_aad(cid))
+            raw_json = _vault_aes_decrypt(item_key, r[9], _vault_cred_aad(cid))
             secret_obj = json.loads(raw_json.decode("utf-8"))
         except Exception:
             secret_obj = {"username": "", "password": "", "notes": "Decryption key mismatch"}
+        owner_prof = by_ukey.get(owner_u) or {}
+        owner_disp = str(owner_prof.get("name") or r[10] or owner_u)
         rec = {
             "id": cid,
             "assetTag": r[1] or "",
@@ -7384,6 +7831,17 @@ def list_vault_credentials():
             "notes": str(secret_obj.get("notes") or ""),
             "createdBy": r[10] or "",
             "updatedBy": r[11] or "",
+            "ownerUsername": owner_u,
+            "ownerName": owner_disp,
+            "accessRole": access,
+            "isSharedWithMe": access != "owner",
+            "sharedBy": owner_disp if access != "owner" else "",
+            "sharedUsers": s_users if access == "owner" else {},
+            "sharedDepts": s_depts if access == "owner" else {},
+            "shareCount": len(s_users) + len(s_depts),
+            "canEdit": access in ("owner", "edit"),
+            "canDelete": access == "owner",
+            "canShare": access == "owner",
             "rotatedAt": r[12].isoformat() if r[12] else "",
             "createdAt": r[13].isoformat() if r[13] else "",
             "updatedAt": r[14].isoformat() if r[14] else "",
@@ -7397,7 +7855,7 @@ def list_vault_credentials():
         if q:
             hay = " ".join([
                 rec["assetTag"], rec["assetName"], rec["deviceType"], rec["factory"],
-                rec["serviceType"], rec["hostUrl"], rec["label"], rec["username"], rec["notes"],
+                rec["serviceType"], rec["hostUrl"], rec["label"], rec["username"], rec["notes"], rec["ownerName"],
             ]).lower()
             if q not in hay:
                 continue
@@ -7412,7 +7870,8 @@ def create_vault_credential():
     if not session.get("is_admin") and not module_access(who, "credentials", write=True):
         return jsonify(error="Write access on Credentials Vault is required."), 403
     data = request.get_json(silent=True) or {}
-    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    my_ukey = _vault_current_ukey(who)
+    actor = str(who.get("name") or who.get("username") or my_ukey or "User")[:120]
     label = str(data.get("label") or data.get("assetName") or data.get("hostUrl") or "").strip()[:160]
     if not label:
         return jsonify(error="Credential title / label or device name is required."), 400
@@ -7436,8 +7895,8 @@ def create_vault_credential():
             """
             INSERT INTO vault_credentials(
                 id, asset_tag, asset_name, device_type, factory, service_type,
-                host_url, port, label, ciphertext, created_by, updated_by, rotated_at
-            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,now())
+                host_url, port, label, ciphertext, created_by, updated_by, owner_username, rotated_at
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,now())
             """,
             (
                 cid,
@@ -7452,8 +7911,10 @@ def create_vault_credential():
                 ct,
                 actor,
                 actor,
+                my_ukey,
             ),
         )
+        _vault_log_audit(conn, "credential_created", actor, label, cid, owner_scope=my_ukey)
     return jsonify(ok=True, id=cid), 201
 
 
@@ -7461,10 +7922,9 @@ def create_vault_credential():
 @signed_in
 def update_vault_credential(cred_id):
     who = session.get("profile") or {}
-    if not session.get("is_admin") and not module_access(who, "credentials", write=True):
-        return jsonify(error="Write access on Credentials Vault is required."), 403
+    my_ukey = _vault_current_ukey(who)
     data = request.get_json(silent=True) or {}
-    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    actor = str(who.get("name") or who.get("username") or my_ukey or "User")[:120]
     label = str(data.get("label") or data.get("assetName") or data.get("hostUrl") or "").strip()[:160]
     if not label:
         return jsonify(error="Credential title / label is required."), 400
@@ -7482,8 +7942,20 @@ def update_vault_credential(cred_id):
         dek, err = _vault_require_unlocked_dek(conn)
         if err:
             return err
-        ct = _vault_aes_encrypt(dek, json.dumps(secret_payload).encode("utf-8"), _vault_cred_aad(cred_id))
-        cur = conn.execute(
+        by_ukey, _, _ = _vault_user_lookup_map(conn)
+        my_dept_low = _vault_user_dept_lower(by_ukey, my_ukey, who)
+        cur_row = conn.execute(
+            "SELECT owner_username, shared_item_key_enc, shared_users, shared_depts FROM vault_credentials WHERE id=%s FOR UPDATE",
+            (cred_id,),
+        ).fetchone()
+        if not cur_row:
+            abort(404)
+        access = _vault_item_access(cur_row[0], cur_row[2], cur_row[3], my_ukey, my_dept_low)
+        if access not in ("owner", "edit"):
+            return jsonify(error="You only have Read permission on this shared credential."), 403
+        item_key = _vault_resolve_item_key(dek, cur_row[1], _vault_cred_aad(cred_id))
+        ct = _vault_aes_encrypt(item_key, json.dumps(secret_payload).encode("utf-8"), _vault_cred_aad(cred_id))
+        conn.execute(
             """
             UPDATE vault_credentials
             SET asset_tag=%s, asset_name=%s, device_type=%s, factory=%s, service_type=%s,
@@ -7505,8 +7977,7 @@ def update_vault_credential(cred_id):
                 cred_id,
             ),
         )
-        if cur.rowcount == 0:
-            abort(404)
+        _vault_log_audit(conn, "credential_updated", actor, label, cred_id, owner_scope=cur_row[0] or my_ukey)
     return jsonify(ok=True, id=cred_id)
 
 
@@ -7514,18 +7985,22 @@ def update_vault_credential(cred_id):
 @signed_in
 def delete_vault_credential(cred_id):
     who = session.get("profile") or {}
-    actor = str(who.get("name") or who.get("username") or "User")[:120]
-    if not session.get("is_admin") and not module_access(who, "credentials", write=True):
-        return jsonify(error="Write access on Credentials Vault is required."), 403
+    my_ukey = _vault_current_ukey(who)
+    actor = str(who.get("name") or who.get("username") or my_ukey or "User")[:120]
     with db() as conn:
         _, err = _vault_require_unlocked_dek(conn)
         if err:
             return err
-        cur = conn.execute("DELETE FROM vault_credentials WHERE id=%s RETURNING label", (cred_id,))
-        row = cur.fetchone()
-        if not row:
+        cur = conn.execute(
+            "SELECT owner_username, label FROM vault_credentials WHERE id=%s",
+            (cred_id,),
+        ).fetchone()
+        if not cur:
             abort(404)
-        _vault_log_audit(conn, "credential_deleted", actor, row[0] or cred_id, cred_id)
+        if _vault_ukey(cur[0]) != my_ukey:
+            return jsonify(error="Only the creator/owner can delete this credential."), 403
+        conn.execute("DELETE FROM vault_credentials WHERE id=%s", (cred_id,))
+        _vault_log_audit(conn, "credential_deleted", actor, cur[1] or cred_id, cred_id, owner_scope=my_ukey)
     return jsonify(ok=True)
 
 
@@ -7533,7 +8008,8 @@ def delete_vault_credential(cred_id):
 @signed_in
 def bulk_create_vault_credentials():
     who = session.get("profile") or {}
-    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    my_ukey = _vault_current_ukey(who)
+    actor = str(who.get("name") or who.get("username") or my_ukey or "User")[:120]
     if not session.get("is_admin") and not module_access(who, "credentials", write=True):
         return jsonify(error="Write access on Credentials Vault is required."), 403
     data = request.get_json(silent=True) or {}
@@ -7569,8 +8045,8 @@ def bulk_create_vault_credentials():
                 """
                 INSERT INTO vault_credentials(
                     id, asset_tag, asset_name, device_type, factory, service_type,
-                    host_url, port, label, ciphertext, created_by, updated_by, rotated_at
-                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,now())
+                    host_url, port, label, ciphertext, created_by, updated_by, owner_username, rotated_at
+                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,now())
                 """,
                 (
                     cid,
@@ -7585,23 +8061,33 @@ def bulk_create_vault_credentials():
                     ct,
                     actor,
                     actor,
+                    my_ukey,
                 ),
             )
             inserted += 1
-        _vault_log_audit(conn, "credential_bulk_import", actor, f"{inserted} device credentials", "Encrypted with AES-256-GCM")
+        _vault_log_audit(conn, "credential_bulk_import", actor, f"{inserted} device credentials", "Encrypted with AES-256-GCM", owner_scope=my_ukey)
     return jsonify(ok=True, imported=inserted), 201
 
 
 @app.get("/api/vault/audit")
 @signed_in
 def list_vault_audit_logs():
+    who = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin") or who.get("role") == "Administrator")
+    my_ukey = _vault_current_ukey(who)
     with db() as conn:
         _, err = _vault_require_unlocked_dek(conn)
         if err:
             return err
-        rows = conn.execute(
-            "SELECT id, event_type, actor, target, detail, ip_address, created_at FROM vault_audit_logs ORDER BY id DESC LIMIT 150"
-        ).fetchall()
+        if is_adm:
+            rows = conn.execute(
+                "SELECT id, event_type, actor, target, detail, ip_address, created_at FROM vault_audit_logs ORDER BY id DESC LIMIT 150"
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT id, event_type, actor, target, detail, ip_address, created_at FROM vault_audit_logs WHERE lower(owner_scope)=lower(%s) OR lower(actor)=lower(%s) ORDER BY id DESC LIMIT 150",
+                (my_ukey, my_ukey),
+            ).fetchall()
     return jsonify(items=[{
         "id": r[0], "eventType": r[1], "actor": r[2], "target": r[3],
         "detail": r[4], "ipAddress": r[5], "createdAt": r[6].isoformat() if r[6] else "",
@@ -7614,12 +8100,13 @@ def log_vault_capture_alert():
     who = session.get("profile") or {}
     if not (session.get("is_admin") or module_access(who, "credentials", write=False)):
         return jsonify(error="Credentials Vault access required."), 403
+    my_ukey = _vault_current_ukey(who)
     data = request.get_json(silent=True) or {}
     trigger = str(data.get("trigger") or "shortcut_or_blur")[:80]
     detail = str(data.get("detail") or "Screen capture attempt blocked by Vault Privacy Shield")[:300]
     actor = str(who.get("username") or session.get("user") or "unknown")[:120]
     with db() as conn:
-        _vault_log_audit(conn, "screenshot_attempt_blocked", actor, trigger, detail)
+        _vault_log_audit(conn, "screenshot_attempt_blocked", actor, trigger, detail, owner_scope=my_ukey)
     return jsonify(ok=True)
 
 
@@ -7630,14 +8117,17 @@ def _vault_doc_aad(doc_id):
 @app.get("/api/vault/folders")
 @signed_in
 def list_vault_folders():
+    who = session.get("profile") or {}
+    my_ukey = _vault_current_ukey(who)
     with db() as conn:
         _, err = _vault_require_unlocked_dek(conn)
         if err:
             return err
         rows = conn.execute(
-            "SELECT id, parent_id, name, color, icon, created_by, created_at, updated_at FROM vault_doc_folders ORDER BY name ASC"
+            "SELECT id, parent_id, name, color, icon, created_by, created_at, updated_at FROM vault_doc_folders WHERE lower(owner_username)=lower(%s) ORDER BY name ASC",
+            (my_ukey,),
         ).fetchall()
-        counts = dict(conn.execute("SELECT folder_id, count(*) FROM vault_documents GROUP BY folder_id").fetchall())
+        counts = dict(conn.execute("SELECT folder_id, count(*) FROM vault_documents WHERE lower(owner_username)=lower(%s) GROUP BY folder_id", (my_ukey,)).fetchall())
     return jsonify(items=[{
         "id": r[0], "parentId": r[1] or "", "name": r[2], "color": r[3] or "#157a54",
         "icon": r[4] or "📁", "createdBy": r[5] or "",
@@ -7651,7 +8141,8 @@ def list_vault_folders():
 @signed_in
 def create_vault_folder():
     who = session.get("profile") or {}
-    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    my_ukey = _vault_current_ukey(who)
+    actor = str(who.get("name") or who.get("username") or my_ukey or "User")[:120]
     if not session.get("is_admin") and not module_access(who, "credentials", write=True):
         return jsonify(error="Write access on Credentials Vault is required."), 403
     data = request.get_json(silent=True) or {}
@@ -7664,10 +8155,10 @@ def create_vault_folder():
         if err:
             return err
         conn.execute(
-            "INSERT INTO vault_doc_folders(id, parent_id, name, color, icon, created_by) VALUES(%s,%s,%s,%s,%s,%s)",
-            (fid, str(data.get("parentId") or "")[:40], name, str(data.get("color") or "#157a54")[:24], str(data.get("icon") or "📁")[:16], actor),
+            "INSERT INTO vault_doc_folders(id, parent_id, name, color, icon, created_by, owner_username) VALUES(%s,%s,%s,%s,%s,%s,%s)",
+            (fid, str(data.get("parentId") or "")[:40], name, str(data.get("color") or "#157a54")[:24], str(data.get("icon") or "📁")[:16], actor, my_ukey),
         )
-        _vault_log_audit(conn, "folder_created", actor, name, fid)
+        _vault_log_audit(conn, "folder_created", actor, name, fid, owner_scope=my_ukey)
     return jsonify(ok=True, id=fid, name=name), 201
 
 
@@ -7675,7 +8166,8 @@ def create_vault_folder():
 @signed_in
 def update_vault_folder(folder_id):
     who = session.get("profile") or {}
-    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    my_ukey = _vault_current_ukey(who)
+    actor = str(who.get("name") or who.get("username") or my_ukey or "User")[:120]
     if not session.get("is_admin") and not module_access(who, "credentials", write=True):
         return jsonify(error="Write access on Credentials Vault is required."), 403
     data = request.get_json(silent=True) or {}
@@ -7687,12 +8179,12 @@ def update_vault_folder(folder_id):
         if err:
             return err
         cur = conn.execute(
-            "UPDATE vault_doc_folders SET name=%s, color=%s, icon=%s, updated_at=now() WHERE id=%s",
-            (name, str(data.get("color") or "#157a54")[:24], str(data.get("icon") or "📁")[:16], folder_id),
+            "UPDATE vault_doc_folders SET name=%s, color=%s, icon=%s, updated_at=now() WHERE id=%s AND lower(owner_username)=lower(%s)",
+            (name, str(data.get("color") or "#157a54")[:24], str(data.get("icon") or "📁")[:16], folder_id, my_ukey),
         )
         if cur.rowcount == 0:
             abort(404)
-        _vault_log_audit(conn, "folder_renamed", actor, name, folder_id)
+        _vault_log_audit(conn, "folder_renamed", actor, name, folder_id, owner_scope=my_ukey)
     return jsonify(ok=True, id=folder_id)
 
 
@@ -7700,35 +8192,42 @@ def update_vault_folder(folder_id):
 @signed_in
 def delete_vault_folder(folder_id):
     who = session.get("profile") or {}
-    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    my_ukey = _vault_current_ukey(who)
+    actor = str(who.get("name") or who.get("username") or my_ukey or "User")[:120]
     if not session.get("is_admin") and not module_access(who, "credentials", write=True):
         return jsonify(error="Write access on Credentials Vault is required."), 403
     with db() as conn:
         _, err = _vault_require_unlocked_dek(conn)
         if err:
             return err
-        conn.execute("UPDATE vault_documents SET folder_id='', updated_at=now() WHERE folder_id=%s", (folder_id,))
-        cur = conn.execute("DELETE FROM vault_doc_folders WHERE id=%s RETURNING name", (folder_id,))
+        conn.execute("UPDATE vault_documents SET folder_id='', updated_at=now() WHERE folder_id=%s AND lower(owner_username)=lower(%s)", (folder_id, my_ukey))
+        cur = conn.execute("DELETE FROM vault_doc_folders WHERE id=%s AND lower(owner_username)=lower(%s) RETURNING name", (folder_id, my_ukey))
         row = cur.fetchone()
         if not row:
             abort(404)
-        _vault_log_audit(conn, "folder_deleted", actor, row[0] or folder_id, "Documents moved to Root")
+        _vault_log_audit(conn, "folder_deleted", actor, row[0] or folder_id, "Documents moved to Root", owner_scope=my_ukey)
     return jsonify(ok=True)
 
 
 @app.get("/api/vault/documents")
 @signed_in
 def list_vault_documents():
+    who = session.get("profile") or {}
+    my_ukey = _vault_current_ukey(who)
     folder_id = str(request.args.get("folder_id") or "").strip()
     q = str(request.args.get("q") or "").strip().lower()
     with db() as conn:
         dek, err = _vault_require_unlocked_dek(conn)
         if err:
             return err
+        by_ukey, _, _ = _vault_user_lookup_map(conn)
+        my_dept_low = _vault_user_dept_lower(by_ukey, my_ukey, who)
         rows = conn.execute(
             """
             SELECT id, folder_id, title, orig_filename, file_ext, mime_type,
-                   file_size, sha256, enc_rel_path, meta_ciphertext, uploaded_by, created_at, updated_at
+                   file_size, sha256, enc_rel_path, meta_ciphertext, uploaded_by,
+                   created_at, updated_at, owner_username, shared_item_key_enc,
+                   shared_users, shared_depts
             FROM vault_documents
             ORDER BY updated_at DESC, created_at DESC
             """
@@ -7736,27 +8235,51 @@ def list_vault_documents():
     out = []
     for r in rows:
         did = r[0]
+        owner_u = _vault_ukey(r[13] or "")
+        s_users = r[15] if isinstance(r[15], dict) else {}
+        s_depts = r[16] if isinstance(r[16], dict) else {}
+        access = _vault_item_access(owner_u, s_users, s_depts, my_ukey, my_dept_low)
+        if not access:
+            continue
+        is_shared_me = access != "owner"
         if folder_id and folder_id != "ALL":
-            if folder_id == "ROOT" and r[1]:
-                continue
-            elif folder_id != "ROOT" and r[1] != folder_id:
-                continue
+            if folder_id == "SHARED":
+                if not is_shared_me:
+                    continue
+            elif folder_id == "ROOT":
+                if is_shared_me or r[1]:
+                    continue
+            else:
+                if is_shared_me or r[1] != folder_id:
+                    continue
         notes = ""
         if r[9]:
             try:
-                m_obj = json.loads(_vault_aes_decrypt(dek, r[9], _vault_doc_aad(did + ":meta")).decode("utf-8"))
+                item_key = _vault_resolve_item_key(dek, r[14], _vault_doc_aad(did))
+                m_obj = json.loads(_vault_aes_decrypt(item_key, r[9], _vault_doc_aad(did + ":meta")).decode("utf-8"))
                 notes = str(m_obj.get("notes") or "")
             except Exception:
                 notes = ""
+        owner_prof = by_ukey.get(owner_u) or {}
+        owner_disp = str(owner_prof.get("name") or r[10] or owner_u)
         item = {
-            "id": did, "folderId": r[1] or "", "title": r[2], "origFilename": r[3],
+            "id": did, "folderId": "" if is_shared_me else (r[1] or ""), "title": r[2], "origFilename": r[3],
             "fileExt": r[4] or "", "mimeType": r[5] or "", "fileSize": int(r[6] or 0),
             "sha256": r[7] or "", "notes": notes, "uploadedBy": r[10] or "",
+            "ownerUsername": owner_u, "ownerName": owner_disp,
+            "accessRole": access, "isSharedWithMe": is_shared_me,
+            "sharedBy": owner_disp if is_shared_me else "",
+            "sharedUsers": s_users if access == "owner" else {},
+            "sharedDepts": s_depts if access == "owner" else {},
+            "shareCount": len(s_users) + len(s_depts),
+            "canEdit": access in ("owner", "edit"),
+            "canDelete": access == "owner",
+            "canShare": access == "owner",
             "createdAt": r[11].isoformat() if r[11] else "",
             "updatedAt": r[12].isoformat() if r[12] else "",
         }
         if q:
-            hay = " ".join([item["title"], item["origFilename"], item["fileExt"], item["notes"]]).lower()
+            hay = " ".join([item["title"], item["origFilename"], item["fileExt"], item["notes"], item["ownerName"]]).lower()
             if q not in hay:
                 continue
         out.append(item)
@@ -7767,7 +8290,8 @@ def list_vault_documents():
 @signed_in
 def upload_vault_document():
     who = session.get("profile") or {}
-    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    my_ukey = _vault_current_ukey(who)
+    actor = str(who.get("name") or who.get("username") or my_ukey or "User")[:120]
     if not session.get("is_admin") and not module_access(who, "credentials", write=True):
         return jsonify(error="Write access on Credentials Vault is required."), 403
     f = request.files.get("file")
@@ -7797,36 +8321,101 @@ def upload_vault_document():
             """
             INSERT INTO vault_documents(
                 id, folder_id, title, orig_filename, file_ext, mime_type,
-                file_size, sha256, enc_rel_path, meta_ciphertext, uploaded_by
-            ) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                file_size, sha256, enc_rel_path, meta_ciphertext, uploaded_by, owner_username
+            ) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             """,
-            (doc_id, folder_id, title, orig_name, ext, mime[:120], len(raw_bytes), sha_hex, enc_name, meta_ct, actor),
+            (doc_id, folder_id, title, orig_name, ext, mime[:120], len(raw_bytes), sha_hex, enc_name, meta_ct, actor, my_ukey),
         )
-        _vault_log_audit(conn, "document_uploaded", actor, title, f"{orig_name} ({len(raw_bytes)} bytes) encrypted AES-256-GCM")
+        _vault_log_audit(conn, "document_uploaded", actor, title, f"{orig_name} ({len(raw_bytes)} bytes) encrypted AES-256-GCM", owner_scope=my_ukey)
     return jsonify(ok=True, id=doc_id, sha256=sha_hex), 201
+
+
+@app.put("/api/vault/documents/<path:doc_id>")
+@signed_in
+def update_vault_document(doc_id):
+    who = session.get("profile") or {}
+    my_ukey = _vault_current_ukey(who)
+    actor = str(who.get("name") or who.get("username") or my_ukey or "User")[:120]
+    if request.files or request.form:
+        title = str(request.form.get("title") or "").strip()[:160]
+        notes = str(request.form.get("notes") or "")[:3000]
+        folder_id = request.form.get("folderId")
+        f = request.files.get("file") if request.files else None
+    else:
+        data = request.get_json(silent=True) or {}
+        title = str(data.get("title") or "").strip()[:160]
+        notes = str(data.get("notes") or "")[:3000]
+        folder_id = data.get("folderId")
+        f = None
+    if not title:
+        return jsonify(error="Document title is required."), 400
+    with db() as conn:
+        dek, err = _vault_require_unlocked_dek(conn)
+        if err:
+            return err
+        by_ukey, _, _ = _vault_user_lookup_map(conn)
+        my_dept_low = _vault_user_dept_lower(by_ukey, my_ukey, who)
+        row = conn.execute(
+            "SELECT owner_username, folder_id, orig_filename, file_ext, mime_type, file_size, sha256, enc_rel_path, shared_item_key_enc, shared_users, shared_depts FROM vault_documents WHERE id=%s FOR UPDATE",
+            (doc_id,),
+        ).fetchone()
+        if not row:
+            abort(404)
+        access = _vault_item_access(row[0], row[9], row[10], my_ukey, my_dept_low)
+        if access not in ("owner", "edit"):
+            return jsonify(error="You only have Read permission on this shared document."), 403
+        item_key = _vault_resolve_item_key(dek, row[8], _vault_doc_aad(doc_id))
+        orig_name, ext, mime, fsize, sha_hex = row[2], row[3], row[4], int(row[5] or 0), row[6]
+        if f and getattr(f, "filename", ""):
+            raw_bytes = f.read()
+            if not raw_bytes:
+                return jsonify(error="Replacement file cannot be empty."), 400
+            orig_name = Path(f.filename).name[:200]
+            ext = Path(orig_name).suffix.lower().lstrip(".")
+            mime = (f.mimetype or mimetypes.guess_type(orig_name)[0] or "application/octet-stream")[:120]
+            fsize = len(raw_bytes)
+            sha_hex = hashlib.sha256(raw_bytes).hexdigest()
+            enc_path = (VAULT_DOCS_DIR / str(row[7])).resolve()
+            if enc_path.is_relative_to(VAULT_DOCS_DIR.resolve()):
+                enc_path.write_text(_vault_aes_encrypt(item_key, raw_bytes, _vault_doc_aad(doc_id)), encoding="ascii")
+        new_folder = (str(folder_id or "").strip()[:40] if (access == "owner" and folder_id is not None) else (row[1] or ""))
+        new_meta_ct = _vault_aes_encrypt(item_key, json.dumps({"notes": notes}).encode("utf-8"), _vault_doc_aad(doc_id + ":meta"))
+        conn.execute(
+            """
+            UPDATE vault_documents
+            SET folder_id=%s, title=%s, orig_filename=%s, file_ext=%s, mime_type=%s,
+                file_size=%s, sha256=%s, meta_ciphertext=%s, updated_at=now()
+            WHERE id=%s
+            """,
+            (new_folder, title, orig_name, ext, mime, fsize, sha_hex, new_meta_ct, doc_id),
+        )
+        _vault_log_audit(conn, "document_updated", actor, title, doc_id, owner_scope=row[0] or my_ukey)
+    return jsonify(ok=True, id=doc_id)
 
 
 @app.delete("/api/vault/documents/<path:doc_id>")
 @signed_in
 def delete_vault_document(doc_id):
     who = session.get("profile") or {}
-    actor = str(who.get("name") or who.get("username") or "User")[:120]
-    if not session.get("is_admin") and not module_access(who, "credentials", write=True):
-        return jsonify(error="Write access on Credentials Vault is required."), 403
+    my_ukey = _vault_current_ukey(who)
+    actor = str(who.get("name") or who.get("username") or my_ukey or "User")[:120]
     with db() as conn:
         _, err = _vault_require_unlocked_dek(conn)
         if err:
             return err
-        row = conn.execute("DELETE FROM vault_documents WHERE id=%s RETURNING enc_rel_path, title", (doc_id,)).fetchone()
-        if not row:
+        cur = conn.execute("SELECT owner_username, enc_rel_path, title FROM vault_documents WHERE id=%s", (doc_id,)).fetchone()
+        if not cur:
             abort(404)
+        if _vault_ukey(cur[0]) != my_ukey:
+            return jsonify(error="Only the creator/owner can delete this document."), 403
+        conn.execute("DELETE FROM vault_documents WHERE id=%s", (doc_id,))
         try:
-            target = (VAULT_DOCS_DIR / row[0]).resolve()
+            target = (VAULT_DOCS_DIR / str(cur[1])).resolve()
             if target.is_relative_to(VAULT_DOCS_DIR.resolve()):
                 target.unlink(missing_ok=True)
         except Exception:
             pass
-        _vault_log_audit(conn, "document_deleted", actor, row[1] or doc_id, doc_id)
+        _vault_log_audit(conn, "document_deleted", actor, cur[2] or doc_id, doc_id, owner_scope=my_ukey)
     return jsonify(ok=True)
 
 
@@ -8115,22 +8704,29 @@ def _vault_build_preview(raw_bytes, doc_id, ext, mime):
 @signed_in
 def preview_vault_document(doc_id):
     who = session.get("profile") or {}
-    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    my_ukey = _vault_current_ukey(who)
+    actor = str(who.get("name") or who.get("username") or my_ukey or "User")[:120]
     with db() as conn:
         dek, err = _vault_require_unlocked_dek(conn)
         if err:
             return err
+        by_ukey, _, _ = _vault_user_lookup_map(conn)
+        my_dept_low = _vault_user_dept_lower(by_ukey, my_ukey, who)
         row = conn.execute(
-            "SELECT id, title, orig_filename, file_ext, mime_type, enc_rel_path FROM vault_documents WHERE id=%s",
+            "SELECT id, title, orig_filename, file_ext, mime_type, enc_rel_path, owner_username, shared_item_key_enc, shared_users, shared_depts FROM vault_documents WHERE id=%s",
             (doc_id,),
         ).fetchone()
         if not row:
             abort(404)
+        access = _vault_item_access(row[6], row[8], row[9], my_ukey, my_dept_low)
+        if not access:
+            return jsonify(error="You do not have access to this document."), 403
         enc_path = (VAULT_DOCS_DIR / row[5]).resolve()
         if not enc_path.is_relative_to(VAULT_DOCS_DIR.resolve()) or not enc_path.is_file():
             abort(404)
-        raw_bytes = _vault_aes_decrypt(dek, enc_path.read_text(encoding="ascii"), _vault_doc_aad(doc_id))
-        _vault_log_audit(conn, "document_previewed", actor, row[1] or row[2], doc_id)
+        item_key = _vault_resolve_item_key(dek, row[7], _vault_doc_aad(doc_id))
+        raw_bytes = _vault_aes_decrypt(item_key, enc_path.read_text(encoding="ascii"), _vault_doc_aad(doc_id))
+        _vault_log_audit(conn, "document_previewed", actor, row[1] or row[2], doc_id, owner_scope=row[6] or my_ukey)
     try:
         preview_obj = _vault_build_preview(raw_bytes, doc_id, row[3], row[4])
     except Exception as exc:
@@ -8142,17 +8738,27 @@ def preview_vault_document(doc_id):
 @app.get("/api/vault/documents/<path:doc_id>/inline")
 @signed_in
 def inline_vault_document_pdf(doc_id):
+    who = session.get("profile") or {}
+    my_ukey = _vault_current_ukey(who)
     with db() as conn:
         dek, err = _vault_require_unlocked_dek(conn)
         if err:
             return err
-        row = conn.execute("SELECT orig_filename, mime_type, enc_rel_path FROM vault_documents WHERE id=%s", (doc_id,)).fetchone()
+        by_ukey, _, _ = _vault_user_lookup_map(conn)
+        my_dept_low = _vault_user_dept_lower(by_ukey, my_ukey, who)
+        row = conn.execute(
+            "SELECT orig_filename, mime_type, enc_rel_path, owner_username, shared_item_key_enc, shared_users, shared_depts FROM vault_documents WHERE id=%s",
+            (doc_id,),
+        ).fetchone()
         if not row:
             abort(404)
+        if not _vault_item_access(row[3], row[5], row[6], my_ukey, my_dept_low):
+            return jsonify(error="You do not have access to this document."), 403
         enc_path = (VAULT_DOCS_DIR / row[2]).resolve()
         if not enc_path.is_relative_to(VAULT_DOCS_DIR.resolve()) or not enc_path.is_file():
             abort(404)
-        raw_bytes = _vault_aes_decrypt(dek, enc_path.read_text(encoding="ascii"), _vault_doc_aad(doc_id))
+        item_key = _vault_resolve_item_key(dek, row[4], _vault_doc_aad(doc_id))
+        raw_bytes = _vault_aes_decrypt(item_key, enc_path.read_text(encoding="ascii"), _vault_doc_aad(doc_id))
     resp = Response(raw_bytes, mimetype=row[1] or "application/pdf")
     resp.headers["Content-Disposition"] = f'inline; filename="{secure_filename(row[0]) or "document.pdf"}"'
     resp.headers["X-Frame-Options"] = "SAMEORIGIN"
@@ -8164,28 +8770,37 @@ def inline_vault_document_pdf(doc_id):
 @signed_in
 def download_vault_document_protected(doc_id):
     who = session.get("profile") or {}
-    actor = str(who.get("name") or who.get("username") or "User")[:120]
+    my_ukey = _vault_current_ukey(who)
+    actor = str(who.get("name") or who.get("username") or my_ukey or "User")[:120]
     data = request.get_json(silent=True) or {}
     dl_pwd = str(data.get("downloadPassword") or "")
     with db() as conn:
         dek, err = _vault_require_unlocked_dek(conn)
         if err:
             return err
-        cfg = _vault_ensure_config_row(conn)
+        cfg = _vault_ensure_config_row(conn, my_ukey)
         dl_hash = str(cfg[20] or "")
         if not dl_hash:
-            return jsonify(error="Download Password not configured yet. Ask Administrator to set the Separate Document Download Password in Vault Security."), 428
+            return jsonify(error="Set your Separate Document Download Password in My Vault Security first before downloading."), 428
         if not dl_pwd or not check_password_hash(dl_hash, dl_pwd):
-            _vault_log_audit(conn, "doc_download_denied", actor, doc_id, "Incorrect Separate Download Password")
+            _vault_log_audit(conn, "doc_download_denied", actor, doc_id, "Incorrect Separate Download Password", owner_scope=my_ukey)
             return jsonify(error="Incorrect Document Download Password."), 401
-        row = conn.execute("SELECT title, orig_filename, mime_type, enc_rel_path FROM vault_documents WHERE id=%s", (doc_id,)).fetchone()
+        by_ukey, _, _ = _vault_user_lookup_map(conn)
+        my_dept_low = _vault_user_dept_lower(by_ukey, my_ukey, who)
+        row = conn.execute(
+            "SELECT title, orig_filename, mime_type, enc_rel_path, owner_username, shared_item_key_enc, shared_users, shared_depts FROM vault_documents WHERE id=%s",
+            (doc_id,),
+        ).fetchone()
         if not row:
             abort(404)
+        if not _vault_item_access(row[4], row[6], row[7], my_ukey, my_dept_low):
+            return jsonify(error="You do not have access to this document."), 403
         enc_path = (VAULT_DOCS_DIR / row[3]).resolve()
         if not enc_path.is_relative_to(VAULT_DOCS_DIR.resolve()) or not enc_path.is_file():
             abort(404)
-        raw_bytes = _vault_aes_decrypt(dek, enc_path.read_text(encoding="ascii"), _vault_doc_aad(doc_id))
-        _vault_log_audit(conn, "document_downloaded", actor, row[0] or row[1], row[1])
+        item_key = _vault_resolve_item_key(dek, row[5], _vault_doc_aad(doc_id))
+        raw_bytes = _vault_aes_decrypt(item_key, enc_path.read_text(encoding="ascii"), _vault_doc_aad(doc_id))
+        _vault_log_audit(conn, "document_downloaded", actor, row[0] or row[1], row[1], owner_scope=row[4] or my_ukey)
     resp = Response(raw_bytes, mimetype=row[2] or "application/octet-stream")
     safe_dl = row[1].replace('"', "").replace("\r", "").replace("\n", "")
     resp.headers["Content-Disposition"] = f'attachment; filename="{safe_dl}"'

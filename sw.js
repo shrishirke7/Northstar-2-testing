@@ -1,5 +1,5 @@
 /* Shree IT Asset Intelligence - Progressive Web App Service Worker */
-const CACHE_NAME = 'shree-pwa-v5';
+const CACHE_NAME = 'shree-pwa-v6';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -43,8 +43,8 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // 1. NEVER cache live streams or API requests - always network only
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/cctv/')) {
+  // 1. NEVER cache live streams, login media, or API requests - always network only
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/cctv/') || url.pathname.startsWith('/login-media/')) {
     return;
   }
 

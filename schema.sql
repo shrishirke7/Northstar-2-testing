@@ -270,3 +270,42 @@ CREATE TABLE IF NOT EXISTS vault_audit_logs (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS vault_audit_created_idx ON vault_audit_logs(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS vault_user_security (
+  username text PRIMARY KEY,
+  initialized boolean NOT NULL DEFAULT false,
+  pin_length integer NOT NULL DEFAULT 4,
+  pin_hash text NOT NULL DEFAULT '',
+  keyword_hash text NOT NULL DEFAULT '',
+  kdf_salt text NOT NULL DEFAULT '',
+  wrapped_dek_pin_kw text NOT NULL DEFAULT '',
+  voice_enabled boolean NOT NULL DEFAULT false,
+  voice_phrase_hash text NOT NULL DEFAULT '',
+  voice_feature_enc text NOT NULL DEFAULT '',
+  wrapped_dek_voice text NOT NULL DEFAULT '',
+  download_password_hash text NOT NULL DEFAULT '',
+  failed_attempts integer NOT NULL DEFAULT 0,
+  max_attempts integer NOT NULL DEFAULT 5,
+  permanently_locked boolean NOT NULL DEFAULT false,
+  locked_at timestamptz,
+  auto_lock_minutes integer NOT NULL DEFAULT 10,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  updated_by text NOT NULL DEFAULT ''
+);
+
+ALTER TABLE vault_credentials ADD COLUMN IF NOT EXISTS owner_username text NOT NULL DEFAULT '';
+ALTER TABLE vault_credentials ADD COLUMN IF NOT EXISTS shared_item_key_enc text NOT NULL DEFAULT '';
+ALTER TABLE vault_credentials ADD COLUMN IF NOT EXISTS shared_users jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE vault_credentials ADD COLUMN IF NOT EXISTS shared_depts jsonb NOT NULL DEFAULT '{}'::jsonb;
+CREATE INDEX IF NOT EXISTS vault_creds_owner_idx ON vault_credentials(owner_username);
+
+ALTER TABLE vault_doc_folders ADD COLUMN IF NOT EXISTS owner_username text NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS vault_folders_owner_idx ON vault_doc_folders(owner_username);
+
+ALTER TABLE vault_documents ADD COLUMN IF NOT EXISTS owner_username text NOT NULL DEFAULT '';
+ALTER TABLE vault_documents ADD COLUMN IF NOT EXISTS shared_item_key_enc text NOT NULL DEFAULT '';
+ALTER TABLE vault_documents ADD COLUMN IF NOT EXISTS shared_users jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE vault_documents ADD COLUMN IF NOT EXISTS shared_depts jsonb NOT NULL DEFAULT '{}'::jsonb;
+CREATE INDEX IF NOT EXISTS vault_docs_owner_idx ON vault_documents(owner_username);
+
+ALTER TABLE vault_audit_logs ADD COLUMN IF NOT EXISTS owner_scope text NOT NULL DEFAULT '';
