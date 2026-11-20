@@ -1684,6 +1684,7 @@ button,a,.btn,.site-chip,.nav button,.mb-nav-item,.ov-mob-tab{touch-action:manip
 <div class="panel settings-panel" id="siteNamePanel"><div class="panel-head"><div><div class="panel-title">🌐 Site Name &amp; Domain Live Setup (Zero-Config LAN &amp; Port 80/443)</div><div class="panel-sub">Set any LAN name (e.g. swarnshilp.local) or custom domain (e.g. it.yourcompany.com). Auto-broadcasts on LAN via mDNS/LLMNR and auto-configures Host Nginx port 80/443.</div></div></div><div style="padding:14px 18px"><div class="form-grid" style="align-items:end"><label class="field">Domain Name / Site Name<input id="siteNameInput" class="filter-input" placeholder="e.g. swarnshilp.local or it.yourcompany.com" maxlength="120"></label><label class="field">HTTP Web Port<input id="siteHttpPortInput" class="filter-input" type="number" min="1" max="65535" placeholder="8848" value="8848"></label><label class="field">HTTPS SSL Port<input id="siteHttpsPortInput" class="filter-input" type="number" min="1" max="65535" placeholder="8849" value="8849"></label><div class="field" style="display:flex;gap:8px;flex-wrap:wrap;grid-column:1/-1"><button type="button" class="btn primary" id="saveSiteSettingsBtn" onclick="saveSiteNameSettings()">Save &amp; Apply Network Settings</button><button type="button" class="btn" id="regenSslCertBtn" onclick="regenerateSslCertificates()">🔄 Generate Fresh CA &amp; SSL Cert</button><button type="button" class="btn" onclick="copySiteUrl()">📋 Copy site link</button><button type="button" class="btn" onclick="copyErpNextNginxSnippet()">📋 Copy Reverse Proxy Nginx Config</button><button type="button" class="btn" onclick="copyCloudflareTunnelGuide()">⚡ Cloudflare Tunnel Guide</button></div></div><div id="siteNameStatusNote" class="form-note" style="margin-top:10px;line-height:1.6"></div></div></div>
 <div class="panel settings-panel"><div class="panel-head"><div><div class="panel-title">Sign-in page customization</div><div class="panel-sub">Set your brand, logo and up to five rotating slideshow images.</div></div></div><form id="loginBrandingForm" class="form-grid" style="padding:16px 18px"><label class="field">Company / brand name<input id="loginBrandCompany" name="companyName" maxlength="120" placeholder="Company name"></label><label class="field">Logo (PNG, JPG or WebP · max 10 MB)<input id="loginBrandLogoFile" name="logo" type="file" accept="image/png,image/jpeg,image/webp"></label><div class="field"><span>Slideshow photos (up to 5 · max 10 MB each)</span><div class="login-brand-upload-slots"><label class="login-brand-upload-slot"><span>Photo 1</span><input id="loginBrandSlideFile1" name="slidesUpload" type="file" accept="image/png,image/jpeg,image/webp"></label><label class="login-brand-upload-slot"><span>Photo 2</span><input id="loginBrandSlideFile2" name="slidesUpload" type="file" accept="image/png,image/jpeg,image/webp"></label><label class="login-brand-upload-slot"><span>Photo 3</span><input id="loginBrandSlideFile3" name="slidesUpload" type="file" accept="image/png,image/jpeg,image/webp"></label><label class="login-brand-upload-slot"><span>Photo 4</span><input id="loginBrandSlideFile4" name="slidesUpload" type="file" accept="image/png,image/jpeg,image/webp"></label><label class="login-brand-upload-slot"><span>Photo 5</span><input id="loginBrandSlideFile5" name="slidesUpload" type="file" accept="image/png,image/jpeg,image/webp"></label></div></div><label class="field">Seconds per slide<input id="loginBrandInterval" name="slideInterval" type="number" min="3" max="30" value="6"></label><div class="field"><span class="ticket-meta">Current slideshow</span><div id="loginBrandSlidesPreview" class="login-brand-slides-preview"></div></div><div class="field full form-actions"><button type="button" class="btn" onclick="resetLoginBrandingForm()">Reset changes</button><button class="btn primary" type="submit">Save sign-in page</button><span id="loginBrandStatus" class="form-note" aria-live="polite"></span></div></form></div>
 <div class="panel settings-panel"><div class="panel-head"><div><div class="panel-title">Modules and navigation</div><div class="panel-sub">Turn modules on or off for this workspace.</div></div></div><div class="settings-grid" id="moduleSettings"></div></div>
+<div class="panel settings-panel" id="portalCustomizePanel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">🌐 Without-login Portal Customization (Public Tiles &amp; Visibility)</div><div class="panel-sub">Show/hide Visitor Pass, Material Gate &amp; page elements, display Complaint Desks as large tiles, and add or customize dynamic Big Tiles for /portal.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="portalCfgSyncDesksBtn">↻ Sync Desks</button><a class="btn" href="/portal" target="_blank" rel="noreferrer">Open Portal ↗</a><button type="button" class="btn primary" id="portalCfgSaveBtn">💾 Save &amp; Publish Portal</button></div></div><div id="portalCustomizeBody" style="padding:14px 18px"><div class="small" style="color:#64748b">Loading portal customization studio…</div></div></div>
 <div class="panel settings-panel"><div class="panel-head"><div><div class="panel-title">Asset categories &amp; sub-categories</div><div class="panel-sub">Drag categories using ⠿ to reorder across Overview, Asset inventory &amp; dropdowns. Enable/disable Overview tiles dynamically.</div></div><button class="btn primary" onclick="addAssetCategory()">＋ Add category</button></div><div id="settingsCategories" class="settings-list"></div></div>
 <div class="settings-columns"><div class="panel settings-panel"><div class="panel-head"><div><div class="panel-title">Software defaults</div><div class="panel-sub">Configure license warning window and renewal reminders.</div></div></div><label class="field">License expiry warning (days)<input id="licenseWarningDays" type="number" min="0" max="365" value="30"></label><label class="check-row"><input id="licenseAlertsEnabled" type="checkbox" checked> Show license expiry alerts</label></div>
 <div class="panel settings-panel"><div class="panel-head"><div><div class="panel-title">Ticketing defaults</div><div class="panel-sub">Configure request categories and default priority.</div></div><button class="btn" onclick="addTicketCategory()">＋ Add category</button></div><div id="settingsTicketCategories" class="settings-list"></div><label class="field">Default priority<select id="defaultTicketPriority"><option>Normal</option><option>Low</option><option>High</option><option>Urgent</option></select></label></div></div>
@@ -6813,7 +6814,8 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
             materialRequestCategories: sObj.materialRequestCategories || itMat,
             defaultTicketPriority: sObj.defaultTicketPriority || nextPrio,
             complaintDesks: sObj.complaintDesks || desks,
-            showAllDesksOnPortal: typeof sObj.showAllDesksOnPortal === 'boolean' ? sObj.showAllDesksOnPortal : showAllDesks
+            showAllDesksOnPortal: typeof sObj.showAllDesksOnPortal === 'boolean' ? sObj.showAllDesksOnPortal : showAllDesks,
+            ...(sObj.portalConfig ? { portalConfig: sObj.portalConfig } : {})
           });
         }
       }catch(err){
@@ -18003,6 +18005,739 @@ let lastPulseGatepassRev = '';
       return buildUserImportPreview();
     },
   };
+})();
+</script>
+<style>
+#portalCustomizePanel .pc-grid-switches{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:9px;margin-bottom:14px}
+#portalCustomizePanel .pc-switch-card{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid #d5e2da;border-radius:12px;background:#f8fbf9;cursor:pointer;transition:.15s}
+#portalCustomizePanel .pc-switch-card:hover{border-color:#93c5ab;background:#f1f9f4}
+#portalCustomizePanel .pc-switch-card input[type="checkbox"]{margin-top:2px;width:16px;height:16px;accent-color:#15803d;flex-shrink:0}
+#portalCustomizePanel .pc-switch-card b{display:block;font-size:12.5px;color:#14241c}
+#portalCustomizePanel .pc-switch-card small{display:block;font-size:11px;color:#5a6b61;margin-top:2px;line-height:1.35}
+#portalCustomizePanel .pc-sec-title{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#15803d;margin:14px 0 8px}
+#portalCustomizePanel .pc-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:12px}
+#portalCustomizePanel .pc-field{display:flex;flex-direction:column;gap:4px;font-size:11.5px;font-weight:700;color:#334155}
+#portalCustomizePanel .pc-field input,#portalCustomizePanel .pc-field select{padding:8px 10px;border:1px solid #cbd5e1;border-radius:9px;font-size:12.5px;background:#fff;color:#0f172a}
+#portalCustomizePanel .pc-preview-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(126px,1fr));gap:8px;padding:12px;border:1px dashed #b8d3c3;border-radius:14px;background:#fcfefd;margin-bottom:14px}
+#portalCustomizePanel .pc-pv-tile{background:#fff;border:1.5px solid #d5e2da;border-radius:14px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;text-align:center}
+#portalCustomizePanel .pc-pv-ico{width:36px;height:36px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:18px;box-shadow:0 4px 10px rgba(15,23,42,.13)}
+#portalCustomizePanel .pc-pv-title{font-size:11.5px;font-weight:800;color:#1b2a22;line-height:1.2;word-break:break-word}
+#portalCustomizePanel .pc-pv-sub{font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:99px;background:#f1f5f9;color:#475569;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#portalCustomizePanel .pc-tile-row{border:1px solid #dce6df;border-radius:12px;background:#fff;padding:10px 12px;margin-bottom:8px}
+#portalCustomizePanel .pc-tile-row.is-hidden{opacity:.68;background:#f8fafc}
+#portalCustomizePanel .pc-tile-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+#portalCustomizePanel .pc-tile-meta{display:flex;align-items:center;gap:10px;min-width:200px;flex:1}
+#portalCustomizePanel .pc-tile-actions{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+#portalCustomizePanel .pc-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe}
+#portalCustomizePanel .pc-badge.desk{background:#ecfdf5;color:#065f46;border-color:#a7f3d0}
+#portalCustomizePanel .pc-badge.gate{background:#fffbeb;color:#92400e;border-color:#fde68a}
+#portalCustomizePanel .pc-edit-box{margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0}
+#portalCustomizePanel .pc-add-box{margin-top:14px;padding:14px;border:1px solid #cbe4d6;border-radius:14px;background:#f6fbf8}
+#portalCustomizePanel .pc-emoji-picks{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+#portalCustomizePanel .pc-emoji-chip{padding:3px 7px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;cursor:pointer;font-size:14px;line-height:1.1}
+#portalCustomizePanel .pc-emoji-chip:hover{border-color:#15803d;background:#ecfdf5}
+.pc-grad-emerald{background:linear-gradient(135deg,#10b981,#047857)}
+.pc-grad-blue{background:linear-gradient(135deg,#38bdf8,#2563eb)}
+.pc-grad-amber{background:linear-gradient(135deg,#fbbf24,#ea580c)}
+.pc-grad-indigo{background:linear-gradient(135deg,#818cf8,#4f46e5)}
+.pc-grad-teal{background:linear-gradient(135deg,#2dd4bf,#0f766e)}
+.pc-grad-rose{background:linear-gradient(135deg,#fb7185,#e11d48)}
+.pc-grad-cyan{background:linear-gradient(135deg,#22d3ee,#0284c7)}
+.pc-grad-slate{background:linear-gradient(135deg,#64748b,#334155)}
+</style>
+<script>
+(function(){
+  const THEMES = [
+    ['emerald', 'Emerald Green'],
+    ['blue', 'Sky Blue'],
+    ['amber', 'Warm Amber'],
+    ['indigo', 'Indigo Violet'],
+    ['teal', 'Deep Teal'],
+    ['rose', 'Ruby Rose'],
+    ['cyan', 'Ocean Cyan'],
+    ['slate', 'Slate Dark']
+  ];
+  const QUICK_EMOJIS = ['💻', '🔧', '⚡', '🏢', '🪪', '📦', '🎫', '🔍', '🛒', '🛠️', '🧹', '🚒', '📞', '📊', '🔑', '🚛'];
+  const WORKSPACE_ROUTES = [
+    ['', '-- Choose existing module or type custom URL below --'],
+    ['/#tickets', 'Logged-in Ticketing Board (/#tickets)'],
+    ['/#visitors', 'Visitor Register Console (/#visitors)'],
+    ['/#gatepass', 'Material Gate Pass Console (/#gatepass)'],
+    ['/#dashboard', 'Overview Dashboard (/#dashboard)'],
+    ['/#assets', 'Asset Inventory (/#assets)'],
+    ['/#parts', 'Parts Inventory (/#parts)'],
+    ['/#datacenter', 'Data Center & Servers (/#datacenter)'],
+    ['/#surveillance', 'CCTV & Surveillance (/#surveillance)'],
+    ['/portal?tab=visitor', 'Direct Portal: Visitor Tab'],
+    ['/portal?tab=gatepass', 'Direct Portal: Material Gate Tab']
+  ];
+
+  let draftConfig = null;
+  let editingTileIdx = -1;
+  let hasUnsaved = false;
+
+  function pcEsc(v){
+    return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function getWs(){
+    try{ if(typeof workspaceSettings === 'function') return workspaceSettings() || {}; }catch(_){}
+    try{ return JSON.parse(localStorage.getItem('northstar-settings') || '{}'); }catch(_){ return {}; }
+  }
+  function getDesksList(){
+    try{
+      if(typeof window.getComplaintDesks === 'function'){
+        const d = window.getComplaintDesks();
+        if(Array.isArray(d) && d.length) return d;
+      }
+    }catch(_){}
+    const ws = getWs();
+    if(Array.isArray(ws.complaintDesks) && ws.complaintDesks.length) return ws.complaintDesks;
+    return [
+      { id: 'it', name: 'IT Department', icon: '💻' },
+      { id: 'plumber', name: 'Plumber', icon: '🔧' },
+      { id: 'electrician', name: 'Electrician', icon: '⚡' },
+      { id: 'admin', name: 'Admin Dept', icon: '🏢' }
+    ];
+  }
+  function canAdminPortal(){
+    if(typeof serverMode === 'undefined' || !serverMode) return true;
+    return typeof serverAdmin !== 'undefined' && Boolean(serverAdmin);
+  }
+  function defaultTileForDesk(dk, idx){
+    const subMap = { it: 'IT Support', plumber: 'Plumbing', electrician: 'Electrical', admin: 'Facility / Admin' };
+    const thMap = { it: 'emerald', plumber: 'cyan', electrician: 'amber', admin: 'indigo' };
+    const pal = ['emerald', 'cyan', 'amber', 'indigo', 'teal', 'blue', 'rose'];
+    return {
+      id: 'desk:' + dk.id,
+      action: 'complaint-desk',
+      deskId: dk.id,
+      requestKind: '',
+      gateDirection: '',
+      targetUrl: '',
+      openNewTab: false,
+      title: String(dk.name || dk.id).slice(0, 60),
+      subtitle: subMap[dk.id] || 'Service Desk',
+      icon: String(dk.icon || '🎫').slice(0, 12),
+      theme: thMap[dk.id] || pal[idx % pal.length],
+      visible: true,
+      builtin: true
+    };
+  }
+  function normalizeDraftClient(rawCfg, syncAllDesks){
+    const raw = rawCfg && typeof rawCfg === 'object' ? rawCfg : {};
+    const desks = getDesksList();
+    const validIds = new Set(desks.map(d => d.id));
+    let tiles = Array.isArray(raw.tiles) && raw.tiles.length ? raw.tiles.map(t => ({ ...t })) : [];
+    if(!tiles.length){
+      tiles = [
+        ...desks.map((d, i) => defaultTileForDesk(d, i)),
+        { id: 'visitor', action: 'visitor', deskId: '', requestKind: '', gateDirection: '', targetUrl: '', openNewTab: false, title: 'Visitor Pass', subtitle: 'Gate Entry', icon: '🪪', theme: 'blue', visible: raw.showVisitorPass !== false, builtin: true },
+        { id: 'gatepass', action: 'gatepass', deskId: '', requestKind: '', gateDirection: '', targetUrl: '', openNewTab: false, title: 'Material Gate', subtitle: 'IN / OUT', icon: '📦', theme: 'amber', visible: raw.showMaterialGate !== false, builtin: true }
+      ];
+    } else {
+      tiles = tiles.filter(t => !(t.action === 'complaint-desk' && (t.builtin || String(t.id || '').startsWith('desk:')) && !validIds.has(t.deskId)));
+      if(syncAllDesks || raw.autoSyncComplaintDesks !== false){
+        const missing = [];
+        desks.forEach((dk, idx) => {
+          const idxExist = tiles.findIndex(t => t.id === 'desk:' + dk.id || (t.action === 'complaint-desk' && t.deskId === dk.id));
+          if(idxExist === -1){
+            missing.push(defaultTileForDesk(dk, idx));
+          } else if(syncAllDesks){
+            tiles[idxExist].title = String(dk.name || dk.id).slice(0, 60);
+            tiles[idxExist].icon = String(dk.icon || '🎫').slice(0, 12);
+          }
+        });
+        if(missing.length){
+          const insertAt = tiles.findIndex(t => t.action === 'visitor' || t.action === 'gatepass');
+          if(insertAt >= 0) tiles.splice(insertAt, 0, ...missing);
+          else tiles.push(...missing);
+        }
+      }
+      if(!tiles.some(t => t.id === 'visitor' || t.action === 'visitor')){
+        tiles.push({ id: 'visitor', action: 'visitor', deskId: '', requestKind: '', gateDirection: '', targetUrl: '', openNewTab: false, title: 'Visitor Pass', subtitle: 'Gate Entry', icon: '🪪', theme: 'blue', visible: raw.showVisitorPass !== false, builtin: true });
+      }
+      if(!tiles.some(t => t.id === 'gatepass' || t.action === 'gatepass')){
+        tiles.push({ id: 'gatepass', action: 'gatepass', deskId: '', requestKind: '', gateDirection: '', targetUrl: '', openNewTab: false, title: 'Material Gate', subtitle: 'IN / OUT', icon: '📦', theme: 'amber', visible: raw.showMaterialGate !== false, builtin: true });
+      }
+    }
+    const visTile = tiles.find(t => t.id === 'visitor');
+    const gpTile = tiles.find(t => t.id === 'gatepass');
+    return {
+      showComplaintDesksAsTiles: raw.showComplaintDesksAsTiles !== false,
+      autoSyncComplaintDesks: raw.autoSyncComplaintDesks !== false,
+      showVisitorPass: visTile ? (visTile.visible !== false) : (raw.showVisitorPass !== false),
+      showMaterialGate: gpTile ? (gpTile.visible !== false) : (raw.showMaterialGate !== false),
+      showSecondaryDeskPills: Boolean(raw.showSecondaryDeskPills),
+      showSignInButton: raw.showSignInButton !== false,
+      showTicketForm: raw.showTicketForm !== false,
+      showMaterialRequest: raw.showMaterialRequest !== false,
+      showAttachments: raw.showAttachments !== false,
+      showTrackingPanel: raw.showTrackingPanel !== false,
+      showLiveTicketQueue: raw.showLiveTicketQueue !== false,
+      showVisitorQueue: raw.showVisitorQueue !== false,
+      showMaterialQueue: raw.showMaterialQueue !== false,
+      showLiveToasts: raw.showLiveToasts !== false,
+      eyebrowText: String(raw.eyebrowText || '').trim(),
+      headingText: String(raw.headingText || '').trim(),
+      subtitleText: String(raw.subtitleText || '').trim(),
+      defaultTileId: String(raw.defaultTileId || 'auto').trim() || 'auto',
+      tiles
+    };
+  }
+
+  function ensureDraft(forceReload){
+    if(!draftConfig || forceReload){
+      const ws = getWs();
+      draftConfig = normalizeDraftClient(ws.portalConfig || {}, false);
+      hasUnsaved = false;
+    } else {
+      draftConfig = normalizeDraftClient(draftConfig, false);
+    }
+    window.__portalConfigDraft = draftConfig;
+    return draftConfig;
+  }
+
+  function effectivePreviewTiles(cfg){
+    let vis = (cfg.tiles || []).filter(t => {
+      if(t.visible === false) return false;
+      if(t.action === 'visitor' && cfg.showVisitorPass === false) return false;
+      if(t.action === 'gatepass' && cfg.showMaterialGate === false) return false;
+      if(!cfg.showComplaintDesksAsTiles && t.action === 'complaint-desk' && (t.builtin || String(t.id || '').startsWith('desk:'))) return false;
+      return true;
+    });
+    if(!cfg.showComplaintDesksAsTiles && !vis.some(t => t.action === 'support-all')){
+      vis = [{ id: 'support-all', title: 'Support & Material', subtitle: 'Tickets', icon: '🎫', theme: 'emerald', action: 'support-all' }, ...vis];
+    }
+    return vis;
+  }
+
+  function actionLabel(t){
+    const map = {
+      'complaint-desk': 'Complaint Desk (' + (t.deskId || 'it') + (t.requestKind ? ' · ' + t.requestKind : '') + ')',
+      'support-all': 'Unified Support & Material',
+      'material-request': 'Direct Material Request (' + (t.deskId || 'it') + ')',
+      'visitor': 'Visitor Pass & Gate Entry',
+      'gatepass': 'Material Gate Pass' + (t.gateDirection ? ' (' + t.gateDirection + ')' : ' (IN / OUT)'),
+      'track-ticket': 'Track Ticket Status by Token',
+      'custom-url': 'Custom Link: ' + (t.targetUrl || '—')
+    };
+    return map[t.action] || t.action;
+  }
+
+  function markDirty(){
+    hasUnsaved = true;
+    window.__portalConfigDraft = draftConfig;
+    const btn = document.getElementById('portalCfgSaveBtn');
+    if(btn) btn.textContent = '💾 Save & Publish Portal *';
+  }
+
+  function renderPanel(){
+    const host = document.getElementById('portalCustomizeBody');
+    if(!host) return;
+    const cfg = ensureDraft(false);
+    const desks = getDesksList();
+    const isAdmin = canAdminPortal();
+    const disAttr = isAdmin ? '' : 'disabled';
+    const previewTiles = effectivePreviewTiles(cfg);
+
+    const previewHtml = previewTiles.length ? previewTiles.map(t => {
+      const th = THEMES.some(x => x[0] === t.theme) ? t.theme : 'emerald';
+      return `<div class="pc-pv-tile">
+        <span class="pc-pv-ico pc-grad-${pcEsc(th)}">${pcEsc(t.icon || '🎫')}</span>
+        <span class="pc-pv-title">${pcEsc(t.title)}</span>
+        ${t.subtitle ? `<span class="pc-pv-sub">${pcEsc(t.subtitle)}</span>` : ''}
+      </div>`;
+    }).join('') : '<div class="small" style="grid-column:1/-1;text-align:center;color:#b91c1c;padding:8px">All portal tiles are hidden — /portal will display an Admin-hidden notice.</div>';
+
+    const defOptions = ['<option value="auto"' + (cfg.defaultTileId === 'auto' ? ' selected' : '') + '>Auto (first visible tile)</option>']
+      .concat(previewTiles.map(t => `<option value="${pcEsc(t.id)}"${cfg.defaultTileId === t.id ? ' selected' : ''}>${pcEsc((t.icon ? t.icon + ' ' : '') + t.title)}</option>`))
+      .join('');
+
+    const rowsHtml = cfg.tiles.map((t, idx) => {
+      const isVis = t.visible !== false && !(t.action === 'visitor' && !cfg.showVisitorPass) && !(t.action === 'gatepass' && !cfg.showMaterialGate);
+      const th = THEMES.some(x => x[0] === t.theme) ? t.theme : 'emerald';
+      const kindBadgeCls = t.action === 'visitor' || t.action === 'gatepass' ? 'gate' : (t.action === 'complaint-desk' ? 'desk' : '');
+      const isEditing = editingTileIdx === idx;
+      const deskSelectOpts = desks.map(d => `<option value="${pcEsc(d.id)}"${t.deskId === d.id ? ' selected' : ''}>${pcEsc((d.icon ? d.icon + ' ' : '') + d.name)}</option>`).join('');
+      const editHtml = isEditing ? `<div class="pc-edit-box" data-pc-edit-row="${idx}">
+        <div class="pc-form-grid">
+          <label class="pc-field">Tile Title
+            <input type="text" data-ef="title" maxlength="60" value="${pcEsc(t.title)}">
+          </label>
+          <label class="pc-field">Subtitle Badge (optional)
+            <input type="text" data-ef="subtitle" maxlength="40" value="${pcEsc(t.subtitle || '')}" placeholder="e.g. IT Support">
+          </label>
+          <label class="pc-field">Icon Emoji
+            <input type="text" data-ef="icon" maxlength="12" value="${pcEsc(t.icon || '🎫')}">
+          </label>
+          <label class="pc-field">Color Theme
+            <select data-ef="theme">${THEMES.map(([k, lbl]) => `<option value="${k}"${th === k ? ' selected' : ''}>${pcEsc(lbl)}</option>`).join('')}</select>
+          </label>
+          ${(t.action === 'complaint-desk' || t.action === 'material-request') ? `<label class="pc-field">Target Complaint Desk
+            <select data-ef="deskId">${deskSelectOpts}</select>
+          </label>` : ''}
+          ${t.action === 'complaint-desk' ? `<label class="pc-field">Default Form Mode
+            <select data-ef="requestKind">
+              <option value=""${!t.requestKind ? ' selected' : ''}>Keep current / Issue</option>
+              <option value="Issue"${t.requestKind === 'Issue' ? ' selected' : ''}>Issue / Complaint</option>
+              <option value="Material request"${t.requestKind === 'Material request' ? ' selected' : ''}>Material Request</option>
+            </select>
+          </label>` : ''}
+          ${t.action === 'gatepass' ? `<label class="pc-field">Default Direction
+            <select data-ef="gateDirection">
+              <option value=""${!t.gateDirection ? ' selected' : ''}>Inward / Outward</option>
+              <option value="IN"${t.gateDirection === 'IN' ? ' selected' : ''}>Force Inward (IN)</option>
+              <option value="OUT"${t.gateDirection === 'OUT' ? ' selected' : ''}>Force Outward (OUT)</option>
+            </select>
+          </label>` : ''}
+          ${t.action === 'custom-url' ? `<label class="pc-field">Target Path or URL
+            <input type="text" data-ef="targetUrl" maxlength="300" value="${pcEsc(t.targetUrl || '')}" placeholder="/#tickets or https://...">
+          </label><label class="pc-field" style="justify-content:flex-end">
+            <span style="display:flex;align-items:center;gap:6px"><input type="checkbox" data-ef="openNewTab"${t.openNewTab ? ' checked' : ''} style="width:15px;height:15px"> Open in new browser tab</span>
+          </label>` : ''}
+        </div>
+        <div class="pc-emoji-picks" data-ef-emojis="${idx}">
+          ${QUICK_EMOJIS.map(em => `<button type="button" class="pc-emoji-chip" data-em="${pcEsc(em)}">${pcEsc(em)}</button>`).join('')}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button type="button" class="btn primary" data-pc-apply="${idx}" ${disAttr}>✓ Apply Tile Changes</button>
+          <button type="button" class="btn" data-pc-cancel-edit="${idx}">Cancel</button>
+        </div>
+      </div>` : '';
+
+      return `<div class="pc-tile-row${isVis ? '' : ' is-hidden'}">
+        <div class="pc-tile-top">
+          <div class="pc-tile-meta">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer" title="Show or hide this tile on /portal">
+              <input type="checkbox" data-pc-vis="${idx}" ${isVis ? 'checked' : ''} ${disAttr} style="width:16px;height:16px;accent-color:#15803d">
+            </label>
+            <span class="pc-pv-ico pc-grad-${pcEsc(th)}" style="width:34px;height:34px;font-size:16px;flex-shrink:0">${pcEsc(t.icon || '🎫')}</span>
+            <div>
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <b style="font-size:13px">${pcEsc(t.title)}</b>
+                ${t.subtitle ? `<span class="pc-pv-sub">${pcEsc(t.subtitle)}</span>` : ''}
+                <span class="pc-badge ${kindBadgeCls}">${pcEsc(actionLabel(t))}</span>
+                ${!isVis ? '<span class="pc-badge" style="background:#fee2e2;color:#991b1b;border-color:#fca5a5">Hidden</span>' : ''}
+              </div>
+            </div>
+          </div>
+          <div class="pc-tile-actions">
+            <button type="button" class="btn" style="padding:4px 8px;font-size:11px" data-pc-move="${idx}" data-dir="-1" ${(idx === 0 || !isAdmin) ? 'disabled' : ''}>▲</button>
+            <button type="button" class="btn" style="padding:4px 8px;font-size:11px" data-pc-move="${idx}" data-dir="1" ${(idx === cfg.tiles.length - 1 || !isAdmin) ? 'disabled' : ''}>▼</button>
+            <button type="button" class="btn" style="padding:4px 10px;font-size:11px" data-pc-edit="${idx}" ${disAttr}>✎ Customize</button>
+            ${!t.builtin ? `<button type="button" class="btn danger" style="padding:4px 9px;font-size:11px" data-pc-del="${idx}" ${disAttr}>🗑 Delete</button>` : ''}
+          </div>
+        </div>
+        ${editHtml}
+      </div>`;
+    }).join('');
+
+    const desksOptsNew = desks.map(d => `<option value="${pcEsc(d.id)}">${pcEsc((d.icon ? d.icon + ' ' : '') + d.name)}</option>`).join('');
+    const routeOptsNew = WORKSPACE_ROUTES.map(([u, l]) => `<option value="${pcEsc(u)}">${pcEsc(l)}</option>`).join('');
+
+    host.innerHTML = `
+      ${!isAdmin ? '<div class="message" style="margin-bottom:12px;padding:10px 12px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:12px"><b>Read-only view:</b> Sign in as an Administrator to modify public portal layout or tile visibility.</div>' : ''}
+      <div class="pc-sec-title">1. Quick Module &amp; Layout Controls</div>
+      <div class="pc-grid-switches">
+        <label class="pc-switch-card">
+          <input type="checkbox" id="pcShowVisitorPass" ${cfg.showVisitorPass ? 'checked' : ''} ${disAttr}>
+          <div><b>🪪 Show Visitor Pass on Portal</b><small>Turn OFF to hide Visitor Pass tile &amp; entry form from /portal.</small></div>
+        </label>
+        <label class="pc-switch-card">
+          <input type="checkbox" id="pcShowMaterialGate" ${cfg.showMaterialGate ? 'checked' : ''} ${disAttr}>
+          <div><b>📦 Show Material Gate on Portal</b><small>Turn OFF to hide Material Inward/Outward Gate tile &amp; log from /portal.</small></div>
+        </label>
+        <label class="pc-switch-card">
+          <input type="checkbox" id="pcShowComplaintDesksAsTiles" ${cfg.showComplaintDesksAsTiles ? 'checked' : ''} ${disAttr}>
+          <div><b>🎛️ Complaint Desks as Big Tiles</b><small>Shows IT Dept, Plumber, Electrician, Admin &amp; future desks as large Screenshot-3 style cards.</small></div>
+        </label>
+        <label class="pc-switch-card">
+          <input type="checkbox" id="pcAutoSyncComplaintDesks" ${cfg.autoSyncComplaintDesks ? 'checked' : ''} ${disAttr}>
+          <div><b>🔄 Auto-Add Future Desks as Big Tiles</b><small>Whenever a new Complaint Desk is added in Ticketing Settings, add a matching big tile automatically.</small></div>
+        </label>
+        <label class="pc-switch-card">
+          <input type="checkbox" id="pcShowSecondaryDeskPills" ${cfg.showSecondaryDeskPills ? 'checked' : ''} ${disAttr}>
+          <div><b>🏷️ Keep Desk Strip inside Form</b><small>Also show the secondary Complaint Desk radio row inside the ticket form.</small></div>
+        </label>
+      </div>
+
+      <div class="pc-sec-title">2. Without-Login Page Element Visibility (What to Keep / Hide)</div>
+      <div class="pc-grid-switches">
+        <label class="pc-switch-card"><input type="checkbox" data-pc-bool="showTicketForm" ${cfg.showTicketForm ? 'checked' : ''} ${disAttr}><div><b>📝 Show Ticket Request Form</b><small>Uncheck for a read-only live status screen.</small></div></label>
+        <label class="pc-switch-card"><input type="checkbox" data-pc-bool="showMaterialRequest" ${cfg.showMaterialRequest ? 'checked' : ''} ${disAttr}><div><b>📦 Allow Material Request Option</b><small>Show or hide Material Request inside ticket form.</small></div></label>
+        <label class="pc-switch-card"><input type="checkbox" data-pc-bool="showAttachments" ${cfg.showAttachments ? 'checked' : ''} ${disAttr}><div><b>📷 Show Screenshot Upload</b><small>Let users attach screenshots/photos to tickets.</small></div></label>
+        <label class="pc-switch-card"><input type="checkbox" data-pc-bool="showTrackingPanel" ${cfg.showTrackingPanel ? 'checked' : ''} ${disAttr}><div><b>🔗 Show Private Tracking Panel</b><small>Display private #track status box after submission.</small></div></label>
+        <label class="pc-switch-card"><input type="checkbox" data-pc-bool="showLiveTicketQueue" ${cfg.showLiveTicketQueue ? 'checked' : ''} ${disAttr}><div><b>📊 Show Live Ticket Queue</b><small>Show live ticket status table below the form.</small></div></label>
+        <label class="pc-switch-card"><input type="checkbox" data-pc-bool="showVisitorQueue" ${cfg.showVisitorQueue ? 'checked' : ''} ${disAttr}><div><b>🛂 Show Visitor Gate Log Table</b><small>Hide for private kiosk where guards only submit entries.</small></div></label>
+        <label class="pc-switch-card"><input type="checkbox" data-pc-bool="showMaterialQueue" ${cfg.showMaterialQueue ? 'checked' : ''} ${disAttr}><div><b>🚛 Show Material IN/OUT Log Table</b><small>Hide for private kiosk where guards only log passes.</small></div></label>
+        <label class="pc-switch-card"><input type="checkbox" data-pc-bool="showLiveToasts" ${cfg.showLiveToasts ? 'checked' : ''} ${disAttr}><div><b>🔔 Live Popup Toasts &amp; Chime</b><small>Play alert sound and toast when tickets update live.</small></div></label>
+        <label class="pc-switch-card"><input type="checkbox" data-pc-bool="showSignInButton" ${cfg.showSignInButton ? 'checked' : ''} ${disAttr}><div><b>🔑 Show "Sign in" Top Button</b><small>Display top-right link to login console on /portal.</small></div></label>
+      </div>
+
+      <div class="pc-sec-title">3. Portal Header &amp; Default Active Tile</div>
+      <div class="pc-form-grid">
+        <label class="pc-field">Default Opening Tile
+          <select id="pcDefaultTileId" ${disAttr}>${defOptions}</select>
+        </label>
+        <label class="pc-field">Header Eyebrow Override (optional)
+          <input type="text" id="pcEyebrowText" maxlength="120" value="${pcEsc(cfg.eyebrowText)}" placeholder="Leave blank for automatic text" ${disAttr}>
+        </label>
+        <label class="pc-field">Main Heading Override (optional)
+          <input type="text" id="pcHeadingText" maxlength="140" value="${pcEsc(cfg.headingText)}" placeholder="Leave blank for automatic mode title" ${disAttr}>
+        </label>
+        <label class="pc-field">Ticket Card Subtitle Override (optional)
+          <input type="text" id="pcSubtitleText" maxlength="260" value="${pcEsc(cfg.subtitleText)}" placeholder="Leave blank for default instructions" ${disAttr}>
+        </label>
+      </div>
+
+      <div class="pc-sec-title">4. Live Big Tile Preview &amp; Dynamic Tile Order (${previewTiles.length} visible on /portal)</div>
+      <div class="pc-preview-strip">${previewHtml}</div>
+      <div id="pcTilesList">${rowsHtml}</div>
+
+      <div class="pc-add-box">
+        <div style="font-weight:800;font-size:13px;color:#14532d;margin-bottom:8px">＋ Add New Custom Big Tile (Dynamic Functionality Builder)</div>
+        <div class="pc-form-grid">
+          <label class="pc-field">Tile Functionality / Action
+            <select id="pcNewAction" ${disAttr}>
+              <option value="complaint-desk">Complaint Desk (Service Desk)</option>
+              <option value="material-request">Direct Material Request Shortcut</option>
+              <option value="track-ticket">Track Ticket by Token Lookup</option>
+              <option value="support-all">Unified Support &amp; Material Form</option>
+              <option value="gatepass">Material Gate (IN / OUT Shortcut)</option>
+              <option value="visitor">Visitor Pass Shortcut</option>
+              <option value="custom-url">Existing App Page / Custom URL</option>
+            </select>
+          </label>
+          <label class="pc-field">Tile Title *
+            <input type="text" id="pcNewTitle" maxlength="60" placeholder="e.g. Track Status or Housekeeping" ${disAttr}>
+          </label>
+          <label class="pc-field">Subtitle Pill (optional)
+            <input type="text" id="pcNewSub" maxlength="40" placeholder="e.g. Quick Entry / Request" ${disAttr}>
+          </label>
+          <label class="pc-field">Icon Emoji
+            <input type="text" id="pcNewIcon" maxlength="12" value="🔧" ${disAttr}>
+          </label>
+          <label class="pc-field">Color Theme
+            <select id="pcNewTheme" ${disAttr}>${THEMES.map(([k, l]) => `<option value="${k}">${pcEsc(l)}</option>`).join('')}</select>
+          </label>
+          <label class="pc-field" id="pcNewDeskWrap">Target Complaint Desk
+            <select id="pcNewDesk" ${disAttr}>${desksOptsNew}</select>
+          </label>
+          <label class="pc-field" id="pcNewReqKindWrap">Default Request Mode
+            <select id="pcNewReqKind" ${disAttr}>
+              <option value="">Default (Issue)</option>
+              <option value="Issue">Issue / Complaint</option>
+              <option value="Material request">Material Request</option>
+            </select>
+          </label>
+          <label class="pc-field" id="pcNewGateDirWrap" style="display:none">Preset Gate Direction
+            <select id="pcNewGateDir" ${disAttr}>
+              <option value="">Both IN / OUT</option>
+              <option value="IN">Inward (IN)</option>
+              <option value="OUT">Outward (OUT)</option>
+            </select>
+          </label>
+          <label class="pc-field" id="pcNewRoutePickWrap" style="display:none">Quick Pick Existing Module
+            <select id="pcNewRoutePick" ${disAttr}>${routeOptsNew}</select>
+          </label>
+          <label class="pc-field" id="pcNewUrlWrap" style="display:none">Target URL / Route
+            <input type="text" id="pcNewUrl" maxlength="300" placeholder="/#tickets or https://..." ${disAttr}>
+          </label>
+        </div>
+        <div class="pc-emoji-picks" id="pcNewEmojiBar">
+          ${QUICK_EMOJIS.map(em => `<button type="button" class="pc-emoji-chip" data-new-em="${pcEsc(em)}" ${disAttr}>${pcEsc(em)}</button>`).join('')}
+        </div>
+        <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <button type="button" class="btn primary" id="pcAddTileBtn" ${disAttr}>＋ Add Big Tile to List</button>
+          <span class="small" id="pcSaveStatusText" style="color:#475569">${hasUnsaved ? '● Unsaved changes — click "Save & Publish Portal" to go live.' : 'Synced with workspace settings.'}</span>
+        </div>
+      </div>
+    `;
+
+    bindPanelEvents();
+  }
+
+  function syncNewTileFormFields(){
+    const act = document.getElementById('pcNewAction')?.value || 'complaint-desk';
+    const setShow = (id, show) => { const el = document.getElementById(id); if(el) el.style.display = show ? '' : 'none'; };
+    setShow('pcNewDeskWrap', act === 'complaint-desk' || act === 'material-request');
+    setShow('pcNewReqKindWrap', act === 'complaint-desk');
+    setShow('pcNewGateDirWrap', act === 'gatepass');
+    setShow('pcNewRoutePickWrap', act === 'custom-url');
+    setShow('pcNewUrlWrap', act === 'custom-url');
+  }
+
+  function bindPanelEvents(){
+    const cfg = ensureDraft(false);
+    document.getElementById('pcShowVisitorPass')?.addEventListener('change', e => {
+      cfg.showVisitorPass = e.target.checked;
+      const vt = cfg.tiles.find(t => t.id === 'visitor');
+      if(vt) vt.visible = e.target.checked;
+      markDirty();
+      renderPanel();
+    });
+    document.getElementById('pcShowMaterialGate')?.addEventListener('change', e => {
+      cfg.showMaterialGate = e.target.checked;
+      const gt = cfg.tiles.find(t => t.id === 'gatepass');
+      if(gt) gt.visible = e.target.checked;
+      markDirty();
+      renderPanel();
+    });
+    document.getElementById('pcShowComplaintDesksAsTiles')?.addEventListener('change', e => {
+      cfg.showComplaintDesksAsTiles = e.target.checked;
+      markDirty();
+      renderPanel();
+    });
+    document.getElementById('pcAutoSyncComplaintDesks')?.addEventListener('change', e => {
+      cfg.autoSyncComplaintDesks = e.target.checked;
+      markDirty();
+      renderPanel();
+    });
+    document.getElementById('pcShowSecondaryDeskPills')?.addEventListener('change', e => {
+      cfg.showSecondaryDeskPills = e.target.checked;
+      markDirty();
+    });
+    document.querySelectorAll('#portalCustomizeBody [data-pc-bool]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        cfg[cb.dataset.pcBool] = cb.checked;
+        markDirty();
+      });
+    });
+    document.getElementById('pcDefaultTileId')?.addEventListener('change', e => {
+      cfg.defaultTileId = e.target.value || 'auto';
+      markDirty();
+    });
+    ['pcEyebrowText', 'pcHeadingText', 'pcSubtitleText'].forEach(id => {
+      const key = id === 'pcEyebrowText' ? 'eyebrowText' : (id === 'pcHeadingText' ? 'headingText' : 'subtitleText');
+      document.getElementById(id)?.addEventListener('input', e => {
+        cfg[key] = e.target.value;
+        markDirty();
+      });
+    });
+    document.querySelectorAll('#portalCustomizeBody [data-pc-vis]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const idx = Number(cb.dataset.pcVis);
+        const tl = cfg.tiles[idx];
+        if(!tl) return;
+        tl.visible = cb.checked;
+        if(tl.id === 'visitor') cfg.showVisitorPass = cb.checked;
+        if(tl.id === 'gatepass') cfg.showMaterialGate = cb.checked;
+        markDirty();
+        renderPanel();
+      });
+    });
+    document.querySelectorAll('#portalCustomizeBody [data-pc-move]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = Number(btn.dataset.pcMove), dir = Number(btn.dataset.dir);
+        const target = idx + dir;
+        if(target < 0 || target >= cfg.tiles.length) return;
+        const [item] = cfg.tiles.splice(idx, 1);
+        cfg.tiles.splice(target, 0, item);
+        if(editingTileIdx === idx) editingTileIdx = target;
+        else editingTileIdx = -1;
+        markDirty();
+        renderPanel();
+      });
+    });
+    document.querySelectorAll('#portalCustomizeBody [data-pc-edit]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = Number(btn.dataset.pcEdit);
+        editingTileIdx = editingTileIdx === idx ? -1 : idx;
+        renderPanel();
+      });
+    });
+    document.querySelectorAll('#portalCustomizeBody [data-pc-cancel-edit]').forEach(btn => {
+      btn.addEventListener('click', () => { editingTileIdx = -1; renderPanel(); });
+    });
+    document.querySelectorAll('#portalCustomizeBody [data-ef-emojis]').forEach(bar => {
+      const idx = Number(bar.dataset.efEmojis);
+      bar.querySelectorAll('[data-em]').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const inp = document.querySelector(`[data-pc-edit-row="${idx}"] [data-ef="icon"]`);
+          if(inp) inp.value = chip.dataset.em;
+        });
+      });
+    });
+    document.querySelectorAll('#portalCustomizeBody [data-pc-apply]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = Number(btn.dataset.pcApply);
+        const row = document.querySelector(`[data-pc-edit-row="${idx}"]`);
+        const tl = cfg.tiles[idx];
+        if(!row || !tl) return;
+        const val = k => row.querySelector(`[data-ef="${k}"]`);
+        const tVal = String(val('title')?.value || '').trim();
+        if(!tVal){ showToast?.('Enter a tile title'); return; }
+        tl.title = tVal.slice(0, 60);
+        tl.subtitle = String(val('subtitle')?.value || '').trim().slice(0, 40);
+        tl.icon = String(val('icon')?.value || '🎫').trim().slice(0, 12) || '🎫';
+        tl.theme = String(val('theme')?.value || 'emerald');
+        if(val('deskId')) tl.deskId = val('deskId').value;
+        if(val('requestKind')) tl.requestKind = val('requestKind').value;
+        if(val('gateDirection')) tl.gateDirection = val('gateDirection').value;
+        if(val('targetUrl')) tl.targetUrl = String(val('targetUrl').value || '').trim().slice(0, 300);
+        if(val('openNewTab')) tl.openNewTab = Boolean(val('openNewTab').checked);
+        editingTileIdx = -1;
+        markDirty();
+        renderPanel();
+      });
+    });
+    document.querySelectorAll('#portalCustomizeBody [data-pc-del]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = Number(btn.dataset.pcDel);
+        if(!cfg.tiles[idx] || cfg.tiles[idx].builtin) return;
+        cfg.tiles.splice(idx, 1);
+        editingTileIdx = -1;
+        markDirty();
+        renderPanel();
+      });
+    });
+    document.getElementById('pcNewAction')?.addEventListener('change', () => {
+      syncNewTileFormFields();
+      const act = document.getElementById('pcNewAction')?.value;
+      const tEl = document.getElementById('pcNewTitle'), iEl = document.getElementById('pcNewIcon');
+      if(act === 'track-ticket' && tEl && !tEl.value.trim()){ tEl.value = 'Track Ticket'; if(iEl) iEl.value = '🔍'; }
+      else if(act === 'material-request' && tEl && !tEl.value.trim()){ tEl.value = 'Request Material'; if(iEl) iEl.value = '🛒'; }
+    });
+    document.getElementById('pcNewRoutePick')?.addEventListener('change', e => {
+      const u = e.target.value;
+      if(u){
+        const urlEl = document.getElementById('pcNewUrl');
+        if(urlEl) urlEl.value = u;
+        const lbl = e.target.options[e.target.selectedIndex]?.textContent?.split(' (')[0] || '';
+        const tEl = document.getElementById('pcNewTitle');
+        if(tEl && !tEl.value.trim() && lbl && !lbl.startsWith('--')) tEl.value = lbl.slice(0, 60);
+      }
+    });
+    document.querySelectorAll('#pcNewEmojiBar [data-new-em]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const inp = document.getElementById('pcNewIcon');
+        if(inp) inp.value = chip.dataset.newEm;
+      });
+    });
+    document.getElementById('pcAddTileBtn')?.addEventListener('click', () => {
+      if(!canAdminPortal()){ showToast?.('Administrator sign-in required.'); return; }
+      const action = document.getElementById('pcNewAction')?.value || 'complaint-desk';
+      const title = String(document.getElementById('pcNewTitle')?.value || '').trim().slice(0, 60);
+      if(!title){ showToast?.('Enter a title for the new Big Tile.'); document.getElementById('pcNewTitle')?.focus(); return; }
+      const subtitle = String(document.getElementById('pcNewSub')?.value || '').trim().slice(0, 40);
+      const icon = String(document.getElementById('pcNewIcon')?.value || '🎫').trim().slice(0, 12) || '🎫';
+      const theme = document.getElementById('pcNewTheme')?.value || 'emerald';
+      const deskId = (action === 'complaint-desk' || action === 'material-request') ? (document.getElementById('pcNewDesk')?.value || 'it') : '';
+      const requestKind = action === 'complaint-desk' ? (document.getElementById('pcNewReqKind')?.value || '') : '';
+      const gateDirection = action === 'gatepass' ? (document.getElementById('pcNewGateDir')?.value || '') : '';
+      const targetUrl = action === 'custom-url' ? String(document.getElementById('pcNewUrl')?.value || '').trim().slice(0, 300) : '';
+      if(action === 'custom-url' && !targetUrl){
+        showToast?.('Enter a valid URL or select a module route.'); document.getElementById('pcNewUrl')?.focus(); return;
+      }
+      const newTile = {
+        id: 'tile-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 5),
+        action, deskId, requestKind, gateDirection, targetUrl, openNewTab: false,
+        title, subtitle, icon, theme, visible: true, builtin: false
+      };
+      cfg.tiles.push(newTile);
+      markDirty();
+      renderPanel();
+      showToast?.('Big Tile added to list — click "Save & Publish Portal" to publish.');
+    });
+    syncNewTileFormFields();
+  }
+
+  async function savePortalConfigToServer(){
+    if(!canAdminPortal()){
+      showToast?.('Administrator permission is required to publish portal customization.');
+      return false;
+    }
+    const cfg = ensureDraft(false);
+    const btn = document.getElementById('portalCfgSaveBtn');
+    if(btn){ btn.disabled = true; btn.textContent = 'Publishing...'; }
+    try{
+      let savedCfg = cfg;
+      if(typeof serverMode !== 'undefined' && serverMode){
+        const r = await apiFetch('/api/admin/portal-config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ portalConfig: cfg })
+        });
+        if(r && r.portalConfig) savedCfg = r.portalConfig;
+      }
+      const ws = getWs();
+      ws.portalConfig = savedCfg;
+      try{ localStorage.setItem('northstar-settings', JSON.stringify(ws)); }catch(_){}
+      draftConfig = normalizeDraftClient(savedCfg, false);
+      hasUnsaved = false;
+      window.__portalConfigDraft = draftConfig;
+      try{ window.broadcastLiveTicketSync?.('ticketing-settings-changed', {}); }catch(_){}
+      try{
+        if(typeof BroadcastChannel !== 'undefined'){
+          const bc = new BroadcastChannel('northstar-live-sync');
+          bc.postMessage({ type: 'ticketing-settings-changed', ts: Date.now() });
+          bc.close();
+        }
+      }catch(_){}
+      renderPanel();
+      showToast?.('Without-login Portal settings published live to /portal!');
+      return true;
+    }catch(err){
+      showToast?.('Failed to save Portal customization: ' + (err?.message || err));
+      return false;
+    }finally{
+      const b = document.getElementById('portalCfgSaveBtn');
+      if(b){
+        b.disabled = false;
+        b.textContent = hasUnsaved ? '💾 Save & Publish Portal *' : '💾 Save & Publish Portal';
+      }
+    }
+  }
+
+  document.getElementById('portalCfgSaveBtn')?.addEventListener('click', savePortalConfigToServer);
+  document.getElementById('portalCfgSyncDesksBtn')?.addEventListener('click', () => {
+    draftConfig = normalizeDraftClient(ensureDraft(false), true);
+    markDirty();
+    renderPanel();
+    showToast?.('Synced Complaint Desks into Big Tiles list.');
+  });
+
+  if(typeof window.renderSettings === 'function'){
+    const prevRS = window.renderSettings;
+    window.renderSettings = function(...args){
+      const res = prevRS.apply(this, args);
+      if(!hasUnsaved) draftConfig = null;
+      renderPanel();
+      return res;
+    };
+  }
+  if(typeof window.hydrateServer === 'function'){
+    const prevHS = window.hydrateServer;
+    window.hydrateServer = async function(...args){
+      const res = await prevHS.apply(this, args);
+      draftConfig = null;
+      hasUnsaved = false;
+      renderPanel();
+      return res;
+    };
+  }
+  if(typeof window.renderTicketingSettingsPanel === 'function'){
+    const prevTS = window.renderTicketingSettingsPanel;
+    window.renderTicketingSettingsPanel = function(...args){
+      const res = prevTS.apply(this, args);
+      renderPanel();
+      return res;
+    };
+  }
+  if(typeof window.saveWorkspaceSettings === 'function'){
+    const prevSWS = window.saveWorkspaceSettings;
+    window.saveWorkspaceSettings = function(...args){
+      const ws = getWs();
+      ws.portalConfig = ensureDraft(false);
+      try{ localStorage.setItem('northstar-settings', JSON.stringify(ws)); }catch(_){}
+      return prevSWS.apply(this, args);
+    };
+  }
+
+  window.renderPortalCustomizerPanel = renderPanel;
+  window.savePortalConfigToServer = savePortalConfigToServer;
+  document.addEventListener('DOMContentLoaded', () => renderPanel());
+  if(document.readyState !== 'loading') renderPanel();
 })();
 </script>
 </body>

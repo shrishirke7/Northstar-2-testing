@@ -85,25 +85,45 @@ tr:hover td{background:#fafdfb}
 .queue-scope-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;background:#eefcf4;color:#147852;border:1px solid #cce7d7;margin-top:6px}
 #portalLiveToastStack{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:360px;pointer-events:none}
 .portal-live-toast{pointer-events:auto;background:#ffffff;border:1px solid #cce3d4;border-left:4px solid #16845d;border-radius:10px;padding:11px 14px;box-shadow:0 12px 28px rgba(15,23,42,.16);font-size:12.5px;color:#1b2620}
-.portal-mode-bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0 4px}
+.portal-mode-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin:14px 0 4px}
 .portal-mode-btn{position:relative;background:#ffffff;color:#1e2923;border:1.5px solid #d5e2da;border-radius:16px;padding:13px 10px;font-weight:800;font-size:12.5px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;transition:transform .14s ease,border-color .14s ease,box-shadow .14s ease,background .14s ease;text-align:center;line-height:1.25;min-height:98px;box-shadow:0 3px 10px rgba(15,23,42,.04)}
 .portal-mode-btn:hover{transform:translateY(-1px);border-color:#94c4ad;box-shadow:0 6px 16px rgba(15,23,42,.08)}
-.pm-ico-box{width:42px;height:42px;border-radius:13px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 6px 14px rgba(15,23,42,.14)}
+.pm-ico-box{width:44px;height:44px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 6px 14px rgba(15,23,42,.14);font-size:21px;line-height:1}
 .pm-ico-box svg{width:23px;height:23px;display:block}
-.pm-ico-tickets{background:linear-gradient(135deg,#10b981,#047857);color:#ffffff}
-.pm-ico-visitor{background:linear-gradient(135deg,#38bdf8,#2563eb);color:#ffffff}
-.pm-ico-gatepass{background:linear-gradient(135deg,#fbbf24,#ea580c);color:#ffffff}
-.pm-title{display:block;font-size:12.5px;font-weight:800;color:#1b2a22}
-.pm-sub{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:#f1f5f9;color:#475569}
-.portal-mode-btn[data-pmode="tickets"].active{background:linear-gradient(180deg,#f0fdf4,#dcfce7);border-color:#15803d;box-shadow:0 8px 20px rgba(21,128,61,.16)}
-.portal-mode-btn[data-pmode="tickets"].active .pm-title{color:#14532d}
-.portal-mode-btn[data-pmode="tickets"].active .pm-sub{background:#15803d;color:#ffffff}
-.portal-mode-btn[data-pmode="visitor"].active{background:linear-gradient(180deg,#eff6ff,#dbeafe);border-color:#1d4ed8;box-shadow:0 8px 20px rgba(37,99,235,.16)}
-.portal-mode-btn[data-pmode="visitor"].active .pm-title{color:#1e3a8a}
-.portal-mode-btn[data-pmode="visitor"].active .pm-sub{background:#1d4ed8;color:#ffffff}
-.portal-mode-btn[data-pmode="gatepass"].active{background:linear-gradient(180deg,#fffbeb,#fef3c7);border-color:#d97706;box-shadow:0 8px 20px rgba(217,119,6,.18)}
-.portal-mode-btn[data-pmode="gatepass"].active .pm-title{color:#9a3412}
-.portal-mode-btn[data-pmode="gatepass"].active .pm-sub{background:#d97706;color:#ffffff}
+.pm-ico-tickets,.pm-ico-emerald{background:linear-gradient(135deg,#10b981,#047857);color:#ffffff}
+.pm-ico-visitor,.pm-ico-blue{background:linear-gradient(135deg,#38bdf8,#2563eb);color:#ffffff}
+.pm-ico-gatepass,.pm-ico-amber{background:linear-gradient(135deg,#fbbf24,#ea580c);color:#ffffff}
+.pm-ico-indigo{background:linear-gradient(135deg,#818cf8,#4f46e5);color:#ffffff}
+.pm-ico-teal{background:linear-gradient(135deg,#2dd4bf,#0f766e);color:#ffffff}
+.pm-ico-rose{background:linear-gradient(135deg,#fb7185,#e11d48);color:#ffffff}
+.pm-ico-cyan{background:linear-gradient(135deg,#22d3ee,#0284c7);color:#ffffff}
+.pm-ico-slate{background:linear-gradient(135deg,#64748b,#334155);color:#ffffff}
+.pm-title{display:block;font-size:12.5px;font-weight:800;color:#1b2a22;word-break:break-word}
+.pm-sub{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:#f1f5f9;color:#475569;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.portal-mode-btn.ptheme-emerald.active,.portal-mode-btn[data-pmode="tickets"].ptheme-emerald.active{background:linear-gradient(180deg,#f0fdf4,#dcfce7);border-color:#15803d;box-shadow:0 8px 20px rgba(21,128,61,.16)}
+.portal-mode-btn.ptheme-emerald.active .pm-title{color:#14532d}
+.portal-mode-btn.ptheme-emerald.active .pm-sub{background:#15803d;color:#ffffff}
+.portal-mode-btn.ptheme-blue.active{background:linear-gradient(180deg,#eff6ff,#dbeafe);border-color:#1d4ed8;box-shadow:0 8px 20px rgba(37,99,235,.16)}
+.portal-mode-btn.ptheme-blue.active .pm-title{color:#1e3a8a}
+.portal-mode-btn.ptheme-blue.active .pm-sub{background:#1d4ed8;color:#ffffff}
+.portal-mode-btn.ptheme-amber.active{background:linear-gradient(180deg,#fffbeb,#fef3c7);border-color:#d97706;box-shadow:0 8px 20px rgba(217,119,6,.18)}
+.portal-mode-btn.ptheme-amber.active .pm-title{color:#9a3412}
+.portal-mode-btn.ptheme-amber.active .pm-sub{background:#d97706;color:#ffffff}
+.portal-mode-btn.ptheme-indigo.active{background:linear-gradient(180deg,#eef2ff,#e0e7ff);border-color:#4338ca;box-shadow:0 8px 20px rgba(67,56,202,.16)}
+.portal-mode-btn.ptheme-indigo.active .pm-title{color:#312e81}
+.portal-mode-btn.ptheme-indigo.active .pm-sub{background:#4338ca;color:#ffffff}
+.portal-mode-btn.ptheme-teal.active{background:linear-gradient(180deg,#f0fdfa,#ccfbf1);border-color:#0f766e;box-shadow:0 8px 20px rgba(15,118,110,.16)}
+.portal-mode-btn.ptheme-teal.active .pm-title{color:#134e4a}
+.portal-mode-btn.ptheme-teal.active .pm-sub{background:#0f766e;color:#ffffff}
+.portal-mode-btn.ptheme-rose.active{background:linear-gradient(180deg,#fff1f2,#ffe4e6);border-color:#be123c;box-shadow:0 8px 20px rgba(190,18,60,.16)}
+.portal-mode-btn.ptheme-rose.active .pm-title{color:#881337}
+.portal-mode-btn.ptheme-rose.active .pm-sub{background:#be123c;color:#ffffff}
+.portal-mode-btn.ptheme-cyan.active{background:linear-gradient(180deg,#ecfeff,#cffafe);border-color:#0369a1;box-shadow:0 8px 20px rgba(3,105,161,.16)}
+.portal-mode-btn.ptheme-cyan.active .pm-title{color:#0c4a6e}
+.portal-mode-btn.ptheme-cyan.active .pm-sub{background:#0369a1;color:#ffffff}
+.portal-mode-btn.ptheme-slate.active{background:linear-gradient(180deg,#f8fafc,#e2e8f0);border-color:#334155;box-shadow:0 8px 20px rgba(51,65,85,.14)}
+.portal-mode-btn.ptheme-slate.active .pm-title{color:#0f172a}
+.portal-mode-btn.ptheme-slate.active .pm-sub{background:#334155;color:#ffffff}
 .pg-dir-bar{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
 .pg-dir-btn{padding:11px 12px;border-radius:14px;border:1.5px solid #d4e3da;background:#fff;color:#1e2d24;font-weight:800;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s;text-align:center}
 .pg-dir-ico{width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -150,7 +170,8 @@ html,body{overflow-x:hidden;max-width:100%}
   .filters input[type="search"],.pg-preset-strip{grid-column:1/-1}
   .pg-photo-box input[type="file"]{max-width:100%;min-width:0;box-sizing:border-box;overflow:hidden}
   #portalMainModes{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important}
-  .portal-mode-btn{padding:10px 5px;min-height:92px;border-radius:14px;gap:5px}
+  #portalMainModes.multi-rows{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  .portal-mode-btn{padding:10px 6px;min-height:88px;border-radius:14px;gap:5px}
   .pm-ico-box{width:36px;height:36px;border-radius:11px}
   .pm-ico-box svg{width:20px;height:20px}
   .pm-title{font-size:11px;line-height:1.18}
@@ -201,7 +222,7 @@ html,body{overflow-x:hidden;max-width:100%}
         <span class="pm-title">Visitor Pass</span>
         <span class="pm-sub">Gate Entry</span>
       </button>
-      <button type="button" class="portal-mode-btn" data-pmode="gatepass" onclick="switchPortalMainMode('gatepass')">
+      <button type="button" class="portal-mode-btn ptheme-amber" data-pmode="gatepass" onclick="switchPortalMainMode('gatepass')">
         <span class="pm-ico-box pm-ico-gatepass" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8.5 12 4 3 8.5v7L12 20l9-4.5v-7z"/><path d="M3 8.5 12 13l9-4.5M12 13v7" stroke="#fef08a"/></svg>
         </span>
@@ -211,8 +232,30 @@ html,body{overflow-x:hidden;max-width:100%}
     </div>
   </section>
 
+  <section class="card hidden" id="portalEmptyNotice" style="text-align:center;padding:34px 20px">
+    <h2 style="margin:0 0 6px">🔒 Portal Modules Hidden</h2>
+    <p class="sub" style="margin:0">Public portal sections are currently hidden by the Administrator. Please sign in or contact your workspace admin.</p>
+  </section>
+
+  <section class="card hidden" id="portalTrackModeSection">
+    <div class="top-bar" style="margin-bottom:8px">
+      <div>
+        <h2 style="margin:0" id="portalTrackHeading">🔍 Track Support Ticket / Material Request</h2>
+        <p class="sub" style="margin-top:3px">Paste your private tracking link or token received after submitting a ticket.</p>
+      </div>
+    </div>
+    <form id="portalTrackLookupForm" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div class="field" style="flex:1;min-width:220px;margin:0">
+        <label for="portalTrackTokenInput">Tracking Token or Link</label>
+        <input id="portalTrackTokenInput" required placeholder="Paste tracking link (#track=...) or token string">
+      </div>
+      <button type="submit" style="min-width:170px;justify-content:center">🔍 Check Live Status</button>
+    </form>
+    <div id="portalTrackLookupResult" class="message hidden" style="margin-top:12px"></div>
+  </section>
+
   <section class="card" id="portalTicketFormCard">
-    <p class="sub" style="margin-bottom:14px">Select your Factory, Department and Employee name, pick a category and describe the issue. You can also upload screenshots and track live progress below.</p>
+    <p class="sub" id="portalTicketSubtitle" style="margin-bottom:14px">Select your Factory, Department and Employee name, pick a category and describe the issue. You can also upload screenshots and track live progress below.</p>
 
     <form id="ticketForm">
       <div class="grid-3">
@@ -276,7 +319,7 @@ html,body{overflow-x:hidden;max-width:100%}
           <label for="description">Describe the issue / request in detail *</label>
           <textarea id="description" maxlength="5000" required placeholder="Describe the issue, asset tag (if any), error message or exact requirements..."></textarea>
         </div>
-        <div class="field">
+        <div class="field" id="portalFilesField">
           <label for="portalFiles">Attach screenshots (optional · up to 5 images)</label>
           <input id="portalFiles" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple>
           <div class="small">Select images one by one or together. All queued images appear below before submitting.</div>
@@ -336,7 +379,7 @@ html,body{overflow-x:hidden;max-width:100%}
 
   <!-- VISITOR GATE ENTRY (NO LOGIN FOR SECURITY) -->
   <div id="portalVisitorSection" class="portal-panel-stack hidden">
-    <section class="card">
+    <section class="card" id="portalVisitorFormCard">
       <div class="top-bar" style="margin-bottom:8px">
         <div>
           <h2 style="margin:0">🪪 Security Gate · New Visitor Pass Entry</h2>
@@ -393,7 +436,7 @@ html,body{overflow-x:hidden;max-width:100%}
       </form>
     </section>
 
-    <section class="card">
+    <section class="card" id="portalVisitorQueueCard">
       <div class="top-bar" style="margin-bottom:10px">
         <div>
           <h2 style="margin:0">🛂 Live Visitor Approval &amp; Gate Log</h2>
@@ -426,7 +469,7 @@ html,body{overflow-x:hidden;max-width:100%}
 
   <!-- MATERIAL GATE PASS INWARD / OUTWARD (NO LOGIN FOR SECURITY) -->
   <div id="portalGatepassSection" class="portal-panel-stack hidden">
-    <section class="card">
+    <section class="card" id="portalGatepassFormCard">
       <div class="top-bar" style="margin-bottom:8px">
         <div>
           <h2 style="margin:0">📦 Security Gate · Material Gate Pass Register</h2>
@@ -513,7 +556,7 @@ html,body{overflow-x:hidden;max-width:100%}
       </form>
     </section>
 
-    <section class="card">
+    <section class="card" id="portalGatepassQueueCard">
       <div class="top-bar" style="margin-bottom:10px">
         <div>
           <h2 style="margin:0">📋 Material Inward / Outward Gate Log</h2>
@@ -621,6 +664,234 @@ let activeDeskId = 'it';
 let DEFAULT_IT_TREE_SNAPSHOT = null;
 let DEFAULT_IT_MAT_SNAPSHOT = null;
 let CURRENT_PORTAL_COMPANY = 'Swarnshilp';
+let PORTAL_CONFIG = null;
+let activePortalTileId = '';
+let curTileModeAction = 'complaint-desk';
+
+const PORTAL_TILE_THEMES = ['emerald', 'blue', 'amber', 'indigo', 'teal', 'rose', 'cyan', 'slate'];
+const PORTAL_BUILTIN_SVGS = {
+  tickets: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7z"/><path d="M9.5 10h5M9.5 14h3" stroke="#fde047"/></svg>',
+  visitor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="12" cy="10" r="2.6" fill="#fde047" stroke="none"/><path d="M7.8 17c.9-2 2.4-2.8 4.2-2.8s3.3.8 4.2 2.8"/></svg>',
+  gatepass: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8.5 12 4 3 8.5v7L12 20l9-4.5v-7z"/><path d="M3 8.5 12 13l9-4.5M12 13v7" stroke="#fef08a"/></svg>'
+};
+
+function defaultPortalTiles(){
+  const palette = ['emerald', 'cyan', 'amber', 'indigo', 'teal', 'blue', 'rose'];
+  const deskSubs = { it: 'IT Support', plumber: 'Plumbing', electrician: 'Electrical', admin: 'Facility / Admin' };
+  const deskThemes = { it: 'emerald', plumber: 'cyan', electrician: 'amber', admin: 'indigo' };
+  const tiles = (COMPLAINT_DESKS || []).map((dk, idx) => ({
+    id: 'desk:' + dk.id,
+    action: 'complaint-desk',
+    deskId: dk.id,
+    requestKind: '',
+    gateDirection: '',
+    targetUrl: '',
+    openNewTab: false,
+    title: dk.name || dk.id,
+    subtitle: deskSubs[dk.id] || 'Service Desk',
+    icon: dk.icon || '🎫',
+    theme: deskThemes[dk.id] || palette[idx % palette.length],
+    visible: true,
+    builtin: true
+  }));
+  tiles.push(
+    { id: 'visitor', action: 'visitor', deskId: '', requestKind: '', gateDirection: '', targetUrl: '', openNewTab: false, title: 'Visitor Pass', subtitle: 'Gate Entry', icon: '🪪', theme: 'blue', visible: true, builtin: true },
+    { id: 'gatepass', action: 'gatepass', deskId: '', requestKind: '', gateDirection: '', targetUrl: '', openNewTab: false, title: 'Material Gate', subtitle: 'IN / OUT', icon: '📦', theme: 'amber', visible: true, builtin: true }
+  );
+  return tiles;
+}
+
+function effectivePortalConfig(){
+  const raw = PORTAL_CONFIG && typeof PORTAL_CONFIG === 'object' ? PORTAL_CONFIG : {};
+  const tiles = Array.isArray(raw.tiles) && raw.tiles.length ? raw.tiles : defaultPortalTiles();
+  return {
+    showComplaintDesksAsTiles: raw.showComplaintDesksAsTiles !== false,
+    autoSyncComplaintDesks: raw.autoSyncComplaintDesks !== false,
+    showVisitorPass: raw.showVisitorPass !== false,
+    showMaterialGate: raw.showMaterialGate !== false,
+    showSecondaryDeskPills: Boolean(raw.showSecondaryDeskPills),
+    showSignInButton: raw.showSignInButton !== false,
+    showTicketForm: raw.showTicketForm !== false,
+    showMaterialRequest: raw.showMaterialRequest !== false,
+    showAttachments: raw.showAttachments !== false,
+    showTrackingPanel: raw.showTrackingPanel !== false,
+    showLiveTicketQueue: raw.showLiveTicketQueue !== false,
+    showVisitorQueue: raw.showVisitorQueue !== false,
+    showMaterialQueue: raw.showMaterialQueue !== false,
+    showLiveToasts: raw.showLiveToasts !== false,
+    eyebrowText: String(raw.eyebrowText || '').trim(),
+    headingText: String(raw.headingText || '').trim(),
+    subtitleText: String(raw.subtitleText || '').trim(),
+    defaultTileId: String(raw.defaultTileId || 'auto').trim() || 'auto',
+    tiles
+  };
+}
+
+function portalVisibleTiles(){
+  const cfg = effectivePortalConfig();
+  let list = (cfg.tiles || []).filter(t => {
+    if(!t || t.visible === false) return false;
+    if(t.action === 'visitor' && cfg.showVisitorPass === false) return false;
+    if(t.action === 'gatepass' && cfg.showMaterialGate === false) return false;
+    if(!cfg.showComplaintDesksAsTiles && t.action === 'complaint-desk' && (t.builtin || String(t.id || '').startsWith('desk:'))) return false;
+    return true;
+  });
+  if(!cfg.showComplaintDesksAsTiles && !list.some(t => t.action === 'support-all')){
+    const unified = { id: 'support-all', action: 'support-all', deskId: activeDeskId || 'it', requestKind: '', gateDirection: '', targetUrl: '', openNewTab: false, title: 'Support & Material', subtitle: 'Tickets', icon: '🎫', theme: 'emerald', visible: true, builtin: true };
+    const deskTileVisible = (cfg.tiles || []).some(t => t.action === 'complaint-desk' && t.visible !== false);
+    if(deskTileVisible || cfg.showTicketForm || cfg.showLiveTicketQueue){
+      list = [unified, ...list];
+    }
+  }
+  return list;
+}
+
+function renderPortalTileIcon(t){
+  if(t.action === 'visitor' && (!t.icon || t.icon === '🪪')) return PORTAL_BUILTIN_SVGS.visitor;
+  if(t.action === 'gatepass' && (!t.icon || t.icon === '📦')) return PORTAL_BUILTIN_SVGS.gatepass;
+  if((t.action === 'support-all') && (!t.icon || t.icon === '🎫')) return PORTAL_BUILTIN_SVGS.tickets;
+  return h(t.icon || '🎫');
+}
+
+function renderPortalModeTiles(){
+  const host = $('portalMainModes');
+  if(!host) return;
+  const vis = portalVisibleTiles();
+  host.classList.toggle('hidden', !vis.length);
+  host.classList.toggle('multi-rows', vis.length > 3);
+  host.innerHTML = vis.map(t => {
+    const theme = PORTAL_TILE_THEMES.includes(t.theme) ? t.theme : 'emerald';
+    const isAct = t.id === activePortalTileId;
+    const pmodeAttr = t.action === 'visitor' ? 'visitor' : (t.action === 'gatepass' ? 'gatepass' : 'tickets');
+    return `<button type="button" class="portal-mode-btn ptheme-${h(theme)}${isAct ? ' active' : ''}" data-tile-id="${h(t.id)}" data-pmode="${h(pmodeAttr)}" onclick="activatePortalTile('${h(t.id)}')">
+      <span class="pm-ico-box pm-ico-${h(theme)}" aria-hidden="true">${renderPortalTileIcon(t)}</span>
+      <span class="pm-title">${h(t.title)}</span>
+      ${t.subtitle ? `<span class="pm-sub">${h(t.subtitle)}</span>` : ''}
+    </button>`;
+  }).join('');
+}
+
+function syncSectionVisibilityForCurrentMode(){
+  const cfg = effectivePortalConfig();
+  const vis = portalVisibleTiles();
+  const hasVis = vis.length > 0;
+  $('portalEmptyNotice')?.classList.toggle('hidden', hasVis);
+  const mode = hasVis ? (window.__portalMainMode || 'tickets') : 'empty';
+  const showTickets = mode === 'tickets';
+  const showVisitor = mode === 'visitor' && cfg.showVisitorPass !== false;
+  const showGatepass = mode === 'gatepass' && cfg.showMaterialGate !== false;
+  const showTrack = mode === 'track';
+  $('portalTicketFormCard')?.classList.toggle('hidden', !showTickets || cfg.showTicketForm === false);
+  $('portalTicketQueueCard')?.classList.toggle('hidden', !showTickets || cfg.showLiveTicketQueue === false);
+  $('portalVisitorSection')?.classList.toggle('hidden', !showVisitor);
+  $('portalVisitorFormCard')?.classList.toggle('hidden', !showVisitor);
+  $('portalVisitorQueueCard')?.classList.toggle('hidden', !showVisitor || cfg.showVisitorQueue === false);
+  $('portalGatepassSection')?.classList.toggle('hidden', !showGatepass);
+  $('portalGatepassFormCard')?.classList.toggle('hidden', !showGatepass);
+  $('portalGatepassQueueCard')?.classList.toggle('hidden', !showGatepass || cfg.showMaterialQueue === false);
+  $('portalTrackModeSection')?.classList.toggle('hidden', !showTrack);
+  $('portalSignInBtn')?.classList.toggle('hidden', cfg.showSignInButton === false);
+  $('portalFilesField')?.classList.toggle('hidden', cfg.showAttachments === false);
+  const showPillsBox = !cfg.showComplaintDesksAsTiles || cfg.showSecondaryDeskPills || curTileModeAction === 'support-all';
+  $('complaintDeskBox')?.classList.toggle('hidden', !showPillsBox);
+  const subEl = $('portalTicketSubtitle');
+  if(subEl){
+    if(cfg.subtitleText) subEl.textContent = cfg.subtitleText;
+    else subEl.textContent = 'Select your Factory, Department and Employee name, pick a category and describe the issue. You can also upload screenshots and track live progress below.';
+  }
+}
+
+window.activatePortalTile = function(tileId, opts){
+  const cfg = effectivePortalConfig();
+  const vis = portalVisibleTiles();
+  const tile = vis.find(t => t.id === tileId) || vis[0];
+  if(!tile){
+    activePortalTileId = '';
+    window.__portalMainMode = 'empty';
+    renderPortalModeTiles();
+    syncSectionVisibilityForCurrentMode();
+    return;
+  }
+  if(tile.action === 'custom-url'){
+    const u = String(tile.targetUrl || '').trim();
+    if(u){
+      if(tile.openNewTab) window.open(u, '_blank', 'noopener,noreferrer');
+      else location.href = u;
+    }
+    return;
+  }
+  activePortalTileId = tile.id;
+  curTileModeAction = tile.action || 'complaint-desk';
+  const cName = CURRENT_PORTAL_COMPANY || 'Swarnshilp';
+  const hEl = $('portalMainHeading'), ebEl = $('portalEyebrow');
+  renderPortalModeTiles();
+
+  if(tile.action === 'visitor'){
+    window.__portalMainMode = 'visitor';
+    syncSectionVisibilityForCurrentMode();
+    if(hEl) hEl.textContent = cfg.headingText || (tile.icon ? tile.icon + ' ' : '') + tile.title;
+    if(ebEl) ebEl.textContent = cfg.eyebrowText || (cName.toUpperCase() + ' · SECURITY VISITOR REGISTER');
+    if(!opts?.skipFetch && typeof window.loadPublicVisitors === 'function') window.loadPublicVisitors();
+    return;
+  }
+  if(tile.action === 'gatepass'){
+    window.__portalMainMode = 'gatepass';
+    syncSectionVisibilityForCurrentMode();
+    if(hEl) hEl.textContent = cfg.headingText || (tile.icon ? tile.icon + ' ' : '') + tile.title + ' (Inward / Outward)';
+    if(ebEl) ebEl.textContent = cfg.eyebrowText || (cName.toUpperCase() + ' · MATERIAL MOVEMENT REGISTER');
+    if((tile.gateDirection === 'IN' || tile.gateDirection === 'OUT') && typeof window.setPubGpDirection === 'function'){
+      window.setPubGpDirection(tile.gateDirection);
+    }
+    if(!opts?.skipFetch && typeof window.loadPublicGatePasses === 'function') window.loadPublicGatePasses();
+    return;
+  }
+  if(tile.action === 'track-ticket'){
+    window.__portalMainMode = 'track';
+    syncSectionVisibilityForCurrentMode();
+    if(hEl) hEl.textContent = cfg.headingText || (tile.icon ? tile.icon + ' ' : '') + tile.title;
+    if(ebEl) ebEl.textContent = cfg.eyebrowText || (cName.toUpperCase() + ' · LIVE TICKET STATUS LOOKUP');
+    return;
+  }
+
+  window.__portalMainMode = 'tickets';
+  if((tile.action === 'complaint-desk' || tile.action === 'material-request') && tile.deskId && COMPLAINT_DESKS.some(d => d.id === tile.deskId)){
+    activeDeskId = tile.deskId;
+  }
+  if(tile.action === 'material-request' && cfg.showMaterialRequest !== false){
+    const mrRadio = document.querySelector('input[name="requestKind"][value="Material request"]');
+    if(mrRadio) mrRadio.checked = true;
+    setActiveListKind('Material request');
+  } else if(tile.requestKind === 'Material request' && cfg.showMaterialRequest !== false){
+    const mrRadio = document.querySelector('input[name="requestKind"][value="Material request"]');
+    if(mrRadio) mrRadio.checked = true;
+    setActiveListKind('Material request');
+  } else if(tile.requestKind === 'Issue'){
+    const isRadio = document.querySelector('input[name="requestKind"][value="IT help desk"]');
+    if(isRadio) isRadio.checked = true;
+    setActiveListKind('IT help desk');
+  }
+  renderComplaintDesks();
+  syncDeskActiveData();
+  renderPrimaryCategories();
+  renderSubcategories();
+  if(typeof syncRequestKind === 'function') syncRequestKind();
+  syncSectionVisibilityForCurrentMode();
+  if(!opts?.skipFetch && typeof loadPublicTickets === 'function') loadPublicTickets({ silent: true });
+};
+
+function applyPortalConfig(opts){
+  const cfg = effectivePortalConfig();
+  const vis = portalVisibleTiles();
+  const keepCur = vis.some(t => t.id === activePortalTileId);
+  if(!keepCur){
+    const defTile = (cfg.defaultTileId && cfg.defaultTileId !== 'auto' && vis.find(t => t.id === cfg.defaultTileId)) || vis[0];
+    window.activatePortalTile(defTile ? defTile.id : '', { skipFetch: Boolean(opts?.skipFetch) });
+    return;
+  }
+  window.activatePortalTile(activePortalTileId, { skipFetch: true });
+}
+window.__applyPortalConfig = applyPortalConfig;
+window.__portalVisibleTiles = portalVisibleTiles;
 
 function h(v){
   return String(v || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -651,7 +922,8 @@ function syncDeskActiveData(){
   } else if(dk.id === 'it' && DEFAULT_IT_MAT_SNAPSHOT){
     MATERIAL_CATEGORIES = DEFAULT_IT_MAT_SNAPSHOT;
   }
-  const allowMr = dk.allowMaterialRequest !== false;
+  const cfg = effectivePortalConfig();
+  const allowMr = (dk.allowMaterialRequest !== false) && (cfg.showMaterialRequest !== false);
   const matWrap = $('kindMaterialWrap');
   if(matWrap) matWrap.style.display = allowMr ? '' : 'none';
   if(!allowMr && currentKind() === 'Material request'){
@@ -687,8 +959,8 @@ function syncDeskActiveData(){
   const ey = $('portalEyebrow'), mh = $('portalMainHeading');
   const dShort = dk.id === 'it' ? 'IT' : dk.name;
   if(!window.__portalMainMode || window.__portalMainMode === 'tickets'){
-    if(ey) ey.textContent = cName.toUpperCase() + ' · ' + dShort.toUpperCase() + ' HELP DESK & MATERIAL REQUESTS';
-    if(mh) mh.textContent = dk.id === 'it' ? '📝 Raise a support ticket or material request' : ('📝 Raise a ' + dk.name + ' ticket or request');
+    if(ey) ey.textContent = cfg.eyebrowText || (cName.toUpperCase() + ' · ' + dShort.toUpperCase() + ' HELP DESK & MATERIAL REQUESTS');
+    if(mh) mh.textContent = cfg.headingText || (dk.id === 'it' ? '📝 Raise a support ticket or material request' : ('📝 Raise a ' + dk.name + ' ticket or request'));
     document.title = cName + ' · ' + dShort + ' Help Desk & Request Portal';
   }
 }
@@ -708,6 +980,12 @@ function renderComplaintDesks(){
   box.querySelectorAll('input[name="complaintDesk"]').forEach(el => {
     el.addEventListener('change', () => {
       activeDeskId = el.value;
+      const vis = portalVisibleTiles();
+      const matchingTile = vis.find(t => t.action === 'complaint-desk' && t.deskId === activeDeskId);
+      if(matchingTile){
+        activePortalTileId = matchingTile.id;
+        renderPortalModeTiles();
+      }
       syncDeskActiveData();
       renderPrimaryCategories();
       renderSubcategories();
@@ -905,6 +1183,7 @@ function playPortalChime(){
 }
 
 function showPortalToast(title, msg, withSound){
+  if(effectivePortalConfig().showLiveToasts === false) return;
   const stack = $('portalLiveToastStack');
   if(!stack) return;
   const el = document.createElement('div');
@@ -1063,13 +1342,20 @@ $('clearFilters').addEventListener('click', () => {
 
 function showTracking(token, id){
   $('ticketForm').classList.add('hidden');
-  $('trackPanel').classList.remove('hidden');
+  const showTrack = effectivePortalConfig().showTrackingPanel !== false;
+  $('trackPanel').classList.toggle('hidden', !showTrack);
   $('tracking').classList.remove('hidden');
-  $('tracking').textContent = 'Ticket ' + id + ' submitted. Save this private tracking link: ' + location.origin + '/portal#track=' + token;
+  $('tracking').textContent = showTrack
+    ? ('Ticket ' + id + ' submitted. Save this private tracking link: ' + location.origin + '/portal#track=' + token)
+    : ('Ticket ' + id + ' submitted successfully.');
   history.replaceState(null, '', '#track=' + token);
-  checkStatus(token);
-  clearInterval(poller);
-  poller = setInterval(() => checkStatus(token), 15000);
+  if(showTrack){
+    checkStatus(token);
+    clearInterval(poller);
+    poller = setInterval(() => checkStatus(token), 15000);
+  } else {
+    clearInterval(poller);
+  }
 }
 
 $('ticketForm').addEventListener('submit', async e => {
@@ -1200,6 +1486,7 @@ async function refreshPortalOptions(){
   if(Array.isArray(data.complaintDesks) && data.complaintDesks.length){
     COMPLAINT_DESKS = data.complaintDesks;
   }
+  PORTAL_CONFIG = (data.portalConfig && typeof data.portalConfig === 'object') ? data.portalConfig : null;
   SHOW_ALL_DESKS = Boolean(data.showAllDesksOnPortal);
   const prevF = $('factory').value, prevD = $('department').value, prevE = $('employee').value;
   options($('factory'), 'Select factory', data.factories.map(f => {
@@ -1216,9 +1503,10 @@ async function refreshPortalOptions(){
     }
   }
   renderComplaintDesks();
+  applyPortalConfig();
   renderPrimaryCategories();
   renderSubcategories();
-  loadPublicTickets({ silent: true });
+  if(!window.__portalMainMode || window.__portalMainMode === 'tickets') loadPublicTickets({ silent: true });
 }
 
 async function pollPublicPulse(){
@@ -1281,21 +1569,26 @@ async function load(){
   if(Array.isArray(data.complaintDesks) && data.complaintDesks.length){
     COMPLAINT_DESKS = data.complaintDesks;
   }
+  PORTAL_CONFIG = (data.portalConfig && typeof data.portalConfig === 'object') ? data.portalConfig : null;
   SHOW_ALL_DESKS = Boolean(data.showAllDesksOnPortal);
   options($('factory'), 'Select factory', data.factories.map(f => {
     const desc = (f.description && String(f.description).trim()) || (f.name && f.name !== f.code ? f.name : '');
     return { code: f.code, label: desc ? f.code + ' · ' + desc : f.code };
   }), 'code', 'label');
   renderComplaintDesks();
+  applyPortalConfig({ skipFetch: false });
   renderPrimaryCategories();
   fillDepartments();
   renderSubcategories();
-  await loadPublicTickets({ silent: true });
+  if(!window.__portalMainMode || window.__portalMainMode === 'tickets'){
+    await loadPublicTickets({ silent: true });
+  }
   clearTimeout(portalPulseTimer);
   portalPulseTimer = setTimeout(pollPublicPulse, 1000);
 }
 
 (async () => {
+  renderPortalModeTiles();
   renderComplaintDesks();
   renderPrimaryCategories();
   renderSubcategories();
@@ -1487,25 +1780,55 @@ async function load(){
     if(typeof cb === 'function') cb(d);
   };
 
+  $('portalTrackLookupForm')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const resBox = $('portalTrackLookupResult');
+    if(!resBox) return;
+    let tok = String($('portalTrackTokenInput')?.value || '').trim();
+    if(tok.includes('#track=')) tok = tok.split('#track=').pop().split('&')[0].trim();
+    if(!tok){
+      resBox.className = 'message error';
+      resBox.textContent = 'Enter a valid tracking token or link.';
+      resBox.classList.remove('hidden');
+      return;
+    }
+    resBox.className = 'message';
+    resBox.textContent = 'Checking live status…';
+    resBox.classList.remove('hidden');
+    try{
+      const r = await fetch('/api/public/tickets/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'NorthstarIT' },
+        body: JSON.stringify({ tracking_token: tok })
+      });
+      const d = await r.json().catch(() => ({}));
+      if(!r.ok) throw Error(d.error || 'Ticket not found');
+      const rep = d.repair ? `<br>Repair stage: <span class="repair-pill">🔨 ${htm(d.repair.caseNo)} · ${htm(d.repair.stage)}${d.repair.completedAt ? ' · Repaired ' + htm(d.repair.completedAt) : ''}</span>` : '';
+      const issued = typeof issuedPartsHtml === 'function' ? issuedPartsHtml(d.issuedParts) : '';
+      resBox.innerHTML = '<b>' + htm(d.id) + '</b><br>Status: <span class="badge">' + htm(d.status) + '</span>' +
+        (d.eta ? '<br>Expected ETA: ' + htm(d.eta) : '') + rep + issued +
+        (d.note ? '<br>Updates: ' + htm(d.note) : '') +
+        (d.assigned ? '<br>Assigned to: ' + htm(d.assigned) : '');
+    }catch(err){
+      resBox.className = 'message error';
+      resBox.textContent = err.message || 'Ticket lookup failed.';
+    }
+  });
+
   window.switchPortalMainMode = function(mode){
-    curMainMode = ['tickets', 'visitor', 'gatepass'].includes(mode) ? mode : 'tickets';
-    window.__portalMainMode = curMainMode;
-    document.querySelectorAll('#portalMainModes [data-pmode]').forEach(b => b.classList.toggle('active', b.dataset.pmode === curMainMode));
-    $('portalTicketFormCard')?.classList.toggle('hidden', curMainMode !== 'tickets');
-    $('portalTicketQueueCard')?.classList.toggle('hidden', curMainMode !== 'tickets');
-    $('portalVisitorSection')?.classList.toggle('hidden', curMainMode !== 'visitor');
-    $('portalGatepassSection')?.classList.toggle('hidden', curMainMode !== 'gatepass');
-    const h = $('portalMainHeading'), eb = $('portalEyebrow');
-    if(curMainMode === 'visitor'){
-      if(h) h.textContent = '🪪 Visitor Pass & Gate Entry';
-      if(eb) eb.textContent = (data.companyName || 'SWARNSHILP').toUpperCase() + ' · SECURITY VISITOR REGISTER';
-      window.loadPublicVisitors();
-    } else if(curMainMode === 'gatepass'){
-      if(h) h.textContent = '📦 Material Gate Pass (Inward / Outward)';
-      if(eb) eb.textContent = (data.companyName || 'SWARNSHILP').toUpperCase() + ' · MATERIAL MOVEMENT REGISTER';
-      window.loadPublicGatePasses();
-    } else {
-      if(typeof syncDeskActiveData === 'function') syncDeskActiveData();
+    const vis = typeof window.__portalVisibleTiles === 'function' ? window.__portalVisibleTiles() : [];
+    const want = String(mode || 'tickets');
+    let match = null;
+    if(want === 'visitor') match = vis.find(t => t.action === 'visitor');
+    else if(want === 'gatepass') match = vis.find(t => t.action === 'gatepass');
+    else if(want === 'track') match = vis.find(t => t.action === 'track-ticket');
+    else match = vis.find(t => t.action === 'complaint-desk' || t.action === 'support-all' || t.action === 'material-request');
+    if(match && typeof window.activatePortalTile === 'function'){
+      window.activatePortalTile(match.id);
+    } else if(vis.length && typeof window.activatePortalTile === 'function'){
+      window.activatePortalTile(vis[0].id);
+    } else if(typeof window.__applyPortalConfig === 'function'){
+      window.__applyPortalConfig();
     }
   };
 

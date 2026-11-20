@@ -2921,6 +2921,244 @@ def _normalize_material_cats(raw_mat, default_mat):
     return mat_cats or list(default_mat)
 
 
+PORTAL_TILE_THEMES = ("emerald", "blue", "amber", "indigo", "teal", "rose", "cyan", "slate")
+PORTAL_TILE_ACTIONS = (
+    "complaint-desk",
+    "support-all",
+    "material-request",
+    "visitor",
+    "gatepass",
+    "track-ticket",
+    "custom-url",
+)
+_DEFAULT_DESK_TILE_STYLES = {
+    "it": ("emerald", "IT Support"),
+    "plumber": ("cyan", "Plumbing"),
+    "electrician": ("amber", "Electrical"),
+    "admin": ("indigo", "Facility / Admin"),
+}
+
+
+def _safe_portal_url(url_val):
+    s = str(url_val or "").strip()[:300]
+    if not s:
+        return ""
+    if (s.startswith("/") and not s.startswith("//")) or s.startswith("#"):
+        return s
+    low = s.casefold()
+    if low.startswith(("http://", "https://")):
+        return s
+    return ""
+
+
+def _default_tile_for_desk(desk, idx=0):
+    did = str(desk.get("id") or "it").strip()[:40] or "it"
+    palette = ("emerald", "cyan", "amber", "indigo", "teal", "blue", "rose")
+    d_theme, d_sub = _DEFAULT_DESK_TILE_STYLES.get(did, (palette[idx % len(palette)], "Service Desk"))
+    return {
+        "id": f"desk:{did}",
+        "action": "complaint-desk",
+        "deskId": did,
+        "requestKind": "",
+        "gateDirection": "",
+        "targetUrl": "",
+        "openNewTab": False,
+        "title": str(desk.get("name") or did)[:60],
+        "subtitle": d_sub,
+        "icon": str(desk.get("icon") or "🎫").strip()[:12] or "🎫",
+        "theme": d_theme,
+        "visible": True,
+        "builtin": True,
+    }
+
+
+def _default_builtin_tiles(clean_desks, show_visitor=True, show_gatepass=True):
+    tiles = [_default_tile_for_desk(dk, idx) for idx, dk in enumerate(clean_desks)]
+    tiles.append({
+        "id": "visitor",
+        "action": "visitor",
+        "deskId": "",
+        "requestKind": "",
+        "gateDirection": "",
+        "targetUrl": "",
+        "openNewTab": False,
+        "title": "Visitor Pass",
+        "subtitle": "Gate Entry",
+        "icon": "🪪",
+        "theme": "blue",
+        "visible": bool(show_visitor),
+        "builtin": True,
+    })
+    tiles.append({
+        "id": "gatepass",
+        "action": "gatepass",
+        "deskId": "",
+        "requestKind": "",
+        "gateDirection": "",
+        "targetUrl": "",
+        "openNewTab": False,
+        "title": "Material Gate",
+        "subtitle": "IN / OUT",
+        "icon": "📦",
+        "theme": "amber",
+        "visible": bool(show_gatepass),
+        "builtin": True,
+    })
+    return tiles
+
+
+def normalize_portal_config(settings_val, complaint_desks=None):
+    settings = settings_val if isinstance(settings_val, dict) else {}
+    raw = settings.get("portalConfig") if isinstance(settings.get("portalConfig"), dict) else {}
+    desks = complaint_desks if isinstance(complaint_desks, list) and complaint_desks else list(DEFAULT_COMPLAINT_DESKS)
+    valid_desk_ids = {str(d.get("id") or "") for d in desks if isinstance(d, dict) and d.get("id")}
+    default_desk_id = desks[0].get("id", "it") if desks and isinstance(desks[0], dict) else "it"
+
+    show_desks_as_tiles = bool(raw.get("showComplaintDesksAsTiles", True))
+    auto_sync_desks = bool(raw.get("autoSyncComplaintDesks", True))
+    show_visitor = bool(raw.get("showVisitorPass", True))
+    show_gatepass = bool(raw.get("showMaterialGate", True))
+    show_sec_pills = bool(raw.get("showSecondaryDeskPills", False))
+    show_signin = bool(raw.get("showSignInButton", True))
+    show_ticket_form = bool(raw.get("showTicketForm", True))
+    show_mat_request = bool(raw.get("showMaterialRequest", True))
+    show_attachments = bool(raw.get("showAttachments", True))
+    show_tracking_panel = bool(raw.get("showTrackingPanel", True))
+    show_live_queue = bool(raw.get("showLiveTicketQueue", True))
+    show_visitor_queue = bool(raw.get("showVisitorQueue", True))
+    show_material_queue = bool(raw.get("showMaterialQueue", True))
+    show_live_toasts = bool(raw.get("showLiveToasts", True))
+    eyebrow_text = str(raw.get("eyebrowText") or "").strip()[:120]
+    heading_text = str(raw.get("headingText") or "").strip()[:140]
+    subtitle_text = str(raw.get("subtitleText") or "").strip()[:260]
+    default_tile_id = str(raw.get("defaultTileId") or "auto").strip()[:64] or "auto"
+
+    raw_tiles = raw.get("tiles")
+    clean_tiles = []
+    seen_ids = set()
+    if isinstance(raw_tiles, list) and len(raw_tiles) > 0:
+        for idx, t in enumerate(raw_tiles[:40]):
+            if not isinstance(t, dict):
+                continue
+            action = str(t.get("action") or "custom-url").strip()
+            if action not in PORTAL_TILE_ACTIONS:
+                continue
+            tid = str(t.get("id") or f"tile-{idx + 1}").strip()[:64]
+            tid = re.sub(r"[^a-zA-Z0-9_:-]+", "-", tid).strip("-") or f"tile-{idx + 1}"
+            if tid in seen_ids:
+                continue
+            desk_id = str(t.get("deskId") or "").strip()[:40]
+            if action == "complaint-desk":
+                if not desk_id and tid.startswith("desk:"):
+                    desk_id = tid.split(":", 1)[1]
+                if desk_id not in valid_desk_ids:
+                    if t.get("builtin") or tid.startswith("desk:"):
+                        continue
+                    desk_id = default_desk_id
+            elif action == "material-request":
+                if desk_id and desk_id not in valid_desk_ids:
+                    desk_id = default_desk_id
+            else:
+                desk_id = ""
+            req_kind = str(t.get("requestKind") or "").strip()
+            if req_kind not in ("", "Issue", "Material request"):
+                req_kind = ""
+            gdir = str(t.get("gateDirection") or "").strip().upper()
+            if gdir not in ("", "IN", "OUT"):
+                gdir = ""
+            target_url = _safe_portal_url(t.get("targetUrl")) if action == "custom-url" else ""
+            title = str(t.get("title") or "").strip()[:60] or "Portal Module"
+            subtitle = str(t.get("subtitle") or "").strip()[:40]
+            icon = str(t.get("icon") or "🎫").strip()[:12] or "🎫"
+            theme = str(t.get("theme") or "emerald").strip().lower()
+            if theme not in PORTAL_TILE_THEMES:
+                theme = "emerald"
+            seen_ids.add(tid)
+            clean_tiles.append({
+                "id": tid,
+                "action": action,
+                "deskId": desk_id,
+                "requestKind": req_kind,
+                "gateDirection": gdir,
+                "targetUrl": target_url,
+                "openNewTab": bool(t.get("openNewTab", False)),
+                "title": title,
+                "subtitle": subtitle,
+                "icon": icon,
+                "theme": theme,
+                "visible": bool(t.get("visible", True)),
+                "builtin": bool(t.get("builtin", False)),
+            })
+
+    if not clean_tiles:
+        clean_tiles = _default_builtin_tiles(desks, show_visitor, show_gatepass)
+        seen_ids = {t["id"] for t in clean_tiles}
+    else:
+        if auto_sync_desks:
+            missing_desk_tiles = []
+            for idx, dk in enumerate(desks):
+                did = str(dk.get("id") or "")
+                has_tile = any(
+                    (tl["id"] == f"desk:{did}") or (tl["action"] == "complaint-desk" and tl.get("deskId") == did)
+                    for tl in clean_tiles
+                )
+                if did and not has_tile and f"desk:{did}" not in seen_ids:
+                    dt = _default_tile_for_desk(dk, idx)
+                    missing_desk_tiles.append(dt)
+                    seen_ids.add(dt["id"])
+            if missing_desk_tiles:
+                insert_at = next((i for i, tl in enumerate(clean_tiles) if tl["action"] in ("visitor", "gatepass")), len(clean_tiles))
+                clean_tiles[insert_at:insert_at] = missing_desk_tiles
+        if "visitor" not in seen_ids and not any(tl["action"] == "visitor" for tl in clean_tiles):
+            clean_tiles.append({
+                "id": "visitor", "action": "visitor", "deskId": "", "requestKind": "", "gateDirection": "",
+                "targetUrl": "", "openNewTab": False, "title": "Visitor Pass", "subtitle": "Gate Entry",
+                "icon": "🪪", "theme": "blue", "visible": bool(show_visitor), "builtin": True,
+            })
+        if "gatepass" not in seen_ids and not any(tl["action"] == "gatepass" for tl in clean_tiles):
+            clean_tiles.append({
+                "id": "gatepass", "action": "gatepass", "deskId": "", "requestKind": "", "gateDirection": "",
+                "targetUrl": "", "openNewTab": False, "title": "Material Gate", "subtitle": "IN / OUT",
+                "icon": "📦", "theme": "amber", "visible": bool(show_gatepass), "builtin": True,
+            })
+
+    if "showVisitorPass" in raw:
+        for tl in clean_tiles:
+            if tl["id"] == "visitor":
+                tl["visible"] = show_visitor
+    elif any(tl["id"] == "visitor" for tl in clean_tiles):
+        show_visitor = next(tl["visible"] for tl in clean_tiles if tl["id"] == "visitor")
+
+    if "showMaterialGate" in raw:
+        for tl in clean_tiles:
+            if tl["id"] == "gatepass":
+                tl["visible"] = show_gatepass
+    elif any(tl["id"] == "gatepass" for tl in clean_tiles):
+        show_gatepass = next(tl["visible"] for tl in clean_tiles if tl["id"] == "gatepass")
+
+    return {
+        "showComplaintDesksAsTiles": show_desks_as_tiles,
+        "autoSyncComplaintDesks": auto_sync_desks,
+        "showVisitorPass": show_visitor,
+        "showMaterialGate": show_gatepass,
+        "showSecondaryDeskPills": show_sec_pills,
+        "showSignInButton": show_signin,
+        "showTicketForm": show_ticket_form,
+        "showMaterialRequest": show_mat_request,
+        "showAttachments": show_attachments,
+        "showTrackingPanel": show_tracking_panel,
+        "showLiveTicketQueue": show_live_queue,
+        "showVisitorQueue": show_visitor_queue,
+        "showMaterialQueue": show_material_queue,
+        "showLiveToasts": show_live_toasts,
+        "eyebrowText": eyebrow_text,
+        "headingText": heading_text,
+        "subtitleText": subtitle_text,
+        "defaultTileId": default_tile_id,
+        "tiles": clean_tiles,
+    }
+
+
 def normalize_ticketing_settings(settings_val):
     settings = settings_val if isinstance(settings_val, dict) else {}
     clean_tree = _normalize_category_tree_items(
@@ -2995,6 +3233,7 @@ def normalize_ticketing_settings(settings_val):
         "defaultTicketPriority": priority,
         "complaintDesks": clean_desks,
         "showAllDesksOnPortal": show_all_desks,
+        "portalConfig": normalize_portal_config(settings, clean_desks),
     }
 
 
@@ -3571,7 +3810,19 @@ def save_data():
                         if old_uname not in kept_names:
                             conn.execute("DELETE FROM user_sessions WHERE lower(username)=lower(%s)", (old_uname,))
                     value = clean
+                elif key == "settings" and isinstance(value, dict):
+                    s_cur_row = conn.execute("SELECT value FROM app_state WHERE key='settings' FOR UPDATE").fetchone()
+                    s_cur = dict(s_cur_row[0]) if s_cur_row and isinstance(s_cur_row[0], dict) else {}
+                    merged_s = dict(value)
+                    for keep_k in ("portalConfig", "complaintDesks", "showAllDesksOnPortal"):
+                        if keep_k not in merged_s and keep_k in s_cur:
+                            merged_s[keep_k] = s_cur[keep_k]
+                    t_norm = normalize_ticketing_settings(merged_s)
+                    merged_s["portalConfig"] = t_norm["portalConfig"]
+                    value = merged_s
                 conn.execute("INSERT INTO app_state(key,value) VALUES(%s,%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (key, json.dumps(value)))
+                if key == "settings":
+                    _pg_emit_notify(conn, "pulse", {"source": "settings"})
         if "factories_config" in body and isinstance(body["factories_config"], dict):
             s_row = conn.execute("SELECT value FROM app_state WHERE key='settings' FOR UPDATE").fetchone()
             settings_cur = dict(s_row[0]) if s_row and isinstance(s_row[0], dict) else {}
@@ -3579,6 +3830,7 @@ def save_data():
                 if fk in body["factories_config"]:
                     settings_cur[fk] = body["factories_config"][fk]
             conn.execute("INSERT INTO app_state(key,value) VALUES('settings',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(settings_cur),))
+            _pg_emit_notify(conn, "pulse", {"source": "settings"})
     return jsonify(ok=True)
 
 
@@ -3774,6 +4026,40 @@ def update_ticket_settings():
         conn.execute("INSERT INTO app_state(key,value) VALUES('settings',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(settings_val),))
         _pg_emit_notify(conn, "pulse", {"source": "settings"})
     return jsonify(ok=True, settings=normalized)
+
+
+@app.put("/api/admin/portal-config")
+@administrator
+def update_portal_config():
+    body = request.get_json(silent=True) or {}
+    if not isinstance(body, dict):
+        return jsonify(error="Invalid portal configuration payload."), 400
+    patch = body.get("portalConfig") if isinstance(body.get("portalConfig"), dict) else body
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='settings' FOR UPDATE").fetchone()
+        settings_val = dict(row[0]) if row and isinstance(row[0], dict) else {}
+        cur_pc = settings_val.get("portalConfig") if isinstance(settings_val.get("portalConfig"), dict) else {}
+        merged_pc = {**cur_pc, **patch}
+        if isinstance(patch.get("tiles"), list):
+            if "showVisitorPass" not in patch:
+                for tl in patch["tiles"]:
+                    if isinstance(tl, dict) and tl.get("id") == "visitor":
+                        merged_pc["showVisitorPass"] = bool(tl.get("visible", True))
+                        break
+            if "showMaterialGate" not in patch:
+                for tl in patch["tiles"]:
+                    if isinstance(tl, dict) and tl.get("id") == "gatepass":
+                        merged_pc["showMaterialGate"] = bool(tl.get("visible", True))
+                        break
+        settings_val["portalConfig"] = merged_pc
+        normalized = normalize_ticketing_settings(settings_val)
+        settings_val["portalConfig"] = normalized["portalConfig"]
+        conn.execute(
+            "INSERT INTO app_state(key,value) VALUES('settings',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+            (json.dumps(settings_val),),
+        )
+        _pg_emit_notify(conn, "pulse", {"source": "settings"})
+    return jsonify(ok=True, portalConfig=normalized["portalConfig"])
 
 
 @app.get("/api/tickets/parts-options")
