@@ -82,6 +82,7 @@ public class MainActivity extends Activity {
     private boolean sslDialogShowing = false;
     private final List<SslErrorHandler> pendingSslHandlers = new ArrayList<>();
     private String configuredHost = "";
+    private volatile boolean secureScreenActive = false;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -388,6 +389,21 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         isAppInForeground = true;
+        applySecureScreenFlag(secureScreenActive);
+    }
+
+    private void applySecureScreenFlag(boolean secure) {
+        if (secure) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        } else {
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        }
+        if (Build.VERSION.SDK_INT >= 33) {
+            try {
+                setRecentsScreenshotEnabled(!secure);
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     @Override
@@ -762,13 +778,8 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void setSecureScreen(final boolean secure) {
-            runOnUiThread(() -> {
-                if (secure) {
-                    getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
-                } else {
-                    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
-                }
-            });
+            secureScreenActive = secure;
+            runOnUiThread(() -> applySecureScreenFlag(secure));
         }
 
         @JavascriptInterface

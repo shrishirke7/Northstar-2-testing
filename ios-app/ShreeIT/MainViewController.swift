@@ -32,6 +32,7 @@ final class MainViewController: UIViewController,
         NotificationCenter.default.addObserver(self, selector: #selector(handleDeepLink(_:)), name: Notification.Name("ShreeDeepLinkNotification"), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(handleServerUpdate), name: Notification.Name("ShreeServerUrlUpdated"), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(screenCaptureChanged), name: UIScreen.capturedDidChangeNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(userTookScreenshot), name: UIApplication.userDidTakeScreenshotNotification, object: nil)
 
         setupWebView()
         setupProgressAndErrorUI()
@@ -195,7 +196,12 @@ final class MainViewController: UIViewController,
 
     @objc private func screenCaptureChanged() {
         guard secureField?.isSecureTextEntry == true, UIScreen.main.isCaptured else { return }
-        webView.evaluateJavaScript("if(document.getElementById('nsVaultPrivacyVeil')){document.getElementById('nsVaultPrivacyVeil').classList.add('active');}", completionHandler: nil)
+        webView.evaluateJavaScript("if(window.nsVaultModule&&nsVaultModule.engagePrivacyVeil){nsVaultModule.engagePrivacyVeil('iOS screen recording or mirroring blocked by Vault Privacy Shield','ios_capture');}else if(document.getElementById('nsVaultPrivacyVeil')){document.getElementById('nsVaultPrivacyVeil').classList.add('active');document.body.classList.add('ns-vault-shielded');}", completionHandler: nil)
+    }
+
+    @objc private func userTookScreenshot() {
+        guard secureField?.isSecureTextEntry == true else { return }
+        webView.evaluateJavaScript("if(window.nsVaultModule&&nsVaultModule.engagePrivacyVeil){nsVaultModule.engagePrivacyVeil('iOS screenshot attempt blocked by Vault Privacy Shield','ios_screenshot');}else if(document.getElementById('nsVaultPrivacyVeil')){document.getElementById('nsVaultPrivacyVeil').classList.add('active');document.body.classList.add('ns-vault-shielded');}", completionHandler: nil)
     }
 
     @objc private func handleDeepLink(_ note: Notification) {

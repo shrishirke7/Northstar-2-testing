@@ -525,7 +525,7 @@ def enforce_module_access():
     if path == "/api/snmp-metrics" and not is_write:
         if any(module_access(profile, m) for m in ("snmp", "overview", "network")):
             return None
-    if path in ("/api/vault/unlock", "/api/vault/unlock-voice", "/api/vault/lock") or (path.startswith("/api/vault/documents/") and path.endswith("/download")):
+    if path in ("/api/vault/unlock", "/api/vault/unlock-voice", "/api/vault/lock", "/api/vault/capture-alert") or (path.startswith("/api/vault/documents/") and path.endswith("/download")):
         if not module_access(profile, "credentials", write=False):
             return jsonify(error="You do not have access to this module."), 403
         return None
@@ -7606,6 +7606,21 @@ def list_vault_audit_logs():
         "id": r[0], "eventType": r[1], "actor": r[2], "target": r[3],
         "detail": r[4], "ipAddress": r[5], "createdAt": r[6].isoformat() if r[6] else "",
     } for r in rows])
+
+
+@app.post("/api/vault/capture-alert")
+@signed_in
+def log_vault_capture_alert():
+    who = session.get("profile") or {}
+    if not (session.get("is_admin") or module_access(who, "credentials", write=False)):
+        return jsonify(error="Credentials Vault access required."), 403
+    data = request.get_json(silent=True) or {}
+    trigger = str(data.get("trigger") or "shortcut_or_blur")[:80]
+    detail = str(data.get("detail") or "Screen capture attempt blocked by Vault Privacy Shield")[:300]
+    actor = str(who.get("username") or session.get("user") or "unknown")[:120]
+    with db() as conn:
+        _vault_log_audit(conn, "screenshot_attempt_blocked", actor, trigger, detail)
+    return jsonify(ok=True)
 
 
 def _vault_doc_aad(doc_id):
