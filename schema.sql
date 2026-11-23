@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS tickets (
 );
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS public_token_hash text;
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS complaint_desk text NOT NULL DEFAULT 'it';
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS requester_gender text NOT NULL DEFAULT '';
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS first_responded_at timestamptz;
 CREATE INDEX IF NOT EXISTS tickets_created_at_idx ON tickets(created_at DESC);
 CREATE INDEX IF NOT EXISTS tickets_username_idx ON tickets(username);
 CREATE INDEX IF NOT EXISTS tickets_desk_idx ON tickets(complaint_desk);

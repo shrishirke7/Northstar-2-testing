@@ -256,6 +256,11 @@ html,body{overflow-x:hidden;max-width:100%}
 
   <section class="card" id="portalTicketFormCard">
     <p class="sub" id="portalTicketSubtitle" style="margin-bottom:14px">Select your Factory, Department and Employee name, pick a category and describe the issue. You can also upload screenshots and track live progress below.</p>
+    <div id="portalAdminPresenceBanner" style="margin-bottom:14px;padding:11px 14px;border-radius:12px;border:1.5px solid #d5e5dc;background:linear-gradient(135deg,#f4fbf7,#ffffff);font-size:13px">
+      <div style="font-weight:800;color:#145b40;font-size:11.5px;letter-spacing:.4px;text-transform:uppercase;margin-bottom:4px">🖥 Live Support Engineer Availability</div>
+      <div id="portalPresenceSummary" style="color:#1e293b">Checking live support status...</div>
+      <div id="portalPresenceChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:7px"></div>
+    </div>
 
     <form id="ticketForm">
       <div class="grid-3">
@@ -270,6 +275,19 @@ html,body{overflow-x:hidden;max-width:100%}
         <div class="field">
           <label for="employee">Your name *</label>
           <select id="employee" required disabled><option value="">Select department first</option></select>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-bottom:8px">
+        <div class="field" style="margin-bottom:0">
+          <label for="requesterGender">Preferred Salutation (Time &amp; Gender Notification)</label>
+          <select id="requesterGender">
+            <option value="Unspecified">Auto / Standard (Sir / Ma'am)</option>
+            <option value="Male">Male (Sir)</option>
+            <option value="Female">Female (Ma'am)</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0;display:flex;align-items:flex-end">
+          <div class="small" style="padding:8px 10px;border-radius:9px;background:#f8fafc;border:1px solid #e2e8f0;width:100%">You will receive time-based greetings (<b>Good Morning / Afternoon / Evening Sir/Ma’am</b>) &amp; detailed ETA notifications at every ticket stage.</div>
         </div>
       </div>
 
@@ -335,12 +353,27 @@ html,body{overflow-x:hidden;max-width:100%}
     </form>
 
     <div class="message hidden" id="tracking"></div>
+    <div class="message hidden" id="portalAvailabilityNoticeBox" style="margin-top:10px;border-left:4px solid #0284c7;background:#f0f9ff;color:#0c4a6e"></div>
     <section class="hidden" id="trackPanel">
       <h2>Ticket status</h2>
       <div id="status" class="message">Loading ticket status…</div>
+      <div id="trackNotifTimeline" style="margin-top:12px;display:grid;gap:8px"></div>
       <p class="small">This page refreshes automatically every 15 seconds. Keep this private link to return later.</p>
       <button type="button" class="muted" id="newTicket">Raise another ticket</button>
     </section>
+  </section>
+
+  <section class="card" id="portalNotificationsCard">
+    <div class="top-bar" style="margin-bottom:10px">
+      <div>
+        <h2 style="margin:0">🔔 Live Ticket Updates &amp; Stage Notifications</h2>
+        <p class="sub" style="margin-top:3px">Real-time time &amp; salutation notifications for every stage (Open · In progress · Resolved · Closed), ETA updates, engineer assignment &amp; work remarks.</p>
+      </div>
+      <button type="button" class="muted" id="refreshPortalNotifsBtn">↻ Refresh Updates</button>
+    </div>
+    <div id="portalNotifList" style="display:grid;gap:9px;max-height:360px;overflow-y:auto">
+      <div class="small" style="padding:10px">Loading notifications…</div>
+    </div>
   </section>
 
   <section class="card" id="portalTicketQueueCard">
@@ -990,6 +1023,8 @@ function renderComplaintDesks(){
       renderPrimaryCategories();
       renderSubcategories();
       loadPublicTickets({ silent: true });
+      loadPortalPresence();
+      loadPortalTicketNotifications({ silent: true });
     });
   });
   syncDeskActiveData();
@@ -1117,6 +1152,87 @@ document.querySelectorAll('input[name="requestKind"]').forEach(el => {
 
 $('factory').addEventListener('change', fillDepartments);
 $('department').addEventListener('change', fillEmployees);
+$('employee')?.addEventListener('change', () => {
+  const empKey = $('employee').value;
+  const emp = (data?.employees || []).find(e => e.key === empKey);
+  if($('requesterGender') && emp?.gender && ['Male','Female'].includes(emp.gender)){
+    $('requesterGender').value = emp.gender;
+  }
+});
+
+const PORTAL_SEEN_NOTIFS = new Set();
+let portalNotifsSeeded = false;
+
+async function loadPortalPresence(){
+  try{
+    const r = await fetch('/api/public/admin-presence?desk=' + encodeURIComponent(activeDeskId || 'it'), { cache: 'no-store' });
+    if(!r.ok) return;
+    const p = await r.json();
+    const sumEl = $('portalPresenceSummary');
+    const chipsEl = $('portalPresenceChips');
+    if(sumEl) sumEl.textContent = p.summarySentence || 'Support queue ready.';
+    if(chipsEl){
+      const list = Array.isArray(p.admins) ? p.admins : [];
+      chipsEl.innerHTML = list.map(a => {
+        const dotColor = a.status === 'Available' ? '#16a34a' : (a.status === 'In work' ? '#ea580c' : (a.status === 'Away' ? '#eab308' : '#64748b'));
+        const rem = a.etaRemainingMin || a.etaMinutes || 0;
+        const taskPart = a.currentTask ? ` · ${h(a.currentTask)}` : '';
+        const etaPart = rem > 0 ? ` (~${rem}m left)` : '';
+        return `<span style="display:inline-flex;flex-wrap:wrap;align-items:center;gap:5px;padding:6px 11px;border-radius:12px;background:#fff;border:1px solid #cbd5e1;font-size:12px;font-weight:700;line-height:1.35;max-width:100%">
+          <span style="width:8px;height:8px;border-radius:50%;background:${dotColor};display:inline-block;flex-shrink:0"></span>
+          <span>${h(a.name)}: <b>${h(a.status)}</b>${taskPart ? ` <span style="font-weight:500;color:#475569">${taskPart}</span>` : ''}${etaPart ? ` <b style="color:#c2410c">${h(etaPart)}</b>` : ''}</span>
+        </span>`;
+      }).join('');
+    }
+  }catch(_){}
+}
+
+function renderPortalNotifCardHtml(n){
+  const stCls = n.stage === 'Resolved' || n.stage === 'Closed' ? 'background:#ecfdf5;border-color:#86efac' : (n.stage === 'In progress' ? 'background:#eff6ff;border-color:#93c5fd' : 'background:#fff;border-color:#d5e5dc');
+  return `<div style="padding:11px 13px;border-radius:11px;border:1.5px solid;${stCls}">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+      <b style="color:#0f172a;font-size:13px">${h(n.title || n.ticketId)}</b>
+      <span class="small">${h(n.createdDisplay || n.createdAt || '')}</span>
+    </div>
+    <div style="font-size:13px;color:#1e293b;line-height:1.48">${h(n.message || '')}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;font-size:11.5px;color:#475569">
+      <span>Stage ${h(n.stageIndex || 1)}/4: <b>${h(n.stage || 'Open')}</b></span>
+      ${n.assignedTo && n.assignedTo !== 'Unassigned' ? `<span>Assigned: <b>${h(n.assignedTo)}</b></span>` : ''}
+      ${n.etaDisplay ? `<span>ETA: <b style="color:#15803d">${h(n.etaDisplay)}</b></span>` : ''}
+      ${n.factory ? `<span>Factory: <b>${h(n.factory)}</b></span>` : ''}
+    </div>
+  </div>`;
+}
+
+async function loadPortalTicketNotifications(opts){
+  const host = $('portalNotifList');
+  if(!host) return;
+  const deskQ = SHOW_ALL_DESKS ? ($('listDesk')?.value || 'all') : (activeDeskId || 'it');
+  const facQ = $('listFactory')?.value || '';
+  const token = new URLSearchParams(location.hash.slice(1)).get('track') || '';
+  try{
+    const qs = new URLSearchParams({ desk: deskQ });
+    if(facQ) qs.set('factory', facQ);
+    if(token) qs.set('tracking_token', token);
+    const r = await fetch('/api/public/ticket-notifications?' + qs.toString(), { cache: 'no-store' });
+    if(!r.ok) return;
+    const d = await r.json();
+    const list = Array.isArray(d.notifications) ? d.notifications : [];
+    const fresh = [];
+    list.forEach(n => {
+      if(!PORTAL_SEEN_NOTIFS.has(n.id)){
+        PORTAL_SEEN_NOTIFS.add(n.id);
+        if(portalNotifsSeeded) fresh.push(n);
+      }
+    });
+    portalNotifsSeeded = true;
+    if(fresh.length && !(opts && opts.silent)){
+      showPortalToast(fresh[0].title || 'Ticket Update', fresh[0].message || '', true);
+    }
+    host.innerHTML = list.length ? list.map(renderPortalNotifCardHtml).join('') : '<div class="small" style="padding:10px">No stage notifications yet. Notifications appear automatically when a ticket is raised, assigned, updated, or resolved.</div>';
+  }catch(_){}
+}
+$('refreshPortalNotifsBtn')?.addEventListener('click', () => loadPortalTicketNotifications({ silent: true }));
 
 function issuedPartsHtml(list){
   if(!Array.isArray(list) || !list.length) return '';
@@ -1132,12 +1248,22 @@ async function checkStatus(token){
     });
     const d = await r.json();
     if(!r.ok) throw Error(d.error || 'Ticket not found');
+    const stages = ['Open', 'In progress', 'Resolved', 'Closed'];
+    const curIdx = Math.max(0, stages.findIndex(s => s.toLowerCase() === String(d.status || 'Open').toLowerCase()));
+    const stepper = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0">' +
+      stages.map((st, idx) => `<div style="padding:6px;border-radius:8px;text-align:center;font-size:11px;font-weight:700;${idx === curIdx ? 'background:#16845d;color:#fff' : (idx < curIdx ? 'background:#dcfce7;color:#15803d' : 'background:#f1f5f9;color:#64748b')}">${idx + 1}. ${h(st)}</div>`).join('') + '</div>';
     const rep = d.repair ? `<br>Repair stage: <span class="repair-pill">🔨 ${h(d.repair.caseNo)} · ${h(d.repair.stage)}${d.repair.completedAt ? ' · Repaired ' + h(d.repair.completedAt) : ''}</span>` : '';
     const issued = issuedPartsHtml(d.issuedParts);
-    $('status').innerHTML = '<b>' + h(d.id) + '</b><br>Status: <span class="status">' + h(d.status) + '</span>' +
-      (d.eta ? '<br>Expected ETA: ' + h(d.eta) : '') + rep + issued +
+    $('status').innerHTML = '<b>' + h(d.id) + '</b>' + stepper + 'Status: <span class="status">' + h(d.status) + '</span>' +
+      (d.assigned && d.assigned !== 'Unassigned' ? '<br>Assigned Engineer: <b>' + h(d.assigned) + '</b>' : '') +
+      (d.eta ? '<br>Expected ETA: <b>' + h(d.eta) + '</b>' : '') + rep + issued +
       (d.note ? '<br>Update: ' + h(d.note) : '') +
+      (d.availabilitySummary ? '<br><span class="small" style="color:#0369a1">' + h(d.availabilitySummary) + '</span>' : '') +
       '<br><span class="small">Last updated: ' + h(d.updated || '—') + '</span>';
+    const tline = $('trackNotifTimeline');
+    if(tline && Array.isArray(d.notifications)){
+      tline.innerHTML = d.notifications.map(renderPortalNotifCardHtml).join('');
+    }
   } catch(e) {
     $('status').textContent = e.message;
   }
@@ -1379,6 +1505,7 @@ $('ticketForm').addEventListener('submit', async e => {
     fd.append('department', $('department').value);
     fd.append('employee', $('employee').value);
     fd.append('complaintDesk', activeDeskId);
+    fd.append('gender', $('requesterGender')?.value || 'Unspecified');
     fd.append('kind', kind);
     fd.append('primary', primary);
     fd.append('sub', sub);
@@ -1395,8 +1522,20 @@ $('ticketForm').addEventListener('submit', async e => {
     broadcastPortalSync('ticket-created', { id: d.id, kind });
     setActiveListKind(kind);
     showTracking(d.tracking_token, d.id);
+    const avBox = $('portalAvailabilityNoticeBox');
+    if(avBox){
+      const msgTxt = d.welcomeNotification?.message || d.availabilityNotice || '';
+      if(msgTxt){
+        avBox.innerHTML = '<b>📩 ' + h(d.welcomeNotification?.title || ('Notification for ' + d.id)) + '</b><div style="margin-top:4px">' + h(msgTxt) + '</div>';
+        avBox.classList.remove('hidden');
+      } else {
+        avBox.classList.add('hidden');
+      }
+    }
     loadPublicTickets({ silent: true });
-    showPortalToast('Submitted: ' + d.id, 'IT team has been alerted immediately.', true);
+    loadPortalTicketNotifications({ silent: true });
+    loadPortalPresence();
+    showPortalToast('Submitted: ' + d.id, d.welcomeNotification?.message || d.availabilityNotice || 'Support team has been alerted immediately.', true);
   } catch(err) {
     $('error').textContent = err.message;
     $('error').classList.remove('hidden');
@@ -1410,6 +1549,7 @@ $('newTicket').addEventListener('click', () => {
   history.replaceState(null, '', '/portal');
   $('trackPanel').classList.add('hidden');
   $('tracking').classList.add('hidden');
+  $('portalAvailabilityNoticeBox')?.classList.add('hidden');
   $('ticketForm').classList.remove('hidden');
   $('ticketForm').reset();
   pendingFiles = [];
@@ -1435,6 +1575,8 @@ function handleExternalSyncEvent(msg){
   if(!msg || typeof msg !== 'object') return;
   if(msg.type === 'ticket-created' || msg.type === 'ticket-changed'){
     loadPublicTickets({ notifyNew: true });
+    loadPortalPresence();
+    loadPortalTicketNotifications();
     const token = new URLSearchParams(location.hash.slice(1)).get('track');
     if(token) checkStatus(token);
   }
@@ -1517,6 +1659,8 @@ async function pollPublicPulse(){
       if(lastPortalTicketRev && p.ticketRev && p.ticketRev !== lastPortalTicketRev){
         lastPortalTicketRev = p.ticketRev;
         loadPublicTickets({ notifyNew: true });
+        loadPortalPresence();
+        loadPortalTicketNotifications();
         const token = new URLSearchParams(location.hash.slice(1)).get('track');
         if(token) checkStatus(token);
       } else if(p.ticketRev){
@@ -1583,6 +1727,8 @@ async function load(){
   if(!window.__portalMainMode || window.__portalMainMode === 'tickets'){
     await loadPublicTickets({ silent: true });
   }
+  loadPortalPresence();
+  loadPortalTicketNotifications({ silent: true });
   clearTimeout(portalPulseTimer);
   portalPulseTimer = setTimeout(pollPublicPulse, 1000);
 }
@@ -1623,6 +1769,8 @@ async function load(){
       pubEs = new EventSource('/api/public/live-stream');
       const onRefresh = function(){
         if(typeof loadPublicTickets === 'function') loadPublicTickets({ silent: false }).catch(()=>{});
+        if(typeof loadPortalPresence === 'function') loadPortalPresence();
+        if(typeof loadPortalTicketNotifications === 'function') loadPortalTicketNotifications();
       };
       pubEs.addEventListener('ticket', onRefresh);
       pubEs.addEventListener('visitor', function(){ window.loadPublicVisitors?.(); });

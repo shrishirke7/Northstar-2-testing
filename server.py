@@ -14,6 +14,12 @@ import unicodedata
 import shutil
 import tempfile
 import base64
+import smtplib
+from email.message import EmailMessage
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    ZoneInfo = None
 import socket
 import ssl
 import math
@@ -507,7 +513,7 @@ def enforce_module_access():
         "/api/notifications/silent", "/api/notifications/history", "/api/notifications/history/read",
         "/api/speedtest/ping", "/api/speedtest/download", "/api/speedtest/upload",
         "/api/network/speedtest", "/api/network/speedtest/run", "/api/network/speedtest/settings",
-    ) or (path == "/api/notifications/sounds" and method == "GET") or path.startswith("/api/recovery/"):
+    ) or (path == "/api/notifications/sounds" and method == "GET") or (path in ("/api/tickets/admin-presence", "/api/tickets/user-notifications") and method == "GET") or path.startswith("/api/recovery/"):
         return None
     is_write = method in ("POST", "PUT", "PATCH", "DELETE")
     module = next((value for prefix, value in MODULE_API_PATHS.items() if path == prefix or path.startswith(prefix + "/")), None)
@@ -1578,6 +1584,12 @@ DEFAULT_SOUND_ALERTS = {
         "alertOnOnline": True,
     },
     "deviceRules": {},
+    "unrespondedAlarm": {
+        "enabled": True,
+        "thresholdMinutes": 15,
+        "soundId": "builtin:urgent-call-ring",
+        "repeatSeconds": 6,
+    },
 }
 
 
@@ -1601,6 +1613,22 @@ def normalize_sound_state(state, username=None):
         merged["desktopNotifications"] = bool(saved_cfg.get("desktopNotifications"))
     if "defaultNewTypeSilent" in saved_cfg:
         merged["defaultNewTypeSilent"] = bool(saved_cfg.get("defaultNewTypeSilent"))
+    raw_ua = saved_cfg.get("unrespondedAlarm") if isinstance(saved_cfg.get("unrespondedAlarm"), dict) else {}
+    if raw_ua:
+        if "enabled" in raw_ua:
+            merged["unrespondedAlarm"]["enabled"] = bool(raw_ua.get("enabled"))
+        try:
+            if "thresholdMinutes" in raw_ua:
+                merged["unrespondedAlarm"]["thresholdMinutes"] = max(1, min(1440, int(raw_ua.get("thresholdMinutes", 15))))
+        except (TypeError, ValueError):
+            pass
+        if isinstance(raw_ua.get("soundId"), str) and raw_ua.get("soundId").strip():
+            merged["unrespondedAlarm"]["soundId"] = raw_ua.get("soundId").strip()[:120]
+        try:
+            if "repeatSeconds" in raw_ua:
+                merged["unrespondedAlarm"]["repeatSeconds"] = max(3, min(120, int(raw_ua.get("repeatSeconds", 6))))
+        except (TypeError, ValueError):
+            pass
     raw_events = saved_cfg.get("events") if isinstance(saved_cfg.get("events"), dict) else {}
     for ev_key in ("ticket", "visitor", "gatepass", "online", "offline", "critical"):
         ev_val = raw_events.get(ev_key)
@@ -1758,9 +1786,11 @@ def _pulse_versions(conn, include_internal=False):
           COALESCE((SELECT extract(epoch FROM max(updated_at))::text FROM visitor_passes), '0'),
           (SELECT count(*)::bigint FROM visitor_passes),
           COALESCE((SELECT extract(epoch FROM max(updated_at))::text FROM material_gate_passes), '0'),
-          (SELECT count(*)::bigint FROM material_gate_passes)
+          (SELECT count(*)::bigint FROM material_gate_passes),
+          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='admin_presence'), '0'),
+          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='ticket_user_notifications'), '0')
     """).fetchone()
-    ticket_rev = f"{row[0]}:{row[1]}:{row[2]}"
+    ticket_rev = f"{row[0]}:{row[1]}:{row[2]}:{row[13]}:{row[14]}"
     visitor_rev = f"{row[9]}:{row[10]}"
     gatepass_rev = f"{row[11]}:{row[12]}"
     out = {
@@ -1768,6 +1798,8 @@ def _pulse_versions(conn, include_internal=False):
         "visitorRev": visitor_rev,
         "gatepassRev": gatepass_rev,
         "settingsRev": str(row[3] or "0"),
+        "presenceRev": str(row[13] or "0"),
+        "ticketNotifRev": str(row[14] or "0"),
         "serverTime": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
     if include_internal:
@@ -3334,6 +3366,373 @@ def issued_parts_map_from_conn(conn):
     return by_ticket
 
 
+def _local_now_dt():
+    tz_name = str(os.getenv("APP_TIMEZONE") or os.getenv("TZ") or "Asia/Kolkata").strip()
+    if ZoneInfo is not None and tz_name:
+        try:
+            return datetime.now(ZoneInfo(tz_name))
+        except Exception:
+            pass
+    return datetime.now().astimezone()
+
+
+def _time_salutation(dt=None):
+    d = dt or _local_now_dt()
+    if 5 <= d.hour < 12:
+        return "Good Morning"
+    if 12 <= d.hour < 17:
+        return "Good Afternoon"
+    return "Good Evening"
+
+
+def _clean_gender(val):
+    g = str(val or "").strip().casefold()
+    if g in ("male", "m", "mr", "sir"):
+        return "Male"
+    if g in ("female", "f", "ms", "mrs", "miss", "maam", "ma'am"):
+        return "Female"
+    return "Unspecified"
+
+
+def _gender_honorific(gender):
+    g = _clean_gender(gender)
+    if g == "Male":
+        return "Sir"
+    if g == "Female":
+        return "Ma'am"
+    return "Sir/Ma'am"
+
+
+def _format_eta_detail(eta_val):
+    if not eta_val:
+        return "", None
+    now_local = _local_now_dt()
+    dt_obj = None
+    if isinstance(eta_val, datetime):
+        dt_obj = eta_val
+    else:
+        raw = str(eta_val or "").strip()
+        if raw:
+            try:
+                dt_obj = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            except ValueError:
+                dt_obj = None
+    if dt_obj is None:
+        return str(eta_val or "")[:40], None
+    if dt_obj.tzinfo is None:
+        dt_local = dt_obj.replace(tzinfo=now_local.tzinfo)
+    else:
+        dt_local = dt_obj.astimezone(now_local.tzinfo)
+    diff_min = int((dt_local - now_local).total_seconds() // 60)
+    date_txt = dt_local.strftime("%d %b %Y, %I:%M %p")
+    if diff_min > 0:
+        if diff_min < 60:
+            rel = f"in ~{diff_min} min{'s' if diff_min != 1 else ''}"
+        else:
+            hrs, rem = divmod(diff_min, 60)
+            rel = f"in ~{hrs}h {rem}m" if rem else f"in ~{hrs} hr{'s' if hrs != 1 else ''}"
+        return f"{date_txt} ({rel})", diff_min
+    return date_txt, 0
+
+
+def _clean_admin_presence_map(raw_map):
+    if not isinstance(raw_map, dict):
+        return {}
+    now_utc = datetime.now(timezone.utc)
+    valid_statuses = {"Available", "In work", "Away", "Offline"}
+    cleaned = {}
+    for raw_k, raw_v in raw_map.items():
+        if not isinstance(raw_v, dict):
+            continue
+        ukey = str(raw_v.get("username") or raw_k or "").strip().casefold()[:80]
+        if not ukey:
+            continue
+        status = str(raw_v.get("status") or "Available").strip()
+        if status not in valid_statuses:
+            status = "Available"
+        current_task = str(raw_v.get("currentTask") or "").strip()[:240]
+        try:
+            eta_minutes = max(0, min(1440, int(raw_v.get("etaMinutes") or 0)))
+        except (TypeError, ValueError):
+            eta_minutes = 0
+        busy_until = str(raw_v.get("busyUntil") or "").strip()[:48]
+        eta_remaining = 0
+        is_expired = False
+        if status in ("In work", "Away") and busy_until:
+            try:
+                bdt = datetime.fromisoformat(busy_until.replace("Z", "+00:00"))
+                if bdt.tzinfo is None:
+                    bdt = bdt.replace(tzinfo=timezone.utc)
+                sec_left = (bdt - now_utc).total_seconds()
+                if sec_left > 0:
+                    eta_remaining = max(1, int((sec_left + 59) // 60))
+                else:
+                    is_expired = True
+            except ValueError:
+                eta_remaining = eta_minutes
+        elif status in ("In work", "Away"):
+            eta_remaining = eta_minutes
+        raw_desks = raw_v.get("desks") if isinstance(raw_v.get("desks"), list) else ["*"]
+        clean_desks = [str(d).strip().lower()[:40] for d in raw_desks if str(d or "").strip()][:20] or ["*"]
+        cleaned[ukey] = {
+            "username": ukey,
+            "name": str(raw_v.get("name") or ukey).strip()[:120] or ukey,
+            "gender": _clean_gender(raw_v.get("gender")),
+            "status": status,
+            "currentTask": current_task,
+            "etaMinutes": eta_minutes,
+            "etaRemainingMin": eta_remaining,
+            "busyUntil": busy_until,
+            "isBusyExpired": is_expired,
+            "desks": clean_desks,
+            "updatedAt": str(raw_v.get("updatedAt") or "")[:48],
+        }
+    return cleaned
+
+
+def _summarize_admin_availability(conn, desk_id="it", assigned_to=""):
+    row = conn.execute("SELECT value FROM app_state WHERE key='admin_presence'").fetchone()
+    pres_map = _clean_admin_presence_map(row[0] if row else {})
+    entries = list(pres_map.values())
+    desk_slug = _slug_desk_id(desk_id or "it", fallback="it")
+    scoped = [p for p in entries if "*" in p["desks"] or desk_slug in p["desks"]]
+    if not scoped:
+        scoped = entries
+    avail = [p for p in scoped if p["status"] == "Available"]
+    busy = sorted([p for p in scoped if p["status"] == "In work"], key=lambda p: (p["etaRemainingMin"] or p["etaMinutes"] or 9999))
+    away = sorted([p for p in scoped if p["status"] == "Away"], key=lambda p: (p["etaRemainingMin"] or p["etaMinutes"] or 9999))
+    offline = [p for p in scoped if p["status"] == "Offline"]
+
+    assigned_entry = None
+    if assigned_to and assigned_to != "Unassigned":
+        a_cf = str(assigned_to).strip().casefold()
+        assigned_entry = next((p for p in entries if p["name"].casefold() == a_cf or p["username"] == a_cf), None)
+
+    summary_sentence = ""
+    busy_lead = busy[0] if busy else (away[0] if away else None)
+    est_wait = (busy_lead["etaRemainingMin"] or busy_lead["etaMinutes"]) if busy_lead else 0
+
+    if assigned_entry and assigned_entry["status"] in ("In work", "Away"):
+        wmin = assigned_entry["etaRemainingMin"] or assigned_entry["etaMinutes"]
+        wtxt = f" (~{wmin} min{'s' if wmin != 1 else ''} remaining)" if wmin > 0 else ""
+        ttxt = f" — currently handling: \"{assigned_entry['currentTask']}\"" if assigned_entry["currentTask"] else ""
+        summary_sentence = f"Currently, {assigned_entry['name']} is {assigned_entry['status'].lower()}{ttxt}{wtxt}."
+    elif busy and not avail:
+        lead = busy[0]
+        wmin = lead["etaRemainingMin"] or lead["etaMinutes"]
+        wtxt = f" (estimated completion: ~{wmin} min{'s' if wmin != 1 else ''})" if wmin > 0 else ""
+        ttxt = f"\"{lead['currentTask']}\"" if lead["currentTask"] else "an ongoing support task"
+        summary_sentence = f"Currently, {lead['name']} is occupied with {ttxt}{wtxt}. As soon as that task is completed, your ticket will be accepted immediately and resolved as quickly as possible."
+    elif away and not avail:
+        lead = away[0]
+        wmin = lead["etaRemainingMin"] or lead["etaMinutes"]
+        wtxt = f" (expected back in ~{wmin} min{'s' if wmin != 1 else ''})" if wmin > 0 else ""
+        ttxt = f" ({lead['currentTask']})" if lead["currentTask"] else ""
+        summary_sentence = f"Currently, our support engineer ({lead['name']}) is temporarily away{ttxt}{wtxt}. As soon as they return, your ticket will be picked up immediately and resolved promptly."
+    elif avail:
+        names = ", ".join(p["name"] for p in avail[:3])
+        summary_sentence = f"Support engineer {names} is Available right now and will accept and begin working on your ticket shortly."
+    elif offline:
+        summary_sentence = "Our support team is currently offline/between shifts; your ticket is queued in priority order and will be accepted immediately once support comes online."
+    else:
+        summary_sentence = "Your request has been placed in the live queue and our support team will respond as soon as possible."
+
+    return {
+        "hasAvailable": bool(avail),
+        "availableCount": len(avail),
+        "busyCount": len(busy),
+        "awayCount": len(away),
+        "offlineCount": len(offline),
+        "busyAdmin": busy_lead,
+        "assignedPresence": assigned_entry,
+        "estimatedWaitMin": est_wait,
+        "summarySentence": summary_sentence,
+        "admins": scoped,
+    }
+
+
+def _lookup_requester_contact(conn, username="", display_name="", explicit_gender=""):
+    row = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
+    users = row[0] if row and isinstance(row[0], list) else []
+    u_cf = str(username or "").strip().casefold()
+    n_cf = str(display_name or "").strip().casefold()
+    matched = None
+    for u in users:
+        if not isinstance(u, dict):
+            continue
+        un = str(u.get("username") or u.get("id") or "").strip().casefold()
+        nm = str(u.get("name") or "").strip().casefold()
+        if (u_cf and not u_cf.startswith("public-") and un == u_cf) or (n_cf and nm == n_cf):
+            matched = u
+            break
+    gender = _clean_gender(explicit_gender) if _clean_gender(explicit_gender) != "Unspecified" else _clean_gender((matched or {}).get("gender"))
+    email = str((matched or {}).get("email") or "").strip()[:254]
+    return {"gender": gender, "email": email, "name": str((matched or {}).get("name") or display_name or username or "User").strip()}
+
+
+def _maybe_send_ticket_email(to_email, subject, body_text):
+    smtp_host = str(os.getenv("SMTP_HOST") or "").strip()
+    smtp_from = str(os.getenv("SMTP_FROM") or "").strip()
+    if not smtp_host or not smtp_from or not to_email or "@" not in to_email:
+        return False
+    smtp_port = int(os.getenv("SMTP_PORT") or 587)
+    smtp_user = str(os.getenv("SMTP_USER") or "").strip()
+    smtp_pass = str(os.getenv("SMTP_PASSWORD") or os.getenv("SMTP_PASS") or "").strip()
+    use_ssl = str(os.getenv("SMTP_SSL") or "").strip().lower() in ("1", "true", "yes")
+    use_tls = str(os.getenv("SMTP_TLS") or "true").strip().lower() not in ("0", "false", "no")
+
+    def _send():
+        try:
+            msg = EmailMessage()
+            msg["Subject"] = subject[:180]
+            msg["From"] = smtp_from
+            msg["To"] = to_email
+            msg.set_content(body_text)
+            if use_ssl:
+                with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10) as s:
+                    if smtp_user and smtp_pass:
+                        s.login(smtp_user, smtp_pass)
+                    s.send_message(msg)
+            else:
+                with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as s:
+                    if use_tls:
+                        s.starttls()
+                    if smtp_user and smtp_pass:
+                        s.login(smtp_user, smtp_pass)
+                    s.send_message(msg)
+        except Exception:
+            pass
+
+    threading.Thread(target=_send, daemon=True).start()
+    return True
+
+
+def _build_and_record_ticket_user_notification(conn, *, ticket_id, event_type, actor="", detail="", assigned_to=None, status=None, eta=None, note=None, explicit_gender=""):
+    trow = conn.execute(
+        "SELECT id,kind,username,display_name,department,factory,primary_category,sub_category,description,material,assigned_to,status,eta,note,public_token_hash,COALESCE(NULLIF(complaint_desk,''),'it'),COALESCE(NULLIF(requester_gender,''),'') FROM tickets WHERE id=%s",
+        (ticket_id,),
+    ).fetchone()
+    if not trow:
+        return None
+    (tid, kind, uname, dname, dept, factory, primary, sub, desc, material, cur_assigned, cur_status, cur_eta, cur_note, pub_hash, desk_id, db_gender) = trow
+    eff_assigned = cur_assigned if assigned_to is None else assigned_to
+    eff_status = cur_status if status is None else status
+    eff_eta = cur_eta if eta is None else eta
+    eff_note = cur_note if note is None else note
+    eff_gender = explicit_gender or db_gender
+
+    contact = _lookup_requester_contact(conn, uname, dname, eff_gender)
+    now_local = _local_now_dt()
+    salutation = _time_salutation(now_local)
+    honorific = _gender_honorific(contact["gender"])
+    greeting_line = f"{salutation} {honorific}, Greetings of the day!"
+
+    stage_map = {"Open": 1, "In progress": 2, "Resolved": 3, "Closed": 4}
+    stage_idx = stage_map.get(eff_status, 1)
+    eta_text, eta_wait_min = _format_eta_detail(eff_eta)
+    eta_sentence = f" Detailed ETA: Expected resolution by {eta_text}." if eta_text else ""
+    note_clean = str(eff_note or detail or "").strip()
+    desc_short = (str(desc or "").strip()[:120] + ("..." if len(str(desc or "").strip()) > 120 else ""))
+    issue_summary = " · ".join([x for x in (sub or primary, desc_short) if x])
+    avail_info = _summarize_admin_availability(conn, desk_id=desk_id, assigned_to=eff_assigned)
+
+    if event_type == "created":
+        title = f"Ticket {tid} Registered (Stage 1: Open)"
+        body = f"{greeting_line} Your {kind.lower()} #{tid} regarding \"{issue_summary}\" has been submitted and is currently in Stage 1 of 4 (Open). {avail_info['summarySentence']}"
+    elif event_type == "assigned":
+        title = f"Ticket {tid} Assigned to {eff_assigned}"
+        live_ctx = ""
+        ap = avail_info.get("assignedPresence")
+        if ap and ap["status"] in ("In work", "Away"):
+            rem = ap["etaRemainingMin"] or ap["etaMinutes"]
+            live_ctx = f" (Note: {eff_assigned} is currently {ap['status'].lower()}" + (f" on \"{ap['currentTask']}\"" if ap["currentTask"] else "") + (f", free in ~{rem} mins" if rem else "") + " — will take up your task right after)"
+        elif ap and ap["status"] == "Available":
+            live_ctx = " (Currently Available to work on your issue)"
+        body = f"{greeting_line} Your ticket #{tid} ({sub or primary}) has now been assigned to {eff_assigned}{live_ctx}. Current Stage: {eff_status} (Stage {stage_idx} of 4).{eta_sentence}"
+    elif event_type == "status_change":
+        if eff_status == "In progress":
+            title = f"Ticket {tid} is now In Progress"
+            body = f"{greeting_line} Your ticket #{tid} ({issue_summary}) has moved to Stage 2 of 4: In Progress. Assigned Engineer: {eff_assigned or 'Support Team'}.{eta_sentence}" + (f" Latest update: \"{note_clean}\"." if note_clean else "")
+        elif eff_status in ("Resolved", "Closed"):
+            title = f"Ticket {tid} {eff_status}"
+            who_solved = actor or (eff_assigned if eff_assigned and eff_assigned != "Unassigned" else "our support team")
+            work_part = f" Work completed: \"{note_clean}\"." if note_clean else ""
+            body = (
+                f"{greeting_line} We are pleased to inform you that your reported issue #{tid} regarding \"{issue_summary}\" has been {eff_status} by {who_solved}.{work_part} "
+                f"If you encounter any new issue or face this same issue again in the future, please feel free to raise a new ticket anytime — we will be happy to assist you promptly!"
+            )
+        else:
+            title = f"Ticket {tid} Updated to {eff_status}"
+            body = f"{greeting_line} Your ticket #{tid} ({sub or primary}) status is now {eff_status} (Stage {stage_idx} of 4). {avail_info['summarySentence']}" + (f" Remark: \"{note_clean}\"." if note_clean else "")
+    elif event_type == "worklog":
+        title = f"Work Update on Ticket {tid}"
+        body = f"{greeting_line} Work Update for your ticket #{tid} (Stage {stage_idx} of 4 · {eff_status}): {actor or 'Support Team'} logged — \"{detail}\". Assigned Engineer: {eff_assigned or 'Support Team'}.{eta_sentence}"
+    elif event_type == "eta_updated":
+        title = f"ETA Updated for Ticket {tid}"
+        body = f"{greeting_line} Schedule / ETA update for ticket #{tid} (Stage: {eff_status}): {('Expected completion is ' + eta_text) if eta_text else 'ETA schedule cleared'}. Assigned Engineer: {eff_assigned or 'Support Team'}."
+    elif event_type == "material_issued":
+        title = f"Material Update for Request {tid}"
+        done_invite = " Thank you! If you need additional items or face any issue again, feel free to raise a new ticket anytime." if eff_status in ("Resolved", "Closed") else ""
+        body = f"{greeting_line} Update on your request #{tid} ({sub or primary}): {detail}. Current Stage: {eff_status} (Stage {stage_idx} of 4).{done_invite}"
+    else:
+        title = f"Update on Ticket {tid}"
+        body = f"{greeting_line} Your ticket #{tid} has a new update ({eff_status}).{eta_sentence}"
+
+    notif = {
+        "id": f"unotif-{int(time.time() * 1000)}-{uuid.uuid4().hex[:6]}",
+        "ticketId": tid,
+        "kind": kind,
+        "complaintDesk": desk_id,
+        "factory": factory,
+        "department": dept,
+        "requesterName": dname,
+        "requesterUsername": uname,
+        "requesterGender": contact["gender"],
+        "trackingTokenHash": str(pub_hash or ""),
+        "eventType": event_type,
+        "stage": eff_status,
+        "stageIndex": stage_idx,
+        "salutation": salutation,
+        "honorific": honorific,
+        "greetingLine": greeting_line,
+        "title": title,
+        "message": body,
+        "assignedTo": eff_assigned,
+        "etaDisplay": eta_text,
+        "etaWaitMinutes": eta_wait_min,
+        "workDetail": str(detail or note_clean or "")[:600],
+        "availabilityNotice": avail_info["summarySentence"],
+        "busyAdmin": avail_info.get("busyAdmin"),
+        "actor": str(actor or "")[:120],
+        "createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "createdDisplay": now_local.strftime("%d %b %Y, %I:%M %p"),
+    }
+    row = conn.execute("SELECT value FROM app_state WHERE key='ticket_user_notifications' FOR UPDATE").fetchone()
+    items = list(row[0]) if row and isinstance(row[0], list) else []
+    items.insert(0, notif)
+    items = items[:400]
+    conn.execute(
+        "INSERT INTO app_state(key,value) VALUES('ticket_user_notifications',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+        (json.dumps(items),),
+    )
+    _pg_emit_notify(conn, "ticket", {"action": "user-notification", "ticketId": tid, "eventType": event_type, "stage": eff_status, "complaintDesk": desk_id})
+    if contact.get("email"):
+        _maybe_send_ticket_email(contact["email"], title, body)
+    return {k: v for k, v in notif.items() if k != "trackingTokenHash"}
+
+
+def _sanitize_public_user_notif(item):
+    if not isinstance(item, dict):
+        return None
+    out = dict(item)
+    out.pop("trackingTokenHash", None)
+    out.pop("requesterUsername", None)
+    ba = out.get("busyAdmin")
+    if isinstance(ba, dict):
+        out["busyAdmin"] = {k: ba[k] for k in ("name", "status", "currentTask", "etaMinutes", "etaRemainingMin", "busyUntil") if k in ba}
+    return out
+
+
 @app.get("/api/public/portal-options")
 def public_portal_options():
     with db() as conn:
@@ -3368,7 +3767,7 @@ def public_portal_options():
         key = str(u.get("username") or u.get("id") or "").strip()
         if name and dept and site and key:
             public_key = hashlib.sha256((APP_SECRET + "|" + key.casefold() + "|" + dept.casefold() + "|" + site.casefold()).encode()).hexdigest()
-            employees.append({"key": public_key, "name": name, "department": dept, "factory": site})
+            employees.append({"key": public_key, "name": name, "department": dept, "factory": site, "gender": _clean_gender(u.get("gender"))})
     company_name = str(settings.get("companyName") or settings.get("loginBranding", {}).get("companyName") or "").strip()
     if not company_name or company_name.casefold() in ("shree", "northstar", "northstar it", "it asset management"):
         company_name = "Swarnshilp"
@@ -3503,6 +3902,7 @@ def create_public_ticket():
     material = str(body.get("material", "")).strip()[:500]
     kind = "Material request" if body.get("kind") == "Material request" else "IT help desk"
     req_desk = _slug_desk_id(body.get("complaintDesk") or "it", fallback="it")
+    explicit_gender = _clean_gender(body.get("gender"))
     if not all((factory, department, employee_key, description, sub)):
         return jsonify(error="Select your factory, department, name and issue category, then describe the issue."), 400
     files = [f for f in request.files.getlist("files") if f and f.filename] if is_multipart else []
@@ -3555,11 +3955,15 @@ def create_public_ticket():
                 stored = f"{ticket_id.replace('/', '-')}-{uuid.uuid4().hex}{ext}"
                 f.save(ticket_dir / stored)
                 saved.append({"name": secure_filename(f.filename), "path": f"tickets/{token_date}/{stored}"})
-        conn.execute("INSERT INTO tickets(id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments,public_token_hash,complaint_desk) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s)",
-                     (ticket_id, kind, username, str(user.get("name") or "")[:120], department, factory, remote, primary, sub, description, material, json.dumps(saved), token_hash, desk_obj["id"]))
+        req_gender = explicit_gender if explicit_gender != "Unspecified" else _clean_gender(user.get("gender"))
+        conn.execute("INSERT INTO tickets(id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments,public_token_hash,complaint_desk,requester_gender) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s)",
+                     (ticket_id, kind, username, str(user.get("name") or "")[:120], department, factory, remote, primary, sub, description, material, json.dumps(saved), token_hash, desk_obj["id"], req_gender))
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,'Public portal','created',%s)", (ticket_id, description[:500]))
         is_mr = (kind == "Material request")
         desk_label = desk_obj.get("name") or "IT"
+        welcome_notif = _build_and_record_ticket_user_notification(
+            conn, ticket_id=ticket_id, event_type="created", actor="Support Portal", detail=description, explicit_gender=req_gender
+        )
         _record_notification_event(conn, {
             "eventKey": f"ticket:{ticket_id}",
             "kind": "material_request" if is_mr else "ticket",
@@ -3572,7 +3976,13 @@ def create_public_ticket():
             "targetId": ticket_id,
             "complaintDesk": desk_obj["id"],
         })
-    return jsonify(id=ticket_id, tracking_token=tracking_token, complaintDesk=desk_obj["id"]), 201
+    return jsonify(
+        id=ticket_id,
+        tracking_token=tracking_token,
+        complaintDesk=desk_obj["id"],
+        availabilityNotice=(welcome_notif or {}).get("availabilityNotice", ""),
+        welcomeNotification=_sanitize_public_user_notif(welcome_notif),
+    ), 201
 
 
 @app.post("/api/public/tickets/status")
@@ -3582,14 +3992,81 @@ def get_public_ticket_status():
         abort(404)
     token_hash = hashlib.sha256(tracking_token.encode()).hexdigest()
     with db() as conn:
-        row = conn.execute("SELECT id,status,eta,note,updated_at FROM tickets WHERE public_token_hash=%s", (token_hash,)).fetchone()
+        row = conn.execute("SELECT id,status,eta,note,updated_at,COALESCE(NULLIF(complaint_desk,''),'it'),assigned_to FROM tickets WHERE public_token_hash=%s", (token_hash,)).fetchone()
         repair = repair_map_from_conn(conn).get(row[0]) if row else None
         issued_parts = issued_parts_map_from_conn(conn).get(row[0], []) if row else []
+        notif_row = conn.execute("SELECT value FROM app_state WHERE key='ticket_user_notifications'").fetchone()
+        raw_notifs = notif_row[0] if notif_row and isinstance(notif_row[0], list) else []
+        ticket_notifs = [
+            _sanitize_public_user_notif(n) for n in raw_notifs
+            if isinstance(n, dict) and (n.get("ticketId") == (row[0] if row else None) or n.get("trackingTokenHash") == token_hash)
+        ][:30]
+        avail = _summarize_admin_availability(conn, desk_id=(row[5] if row else "it"), assigned_to=(row[6] if row else ""))
     if not row:
         abort(404)
+    pub_admins = [{k: p[k] for k in ("name", "status", "currentTask", "etaMinutes", "etaRemainingMin", "busyUntil", "desks", "updatedAt")} for p in avail["admins"]]
     return jsonify(id=row[0], status=row[1], eta=row[2].isoformat(timespec="minutes") if row[2] else "",
                    note=row[3], updated=row[4].isoformat(timespec="minutes") if row[4] else "",
-                   repair=repair, issuedParts=issued_parts)
+                   assigned=row[6], repair=repair, issuedParts=issued_parts,
+                   notifications=ticket_notifs, availabilitySummary=avail["summarySentence"], adminPresence=pub_admins)
+
+
+@app.get("/api/public/admin-presence")
+def public_admin_presence():
+    req_desk = str(request.args.get("desk") or "it").strip().lower()
+    with db() as conn:
+        avail = _summarize_admin_availability(conn, desk_id=req_desk)
+    pub_admins = [{k: p[k] for k in ("name", "status", "currentTask", "etaMinutes", "etaRemainingMin", "busyUntil", "desks", "updatedAt")} for p in avail["admins"]]
+    return jsonify(
+        admins=pub_admins,
+        hasAvailable=avail["hasAvailable"],
+        availableCount=avail["availableCount"],
+        busyCount=avail["busyCount"],
+        awayCount=avail["awayCount"],
+        offlineCount=avail["offlineCount"],
+        estimatedWaitMin=avail["estimatedWaitMin"],
+        summarySentence=avail["summarySentence"],
+    )
+
+
+@app.get("/api/public/ticket-notifications")
+def public_ticket_notifications():
+    tracking_token = str(request.args.get("tracking_token") or "").strip()
+    ticket_id = str(request.args.get("ticket_id") or "").strip()
+    factory = str(request.args.get("factory") or "").strip()
+    desk = str(request.args.get("desk") or "").strip().lower()
+    requester = str(request.args.get("requester") or "").strip().casefold()
+    token_hash = hashlib.sha256(tracking_token.encode()).hexdigest() if tracking_token and re.fullmatch(r"[A-Za-z0-9_-]{40,60}", tracking_token) else ""
+    with db() as conn:
+        srow = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
+        ticketing_cfg = normalize_ticketing_settings(srow[0] if srow else {})
+        show_all = bool(ticketing_cfg.get("showAllDesksOnPortal", False))
+        desks = ticketing_cfg.get("complaintDesks") or []
+        valid_ids = {d["id"] for d in desks}
+        default_desk = desks[0]["id"] if desks else "it"
+        desk_filter = None if (show_all and desk in ("", "all")) else (desk if desk in valid_ids else (default_desk if not show_all else None))
+        nrow = conn.execute("SELECT value FROM app_state WHERE key='ticket_user_notifications'").fetchone()
+        raw = nrow[0] if nrow and isinstance(nrow[0], list) else []
+    out = []
+    for n in raw:
+        if not isinstance(n, dict):
+            continue
+        if token_hash:
+            if n.get("trackingTokenHash") != token_hash and (not ticket_id or n.get("ticketId") != ticket_id):
+                continue
+        else:
+            if ticket_id and str(n.get("ticketId") or "") != ticket_id:
+                continue
+            if desk_filter and _slug_desk_id(n.get("complaintDesk") or "it", "it") != desk_filter:
+                continue
+            if factory and str(n.get("factory") or "").casefold() != factory.casefold():
+                continue
+            if requester and str(n.get("requesterName") or "").casefold() != requester:
+                continue
+        out.append(_sanitize_public_user_notif(n))
+        if len(out) >= 60:
+            break
+    return jsonify(notifications=out)
 
 
 @app.post("/api/account/profile-picture")
@@ -3688,9 +4165,9 @@ def get_data():
                     for u in manuals
                 ]
             elif any(k in allowed for k in ("assets", "departments", "maintenance", "parts_inventory", "invoices", "software")) or module_access(who, "tickets") or module_access(who, "visitors") or module_access(who, "gatepass") or module_access(who, "notifications"):
-                out["users"] = [{k: v for k, v in u.items() if k in ("username", "name", "email", "dept", "department", "subdept", "site", "role", "enabled", "active", "employment")} | {"source": "manual"} for u in manuals]
+                out["users"] = [{k: v for k, v in u.items() if k in ("username", "name", "email", "dept", "department", "subdept", "site", "role", "enabled", "active", "employment", "gender")} | {"source": "manual"} for u in manuals]
             else:
-                out["users"] = [{k: v for k, v in who.items() if k in ("username", "name", "email", "dept", "department", "site", "role")}]
+                out["users"] = [{k: v for k, v in who.items() if k in ("username", "name", "email", "dept", "department", "site", "role", "gender")}]
             out.pop("settings", None)
             out["factories_config"] = safe_factories
         return jsonify(**out)
@@ -3770,6 +4247,9 @@ def save_data():
                             asset["status"] = "Not checked"
                             asset["ipStatus"] = "Not checked"
                             asset["ipCheckedAt"] = ""
+                        asset["remoteApp"] = str(asset.get("remoteApp") or "").strip()[:80]
+                        asset["remoteId"] = str(asset.get("remoteId") or "").strip()[:120]
+                        asset["remotePassword"] = str(asset.get("remotePassword") or "")[:256]
                         reconciled.append(asset)
                     value = reconciled
                 if key == "manual_users":
@@ -3869,6 +4349,7 @@ def save_data():
                         user["username"] = username
                         user["role"] = user.get("role") if user.get("role") in ("Administrator", "IT Ticketing", "Viewer") else "User"
                         user["enabled"] = user.get("enabled", True)
+                        user["gender"] = _clean_gender(user.get("gender") if "gender" in user else prior.get("gender"))
                         if pw_changed or not user["enabled"]:
                             conn.execute("DELETE FROM user_sessions WHERE lower(username)=lower(%s)", (username,))
                         clean.append(user)
@@ -3914,10 +4395,22 @@ def save_data():
 
 
 def ticket_json(row):
-    return {"id":row[0],"kind":row[1],"username":row[2],"name":row[3],"dept":row[4],"site":row[5],"ip":str(row[6] or ""),"primary":row[7],"sub":row[8],"description":row[9],"material":row[10],"files":row[11],"assigned":row[12],"status":row[13],"eta":row[14].isoformat(timespec="minutes") if row[14] else "","note":row[15],"updated":row[16].isoformat(timespec="minutes") if row[16] else "","complaintDesk":(row[17] if len(row) > 17 and row[17] else "it")}
+    return {
+        "id": row[0], "kind": row[1], "username": row[2], "name": row[3], "dept": row[4], "site": row[5],
+        "ip": str(row[6] or ""), "primary": row[7], "sub": row[8], "description": row[9], "material": row[10],
+        "files": row[11], "assigned": row[12], "status": row[13],
+        "eta": row[14].isoformat(timespec="minutes") if row[14] else "",
+        "note": row[15],
+        "updated": row[16].isoformat(timespec="minutes") if row[16] else "",
+        "complaintDesk": (row[17] if len(row) > 17 and row[17] else "it"),
+        "created": (row[18].isoformat(timespec="minutes") if len(row) > 18 and row[18] else (row[16].isoformat(timespec="minutes") if row[16] else "")),
+        "createdAt": (row[18].isoformat(timespec="seconds") if len(row) > 18 and row[18] else ""),
+        "firstRespondedAt": (row[19].isoformat(timespec="seconds") if len(row) > 19 and row[19] else ""),
+        "requesterGender": (row[20] if len(row) > 20 and row[20] else ""),
+    }
 
 
-TICKET_COLUMNS = "id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments,assigned_to,status,eta,note,updated_at,COALESCE(NULLIF(complaint_desk,''),'it')"
+TICKET_COLUMNS = "id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments,assigned_to,status,eta,note,updated_at,COALESCE(NULLIF(complaint_desk,''),'it'),created_at,first_responded_at,COALESCE(NULLIF(requester_gender,''),'')"
 
 
 INVOICE_UPLOAD_DIR = UPLOAD_DIR / "invoices"
@@ -4195,6 +4688,145 @@ def list_tickets():
     return jsonify(tickets=filtered)
 
 
+@app.get("/api/tickets/remote-directory")
+@ticket_manager
+def ticket_remote_directory():
+    profile = session.get("profile", {})
+    if not (session.get("is_admin") or profile.get("role") == "IT Ticketing" or module_access(profile, "tickets", write=True) or module_access(profile, "assets")):
+        return jsonify(error="Ticketing manager or Assets access is required to view remote desktop credentials."), 403
+    with db() as conn:
+        arow = conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone()
+    assets_list = arow[0] if arow and isinstance(arow[0], list) else []
+    out = []
+    for a in assets_list:
+        if not isinstance(a, dict):
+            continue
+        r_app = str(a.get("remoteApp") or "").strip()
+        r_id = str(a.get("remoteId") or "").strip()
+        r_pw = str(a.get("remotePassword") or "")
+        ip_val = str(a.get("ipAddress") or a.get("ip_address") or "").strip()
+        if r_app or r_id or r_pw or ip_val:
+            out.append({
+                "tag": str(a.get("tag") or "")[:100],
+                "name": str(a.get("name") or "")[:160],
+                "type": str(a.get("type") or "")[:60],
+                "subtype": str(a.get("subtype") or "")[:60],
+                "owner": str(a.get("owner") or "")[:120],
+                "dept": str(a.get("dept") or "")[:120],
+                "site": str(a.get("site") or "")[:40],
+                "ipAddress": ip_val[:45],
+                "remoteApp": r_app[:80],
+                "remoteId": r_id[:120],
+                "remotePassword": r_pw[:256],
+            })
+    return jsonify(devices=out)
+
+
+@app.get("/api/tickets/admin-presence")
+@signed_in
+def get_admin_presence():
+    profile = session.get("profile") or {}
+    ukey = str(profile.get("username") or "").strip().casefold()
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='admin_presence'").fetchone()
+    pres_map = _clean_admin_presence_map(row[0] if row else {})
+    entries = sorted(pres_map.values(), key=lambda p: ({"Available": 0, "In work": 1, "Away": 2, "Offline": 3}.get(p["status"], 4), p["name"].casefold()))
+    my_entry = pres_map.get(ukey) or {
+        "username": ukey,
+        "name": str(profile.get("name") or ukey),
+        "gender": _clean_gender(profile.get("gender")),
+        "status": "Available",
+        "currentTask": "",
+        "etaMinutes": 0,
+        "etaRemainingMin": 0,
+        "busyUntil": "",
+        "isBusyExpired": False,
+        "desks": sorted(allowed_complaint_desks_for(profile)) if allowed_complaint_desks_for(profile) is not None else ["*"],
+        "updatedAt": "",
+    }
+    return jsonify(presence=entries, myPresence=my_entry)
+
+
+@app.put("/api/tickets/admin-presence")
+@ticket_manager
+def update_admin_presence():
+    profile = session.get("profile") or {}
+    if not (session.get("is_admin") or profile.get("role") == "IT Ticketing" or module_access(profile, "tickets", write=True)):
+        return jsonify(error="Ticket administrator or Ticketing write access is required."), 403
+    body = request.get_json(silent=True) or {}
+    status = str(body.get("status") or "Available").strip()
+    if status not in ("Available", "In work", "Away", "Offline"):
+        return jsonify(error="Status must be Available, In work, Away, or Offline."), 400
+    current_task = str(body.get("currentTask") or "").strip()[:240]
+    try:
+        eta_min = max(0, min(1440, int(body.get("etaMinutes") or 0)))
+    except (TypeError, ValueError):
+        return jsonify(error="ETA minutes must be a whole number."), 400
+    if status in ("Available", "Offline") and "etaMinutes" not in body:
+        eta_min = 0
+    now_utc = datetime.now(timezone.utc)
+    busy_until = (now_utc + timedelta(minutes=eta_min)).isoformat(timespec="seconds") if (status in ("In work", "Away") and eta_min > 0) else ""
+    ukey = str(profile.get("username") or "").strip().casefold()
+    allowed_desks = allowed_complaint_desks_for(profile)
+    desks_list = sorted(allowed_desks) if allowed_desks is not None else ["*"]
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='admin_presence' FOR UPDATE").fetchone()
+        pres_map = _clean_admin_presence_map(row[0] if row else {})
+        contact = _lookup_requester_contact(conn, ukey, profile.get("name", ""))
+        pres_map[ukey] = {
+            "username": ukey,
+            "name": str(profile.get("name") or ukey).strip()[:120] or ukey,
+            "gender": contact["gender"],
+            "status": status,
+            "currentTask": "" if status == "Available" and not current_task else current_task,
+            "etaMinutes": 0 if status == "Available" else eta_min,
+            "busyUntil": "" if status == "Available" else busy_until,
+            "desks": desks_list,
+            "updatedAt": now_utc.isoformat(timespec="seconds"),
+        }
+        conn.execute(
+            "INSERT INTO app_state(key,value) VALUES('admin_presence',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+            (json.dumps(pres_map),),
+        )
+        _pg_emit_notify(conn, "ticket", {"action": "presence", "username": ukey, "status": status})
+        clean_map = _clean_admin_presence_map(pres_map)
+    entries = sorted(clean_map.values(), key=lambda p: ({"Available": 0, "In work": 1, "Away": 2, "Offline": 3}.get(p["status"], 4), p["name"].casefold()))
+    return jsonify(ok=True, presence=entries, myPresence=clean_map.get(ukey))
+
+
+@app.get("/api/tickets/user-notifications")
+@signed_in
+def list_ticket_user_notifications():
+    profile = session.get("profile") or {}
+    ticket_id = str(request.args.get("ticket_id") or "").strip()
+    mine_only = str(request.args.get("mine") or "").strip() in ("1", "true", "yes")
+    uname = str(profile.get("username") or "").strip().casefold()
+    dname = str(profile.get("name") or "").strip().casefold()
+    can_manage = bool(session.get("is_admin") or module_access(profile, "tickets"))
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='ticket_user_notifications'").fetchone()
+    raw = row[0] if row and isinstance(row[0], list) else []
+    out = []
+    for n in raw:
+        if not isinstance(n, dict):
+            continue
+        if ticket_id and str(n.get("ticketId") or "") != ticket_id:
+            continue
+        is_owner = (uname and str(n.get("requesterUsername") or "").casefold() == uname) or (dname and str(n.get("requesterName") or "").casefold() == dname)
+        if mine_only and not is_owner:
+            continue
+        if not can_manage and not is_owner:
+            continue
+        if can_manage and not session.get("is_admin") and not ticket_desk_allowed(profile, n.get("complaintDesk") or "it") and not is_owner:
+            continue
+        clean = dict(n)
+        clean.pop("trackingTokenHash", None)
+        out.append(clean)
+        if len(out) >= 100:
+            break
+    return jsonify(notifications=out)
+
+
 @app.put("/api/tickets/settings")
 @ticket_manager
 def update_ticket_settings():
@@ -4373,9 +5005,10 @@ def issue_material_for_ticket(ticket_id):
         ticket_note = f"Issued {qty} × {part.get('name', 'Part')} ({cond_label}) from {assignment['site']} Parts Inventory to {assignment['user']} on {issue_date}"
         if notes:
             ticket_note += f" · {notes}"
-        conn.execute("UPDATE tickets SET status=%s, note=%s, assigned_to=CASE WHEN assigned_to='Unassigned' THEN %s ELSE assigned_to END, updated_at=now() WHERE id=%s",
+        conn.execute("UPDATE tickets SET status=%s, note=%s, assigned_to=CASE WHEN assigned_to='Unassigned' THEN %s ELSE assigned_to END, first_responded_at=COALESCE(first_responded_at, now()), updated_at=now() WHERE id=%s",
                      (new_status, ticket_note[:1000], actor, ticket_id))
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'material_issued',%s)", (ticket_id, actor, ticket_note[:1000]))
+        _build_and_record_ticket_user_notification(conn, ticket_id=ticket_id, event_type="material_issued", actor=actor, detail=ticket_note[:500], status=new_status, note=ticket_note[:500])
         _pg_emit_notify(conn, "ticket", {"action": "issue-material", "ticketId": ticket_id, "status": new_status})
         issued_list = issued_parts_map_from_conn(conn).get(ticket_id, [])
     return jsonify(ok=True, assignment=assignment, status=new_status, note=ticket_note, issuedParts=issued_list, parts_inventory=inv_list, parts_assignments=asgn_list)
@@ -4440,8 +5073,11 @@ def create_ticket():
             stored = f"{ticket_id.replace('/', '-')}-{uuid.uuid4().hex}{ext}"
             f.save(ticket_dir / stored)
             saved.append({"name":secure_filename(f.filename),"path":f"tickets/{token_date}/{stored}"})
-        conn.execute("INSERT INTO tickets(id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments,complaint_desk) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s)", (ticket_id,kind,profile["username"],profile["name"],profile.get("department", ""),profile.get("site", ""),remote,primary,sub,description,form.get("material", ""),json.dumps(saved),desk_obj["id"]))
+        explicit_gender = _clean_gender(form.get("gender"))
+        contact = _lookup_requester_contact(conn, profile["username"], profile["name"], explicit_gender)
+        conn.execute("INSERT INTO tickets(id,kind,username,display_name,department,factory,client_ip,primary_category,sub_category,description,material,attachments,complaint_desk,requester_gender) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s)", (ticket_id,kind,profile["username"],profile["name"],profile.get("department", ""),profile.get("site", ""),remote,primary,sub,description,form.get("material", ""),json.dumps(saved),desk_obj["id"],contact["gender"]))
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'created',%s)", (ticket_id,profile["username"],description[:500]))
+        welcome_notif = _build_and_record_ticket_user_notification(conn, ticket_id=ticket_id, event_type="created", actor=profile["name"] or profile["username"], detail=description, explicit_gender=contact["gender"])
         is_mr = (kind == "Material request")
         desk_label = desk_obj.get("name") or "IT"
         _record_notification_event(conn, {
@@ -4456,7 +5092,7 @@ def create_ticket():
             "targetId": ticket_id,
             "complaintDesk": desk_obj["id"],
         })
-    return jsonify(id=ticket_id, complaintDesk=desk_obj["id"]), 201
+    return jsonify(id=ticket_id, complaintDesk=desk_obj["id"], availabilityNotice=(welcome_notif or {}).get("availabilityNotice", ""), welcomeNotification=welcome_notif), 201
 
 
 @app.patch("/api/tickets/<path:ticket_id>")
@@ -4475,17 +5111,30 @@ def update_ticket(ticket_id):
         return jsonify(error="Invalid ETA."), 400
     assignments = ", ".join(f"{column}=%s" for column,_ in fields)
     profile = session.get("profile", {})
+    actor = str(profile.get("name") or profile.get("username") or "IT Support")[:120]
     with db() as conn:
-        t_row = conn.execute("SELECT COALESCE(NULLIF(complaint_desk,''),'it') FROM tickets WHERE id=%s", (ticket_id,)).fetchone()
+        t_row = conn.execute("SELECT COALESCE(NULLIF(complaint_desk,''),'it'),assigned_to,status,eta,note FROM tickets WHERE id=%s FOR UPDATE", (ticket_id,)).fetchone()
         if not t_row:
             abort(404)
         if not session.get("is_admin") and not ticket_desk_allowed(profile, t_row[0]):
             return jsonify(error="You do not have access to this complaint department's tickets."), 403
-        cur = conn.execute(f"UPDATE tickets SET {assignments}, updated_at=now() WHERE id=%s RETURNING id", [v for _,v in fields]+[ticket_id])
-        if not cur.fetchone():
+        old_assigned, old_status, old_eta, old_note = t_row[1], t_row[2], (t_row[3].isoformat(timespec="minutes") if t_row[3] else ""), t_row[4]
+        cur = conn.execute(f"UPDATE tickets SET {assignments}, first_responded_at=COALESCE(first_responded_at, now()), updated_at=now() WHERE id=%s RETURNING id,assigned_to,status,eta,note", [v for _,v in fields]+[ticket_id])
+        u_row = cur.fetchone()
+        if not u_row:
             abort(404)
+        new_assigned, new_status, new_eta_dt, new_note = u_row[1], u_row[2], u_row[3], u_row[4]
+        new_eta_str = new_eta_dt.isoformat(timespec="minutes") if new_eta_dt else ""
         detail = "; ".join(f"{k}: {v}" for k,v in body.items() if k in allowed)[:1000]
-        conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'updated',%s)", (ticket_id,session["profile"]["username"],detail))
+        conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'updated',%s)", (ticket_id,profile["username"],detail))
+        if "assigned" in body and str(new_assigned or "").strip() and new_assigned != old_assigned and new_assigned != "Unassigned":
+            _build_and_record_ticket_user_notification(conn, ticket_id=ticket_id, event_type="assigned", actor=actor, assigned_to=new_assigned, status=new_status, eta=new_eta_dt, note=new_note)
+        if "status" in body and new_status != old_status:
+            _build_and_record_ticket_user_notification(conn, ticket_id=ticket_id, event_type="status_change", actor=actor, assigned_to=new_assigned, status=new_status, eta=new_eta_dt, note=new_note)
+        elif "eta" in body and new_eta_str != old_eta:
+            _build_and_record_ticket_user_notification(conn, ticket_id=ticket_id, event_type="eta_updated", actor=actor, assigned_to=new_assigned, status=new_status, eta=new_eta_dt, note=new_note)
+        elif "note" in body and new_note and new_note != old_note:
+            _build_and_record_ticket_user_notification(conn, ticket_id=ticket_id, event_type="worklog", actor=actor, detail=new_note, assigned_to=new_assigned, status=new_status, eta=new_eta_dt, note=new_note)
         _pg_emit_notify(conn, "ticket", {"action": "update", "ticketId": ticket_id, "complaintDesk": t_row[0]})
     return jsonify(ok=True)
 
@@ -4505,10 +5154,11 @@ def add_ticket_worklog(ticket_id):
             abort(404)
         if not session.get("is_admin") and not ticket_desk_allowed(profile, t_row[0]):
             return jsonify(error="You do not have access to this complaint department's tickets."), 403
-        row = conn.execute("UPDATE tickets SET note=%s,updated_at=now() WHERE id=%s RETURNING id", (detail, ticket_id)).fetchone()
+        row = conn.execute("UPDATE tickets SET note=%s, first_responded_at=COALESCE(first_responded_at, now()), updated_at=now() WHERE id=%s RETURNING id", (detail, ticket_id)).fetchone()
         if not row:
             abort(404)
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'worklog',%s)", (ticket_id, actor, detail))
+        _build_and_record_ticket_user_notification(conn, ticket_id=ticket_id, event_type="worklog", actor=actor, detail=detail, note=detail)
         _pg_emit_notify(conn, "ticket", {"action": "worklog", "ticketId": ticket_id, "complaintDesk": t_row[0]})
     return jsonify(ok=True)
 
