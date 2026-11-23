@@ -123,25 +123,25 @@ MODULE_IDS = (
 )
 MODULE_DATA_KEYS = {
     "overview": ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "invoices"),
-    "assets": ("assets", "departments"),
+    "assets": ("assets", "departments", "ip_mappings"),
     "data_center": ("assets", "camera_streams", "camera_profiles"),
     "surveillance": ("assets", "camera_streams", "camera_profiles"),
-    "tickets": ("departments",),
+    "tickets": ("departments", "ip_mappings"),
     "visitors": ("departments", "manual_users"),
     "gatepass": ("departments", "manual_users"),
     "maintenance": ("assets", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "departments"),
     "ageing": ("assets", "maintenance"),
     "parts": ("assets", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "departments"),
-    "users": ("manual_users", "departments"),
-    "departments": ("departments", "assets", "manual_users", "maintenance", "parts_assignments"),
-    "factories": ("departments", "assets", "manual_users"),
+    "users": ("manual_users", "departments", "ip_mappings"),
+    "departments": ("departments", "assets", "manual_users", "maintenance", "parts_assignments", "ip_mappings"),
+    "factories": ("departments", "assets", "manual_users", "ip_mappings"),
     "software": ("software", "assets", "departments", "manual_users"),
     "firmware": ("assets", "departments", "software"),
     "credentials": ("assets", "departments"),
-    "network": ("assets", "network_ranges", "network_scan", "scanner_heartbeat", "scanner_ip_status"),
+    "network": ("assets", "network_ranges", "network_scan", "scanner_heartbeat", "scanner_ip_status", "ip_mappings"),
     "snmp": ("assets",),
     "notifications": ("notifications",),
-    "reports": ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "invoices", "vendors"),
+    "reports": ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "invoices", "vendors", "ip_mappings"),
     "valuation": ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "invoices"),
     "billing": ("invoices", "vendors", "departments", "manual_users"),
 }
@@ -340,6 +340,7 @@ def gatepass_row_visible(row, profile, is_admin=False):
 
 def data_key_module(key):
     if key == "assets": return "assets"
+    if key == "ip_mappings": return "assets"
     if key == "departments": return "departments"
     if key == "manual_users": return "users"
     if key in ("factories_config",): return "factories"
@@ -405,7 +406,7 @@ def init_db():
         for statement in schema.split(";"):
             if statement.strip():
                 conn.execute(statement)
-        conn.execute("INSERT INTO app_state(key,value) VALUES('assets','[]'),('software','[]'),('departments','[]'),('maintenance','[]'),('parts_catalog','[]'),('parts_inventory','[]'),('parts_stock_entries','[]'),('parts_assignments','[]'),('invoices','[]'),('vendors','[]'),('manual_users','[]'),('camera_streams','[]'),('camera_profiles','[]'),('network_ranges','[]'),('network_scan','{}'),('scanner_heartbeat','{}'),('scanner_ip_status','{}'),('settings','{}'),('profile_preferences','{}'),('notifications','{\"rules\":[],\"queue\":[]}') ON CONFLICT(key) DO NOTHING")
+        conn.execute("INSERT INTO app_state(key,value) VALUES('assets','[]'),('ip_mappings','[]'),('software','[]'),('departments','[]'),('maintenance','[]'),('parts_catalog','[]'),('parts_inventory','[]'),('parts_stock_entries','[]'),('parts_assignments','[]'),('invoices','[]'),('vendors','[]'),('manual_users','[]'),('camera_streams','[]'),('camera_profiles','[]'),('network_ranges','[]'),('network_scan','{}'),('scanner_heartbeat','{}'),('scanner_ip_status','{}'),('settings','{}'),('profile_preferences','{}'),('notifications','{\"rules\":[],\"queue\":[]}') ON CONFLICT(key) DO NOTHING")
 
 
 def signed_in(fn):
@@ -4376,7 +4377,7 @@ def change_account_password():
 def get_data():
     who = session["profile"]
     with db() as conn:
-        keys = ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "vendors", "manual_users", "settings", "camera_streams", "camera_profiles", "network_ranges", "network_scan", "scanner_heartbeat", "scanner_ip_status", "notifications")
+        keys = ("assets", "ip_mappings", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "vendors", "manual_users", "settings", "camera_streams", "camera_profiles", "network_ranges", "network_scan", "scanner_heartbeat", "scanner_ip_status", "notifications")
         out = {k: (conn.execute("SELECT value FROM app_state WHERE key=%s", (k,)).fetchone() or ([],))[0] for k in keys}
         settings_val = out.get("settings") if isinstance(out.get("settings"), dict) else {}
         ticketing_cfg = normalize_ticketing_settings(settings_val)
@@ -4426,13 +4427,47 @@ def save_data():
         for key in body:
             if key == "settings":
                 return jsonify(error="Administrator access is required for system settings."), 403
+            if key == "ip_mappings":
+                if not (module_access(who, "assets", write=True) or module_access(who, "tickets", write=True)):
+                    return jsonify(error="You do not have write access to Device / IP mappings."), 403
+                continue
             module = data_key_module(key)
             if not module or not module_access(who, module, write=True):
                 return jsonify(error="You do not have write access to the %s module." % (module or "requested")), 403
     with db() as conn:
-        for key in ("assets", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "vendors", "manual_users", "settings"):
+        for key in ("assets", "ip_mappings", "software", "departments", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "vendors", "manual_users", "settings"):
             if key in body:
                 value = body[key]
+                if key == "ip_mappings":
+                    if not isinstance(value, list):
+                        return jsonify(error="ip_mappings must be a list."), 400
+                    clean_ips = []
+                    seen_ips = set()
+                    for item in value[:1000]:
+                        if not isinstance(item, dict):
+                            continue
+                        ip_str = str(item.get("ip") or item.get("ipAddress") or "").strip()
+                        if not ip_str:
+                            continue
+                        try:
+                            ipaddress.ip_address(ip_str)
+                        except ValueError:
+                            return jsonify(error=f"Invalid mapped IP address: {ip_str[:45]}"), 400
+                        ip_key = ip_str.casefold()
+                        if ip_key in seen_ips:
+                            continue
+                        seen_ips.add(ip_key)
+                        clean_ips.append({
+                            "ip": ip_str,
+                            "name": str(item.get("name") or item.get("owner") or "").strip()[:120],
+                            "dept": str(item.get("dept") or item.get("department") or "").strip()[:120],
+                            "site": str(item.get("site") or item.get("factory") or "").strip()[:64],
+                            "assetTag": str(item.get("assetTag") or "").strip()[:80],
+                            "assetName": str(item.get("assetName") or "").strip()[:160],
+                            "source": str(item.get("source") or "manual").strip()[:40],
+                            "updatedAt": str(item.get("updatedAt") or "").strip()[:64],
+                        })
+                    value = clean_ips
                 if key == "assets" and isinstance(value, list):
                     current = (conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone() or ([],))[0]
                     prior_by_tag = {str(a.get("tag", "")).casefold(): a for a in current}
@@ -4623,8 +4658,8 @@ def save_data():
                     merged_s["portalConfig"] = t_norm["portalConfig"]
                     value = merged_s
                 conn.execute("INSERT INTO app_state(key,value) VALUES(%s,%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (key, json.dumps(value)))
-                if key == "settings":
-                    _pg_emit_notify(conn, "pulse", {"source": "settings"})
+                if key in ("settings", "ip_mappings"):
+                    _pg_emit_notify(conn, "pulse", {"source": key})
         if "factories_config" in body and isinstance(body["factories_config"], dict):
             s_row = conn.execute("SELECT value FROM app_state WHERE key='settings' FOR UPDATE").fetchone()
             settings_cur = dict(s_row[0]) if s_row and isinstance(s_row[0], dict) else {}
