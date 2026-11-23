@@ -1094,7 +1094,7 @@ button,a,.btn,.site-chip,.nav button,.mb-nav-item,.ov-mob-tab{touch-action:manip
     <div style="font-size:11px;font-weight:700;color:#157a54;background:#eefcf4;padding:4px 10px;border-radius:20px;border:1px solid #ccebd7" id="tfFactoryTotalBadge">0 Factories Active</div>
   </div>
   <div class="val-tiles-grid" id="tfFactoryTilesGrid"></div>
-</div><div class="panel" id="ticketFormCard" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">✎ &nbsp;Submit a new support ticket / material request</div><div class="panel-sub">Choose complaint department &amp; issue category. Your mapped employee, department and factory details are filled in automatically.</div></div><span class="status warning" id="identityStatus">Signed in</span></div><div style="padding:16px 18px 18px"><div id="helpdeskDeskSelectorWrap" style="margin-bottom:12px;padding:10px 12px;border:1px solid #d5e5dc;border-radius:10px;background:#f7fbf8"><div style="font-size:10px;font-weight:800;color:#145b40;margin-bottom:7px;letter-spacing:.4px">COMPLAINT DEPARTMENT / SERVICE DESK *</div><div id="helpdeskDeskPills" style="display:flex;flex-wrap:wrap;gap:7px"></div></div><div style="font-size:10px;font-weight:700;color:#707d74;margin-bottom:8px">REQUEST TYPE</div><label class="ticket-choice"><input type="radio" name="requestKind" value="IT help desk" checked> <span id="hdKindServiceLabel">🧰 Service / Complaint Ticket</span></label><label class="ticket-choice" id="hdKindMaterialWrap"><input type="radio" name="requestKind" value="Material request"> <span id="hdKindMaterialLabel">📦 Material Request</span></label><div style="font-size:10px;font-weight:700;color:#707d74;margin:12px 0 7px">PRIMARY CATEGORY</div><div id="primaryCategories"><label class="ticket-choice"><input type="radio" name="primaryCategory" value="ERP / Software / Manufacturing" checked> 📊 ERP / Software / Manufacturing</label><label class="ticket-choice"><input type="radio" name="primaryCategory" value="Network / Hardware"> 🖥️ Network / Hardware</label></div><div class="ticket-subcats"><div class="ticket-subcats-title">Select sub-category</div><div id="ticketSubcats" style="display:flex;flex-wrap:wrap;gap:7px"></div></div><div class="ticket-identity"><div><span>YOUR NAME</span><b id="ticketIdentityName">Suneel Maurya</b></div><div><span>DEPARTMENT</span><b id="ticketIdentityDept">INDO OFFICE</b></div><div><span>FACTORY / LOCATION</span><b id="ticketIdentitySite">ARG</b></div><div><span>DEVICE IP · MAPPED</span><b id="ticketIdentityIp">192.168.130.3</b></div></div><form id="ticketForm"><div class="ticket-form-grid"><div class="field full" id="materialFields" style="display:none"><label>Requested item / quantity / justification</label><input name="material" placeholder="e.g. USB-C dock · qty 2 · required for new workstations"></div><div class="field full"><label>Describe your issue in detail *</label><textarea class="filter-input ticket-description" name="description" required placeholder="Describe the problem, what you were trying to do, and any error message..."></textarea></div><div class="field full"><label>Attach screenshots (up to 3)</label><input id="ticketFiles" type="file" accept="image/*" multiple class="filter-input"><div id="ticketFileNames" class="ticket-meta"></div></div></div><div style="display:flex;gap:8px;align-items:center;margin-top:12px"><span class="ticket-meta">A ticket number will be generated automatically.</span><button class="btn primary" style="margin-left:auto;min-width:210px">↥ &nbsp;Submit IT ticket</button></div></form></div></div><div class="ns-section-tabs" id="ticketsSectionTabs"><button type="button" class="ns-sec-tab active" data-ticket-tab="IT help desk" onclick="switchTicketsTab('IT help desk')"><span id="hdTabTicketsLabel">🧰 IT Support Tickets</span> <span class="ns-tab-badge" id="tabItTicketsCount">0</span></button><button type="button" class="ns-sec-tab" data-ticket-tab="Material request" onclick="switchTicketsTab('Material request')"><span id="hdTabMaterialsLabel">📦 IT Material Requests &amp; Parts Status</span> <span class="ns-tab-badge" id="tabMatReqCount">0</span></button></div><div class="panel" id="ticketsQueuePanel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title" id="hdLiveQueueTitle">🌐 &nbsp;Live Support Tickets Queue</div><div class="panel-sub" id="hdLiveQueueSub">Support tickets (Material Requests are tracked separately in the Material Requests tab).</div></div><button class="btn" onclick="renderTickets();showToast('Ticket list refreshed')">↻ &nbsp;Refresh</button></div><div style="padding:0 15px 14px"><div class="ticket-filter-strip"><span class="ticket-meta" style="font-weight:700">FILTER</span><select class="filter-select" id="ticketDeskFilter"><option value="">All allowed departments</option></select><select class="filter-select" id="ticketKindFilter" style="display:none"><option value="">All tickets & requests</option><option>IT help desk</option><option>Material request</option></select><select class="filter-select" id="ticketStatusFilter"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select><select class="filter-select" id="ticketCategoryFilter"><option value="">All categories</option><option>ERP / Software / Manufacturing</option><option>Network / Hardware</option></select><select class="filter-select" id="ticketSiteFilter"><option value="">All factories</option><option>ARG</option><option>ARB</option><option>ARC</option><option>ARF</option></select><input class="filter-input" id="ticketSearch" placeholder="Search ticket, user or issue..." style="min-width:180px"></div><div class="table-wrap"><table class="ticket-table"><thead><tr><th>TICKET</th><th>USER · DEPT · FACTORY</th><th>CATEGORY / SUB</th><th>ISSUE</th><th>ASSIGNED TO</th><th>STATUS</th><th>ETA</th><th>NOTE / REMARK</th><th>UPDATED</th></tr></thead><tbody id="ticketTable"></tbody></table></div></div></div><div class="panel" id="materialRequestsPanel" style="display:none;margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">📦 &nbsp;IT Material Requests &amp; Parts Inventory Status</div><div class="panel-sub">Track every hardware/material request separately and verify parts issued against it from Parts Inventory.</div></div><button class="btn" onclick="renderTickets();showToast('Material request list refreshed')">↻ &nbsp;Refresh</button></div><div style="padding:0 15px 14px"><div class="ticket-filter-strip"><span class="ticket-meta" style="font-weight:700">FILTER MATERIAL REQUESTS</span><select class="filter-select" id="mrUserStatusFilter" onchange="renderTickets()"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select><select class="filter-select" id="mrUserSiteFilter" onchange="renderTickets()"><option value="">All factories</option></select><input class="filter-input" id="mrUserSearch" placeholder="Search request ID, item, user..." style="min-width:200px" oninput="renderTickets()"></div><div class="table-wrap"><table class="ticket-table"><thead><tr><th>REQUEST ID</th><th>REQUESTER · DEPT · FACTORY</th><th>CATEGORY</th><th>REQUESTED ITEM &amp; REASON</th><th>ASSIGNED TO</th><th>STATUS</th><th>PARTS INVENTORY FULFILLMENT</th><th>ETA &amp; UPDATED</th></tr></thead><tbody id="materialUserTable"></tbody></table></div></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">How auto-identification works</div><div class="panel-sub">Manual IP mapping previews the flow; secure login and user accounts are managed by your administrator.</div></div><button class="link-btn" onclick="openIpManager()">Manage mappings →</button></div><div class="health-wrap"><div class="site-overview"><div class="site-tile"><div class="site-tile-head">1 · Map workstation IP</div><p>Admin registers a trusted device IP against a user, department and factory.</p></div><div class="site-tile"><div class="site-tile-head">2 · Verify identity</div><p>Users sign in with their local application account.</p></div><div class="site-tile"><div class="site-tile-head">3 · Open request link</div><p>Signed-in users get their mapped name, department and site prefilled in the issue form.</p></div><div class="site-tile"><div class="site-tile-head">4 · Track to closure</div><p id="hdAutoStep4Text">Support team updates assignee, status, work notes and expected completion time in the live queue.</p></div></div></div></div></section><section class="view" id="view-ticketing"><div class="page-head"><div><div class="eyebrow" id="bePageEyebrow">IT operations · Backend workbench</div><h1 id="bePageTitle">Ticketing backend &amp; settings</h1><p id="bePageSub">Manage tickets, fulfill material requests from inventory, and configure dynamic categories.</p></div><div class="head-actions"><button class="btn" onclick="refreshServerTickets().then(()=>renderTicketingBackend())">↻ &nbsp;Refresh</button></div></div><div class="ns-section-tabs" id="ticketingBackendTabs"><button type="button" class="ns-sec-tab active" data-backend-tab="tickets" onclick="switchTicketingBackendTab('tickets')"><span id="beTabTicketsLabel">🎫 IT Support Tickets</span> <span class="ns-tab-badge" id="beItTicketsBadge">0</span></button><button type="button" class="ns-sec-tab" data-backend-tab="materials" onclick="switchTicketingBackendTab('materials')"><span id="beTabMaterialsLabel">📦 Material Requests &amp; Parts Issue</span> <span class="ns-tab-badge" id="beMatReqBadge">0</span></button><button type="button" class="ns-sec-tab" data-backend-tab="settings" onclick="switchTicketingBackendTab('settings')">⚙ Ticketing Settings &amp; Categories</button></div><div class="panel" id="ticketingTabTickets"><div class="section-toolbar"><input class="filter-input" id="ticketingSearch" placeholder="Search ticket, user or issue"><select class="filter-select" id="ticketingDeskFilter" onchange="renderTicketingBackend()"><option value="">All allowed desks</option></select><select class="filter-select" id="ticketingKind" style="display:none"><option value="IT help desk">IT help desk</option></select><select class="filter-select" id="ticketingCatFilter" onchange="renderTicketingBackend()"><option value="">All primary categories</option></select><select class="filter-select" id="ticketingStatus"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select></div><div id="beTicketBulkBar" class="ns-bulk-bar"><div id="beTicketBulkSummary"><b>0</b> tickets selected</div><div class="ns-bulk-actions"><button type="button" class="btn" onclick="clearTicketingSelection('tickets')">Clear selection</button><button type="button" class="btn danger" onclick="bulkDeleteTicketingRecords('tickets')">🗑 &nbsp;Delete selected (<span id="beTicketBulkCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="beTicketSelectAll" aria-label="Select all visible IT tickets"></th><th>TICKET / CREATED</th><th>REQUESTER / FACTORY / DEPT</th><th>ISSUE</th><th>ASSIGN TO</th><th>STATUS</th><th>ETA</th><th>WORK UPDATE</th><th>ACTIONS</th></tr></thead><tbody id="ticketingTable"></tbody></table></div></div><div class="panel" id="ticketingTabMaterials" style="display:none"><div class="section-toolbar"><input class="filter-input" id="beMrSearch" placeholder="Search request ID, item, requester..." oninput="renderTicketingBackend()"><select class="filter-select" id="beMrSite" onchange="renderTicketingBackend()"><option value="">All factories</option></select><select class="filter-select" id="beMrStatus" onchange="renderTicketingBackend()"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select></div><div id="beMrBulkBar" class="ns-bulk-bar"><div id="beMrBulkSummary"><b>0</b> material requests selected</div><div class="ns-bulk-actions"><button type="button" class="btn" onclick="clearTicketingSelection('materials')">Clear selection</button><button type="button" class="btn danger" onclick="bulkDeleteTicketingRecords('materials')">🗑 &nbsp;Delete selected (<span id="beMrBulkCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="beMrSelectAll" aria-label="Select all visible material requests"></th><th>REQUEST / CREATED</th><th>REQUESTER / FACTORY / DEPT</th><th>CATEGORY &amp; ITEM NEEDED</th><th>ASSIGN / STATUS / ETA</th><th>PARTS INVENTORY ISSUED</th><th>FULFILL FROM INVENTORY / WORK</th></tr></thead><tbody id="ticketingMaterialTable"></tbody></table></div></div><div id="ticketingTabSettings" style="display:none"></div></section><section class="view" id="view-users"><div class="page-head"><div><div class="eyebrow">People · Access · Security</div><h1>People, users &amp; access</h1><p>Manage employees, sign-in accounts, module permissions, and account recovery.</p></div><div class="head-actions" style="flex-wrap:wrap"><button class="btn" type="button" onclick="openUserImportModal()">↑ &nbsp;Import Excel / CSV</button><button class="btn" type="button" onclick="openUserExportChoicesModal()">↓ &nbsp;Export Excel / CSV</button><button class="btn primary" onclick="addUser()">＋ &nbsp;Add user / administrator</button></div></div><div class="kpis"><div class="kpi-pill">Active users <b>0</b></div><div class="kpi-pill">With assigned assets <b>0</b></div><div class="kpi-pill">No assigned devices <b>0</b></div><div class="kpi-pill">Login accounts <b>0</b></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="userSearch" placeholder="⌕  Search name, email or employee ID..."><select class="filter-select" id="userDeptFilter"><option value="">All departments</option></select><select class="filter-select" id="userSiteFilter"><option value="">All factories</option></select><select class="filter-select" id="userEmploymentFilter"><option value="">All employment statuses</option><option>Active</option><option>On leave</option><option>Inactive</option></select></div><div class="table-wrap"><table><thead><tr><th>EMPLOYEE</th><th>EMPLOYEE ID / LOGIN</th><th>DATE OF BIRTH</th><th>DEPARTMENT</th><th>FACTORY</th><th>IP / NETWORK STATUS</th><th>ASSETS</th><th>SOFTWARE</th><th>LAST ACTIVE</th><th>ROLE &amp; ACCESS</th></tr></thead><tbody id="userTable"></tbody></table></div></div>
+</div><div class="panel" id="ticketFormCard" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">✎ &nbsp;Submit a new support ticket / material request</div><div class="panel-sub">Choose complaint department &amp; issue category. Your mapped employee, department and factory details are filled in automatically.</div></div><span class="status warning" id="identityStatus">Signed in</span></div><div style="padding:16px 18px 18px"><div id="helpdeskDeskSelectorWrap" style="margin-bottom:12px;padding:10px 12px;border:1px solid #d5e5dc;border-radius:10px;background:#f7fbf8"><div style="font-size:10px;font-weight:800;color:#145b40;margin-bottom:7px;letter-spacing:.4px">COMPLAINT DEPARTMENT / SERVICE DESK *</div><div id="helpdeskDeskPills" style="display:flex;flex-wrap:wrap;gap:7px"></div></div><div style="font-size:10px;font-weight:700;color:#707d74;margin-bottom:8px">REQUEST TYPE</div><label class="ticket-choice"><input type="radio" name="requestKind" value="IT help desk" checked> <span id="hdKindServiceLabel">🧰 Service / Complaint Ticket</span></label><label class="ticket-choice" id="hdKindMaterialWrap"><input type="radio" name="requestKind" value="Material request"> <span id="hdKindMaterialLabel">📦 Material Request</span></label><div style="font-size:10px;font-weight:700;color:#707d74;margin:12px 0 7px">PRIMARY CATEGORY</div><div id="primaryCategories"><label class="ticket-choice"><input type="radio" name="primaryCategory" value="ERP / Software / Manufacturing" checked> 📊 ERP / Software / Manufacturing</label><label class="ticket-choice"><input type="radio" name="primaryCategory" value="Network / Hardware"> 🖥️ Network / Hardware</label></div><div class="ticket-subcats"><div class="ticket-subcats-title">Select sub-category</div><div id="ticketSubcats" style="display:flex;flex-wrap:wrap;gap:7px"></div></div><div class="ticket-identity"><div><span>YOUR NAME</span><b id="ticketIdentityName">Suneel Maurya</b></div><div><span>DEPARTMENT</span><b id="ticketIdentityDept">INDO OFFICE</b></div><div><span>FACTORY / LOCATION</span><b id="ticketIdentitySite">ARG</b></div><div><span>DEVICE IP · MAPPED</span><b id="ticketIdentityIp">192.168.130.3</b></div></div><form id="ticketForm"><div class="ticket-form-grid"><div class="field full" id="materialFields" style="display:none"><label>Requested item / quantity / justification</label><input name="material" placeholder="e.g. USB-C dock · qty 2 · required for new workstations"></div><div class="field full"><label>Describe your issue in detail *</label><textarea class="filter-input ticket-description" name="description" required placeholder="Describe the problem, what you were trying to do, and any error message... (Tip: Ctrl+V to paste screenshots)"></textarea><div class="ticket-meta" style="margin-top:4px;color:#157a54;font-weight:600">💡 Tip: Press Ctrl+V inside the description box to paste a copied screenshot directly (just like WhatsApp).</div></div><div class="field full"><label>Attach screenshots (up to 5)</label><input id="ticketFiles" type="file" accept="image/*" multiple class="filter-input"><div id="ticketFileNames" class="ticket-meta"></div></div></div><div style="display:flex;gap:8px;align-items:center;margin-top:12px"><span class="ticket-meta">A ticket number will be generated automatically.</span><button class="btn primary" style="margin-left:auto;min-width:210px">↥ &nbsp;Submit IT ticket</button></div></form></div></div><div class="ns-section-tabs" id="ticketsSectionTabs"><button type="button" class="ns-sec-tab active" data-ticket-tab="IT help desk" onclick="switchTicketsTab('IT help desk')"><span id="hdTabTicketsLabel">🧰 IT Support Tickets</span> <span class="ns-tab-badge" id="tabItTicketsCount">0</span></button><button type="button" class="ns-sec-tab" data-ticket-tab="Material request" onclick="switchTicketsTab('Material request')"><span id="hdTabMaterialsLabel">📦 IT Material Requests &amp; Parts Status</span> <span class="ns-tab-badge" id="tabMatReqCount">0</span></button></div><div class="panel" id="ticketsQueuePanel" style="margin-bottom:14px"><div class="panel-head"><div><div class="panel-title" id="hdLiveQueueTitle">🌐 &nbsp;Live Support Tickets Queue</div><div class="panel-sub" id="hdLiveQueueSub">Support tickets (Material Requests are tracked separately in the Material Requests tab).</div></div><button class="btn" onclick="renderTickets();showToast('Ticket list refreshed')">↻ &nbsp;Refresh</button></div><div style="padding:0 15px 14px"><div class="ticket-filter-strip"><span class="ticket-meta" style="font-weight:700">FILTER</span><select class="filter-select" id="ticketDeskFilter"><option value="">All allowed departments</option></select><select class="filter-select" id="ticketKindFilter" style="display:none"><option value="">All tickets & requests</option><option>IT help desk</option><option>Material request</option></select><select class="filter-select" id="ticketStatusFilter"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select><select class="filter-select" id="ticketCategoryFilter"><option value="">All categories</option><option>ERP / Software / Manufacturing</option><option>Network / Hardware</option></select><select class="filter-select" id="ticketSiteFilter"><option value="">All factories</option><option>ARG</option><option>ARB</option><option>ARC</option><option>ARF</option></select><input class="filter-input" id="ticketSearch" placeholder="Search ticket, user or issue..." style="min-width:180px"></div><div class="table-wrap"><table class="ticket-table"><thead><tr><th>TICKET</th><th>USER · DEPT · FACTORY</th><th>CATEGORY / SUB</th><th>ISSUE</th><th>ASSIGNED TO</th><th>STATUS</th><th>ETA</th><th>NOTE / REMARK</th><th>UPDATED</th></tr></thead><tbody id="ticketTable"></tbody></table></div></div></div><div class="panel" id="materialRequestsPanel" style="display:none;margin-bottom:14px"><div class="panel-head"><div><div class="panel-title">📦 &nbsp;IT Material Requests &amp; Parts Inventory Status</div><div class="panel-sub">Track every hardware/material request separately and verify parts issued against it from Parts Inventory.</div></div><button class="btn" onclick="renderTickets();showToast('Material request list refreshed')">↻ &nbsp;Refresh</button></div><div style="padding:0 15px 14px"><div class="ticket-filter-strip"><span class="ticket-meta" style="font-weight:700">FILTER MATERIAL REQUESTS</span><select class="filter-select" id="mrUserStatusFilter" onchange="renderTickets()"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select><select class="filter-select" id="mrUserSiteFilter" onchange="renderTickets()"><option value="">All factories</option></select><input class="filter-input" id="mrUserSearch" placeholder="Search request ID, item, user..." style="min-width:200px" oninput="renderTickets()"></div><div class="table-wrap"><table class="ticket-table"><thead><tr><th>REQUEST ID</th><th>REQUESTER · DEPT · FACTORY</th><th>CATEGORY</th><th>REQUESTED ITEM &amp; REASON</th><th>ASSIGNED TO</th><th>STATUS</th><th>PARTS INVENTORY FULFILLMENT</th><th>ETA &amp; UPDATED</th></tr></thead><tbody id="materialUserTable"></tbody></table></div></div></div><div class="panel" id="hdAutoIdHelpPanel"><div class="panel-head"><div><div class="panel-title">How auto-identification works</div><div class="panel-sub">Manual IP mapping previews the flow; secure login and user accounts are managed by your administrator.</div></div><button class="link-btn" onclick="openIpManager()">Manage mappings →</button></div><div class="health-wrap"><div class="site-overview"><div class="site-tile"><div class="site-tile-head">1 · Map workstation IP</div><p>Admin registers a trusted device IP against a user, department and factory.</p></div><div class="site-tile"><div class="site-tile-head">2 · Verify identity</div><p>Users sign in with their local application account.</p></div><div class="site-tile"><div class="site-tile-head">3 · Open request link</div><p>Signed-in users get their mapped name, department and site prefilled in the issue form.</p></div><div class="site-tile"><div class="site-tile-head">4 · Track to closure</div><p id="hdAutoStep4Text">Support team updates assignee, status, work notes and expected completion time in the live queue.</p></div></div></div></div></section><section class="view" id="view-ticketing"><div class="page-head"><div><div class="eyebrow" id="bePageEyebrow">IT operations · Backend workbench</div><h1 id="bePageTitle">Ticketing backend &amp; settings</h1><p id="bePageSub">Manage tickets, fulfill material requests from inventory, and configure dynamic categories.</p></div><div class="head-actions"><button class="btn" onclick="refreshServerTickets().then(()=>renderTicketingBackend())">↻ &nbsp;Refresh</button></div></div><div class="ns-section-tabs" id="ticketingBackendTabs"><button type="button" class="ns-sec-tab active" data-backend-tab="tickets" onclick="switchTicketingBackendTab('tickets')"><span id="beTabTicketsLabel">🎫 IT Support Tickets</span> <span class="ns-tab-badge" id="beItTicketsBadge">0</span></button><button type="button" class="ns-sec-tab" data-backend-tab="materials" onclick="switchTicketingBackendTab('materials')"><span id="beTabMaterialsLabel">📦 Material Requests &amp; Parts Issue</span> <span class="ns-tab-badge" id="beMatReqBadge">0</span></button><button type="button" class="ns-sec-tab" data-backend-tab="settings" onclick="switchTicketingBackendTab('settings')">⚙ Ticketing Settings &amp; Categories</button></div><div class="panel" id="ticketingTabTickets"><div class="section-toolbar"><input class="filter-input" id="ticketingSearch" placeholder="Search ticket, user or issue"><select class="filter-select" id="ticketingDeskFilter" onchange="renderTicketingBackend()"><option value="">All allowed desks</option></select><select class="filter-select" id="ticketingKind" style="display:none"><option value="IT help desk">IT help desk</option></select><select class="filter-select" id="ticketingCatFilter" onchange="renderTicketingBackend()"><option value="">All primary categories</option></select><select class="filter-select" id="ticketingStatus"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select></div><div id="beTicketBulkBar" class="ns-bulk-bar"><div id="beTicketBulkSummary"><b>0</b> tickets selected</div><div class="ns-bulk-actions"><button type="button" class="btn" onclick="clearTicketingSelection('tickets')">Clear selection</button><button type="button" class="btn danger" onclick="bulkDeleteTicketingRecords('tickets')">🗑 &nbsp;Delete selected (<span id="beTicketBulkCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="beTicketSelectAll" aria-label="Select all visible IT tickets"></th><th>TICKET / CREATED</th><th>REQUESTER / FACTORY / DEPT</th><th>ISSUE</th><th>ASSIGN TO</th><th>STATUS</th><th>ETA</th><th>WORK UPDATE</th><th>ACTIONS</th></tr></thead><tbody id="ticketingTable"></tbody></table></div></div><div class="panel" id="ticketingTabMaterials" style="display:none"><div class="section-toolbar"><input class="filter-input" id="beMrSearch" placeholder="Search request ID, item, requester..." oninput="renderTicketingBackend()"><select class="filter-select" id="beMrSite" onchange="renderTicketingBackend()"><option value="">All factories</option></select><select class="filter-select" id="beMrStatus" onchange="renderTicketingBackend()"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Resolved</option><option>Closed</option></select></div><div id="beMrBulkBar" class="ns-bulk-bar"><div id="beMrBulkSummary"><b>0</b> material requests selected</div><div class="ns-bulk-actions"><button type="button" class="btn" onclick="clearTicketingSelection('materials')">Clear selection</button><button type="button" class="btn danger" onclick="bulkDeleteTicketingRecords('materials')">🗑 &nbsp;Delete selected (<span id="beMrBulkCount">0</span>)</button></div></div><div class="table-wrap"><table><thead><tr><th class="asset-check-col"><input type="checkbox" id="beMrSelectAll" aria-label="Select all visible material requests"></th><th>REQUEST / CREATED</th><th>REQUESTER / FACTORY / DEPT</th><th>CATEGORY &amp; ITEM NEEDED</th><th>ASSIGN / STATUS / ETA</th><th>PARTS INVENTORY ISSUED</th><th>FULFILL FROM INVENTORY / WORK</th></tr></thead><tbody id="ticketingMaterialTable"></tbody></table></div></div><div id="ticketingTabSettings" style="display:none"></div></section><section class="view" id="view-users"><div class="page-head"><div><div class="eyebrow">People · Access · Security</div><h1>People, users &amp; access</h1><p>Manage employees, sign-in accounts, module permissions, and account recovery.</p></div><div class="head-actions" style="flex-wrap:wrap"><button class="btn" type="button" onclick="openUserImportModal()">↑ &nbsp;Import Excel / CSV</button><button class="btn" type="button" onclick="openUserExportChoicesModal()">↓ &nbsp;Export Excel / CSV</button><button class="btn primary" onclick="addUser()">＋ &nbsp;Add user / administrator</button></div></div><div class="kpis"><div class="kpi-pill">Active users <b>0</b></div><div class="kpi-pill">With assigned assets <b>0</b></div><div class="kpi-pill">No assigned devices <b>0</b></div><div class="kpi-pill">Login accounts <b>0</b></div></div><div class="panel"><div class="section-toolbar"><input class="filter-input" id="userSearch" placeholder="⌕  Search name, email or employee ID..."><select class="filter-select" id="userDeptFilter"><option value="">All departments</option></select><select class="filter-select" id="userSiteFilter"><option value="">All factories</option></select><select class="filter-select" id="userEmploymentFilter"><option value="">All employment statuses</option><option>Active</option><option>On leave</option><option>Inactive</option></select></div><div class="table-wrap"><table><thead><tr><th>EMPLOYEE</th><th>EMPLOYEE ID / LOGIN</th><th>DATE OF BIRTH</th><th>DEPARTMENT</th><th>FACTORY</th><th>IP / NETWORK STATUS</th><th>ASSETS</th><th>SOFTWARE</th><th>LAST ACTIVE</th><th>ROLE &amp; ACCESS</th></tr></thead><tbody id="userTable"></tbody></table></div></div>
 <div class="settings-columns" style="margin-top:14px">
  <div class="panel settings-panel" id="userSecurityPasswordPanel"><div class="panel-head"><div><div class="panel-title">Change local account password</div><div class="panel-sub">Applies to your signed-in Northstar account.</div></div><button type="button" class="btn" onclick="signOutAllDevices()" style="color:#b53d38">Sign out all devices</button></div><form id="changePasswordForm" method="post" action="/api/account/password" class="form-grid" style="padding:16px 18px"><label class="field">Current password<input name="current_password" type="password" autocomplete="current-password" required></label><label class="field">New password<input name="new_password" type="password" autocomplete="new-password" required></label><label class="field">Confirm new password<input name="confirm_password" type="password" autocomplete="new-password" required></label><div class="field" style="align-self:end"><button class="btn primary">Update password</button></div><div id="passwordChangeStatus" class="form-note field full" aria-live="polite">Enter any password of your choice.</div></form></div>
  <div class="panel settings-panel" id="userSecurityRecoveryPanel"><div class="panel-head"><div><div class="panel-title">Password recovery questions</div><div class="panel-sub">Save private answers for account recovery. Answers are hashed and never displayed.</div></div></div><form id="recoveryAnswersForm" method="post" action="/api/account/recovery-answers" class="form-grid" style="padding:16px 18px"><label class="field">Current password<input name="current_password" type="password" autocomplete="current-password" required></label><label class="field">Favourite animal<input name="animal" required minlength="3" maxlength="200" autocomplete="off"></label><label class="field">Favourite colour<input name="colour" required minlength="3" maxlength="200" autocomplete="off"></label><label class="field">Favourite food<input name="food" required minlength="3" maxlength="200" autocomplete="off"></label><div class="field" style="align-self:end"><button class="btn primary" type="submit">Save recovery answers</button></div><div id="recoveryAnswersStatus" class="form-note field full" aria-live="polite">Use answers that are hard for others to guess.</div></form></div>
@@ -2013,7 +2013,7 @@ function applyModuleAccess(profile=serverProfile){
  const admin=!!serverAdmin;
  document.querySelectorAll('#mainNav button[data-view], .sidebar-bottom button[data-view]').forEach(button=>{
   let key=button.dataset.view,module=permissionViewMap[key];
-  let allowed=admin||(key==='settings')||(module&&effectiveModuleGrant(profile,module)!=='none');
+  let allowed=admin||(key==='settings')||(key==='tickets')||(module&&effectiveModuleGrant(profile,module)!=='none');
   button.style.display=allowed?'':'none';
  });
  for(const [view,module] of Object.entries(permissionViewMap)){
@@ -2021,7 +2021,7 @@ function applyModuleAccess(profile=serverProfile){
   if(el){
    const g=admin?'write':effectiveModuleGrant(profile,module);
    el.dataset.moduleAccess=g;
-   el.style.display=g!=='none'?'':'none';
+   el.style.display=(g!=='none'||view==='tickets')?'':'none';
   }
  }
  let ticketing=document.getElementById('ticketingBackendButton');
@@ -2032,7 +2032,7 @@ function applyModuleAccess(profile=serverProfile){
  const mbAssets = document.getElementById('mbNavAssets');
  if(mbAssets) mbAssets.style.display = (admin || effectiveModuleGrant(profile,'assets')!=='none') ? '' : 'none';
  const mbTickets = document.getElementById('mbNavTickets');
- if(mbTickets) mbTickets.style.display = (admin || effectiveModuleGrant(profile,'tickets')!=='none') ? '' : 'none';
+ if(mbTickets) mbTickets.style.display = '';
  window.syncDeskScopedLabels?.();
  const viewSettings=document.getElementById('view-settings');
  if(viewSettings){
@@ -2048,9 +2048,9 @@ function applyModuleAccess(profile=serverProfile){
  const bg=document.querySelector('.bottom-grid');if(bg)bg.style.display=admin?'':'none';
  if(!admin){
   let active=document.querySelector('.view.active'),key=active?.id?.replace('view-','');
-  if(!key||(key!=='settings'&&currentModuleGrant(key)==='none')){
+  if(!key||(key!=='settings'&&key!=='tickets'&&currentModuleGrant(key)==='none')){
    let next=permissionModules.map(([id])=>Object.keys(permissionViewMap).find(v=>permissionViewMap[v]===id)).find(v=>v&&effectiveModuleGrant(profile,permissionViewMap[v])!=='none');
-   go(next||'settings');
+   go(next||'tickets');
   }
  }
  applyReadOnlyControls(true);
@@ -2065,13 +2065,13 @@ function applyReadOnlyControls(scanAll=false){
   let root=document.getElementById('view-'+view);
   if(!root||(!scanAll&&!root.classList.contains('active')))continue;
   root.querySelectorAll('button,a').forEach(el=>{
-   if(el.closest('.panel-head .val-dim-tabs')||el.closest('.ns-vault-lock-card')||el.closest('.ns-vault-read-allow')||el.classList.contains('site-chip')||el.classList.contains('val-tab'))return;
+   if(el.closest('#ticketFormCard')||el.closest('.panel-head .val-dim-tabs')||el.closest('.ns-vault-lock-card')||el.closest('.ns-vault-read-allow')||el.classList.contains('site-chip')||el.classList.contains('val-tab'))return;
    let raw=(el.textContent||el.getAttribute('aria-label')||'').trim().replace(/^[^a-zA-Z0-9]+/,'').trim();
    let oc=el.getAttribute('onclick')||'';
    if(mutating.test(raw)||mutatingOnclick.test(oc)){el.style.display='none';el.disabled=true}
   });
   root.querySelectorAll('form').forEach(form=>{
-   if(form.dataset.readOnlyGuard)return;
+   if(form.id==='ticketForm'||form.dataset.readOnlyGuard)return;
    form.dataset.readOnlyGuard='1';
    form.addEventListener('submit',e=>{e.preventDefault();e.stopImmediatePropagation();showToast('This module is read-only for your account.')},{capture:true});
   });
@@ -2105,8 +2105,8 @@ function spark(id,values,color){let el=document.getElementById(id);if(!el)return
 function renderSoftware(){const q=(document.getElementById('softwareSearch')?.value||'').toLowerCase(),type=document.getElementById('softwareTypeFilter')?.value||'',state=document.getElementById('softwareStatusFilter')?.value||'',rows=software.filter(s=>(!q||Object.values(s).join(' ').toLowerCase().includes(q))&&(!type||s.type===type)&&(!state||s.state===state));document.getElementById('softwareTable').innerHTML=rows.map(s=>`<tr><td><div class="asset-cell"><span class="software-icon">${s.icon}</span><div><div class="asset-name">${s.name}</div><div class="asset-id">License key · •••• •••• 8X2P</div></div></div></td><td>${s.vendor}</td><td>${s.cat}</td><td>${s.type}</td><td>${s.seats}</td><td>${s.expiry}</td><td><span class="status ${s.state==='Active'?'healthy':'warning'}">${s.state}</span></td></tr>`).join('')}
 function renderLifecycle(){let rows=assets.slice(0,6);document.getElementById('lifecycleTable').innerHTML=rows.map(a=>'<tr><td><div class="asset-name">'+esc(a.name)+'</div><div class="asset-id">'+esc(a.tag)+'</div></td><td>'+esc(categoryLabel(a))+'</td><td>'+a.site+'</td><td><span class="age-pill'+(parseInt(ageLabel(a))>=5?' old':'')+'">'+ageLabel(a)+'</span></td><td>'+esc(a.warranty||'Not recorded')+'</td><td>'+esc(a.lastMaintenance||'Not recorded')+'</td></tr>').join('')}function maintenanceCountForAsset(a){return maintenanceRecords.filter(r=>String(r.tag||r.assetTag||'').toLowerCase()===String(a.tag||'').toLowerCase()).length}function maintenanceRisk(n){return n===0?{label:'Healthy',score:0,cls:'healthy'}:n===1?{label:'Low',score:1,cls:'healthy'}:n===2?{label:'Medium',score:2,cls:'warning'}:{label:'High',score:3,cls:'open'}}function ageYears(date){if(!date)return null;let d=new Date(date+'T00:00:00');if(Number.isNaN(d.getTime())||d>new Date())return null;return Math.floor((Date.now()-d.getTime())/(365.2425*86400000))}function renderAssetAgeing(){let body=document.getElementById('assetAgeingTable');if(!body)return;let ys=[...new Set(assets.map(a=>String(a.purchaseDate||'').slice(0,4)).filter(y=>/^\d{4}$/.test(y)))].sort((a,b)=>b.localeCompare(a)),sel=document.getElementById('ageYear'),oldYear=sel.value;sel.innerHTML='<option value="">All years</option>'+ys.map(y=>'<option>'+y+'</option>').join('');if(ys.includes(oldYear))sel.value=oldYear;let counts={Healthy:0,Low:0,Medium:0,High:0};for(const a of assets)counts[maintenanceRisk(maintenanceCountForAsset(a)).label]++;for(const [k,id] of Object.entries({Healthy:'ageHealthyCount',Low:'ageLowCount',Medium:'ageMediumCount',High:'ageHighCount'}))document.getElementById(id).textContent=counts[k];let q=document.getElementById('ageSearch').value.toLowerCase(),yr=sel.value,from=document.getElementById('ageFrom').value,to=document.getElementById('ageTo').value,risk=document.getElementById('ageRisk').value,sort=document.getElementById('ageSort').value,site=document.getElementById('globalSite')?.value||'All sites';let rows=assets.map(a=>({...a,_count:maintenanceCountForAsset(a),_risk:maintenanceRisk(maintenanceCountForAsset(a))})).filter(a=>{let d=a.purchaseDate||'',hay=[a.name,a.tag,a.owner,a.site].join(' ').toLowerCase();return(!q||hay.includes(q))&&(!yr||d.startsWith(yr))&&(!from||d>=from)&&(!to||d<=to)&&(!risk||a._risk.label===risk)&&(site==='All sites'||a.site===site)});rows.sort((a,b)=>{let x=a.purchaseDate||'',y=b.purchaseDate||'';if(!x)return 1;if(!y)return -1;return sort==='newest'?y.localeCompare(x):x.localeCompare(y)});body.innerHTML=rows.map(a=>{let n=ageYears(a.purchaseDate),age=n===null?'Not recorded':n+' year'+(n===1?'':'s');return '<tr><td><b>'+esc(a.name||'Unnamed asset')+'</b><div class="asset-id">'+esc(a.tag||'')+' · '+esc(a.owner||'Unassigned')+'</div></td><td>'+esc(a.site||'—')+'</td><td>'+esc(a.purchaseDate||'Not recorded')+'</td><td><span class="age-pill'+(n!==null&&n>=5?' old':'')+'">'+age+'</span></td><td>'+a._count+'</td><td><span class="status '+a._risk.cls+'">'+a._risk.label+' · '+a._risk.score+'</span></td></tr>'}).join('')||'<tr><td colspan="6" class="empty-state">No assets match these filters.</td></tr>'}function exportAssetAgeing(){exportCsv('asset-ageing-risk',assets.map(a=>{let n=maintenanceCountForAsset(a),r=maintenanceRisk(n);return{name:a.name,tag:a.tag,site:a.site,purchaseDate:a.purchaseDate||'',ageYears:ageYears(a.purchaseDate)??'',maintenanceCount:n,risk:r.label,riskScore:r.score}}))}function resolve(r){let a=assets.find(x=>x.tag===(r.tag||r.assetTag));return{assetType:r.assetType||a?.type||"",assetName:r.assetName||a?.name||r.tag||r.assetTag||"",factory:r.factory||r.site||a?.site||"",department:r.department||r.dept||a?.dept||"",owner:r.owner||r.user||a?.owner||"Unassigned"}}function resolved(r){return resolve(r)}function renderMaintenance(){let sum=(tag)=>assets.find(x=>x.tag===tag);document.getElementById('maintenanceDue').innerHTML=assets.slice(0,7).map(x=>'<tr><td><b>'+esc(x.name)+'</b><div class="asset-id">'+esc(x.tag)+'</div></td><td>'+x.site+'</td><td><span class="age-pill'+(parseInt(ageLabel(x))>=5?' old':'')+'">'+ageLabel(x)+'</span></td><td>'+esc(x.lastMaintenance||'Not recorded')+'</td><td>'+(x.nextDue||'Not scheduled')+'</td><td><span class="status '+(parseInt(ageLabel(x))>=5?'warning':'healthy')+'">'+(parseInt(ageLabel(x))>=5?'Refresh review':'Working')+'</span></td></tr>').join('');let q=(document.getElementById('maintSearch')?.value||'').toLowerCase();let rows=maintenanceRecords.filter(r=>Object.values(r).join(' ').toLowerCase().includes(q));window.filteredMaintenanceRows=rows.map(r=>({...r,...resolved(r),totalCost:Number(r.partCost||0)+Number(r.laborCost||r.laborActual||r.laborEstimate||0)+Number(r.otherCost||0)}));document.getElementById('maintenanceTable').innerHTML=rows.map(r=>{let x=sum(r.tag);return '<tr><td>'+r.date+'</td><td><b>'+esc(x?.name||r.tag)+'</b><div class="asset-id">'+esc(r.tag)+'</div></td><td><span class="status '+(r.type==='Repair'?'warning':'healthy')+'">'+esc(r.type)+'</span></td><td>'+esc(r.work)+'</td><td>'+esc(r.parts)+'</td><td>₹'+(Number(r.partCost||0)+Number(r.laborCost||r.laborActual||r.laborEstimate||0)+Number(r.otherCost||0)).toLocaleString('en-IN')+'</td><td>'+esc(r.technician)+'</td></tr>'}).join('')}const renderMaintenanceOriginal=renderMaintenance;renderMaintenance=function(){renderMaintenanceOriginal();renderAssetAgeing()};function openMaintenance(){if(document.body.classList.contains('viewer-mode')||!canAccessMod('maintenance',true))return showToast('Read & write access on Maintenance is required');if(!assets.length){showToast('Add an asset before logging maintenance');return}let sel=document.getElementById('maintAssetSelect');sel.innerHTML=assets.map(x=>'<option value="'+esc(x.tag)+'">'+esc(x.tag+' · '+x.name)+'</option>').join('');document.getElementById('maintenanceModal').classList.add('open')}function closeMaintenance(){document.getElementById('maintenanceModal').classList.remove('open')}
 document.getElementById('maintenanceModal').addEventListener('click',e=>{if(e.target.id==='maintenanceModal')closeMaintenance()});document.getElementById('maintenanceForm').addEventListener('submit',e=>{e.preventDefault();if(document.body.classList.contains('viewer-mode')||!canAccessMod('maintenance',true))return showToast('Read & write access on Maintenance is required');let d=Object.fromEntries(new FormData(e.target)),x=assets.find(a=>a.tag===d.assetTag);maintenanceRecords.unshift({...d,partCost:Number(d.partCost||0),laborCost:Number(d.laborCost||0)});if(x){x.lastMaintenance=d.date;x.nextDue=d.nextDue||'Not scheduled'}document.getElementById('serviceTotal').textContent=Number(document.getElementById('serviceTotal').textContent)+1;renderMaintenance();renderAssets();renderLifecycle();e.target.reset();saveAdminData();closeMaintenance();showToast('Service record saved to asset history')});
-function go(key){const __sbEl=document.querySelector('.sidebar');const __sbSavedTop=__sbEl?__sbEl.scrollTop:0;let module=permissionViewMap[key];if(serverMode&&!serverAdmin&&module&&effectiveModuleGrant(serverProfile,module)==='none'){showToast('You do not have access to this module.');return}if(serverMode&&!serverAdmin&&!module&&!['settings'].includes(key)){showToast('Administrator access is required.');return}document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));let el=document.getElementById('view-'+key);if(!el)return;el.classList.add('active');document.querySelectorAll('.sidebar .nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===key));let names={dashboard:'Overview',assets:'Asset inventory',ageing:'Asset ageing & risk',users:'Users',departments:'Departments',factories:'Factories',software:'Software & licenses',firmware:'Backups & Firmware',credentials:'Credentials Vault',monitoring:'Network monitoring',snmp:'SNMP bandwidth monitoring',notifications:'Notifications',reports:'Reports',datacenter:'Data Center',surveillance:'Surveillance',settings:'Settings',maintenance:'Maintenance & repairs',tickets:window.getScopedTicketsLabel?.('nav')||'IT help desk',ticketing:window.getScopedTicketsLabel?.('backendCrumb')||'Ticketing backend',backups:'Backup & restore',parts:'Parts inventory',valuation:'Valuation',billing:'Billing / Invoices'};document.getElementById('crumb').textContent=names[key]||key;window.syncDeskScopedLabels?.();if(key==='dashboard'){renderDashboard();if(serverMode)refreshIpStatusData()}if(key==='datacenter')renderDatacenter();if(key==='surveillance')renderSurveillance();if(key==='factories')window.renderFactoryRows?.();if(key==='departments')window.renderDepts?.();if(key==='snmp')window.loadSnmpModule?.();if(key==='settings')window.loadSoftwareUpdateStatus?.();applyReadOnlyControls();window.enhanceAllModuleTiles?.();window.scrollTo(0,0);if(__sbEl&&!__sbEl.dataset.nsUserWheel){__sbEl.scrollTop=__sbSavedTop;requestAnimationFrame(()=>{try{if(!__sbEl.dataset.nsUserWheel)__sbEl.scrollTop=__sbSavedTop;}catch(_){}});}}
-document.querySelector('.sidebar').addEventListener('click',e=>{const sb=e.currentTarget;const st=sb?sb.scrollTop:0;let b=e.target.closest('button[data-view]');if(b){go(b.dataset.view);if(sb&&!sb.dataset.nsUserWheel){sb.scrollTop=st;requestAnimationFrame(()=>{try{if(!sb.dataset.nsUserWheel)sb.scrollTop=st;}catch(_){}})}}});document.querySelector('.sidebar')?.addEventListener('wheel',e=>{e.currentTarget.dataset.nsUserWheel='1';clearTimeout(e.currentTarget._nsWt);e.currentTarget._nsWt=setTimeout(()=>{delete e.currentTarget.dataset.nsUserWheel;},250);},{passive:true});document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));document.getElementById('globalSite').addEventListener('change',e=>{document.querySelectorAll('.site-chip').forEach(c=>c.classList.toggle('selected',c.dataset.site===e.target.value));renderAssets();renderDashboard()});document.getElementById('siteChips').addEventListener('click',e=>{let c=e.target.closest('.site-chip');if(c){document.querySelectorAll('.site-chip').forEach(x=>x.classList.toggle('selected',x===c));document.getElementById('globalSite').value=c.dataset.site;renderAssets();renderDashboard()}});const renderAssetsDebounced=nsDebounce(renderAssets,110);const renderUsersDebounced=nsDebounce(renderUsers,110);document.getElementById('assetSearch')?.addEventListener('input',renderAssetsDebounced);['typeFilter','deptFilter','statusFilter','networkSubtypeFilter','assetFactoryFilter'].forEach(id=>document.getElementById(id)?.addEventListener('change',renderAssets));document.getElementById('userSearch')?.addEventListener('input',renderUsersDebounced);['userDeptFilter','userSiteFilter','userEmploymentFilter'].forEach(id=>document.getElementById(id)?.addEventListener('change',renderUsers));document.getElementById('softwareSearch').addEventListener('input',nsDebounce(renderSoftware,110));document.getElementById('softwareTypeFilter').addEventListener('change',renderSoftware);document.getElementById('softwareStatusFilter').addEventListener('change',renderSoftware);document.getElementById('globalSearch').addEventListener('input',nsDebounce(e=>{let q=e.target.value.trim();if(!q)return;let foundUser=users.some(u=>Object.values(u).join(' ').toLowerCase().includes(q.toLowerCase()));if(foundUser){go('users');document.getElementById('userSearch').value=q;renderUsers()}else{go('assets');document.getElementById('assetSearch').value=q;renderAssets()}},140));document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();document.getElementById('globalSearch').focus()}if(e.key==='Escape')closeModal()});function openModal(){const typeSelect=document.querySelector('#assetForm select[name="type"]');if(typeSelect&&![...typeSelect.options].some(o=>o.value==='Surveillance'||o.textContent.trim()==='Surveillance'))typeSelect.add(new Option('Surveillance','Surveillance'));document.getElementById('assetModal').classList.add('open')}function closeModal(){document.getElementById('assetModal').classList.remove('open')}document.getElementById('assetModal').addEventListener('click',e=>{if(e.target.id==='assetModal')closeModal()});document.getElementById('assetForm').addEventListener('submit',e=>{e.preventDefault();let d=Object.fromEntries(new FormData(e.target));assets.unshift({name:d.name,tag:d.tag,type:d.type,specs:d.specs||'—',owner:d.owner||'Unassigned',dept:d.dept,site:d.site,status:'Not checked',ipStatus:'Not checked',seen:'Not checked',serial:d.serial||'Not recorded',ipAddress:d.ipAddress||'',macAddress:d.macAddress||'',managementUrl:d.managementUrl||'',remoteApp:d.remoteApp||'',remoteId:d.remoteId||'',remotePassword:d.remotePassword||'',networkInterfaces:readAssetNetworkInterfaces(),subtype:d.subtype||'',manufacturer:d.manufacturer||'',model:d.model||'',osType:d.osType||'',osVersion:d.osVersion||'',storageCapacity:d.storageCapacity||'',storageUnit:d.storageUnit||'GB',assetValue:Number(d.assetValue||0),purchaseDate:d.purchaseDate||new Date().toISOString().slice(0,10),warranty:d.warranty||'',lastMaintenance:'Not recorded'});saveAdminData();renderLifecycle();document.getElementById('totalAssets').textContent=Number(document.getElementById('totalAssets').textContent)+1;renderAssets();renderRecent();renderDashboard();e.target.reset();closeModal();showToast('Asset added to your inventory')});let toastTimer;function showToast(msg){let t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2700)}function filterAssetType(type,subtype='',status=''){go('assets');const tf=document.getElementById('typeFilter');if(tf){tf.value=type||'';tf.dispatchEvent(new Event('change'));}const sf=document.getElementById('networkSubtypeFilter');if(sf)sf.value=subtype||'';const stf=document.getElementById('statusFilter');if(stf)stf.value=status||'';renderAssets()}window.filterAssetType=filterAssetType;async function apiFetch(url,options={}){let headers={"X-Requested-With":"NorthstarIT",...(options.headers||{})};let res;try{res=await fetch(url,{credentials:'same-origin',...options,headers})}catch(e){throw new Error('Cannot reach the Northstar API. Open the app through the Ubuntu server URL and check that its app container is running.')}let data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||('Request failed ('+res.status+')'));return data}async function saveAdminData(onlyKeys=null){persistLocal();if(!serverMode)return;const all={assets,software,departments:depts,maintenance:maintenanceRecords,parts_catalog:partsCatalog,parts_inventory:partsInventory,parts_stock_entries:partsStockEntries,parts_assignments:partsAssignments,vendors:window.invoiceVendors||[]};const keyOwner={assets:'assets',software:'software',departments:'departments',maintenance:'maintenance',parts_catalog:'parts',parts_inventory:'parts',parts_stock_entries:'parts',parts_assignments:'parts',vendors:'billing'};let body={};for(const [k,v] of Object.entries(all)){if(Array.isArray(onlyKeys)&&!onlyKeys.includes(k))continue;if(!serverAdmin&&effectiveModuleGrant(serverProfile,keyOwner[k])!=='write')continue;body[k]=v}if(!Object.keys(body).length)return;try{await apiFetch('/api/data',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}catch(e){showToast('Could not save server data: '+e.message)}}async function refreshServerTickets(){if(window.__nsTicketsFetching)return window.__nsTicketsFetching;window.__nsTicketsFetching=(async()=>{try{let r=await apiFetch('/api/tickets');tickets=r.tickets;if(Array.isArray(tickets))tickets.forEach(t=>window.nsSoundEngine?.markTicketSeen?.(t.id));renderTickets();renderTicketingBackend()}finally{window.__nsTicketsFetching=null}})();return window.__nsTicketsFetching}async function serverSubmitTicket(form){let d=new FormData(form),kind=document.querySelector('input[name="requestKind"]:checked').value,sub=document.querySelector('input[name="ticketSub"]:checked')?.value||'Other';let body=new FormData();body.append('complaintDesk',window.getActiveComplaintDeskId?.()||'it');body.append('kind',kind);body.append('primary',kind==='Material request'?'Material request':document.querySelector('input[name="primaryCategory"]:checked').value);body.append('sub',sub);body.append('description',d.get('description'));body.append('material',d.get('material')||'');for(const file of document.getElementById('ticketFiles').files)body.append('files',file);try{let r=await apiFetch('/api/tickets',{method:'POST',body});window.nsSoundEngine?.markTicketSeen?.(r.id);await refreshServerTickets();window.broadcastLiveTicketSync?.('ticket-created',{id:r.id,kind,complaintDesk:r.complaintDesk});form.reset();document.getElementById('ticketFiles').value='';document.getElementById('ticketFileNames').textContent='';renderTicketSubcats();window.refreshUserTicketNotifications?.();showToast(r.availabilityNotice?('Ticket '+r.id+' submitted · '+r.availabilityNotice):('Ticket '+r.id+' submitted successfully'))}catch(err){showToast(err.message)}}async function hydrateServer(){try{let res=await fetch('/api/profile',{credentials:'same-origin',cache:'no-store'});if(res.status===401){clearInterval(window.northstarTicketPoll);clearInterval(window.northstarIpStatusPoll);document.body.classList.remove('ns-authenticated');document.getElementById('authGate').style.display='flex';document.getElementById('appShell').style.display='none';return}if(!res.ok)return;let profile=await res.json();serverMode=true;serverAdmin=profile.isAdmin;serverProfile=profile.profile;updateProfileUI(profile.profile,profile.isAdmin);let manageTickets=profile.isAdmin||profile.profile.role==='IT Ticketing'||effectiveModuleGrant(profile.profile,'tickets')==='write',ticketingButton=document.getElementById('ticketingBackendButton');if(ticketingButton)ticketingButton.style.display=manageTickets?'':'none';document.body.classList.add('ns-authenticated');document.getElementById('authGate').style.display='none';document.getElementById('appShell').style.display='flex';document.getElementById('localRestoreFile')?.closest('details')?.style.setProperty('display','none');setTicketProfile(profile.profile);let label=document.querySelector('.profile-name');if(label)label.textContent=profile.profile.name;let role=document.querySelector('.profile-role');if(role)role.textContent=profile.isAdmin?'IT administrator':(profile.profile.role||'Employee');applyModuleAccess(serverProfile);let data=await apiFetch('/api/data',{cache:'no-store'});if(data.settings||data.factories_config){const merged={...workspaceSettings(),...(data.factories_config||{}),...(data.settings||{})};localStorage.setItem('northstar-settings',JSON.stringify(merged));if(merged.factories)localStorage.setItem('northstar-factories',JSON.stringify(merged.factories));applyCompanyName();if(merged.loginBranding&&typeof setLoginBranding==='function')setLoginBranding(merged.loginBranding);window.initializeLoginBranding?.()}updateProfileUI(profile.profile,profile.isAdmin);assets.splice(0,assets.length,...(data.assets||[]));users.splice(0,users.length,...(data.users||[]));software.splice(0,software.length,...(data.software||[]));depts.splice(0,depts.length,...(data.departments||[]));maintenanceRecords.splice(0,maintenanceRecords.length,...(data.maintenance||[]));partsCatalog.splice(0,partsCatalog.length,...(data.parts_catalog||[]));partsInventory.splice(0,partsInventory.length,...(data.parts_inventory||[]));partsStockEntries.splice(0,partsStockEntries.length,...(data.parts_stock_entries||[]));partsAssignments.splice(0,partsAssignments.length,...(data.parts_assignments||[]));window.invoiceVendors=Array.isArray(data.vendors)?data.vendors:[];if(canAccessMod('tickets'))await refreshServerTickets().catch(()=>{});else tickets.length=0;if(manageTickets&&!canAccessMod('parts')){try{const tp=await apiFetch('/api/tickets/parts-options',{cache:'no-store'});if(Array.isArray(tp.parts_inventory))partsInventory.splice(0,partsInventory.length,...tp.parts_inventory);if(Array.isArray(tp.parts_catalog))partsCatalog.splice(0,partsCatalog.length,...tp.parts_catalog)}catch(e){}}window.initLiveBrowserAlerts?.();if(!window.northstarTicketPoll)window.northstarTicketPoll=setInterval(()=>{if(!document.hidden&&serverMode&&canAccessMod('tickets')&&(document.getElementById('view-tickets').classList.contains('active')||document.getElementById('view-ticketing').classList.contains('active')))refreshServerTickets().catch(()=>{})},30000);if(serverMode&&!window.northstarIpStatusPoll)window.northstarIpStatusPoll=setInterval(()=>{if(!document.hidden&&serverMode&&['dashboard','assets','users','monitoring','datacenter','surveillance'].some(v=>document.getElementById('view-'+v)?.classList.contains('active')))refreshIpStatusData()},30000);renderAssets();renderRecent();renderSettings();renderDashboard();renderMonitoring();renderReports();renderUsers();renderDepts();renderSoftware();renderLifecycle();renderMaintenance();renderParts();window.renderFactoryRows?.();applyModuleAccess(serverProfile);window.enhanceAllModuleTiles?.();document.getElementById('totalAssets').textContent=assets.length;document.getElementById('assetCount').textContent=assets.length+' total';document.querySelector('#view-tickets .head-actions .btn')?.setAttribute('style','display:none');if(!serverAdmin)document.querySelector('#view-tickets .panel:last-child')?.setAttribute('style','display:none');if(serverAdmin)loadBackups()}catch(e){document.body.classList.remove('ns-authenticated');document.getElementById('authGate').style.display='flex';document.getElementById('appShell').style.display='none';document.getElementById('loginError').textContent=location.protocol==='file:'?'':'Inventory server is unavailable. Contact your administrator.';if(location.protocol==='file:')document.querySelector('.login-security').innerHTML='<span>ⓘ</span> Local preview only · sign in on the installed server to use accounts.'}}function lockTicketRows(){document.querySelectorAll('#ticketTable [data-ticket]').forEach(el=>{let value=el.value,cell=el.closest('td');if(cell&&!cell.dataset.locked){cell.dataset.locked='1';el.replaceWith(document.createTextNode(value||'—'))}})}function updateProfileUI(profile={},isAdmin=false){let name=profile.name||profile.username||'Account',picture=profile.profile_picture||'';let deskRole=profile.role||'User';if(!isAdmin&&typeof window.getVisibleComplaintDesks==='function'&&typeof window.getAllowedComplaintDesks==='function'){const al=window.getAllowedComplaintDesks();if(Array.isArray(al)&&al.length>0){const vd=window.getVisibleComplaintDesks();if(vd.length===1)deskRole=vd[0].name+' · '+(profile.role||'User');else if(vd.length>1&&vd.length<(window.getComplaintDesks?.()||[]).length)deskRole=vd.map(d=>d.name).join(', ')}}else if(!isAdmin&&(profile.dept||profile.department)&&deskRole==='User'){deskRole=(profile.dept||profile.department)+' · User'}let role=isAdmin?'Administrator':deskRole;for(const id of ['topProfileName','menuProfileName']){let e=document.getElementById(id);if(e)e.textContent=name}let r=document.getElementById('menuProfileRole');if(r)r.textContent=role;let avatar=document.getElementById('topAvatar');if(avatar){avatar.innerHTML=picture?'<img src="'+esc(picture)+'?v='+Date.now()+'" alt="">':esc(initials(name)||'U')}let sbAvatar=document.querySelector('.sidebar-account .avatar');if(sbAvatar){sbAvatar.innerHTML=picture?'<img src="'+esc(picture)+'?v='+Date.now()+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">':esc(initials(name)||'U')}let sbName=document.querySelector('.sidebar-account .profile-name');if(sbName)sbName.textContent=name;let sbRole=document.querySelector('.sidebar-account .profile-role');if(sbRole)sbRole.textContent=role}function toggleProfileMenu(){let menu=document.getElementById('profileMenu'),button=document.getElementById('profileMenuButton'),open=menu.hidden;menu.hidden=!open;button.setAttribute('aria-expanded',String(open))}function openPasswordSettings(){document.getElementById('profileMenu').hidden=true;if(!serverMode||serverAdmin||effectiveModuleGrant(serverProfile,'users')!=='none'){go('users');setTimeout(()=>{let form=document.getElementById('changePasswordForm');form?.scrollIntoView({behavior:'smooth',block:'center'});form?.querySelector('[name=current_password]')?.focus()},80);return}window.openSelfSecurityModal?.()}document.addEventListener('click',e=>{let wrap=document.querySelector('.profile-menu-wrap');if(wrap&&!wrap.contains(e.target)){document.getElementById('profileMenu').hidden=true;document.getElementById('profileMenuButton')?.setAttribute('aria-expanded','false')}});document.getElementById('profilePictureInput')?.addEventListener('change',async e=>{let file=e.target.files?.[0];if(!file)return;e.target.value='';if(!serverMode)return showToast('Profile pictures are saved on the installed server.');let body=new FormData();body.append('picture',file);try{let result=await apiFetch('/api/account/profile-picture',{method:'POST',body});serverProfile={...serverProfile,profile_picture:result.profile_picture};updateProfileUI(serverProfile,serverAdmin);showToast('Profile picture updated')}catch(err){showToast('Could not update profile picture: '+err.message)}});async function signOut(){clearInterval(window.northstarTicketPoll);clearInterval(window.northstarIpStatusPoll);try{await apiFetch('/api/logout',{method:'POST'})}catch(e){}serverAdmin=false;serverProfile=null;assets.length=0;users.length=0;software.length=0;depts.length=0;maintenanceRecords.length=0;partsInventory.length=0;partsAssignments.length=0;try{if(location.protocol!=='file:')localStorage.removeItem('northstar-local-data')}catch(e){}location.replace('/')}async function signOutAllDevices(){if(!serverMode)return showToast('Available on the installed Ubuntu server.');if(!confirm('Sign out your account from all open browsers and devices?'))return;try{await apiFetch('/api/account/logout-all',{method:'POST'})}catch(e){}await signOut()}window.addEventListener('pageshow',e=>{if((e.persisted||performance.getEntriesByType?.('navigation')?.[0]?.type==='back_forward')&&location.protocol!=='file:')hydrateServer()});async function loadBackups(){if(!serverMode||!serverAdmin)return;try{let r=await apiFetch('/api/backups'),tbody=document.getElementById('backupTable');tbody.innerHTML=r.backups.length?r.backups.map(b=>'<tr><td><b>'+esc(b.name)+'</b></td><td>'+new Date(b.created).toLocaleString()+'</td><td>'+(b.size/1048576).toFixed(2)+' MB</td><td>Database · ticket attachments · SHA-256 manifest</td><td><a class="link-btn" href="/api/backups/'+encodeURIComponent(b.name)+'">Download</a></td></tr>').join(''):'<tr><td colspan="5" class="empty-state">No backups yet. Scheduled backups will appear here.</td></tr>';if(r.backups[0])document.getElementById('lastBackupAt').textContent=new Date(r.backups[0].created).toLocaleDateString()}catch(e){document.getElementById('backupScheduleState').textContent=e.message}}async function createManualBackup(){if(!serverMode){let payload={format:'northstar-local-backup-v1',created:new Date().toISOString(),assets,users,software,depts,maintenanceRecords,partsCatalog,partsInventory,partsStockEntries,partsAssignments,tickets,settings:workspaceSettings(),factories:JSON.parse(localStorage.getItem('northstar-factories')||'[]'),ipMappings};let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));a.download='northstar-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);showToast('Local backup downloaded');return}let btn=document.getElementById('manualBackupBtn');btn.disabled=true;btn.textContent='Creating backup…';try{let r=await apiFetch('/api/backups',{method:'POST'});showToast('Backup created: '+r.name);await loadBackups()}catch(e){showToast('Backup failed: '+e.message)}finally{btn.disabled=false;btn.innerHTML='＋ &nbsp;Run backup now'}}function bindAuth(){if(location.protocol==='file:')document.getElementById('loginForm').addEventListener('submit',async e=>{e.preventDefault();let btn=e.currentTarget.querySelector('button');btn.disabled=true;document.getElementById('loginError').textContent='';try{let credentials=Object.fromEntries(new FormData(e.currentTarget));if(location.protocol==='file:'){if(!credentials.username.trim()||!credentials.password)throw new Error('Enter a username and password.');serverMode=false;serverAdmin=true;serverProfile={username:credentials.username.trim(),name:credentials.username.trim(),dept:'',site:'',ip:''};updateProfileUI(serverProfile,true);currentProfile=serverProfile;document.getElementById('authGate').style.display='none';document.getElementById('appShell').style.display='flex';document.querySelector('.profile-name').textContent=serverProfile.name;document.querySelector('.profile-role').textContent='Local preview administrator';setTicketProfile(serverProfile);showToast('Local preview only · live server features need Ubuntu deployment');return}await apiFetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(credentials)});await hydrateServer()}catch(err){document.getElementById('loginError').textContent=err.message}finally{btn.disabled=false}});document.querySelector('.profile-dots')?.addEventListener('click',signOut);document.getElementById('ticketForm').addEventListener('submit',e=>{if(serverMode){e.preventDefault();serverSubmitTicket(e.currentTarget)}});document.getElementById('userSearch').insertAdjacentHTML('afterend','');['ticketTable'].forEach(()=>{});hydrateServer()}
+function go(key){const __sbEl=document.querySelector('.sidebar');const __sbSavedTop=__sbEl?__sbEl.scrollTop:0;let module=permissionViewMap[key];if(serverMode&&!serverAdmin&&module&&key!=='tickets'&&effectiveModuleGrant(serverProfile,module)==='none'){showToast('You do not have access to this module.');return}if(serverMode&&!serverAdmin&&!module&&!['settings'].includes(key)){showToast('Administrator access is required.');return}document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));let el=document.getElementById('view-'+key);if(!el)return;el.classList.add('active');document.querySelectorAll('.sidebar .nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===key));let names={dashboard:'Overview',assets:'Asset inventory',ageing:'Asset ageing & risk',users:'Users',departments:'Departments',factories:'Factories',software:'Software & licenses',firmware:'Backups & Firmware',credentials:'Credentials Vault',monitoring:'Network monitoring',snmp:'SNMP bandwidth monitoring',notifications:'Notifications',reports:'Reports',datacenter:'Data Center',surveillance:'Surveillance',settings:'Settings',maintenance:'Maintenance & repairs',tickets:window.getScopedTicketsLabel?.('nav')||'IT help desk',ticketing:window.getScopedTicketsLabel?.('backendCrumb')||'Ticketing backend',backups:'Backup & restore',parts:'Parts inventory',valuation:'Valuation',billing:'Billing / Invoices'};document.getElementById('crumb').textContent=names[key]||key;window.syncDeskScopedLabels?.();if(key==='dashboard'){renderDashboard();if(serverMode)refreshIpStatusData()}if(key==='datacenter')renderDatacenter();if(key==='surveillance')renderSurveillance();if(key==='factories')window.renderFactoryRows?.();if(key==='departments')window.renderDepts?.();if(key==='snmp')window.loadSnmpModule?.();if(key==='settings')window.loadSoftwareUpdateStatus?.();applyReadOnlyControls();window.enhanceAllModuleTiles?.();window.scrollTo(0,0);if(__sbEl&&!__sbEl.dataset.nsUserWheel){__sbEl.scrollTop=__sbSavedTop;requestAnimationFrame(()=>{try{if(!__sbEl.dataset.nsUserWheel)__sbEl.scrollTop=__sbSavedTop;}catch(_){}});}}
+document.querySelector('.sidebar').addEventListener('click',e=>{const sb=e.currentTarget;const st=sb?sb.scrollTop:0;let b=e.target.closest('button[data-view]');if(b){go(b.dataset.view);if(sb&&!sb.dataset.nsUserWheel){sb.scrollTop=st;requestAnimationFrame(()=>{try{if(!sb.dataset.nsUserWheel)sb.scrollTop=st;}catch(_){}})}}});document.querySelector('.sidebar')?.addEventListener('wheel',e=>{e.currentTarget.dataset.nsUserWheel='1';clearTimeout(e.currentTarget._nsWt);e.currentTarget._nsWt=setTimeout(()=>{delete e.currentTarget.dataset.nsUserWheel;},250);},{passive:true});document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));document.getElementById('globalSite').addEventListener('change',e=>{document.querySelectorAll('.site-chip').forEach(c=>c.classList.toggle('selected',c.dataset.site===e.target.value));renderAssets();renderDashboard()});document.getElementById('siteChips').addEventListener('click',e=>{let c=e.target.closest('.site-chip');if(c){document.querySelectorAll('.site-chip').forEach(x=>x.classList.toggle('selected',x===c));document.getElementById('globalSite').value=c.dataset.site;renderAssets();renderDashboard()}});const renderAssetsDebounced=nsDebounce(renderAssets,110);const renderUsersDebounced=nsDebounce(renderUsers,110);document.getElementById('assetSearch')?.addEventListener('input',renderAssetsDebounced);['typeFilter','deptFilter','statusFilter','networkSubtypeFilter','assetFactoryFilter'].forEach(id=>document.getElementById(id)?.addEventListener('change',renderAssets));document.getElementById('userSearch')?.addEventListener('input',renderUsersDebounced);['userDeptFilter','userSiteFilter','userEmploymentFilter'].forEach(id=>document.getElementById(id)?.addEventListener('change',renderUsers));document.getElementById('softwareSearch').addEventListener('input',nsDebounce(renderSoftware,110));document.getElementById('softwareTypeFilter').addEventListener('change',renderSoftware);document.getElementById('softwareStatusFilter').addEventListener('change',renderSoftware);document.getElementById('globalSearch').addEventListener('input',nsDebounce(e=>{let q=e.target.value.trim();if(!q)return;let foundUser=users.some(u=>Object.values(u).join(' ').toLowerCase().includes(q.toLowerCase()));if(foundUser){go('users');document.getElementById('userSearch').value=q;renderUsers()}else{go('assets');document.getElementById('assetSearch').value=q;renderAssets()}},140));document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();document.getElementById('globalSearch').focus()}if(e.key==='Escape')closeModal()});function openModal(){const typeSelect=document.querySelector('#assetForm select[name="type"]');if(typeSelect&&![...typeSelect.options].some(o=>o.value==='Surveillance'||o.textContent.trim()==='Surveillance'))typeSelect.add(new Option('Surveillance','Surveillance'));document.getElementById('assetModal').classList.add('open')}function closeModal(){document.getElementById('assetModal').classList.remove('open')}document.getElementById('assetModal').addEventListener('click',e=>{if(e.target.id==='assetModal')closeModal()});document.getElementById('assetForm').addEventListener('submit',e=>{e.preventDefault();let d=Object.fromEntries(new FormData(e.target));assets.unshift({name:d.name,tag:d.tag,type:d.type,specs:d.specs||'—',owner:d.owner||'Unassigned',dept:d.dept,site:d.site,status:'Not checked',ipStatus:'Not checked',seen:'Not checked',serial:d.serial||'Not recorded',ipAddress:d.ipAddress||'',macAddress:d.macAddress||'',managementUrl:d.managementUrl||'',remoteApp:d.remoteApp||'',remoteId:d.remoteId||'',remotePassword:d.remotePassword||'',networkInterfaces:readAssetNetworkInterfaces(),subtype:d.subtype||'',manufacturer:d.manufacturer||'',model:d.model||'',osType:d.osType||'',osVersion:d.osVersion||'',storageCapacity:d.storageCapacity||'',storageUnit:d.storageUnit||'GB',assetValue:Number(d.assetValue||0),purchaseDate:d.purchaseDate||new Date().toISOString().slice(0,10),warranty:d.warranty||'',lastMaintenance:'Not recorded'});saveAdminData();renderLifecycle();document.getElementById('totalAssets').textContent=Number(document.getElementById('totalAssets').textContent)+1;renderAssets();renderRecent();renderDashboard();e.target.reset();closeModal();showToast('Asset added to your inventory')});let toastTimer;function showToast(msg){let t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2700)}function filterAssetType(type,subtype='',status=''){go('assets');const tf=document.getElementById('typeFilter');if(tf){tf.value=type||'';tf.dispatchEvent(new Event('change'));}const sf=document.getElementById('networkSubtypeFilter');if(sf)sf.value=subtype||'';const stf=document.getElementById('statusFilter');if(stf)stf.value=status||'';renderAssets()}window.filterAssetType=filterAssetType;async function apiFetch(url,options={}){let headers={"X-Requested-With":"NorthstarIT",...(options.headers||{})};let res;try{res=await fetch(url,{credentials:'same-origin',...options,headers})}catch(e){throw new Error('Cannot reach the Northstar API. Open the app through the Ubuntu server URL and check that its app container is running.')}let data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||('Request failed ('+res.status+')'));return data}async function saveAdminData(onlyKeys=null){persistLocal();if(!serverMode)return;const all={assets,software,departments:depts,maintenance:maintenanceRecords,parts_catalog:partsCatalog,parts_inventory:partsInventory,parts_stock_entries:partsStockEntries,parts_assignments:partsAssignments,vendors:window.invoiceVendors||[]};const keyOwner={assets:'assets',software:'software',departments:'departments',maintenance:'maintenance',parts_catalog:'parts',parts_inventory:'parts',parts_stock_entries:'parts',parts_assignments:'parts',vendors:'billing'};let body={};for(const [k,v] of Object.entries(all)){if(Array.isArray(onlyKeys)&&!onlyKeys.includes(k))continue;if(!serverAdmin&&effectiveModuleGrant(serverProfile,keyOwner[k])!=='write')continue;body[k]=v}if(!Object.keys(body).length)return;try{await apiFetch('/api/data',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}catch(e){showToast('Could not save server data: '+e.message)}}async function refreshServerTickets(){if(window.__nsTicketsFetching)return window.__nsTicketsFetching;window.__nsTicketsFetching=(async()=>{try{let r=await apiFetch('/api/tickets');tickets=r.tickets;if(Array.isArray(tickets))tickets.forEach(t=>window.nsSoundEngine?.markTicketSeen?.(t.id));renderTickets();renderTicketingBackend()}finally{window.__nsTicketsFetching=null}})();return window.__nsTicketsFetching}async function serverSubmitTicket(form){let d=new FormData(form),kind=document.querySelector('input[name="requestKind"]:checked').value,sub=document.querySelector('input[name="ticketSub"]:checked')?.value||'Other';let body=new FormData();body.append('complaintDesk',window.getActiveComplaintDeskId?.()||'it');body.append('kind',kind);body.append('primary',kind==='Material request'?'Material request':document.querySelector('input[name="primaryCategory"]:checked').value);body.append('sub',sub);body.append('description',d.get('description'));body.append('material',d.get('material')||'');for(const file of document.getElementById('ticketFiles').files)body.append('files',file);try{let r=await apiFetch('/api/tickets',{method:'POST',body});window.nsSoundEngine?.markTicketSeen?.(r.id);await refreshServerTickets();window.broadcastLiveTicketSync?.('ticket-created',{id:r.id,kind,complaintDesk:r.complaintDesk});form.reset();document.getElementById('ticketFiles').value='';document.getElementById('ticketFileNames').textContent='';renderTicketSubcats();window.refreshUserTicketNotifications?.();showToast(r.availabilityNotice?('Ticket '+r.id+' submitted · '+r.availabilityNotice):('Ticket '+r.id+' submitted successfully'))}catch(err){showToast(err.message)}}async function hydrateServer(){try{let res=await fetch('/api/profile',{credentials:'same-origin',cache:'no-store'});if(res.status===401){clearInterval(window.northstarTicketPoll);clearInterval(window.northstarIpStatusPoll);document.body.classList.remove('ns-authenticated');document.getElementById('authGate').style.display='flex';document.getElementById('appShell').style.display='none';return}if(!res.ok)return;let profile=await res.json();serverMode=true;serverAdmin=profile.isAdmin;serverProfile=profile.profile;updateProfileUI(profile.profile,profile.isAdmin);let manageTickets=profile.isAdmin||profile.profile.role==='IT Ticketing'||effectiveModuleGrant(profile.profile,'tickets')==='write',ticketingButton=document.getElementById('ticketingBackendButton');if(ticketingButton)ticketingButton.style.display=manageTickets?'':'none';document.body.classList.add('ns-authenticated');document.getElementById('authGate').style.display='none';document.getElementById('appShell').style.display='flex';document.getElementById('localRestoreFile')?.closest('details')?.style.setProperty('display','none');setTicketProfile(profile.profile);let label=document.querySelector('.profile-name');if(label)label.textContent=profile.profile.name;let role=document.querySelector('.profile-role');if(role)role.textContent=profile.isAdmin?'IT administrator':(profile.profile.role||'Employee');applyModuleAccess(serverProfile);let data=await apiFetch('/api/data',{cache:'no-store'});if(data.settings||data.factories_config){const merged={...workspaceSettings(),...(data.factories_config||{}),...(data.settings||{})};localStorage.setItem('northstar-settings',JSON.stringify(merged));if(merged.factories)localStorage.setItem('northstar-factories',JSON.stringify(merged.factories));applyCompanyName();if(merged.loginBranding&&typeof setLoginBranding==='function')setLoginBranding(merged.loginBranding);window.initializeLoginBranding?.()}updateProfileUI(profile.profile,profile.isAdmin);assets.splice(0,assets.length,...(data.assets||[]));users.splice(0,users.length,...(data.users||[]));software.splice(0,software.length,...(data.software||[]));depts.splice(0,depts.length,...(data.departments||[]));maintenanceRecords.splice(0,maintenanceRecords.length,...(data.maintenance||[]));partsCatalog.splice(0,partsCatalog.length,...(data.parts_catalog||[]));partsInventory.splice(0,partsInventory.length,...(data.parts_inventory||[]));partsStockEntries.splice(0,partsStockEntries.length,...(data.parts_stock_entries||[]));partsAssignments.splice(0,partsAssignments.length,...(data.parts_assignments||[]));window.invoiceVendors=Array.isArray(data.vendors)?data.vendors:[];await refreshServerTickets().catch(()=>{});if(manageTickets&&!canAccessMod('parts')){try{const tp=await apiFetch('/api/tickets/parts-options',{cache:'no-store'});if(Array.isArray(tp.parts_inventory))partsInventory.splice(0,partsInventory.length,...tp.parts_inventory);if(Array.isArray(tp.parts_catalog))partsCatalog.splice(0,partsCatalog.length,...tp.parts_catalog)}catch(e){}}window.initLiveBrowserAlerts?.();if(!window.northstarTicketPoll)window.northstarTicketPoll=setInterval(()=>{if(!document.hidden&&serverMode&&(document.getElementById('view-tickets').classList.contains('active')||document.getElementById('view-ticketing').classList.contains('active')))refreshServerTickets().catch(()=>{})},30000);if(serverMode&&!window.northstarIpStatusPoll)window.northstarIpStatusPoll=setInterval(()=>{if(!document.hidden&&serverMode&&['dashboard','assets','users','monitoring','datacenter','surveillance'].some(v=>document.getElementById('view-'+v)?.classList.contains('active')))refreshIpStatusData()},30000);renderAssets();renderRecent();renderSettings();renderDashboard();renderMonitoring();renderReports();renderUsers();renderDepts();renderSoftware();renderLifecycle();renderMaintenance();renderParts();window.renderFactoryRows?.();applyModuleAccess(serverProfile);window.enhanceAllModuleTiles?.();document.getElementById('totalAssets').textContent=assets.length;document.getElementById('assetCount').textContent=assets.length+' total';if(!serverAdmin)document.querySelector('#view-tickets .head-actions .btn')?.setAttribute('style','display:none');if(!serverAdmin)document.getElementById('hdAutoIdHelpPanel')?.setAttribute('style','display:none');if(serverAdmin)loadBackups()}catch(e){document.body.classList.remove('ns-authenticated');document.getElementById('authGate').style.display='flex';document.getElementById('appShell').style.display='none';document.getElementById('loginError').textContent=location.protocol==='file:'?'':'Inventory server is unavailable. Contact your administrator.';if(location.protocol==='file:')document.querySelector('.login-security').innerHTML='<span>ⓘ</span> Local preview only · sign in on the installed server to use accounts.'}}function lockTicketRows(){document.querySelectorAll('#ticketTable [data-ticket]').forEach(el=>{let value=el.value,cell=el.closest('td');if(cell&&!cell.dataset.locked){cell.dataset.locked='1';el.replaceWith(document.createTextNode(value||'—'))}})}function updateProfileUI(profile={},isAdmin=false){let name=profile.name||profile.username||'Account',picture=profile.profile_picture||'';let deskRole=profile.role||'User';if(!isAdmin&&typeof window.getVisibleComplaintDesks==='function'&&typeof window.getAllowedComplaintDesks==='function'){const al=window.getAllowedComplaintDesks();if(Array.isArray(al)&&al.length>0){const vd=window.getVisibleComplaintDesks();if(vd.length===1)deskRole=vd[0].name+' · '+(profile.role||'User');else if(vd.length>1&&vd.length<(window.getComplaintDesks?.()||[]).length)deskRole=vd.map(d=>d.name).join(', ')}}else if(!isAdmin&&(profile.dept||profile.department)&&deskRole==='User'){deskRole=(profile.dept||profile.department)+' · User'}let role=isAdmin?'Administrator':deskRole;for(const id of ['topProfileName','menuProfileName']){let e=document.getElementById(id);if(e)e.textContent=name}let r=document.getElementById('menuProfileRole');if(r)r.textContent=role;let avatar=document.getElementById('topAvatar');if(avatar){avatar.innerHTML=picture?'<img src="'+esc(picture)+'?v='+Date.now()+'" alt="">':esc(initials(name)||'U')}let sbAvatar=document.querySelector('.sidebar-account .avatar');if(sbAvatar){sbAvatar.innerHTML=picture?'<img src="'+esc(picture)+'?v='+Date.now()+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">':esc(initials(name)||'U')}let sbName=document.querySelector('.sidebar-account .profile-name');if(sbName)sbName.textContent=name;let sbRole=document.querySelector('.sidebar-account .profile-role');if(sbRole)sbRole.textContent=role}function toggleProfileMenu(){let menu=document.getElementById('profileMenu'),button=document.getElementById('profileMenuButton'),open=menu.hidden;menu.hidden=!open;button.setAttribute('aria-expanded',String(open))}function openPasswordSettings(){document.getElementById('profileMenu').hidden=true;if(!serverMode||serverAdmin||effectiveModuleGrant(serverProfile,'users')!=='none'){go('users');setTimeout(()=>{let form=document.getElementById('changePasswordForm');form?.scrollIntoView({behavior:'smooth',block:'center'});form?.querySelector('[name=current_password]')?.focus()},80);return}window.openSelfSecurityModal?.()}document.addEventListener('click',e=>{let wrap=document.querySelector('.profile-menu-wrap');if(wrap&&!wrap.contains(e.target)){document.getElementById('profileMenu').hidden=true;document.getElementById('profileMenuButton')?.setAttribute('aria-expanded','false')}});document.getElementById('profilePictureInput')?.addEventListener('change',async e=>{let file=e.target.files?.[0];if(!file)return;e.target.value='';if(!serverMode)return showToast('Profile pictures are saved on the installed server.');let body=new FormData();body.append('picture',file);try{let result=await apiFetch('/api/account/profile-picture',{method:'POST',body});serverProfile={...serverProfile,profile_picture:result.profile_picture};updateProfileUI(serverProfile,serverAdmin);showToast('Profile picture updated')}catch(err){showToast('Could not update profile picture: '+err.message)}});async function signOut(){clearInterval(window.northstarTicketPoll);clearInterval(window.northstarIpStatusPoll);try{await apiFetch('/api/logout',{method:'POST'})}catch(e){}serverAdmin=false;serverProfile=null;assets.length=0;users.length=0;software.length=0;depts.length=0;maintenanceRecords.length=0;partsInventory.length=0;partsAssignments.length=0;try{if(location.protocol!=='file:')localStorage.removeItem('northstar-local-data')}catch(e){}location.replace('/')}async function signOutAllDevices(){if(!serverMode)return showToast('Available on the installed Ubuntu server.');if(!confirm('Sign out your account from all open browsers and devices?'))return;try{await apiFetch('/api/account/logout-all',{method:'POST'})}catch(e){}await signOut()}window.addEventListener('pageshow',e=>{if((e.persisted||performance.getEntriesByType?.('navigation')?.[0]?.type==='back_forward')&&location.protocol!=='file:')hydrateServer()});async function loadBackups(){if(!serverMode||!serverAdmin)return;try{let r=await apiFetch('/api/backups'),tbody=document.getElementById('backupTable');tbody.innerHTML=r.backups.length?r.backups.map(b=>'<tr><td><b>'+esc(b.name)+'</b></td><td>'+new Date(b.created).toLocaleString()+'</td><td>'+(b.size/1048576).toFixed(2)+' MB</td><td>Database · ticket attachments · SHA-256 manifest</td><td><a class="link-btn" href="/api/backups/'+encodeURIComponent(b.name)+'">Download</a></td></tr>').join(''):'<tr><td colspan="5" class="empty-state">No backups yet. Scheduled backups will appear here.</td></tr>';if(r.backups[0])document.getElementById('lastBackupAt').textContent=new Date(r.backups[0].created).toLocaleDateString()}catch(e){document.getElementById('backupScheduleState').textContent=e.message}}async function createManualBackup(){if(!serverMode){let payload={format:'northstar-local-backup-v1',created:new Date().toISOString(),assets,users,software,depts,maintenanceRecords,partsCatalog,partsInventory,partsStockEntries,partsAssignments,tickets,settings:workspaceSettings(),factories:JSON.parse(localStorage.getItem('northstar-factories')||'[]'),ipMappings};let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));a.download='northstar-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);showToast('Local backup downloaded');return}let btn=document.getElementById('manualBackupBtn');btn.disabled=true;btn.textContent='Creating backup…';try{let r=await apiFetch('/api/backups',{method:'POST'});showToast('Backup created: '+r.name);await loadBackups()}catch(e){showToast('Backup failed: '+e.message)}finally{btn.disabled=false;btn.innerHTML='＋ &nbsp;Run backup now'}}function bindAuth(){if(location.protocol==='file:')document.getElementById('loginForm').addEventListener('submit',async e=>{e.preventDefault();let btn=e.currentTarget.querySelector('button');btn.disabled=true;document.getElementById('loginError').textContent='';try{let credentials=Object.fromEntries(new FormData(e.currentTarget));if(location.protocol==='file:'){if(!credentials.username.trim()||!credentials.password)throw new Error('Enter a username and password.');serverMode=false;serverAdmin=true;serverProfile={username:credentials.username.trim(),name:credentials.username.trim(),dept:'',site:'',ip:''};updateProfileUI(serverProfile,true);currentProfile=serverProfile;document.getElementById('authGate').style.display='none';document.getElementById('appShell').style.display='flex';document.querySelector('.profile-name').textContent=serverProfile.name;document.querySelector('.profile-role').textContent='Local preview administrator';setTicketProfile(serverProfile);showToast('Local preview only · live server features need Ubuntu deployment');return}await apiFetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(credentials)});await hydrateServer()}catch(err){document.getElementById('loginError').textContent=err.message}finally{btn.disabled=false}});document.querySelector('.profile-dots')?.addEventListener('click',signOut);document.getElementById('ticketForm').addEventListener('submit',e=>{if(serverMode){e.preventDefault();serverSubmitTicket(e.currentTarget)}});document.getElementById('userSearch').insertAdjacentHTML('afterend','');['ticketTable'].forEach(()=>{});hydrateServer()}
 function exportCsv(name,rows){if(!rows||!rows.length){showToast('No records to export');return}let keys=[...new Set(rows.flatMap(r=>Array.isArray(r)?[]:Object.keys(r)))];let csv=[keys.join(','),...rows.map(r=>keys.map(k=>'"'+String(r[k]??'').replaceAll('"','""')+'"').join(','))].join('\r\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));a.download=name+'.csv';a.click();URL.revokeObjectURL(a.href);showToast('CSV downloaded')}
 function persistLocal(){try{localStorage.setItem('northstar-local-data',JSON.stringify({assets,users,software,depts,maintenanceRecords,partsCatalog,partsInventory,partsStockEntries,partsAssignments,tickets,vendors:window.invoiceVendors||[]}))}catch(e){}renderDashboard();renderMonitoring();renderReports()}
 function addSoftware(){let name=prompt('Software / application name');if(!name)return;let vendor=prompt('Vendor','Other')||'Other';software.unshift({name,icon:name[0].toUpperCase(),vendor,cat:'Other',type:'Manual',seats:'0 / 0',expiry:'Not recorded',state:'Active'});persistLocal();saveAdminData();renderSoftware();showToast('Software added')}
@@ -2266,7 +2266,16 @@ async function saveRecord(e){
   if(hasAnyRec&&rec.some(v=>v.length<3||v.length>200))return showToast('Answer all three recovery questions with 3–200 characters each');
   if(serverMode&&!serverAdmin)return showToast('Administrator access is required to manage users & permissions');
   let access=['Administrator','IT Ticketing','Viewer'].includes(x.role)?x.role:'User';
-  let u={...old,...x,username,id:x.id?.trim()||username,name:String(x.name||'').trim(),role:access,enabled:x.enabled!=='false',module_permissions:permissionsFromForm(x),allowed_complaint_desks:complaintDesksFromForm(recordForm),gate_scope:['dept','management','security'].includes(x.gate_scope)?x.gate_scope:'dept',gate_departments:gateDeptsFromForm(recordForm),department:x.dept||'',active:x.employment==='Active'?'Active':(x.employment||'Active'),assets:assets.filter(a=>a.owner===old.name||a.owner===x.name).length,software:old.software||0,source:'manual'};
+  let modPerms=permissionsFromForm(x);
+  let allowedDesks=complaintDesksFromForm(recordForm);
+  if(access==='IT Ticketing'||(modPerms.tickets&&modPerms.tickets!=='none')){
+   if(Array.isArray(allowedDesks)&&allowedDesks.length===0){
+    const allCb=recordForm.querySelector('[name="complaint_desks_all"]');
+    if(allCb&&!allCb.checked){return showToast('Select at least one Complaint Department (or keep All Complaint Desks checked) for Ticketing access.');}
+    allowedDesks=['*'];
+   }
+  }
+  let u={...old,...x,username,id:x.id?.trim()||username,name:String(x.name||'').trim(),role:access,enabled:x.enabled!=='false',module_permissions:modPerms,allowed_complaint_desks:allowedDesks,gate_scope:['dept','management','security'].includes(x.gate_scope)?x.gate_scope:'dept',gate_departments:gateDeptsFromForm(recordForm),department:x.dept||'',active:x.employment==='Active'?'Active':(x.employment||'Active'),assets:assets.filter(a=>a.owner===old.name||a.owner===x.name).length,software:old.software||0,source:'manual'};
   if(hasAnyRec)u.hasRecoveryQuestions=true;
   delete u.password;delete u.password_confirm;delete u.recovery_animal;delete u.recovery_colour;delete u.recovery_food;
   let next=users.map(r=>({...r}));
@@ -4361,16 +4370,24 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
       box.innerHTML = '';
       return;
     }
-    box.innerHTML = `
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
-        ${window.ticketPendingFiles.map((f, i) => `
-          <span class="site-chip" style="display:inline-flex;align-items:center;gap:6px;padding:4px 9px;font-size:10px;background:#eef4f0;border:1px solid #cce3d4;border-radius:6px">
-            📎 <b>${escTxt(f.name)}</b> <small style="color:#77857d">(${(f.size/1024).toFixed(0)} KB)</small>
-            <button type="button" onclick="removeTicketPendingFile(${i})" style="border:0;background:transparent;color:#d85752;font-weight:900;cursor:pointer;padding:0 3px;font-size:12px" title="Remove image">✕</button>
-          </span>
-        `).join('')}
-      </div>
-    `;
+    box.innerHTML = '';
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:6px';
+    window.ticketPendingFiles.forEach((f, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'site-chip';
+      chip.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:4px 9px;font-size:10px;background:#eef4f0;border:1px solid #cce3d4;border-radius:6px';
+      let tUrl = '';
+      try{ if(String(f.type || '').startsWith('image/')) tUrl = URL.createObjectURL(f); }catch(_){}
+      chip.innerHTML = (tUrl ? `<img src="${escTxt(tUrl)}" alt="Screenshot" style="width:28px;height:28px;object-fit:cover;border-radius:4px;border:1px solid #cbd5e1">` : '📎 ') +
+        `<b>${escTxt(f.name)}</b> <small style="color:#77857d">(${Math.max(1, Math.round(f.size/1024))} KB)</small> <button type="button" onclick="removeTicketPendingFile(${i})" style="border:0;background:transparent;color:#d85752;font-weight:900;cursor:pointer;padding:0 3px;font-size:12px" title="Remove image">✕</button>`;
+      if(tUrl){
+        const im = chip.querySelector('img');
+        if(im) im.onload = () => { try{ URL.revokeObjectURL(tUrl); }catch(_){} };
+      }
+      row.appendChild(chip);
+    });
+    box.appendChild(row);
   }
 
   window.removeTicketPendingFile = function(i){
@@ -4378,25 +4395,68 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     renderTicketPendingFiles();
   };
 
-  function setupTicketFilePicker(){
-    const input = document.getElementById('ticketFiles');
-    if(!input || input.dataset.multiBound) return;
-    input.dataset.multiBound = '1';
-    input.addEventListener('change', e => {
-      const incoming = [...e.target.files];
-      window.ticketPendingFiles = window.ticketPendingFiles || [];
-      for(const file of incoming){
-        if(window.ticketPendingFiles.length >= 5){
-          showToast('Attach up to 5 screenshots');
-          break;
-        }
-        if(!window.ticketPendingFiles.some(x => x.name === file.name && x.size === file.size)){
-          window.ticketPendingFiles.push(file);
+  function addIncomingTicketFiles(fileList){
+    window.ticketPendingFiles = window.ticketPendingFiles || [];
+    let added = 0;
+    for(const rawFile of fileList){
+      if(!rawFile) continue;
+      if(window.ticketPendingFiles.length >= 5){
+        showToast('Attach up to 5 screenshots');
+        break;
+      }
+      let file = rawFile;
+      if(!file.name || file.name === 'image.png' || file.name === 'blob'){
+        const ext = (file.type === 'image/jpeg') ? '.jpg' : (file.type === 'image/webp' ? '.webp' : '.png');
+        const stamp = new Date().toTimeString().slice(0,8).replace(/:/g,'');
+        file = new File([rawFile], `pasted-screenshot-${stamp}-${window.ticketPendingFiles.length + 1}${ext}`, { type: file.type || 'image/png' });
+      }
+      if(!window.ticketPendingFiles.some(x => x.name === file.name && x.size === file.size)){
+        window.ticketPendingFiles.push(file);
+        added++;
+      }
+    }
+    if(added > 0) renderTicketPendingFiles();
+    return added;
+  }
+
+  function handleMainTicketPaste(e){
+    const dt = e.clipboardData;
+    if(!dt) return;
+    const imgs = [];
+    if(dt.items){
+      for(const it of dt.items){
+        if(it.kind === 'file' && String(it.type || '').startsWith('image/')){
+          const f = it.getAsFile();
+          if(f) imgs.push(f);
         }
       }
-      input.value = '';
-      renderTicketPendingFiles();
-    });
+    }
+    if(!imgs.length && dt.files && dt.files.length){
+      for(const f of dt.files){
+        if(String(f.type || '').startsWith('image/')) imgs.push(f);
+      }
+    }
+    if(imgs.length){
+      e.preventDefault();
+      const n = addIncomingTicketFiles(imgs);
+      if(n > 0) showToast(`📋 Pasted ${n} screenshot${n > 1 ? 's' : ''} and attached!`);
+    }
+  }
+
+  function setupTicketFilePicker(){
+    const input = document.getElementById('ticketFiles');
+    if(input && !input.dataset.multiBound){
+      input.dataset.multiBound = '1';
+      input.addEventListener('change', e => {
+        addIncomingTicketFiles([...e.target.files]);
+        input.value = '';
+      });
+    }
+    const form = document.getElementById('ticketForm');
+    if(form && !form.dataset.pasteBound){
+      form.dataset.pasteBound = '1';
+      form.addEventListener('paste', handleMainTicketPaste);
+    }
   }
 
   const baseServerSubmitTicket = window.serverSubmitTicket;
@@ -4405,6 +4465,7 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     const kind = document.querySelector('input[name="requestKind"]:checked')?.value || 'IT help desk';
     const sub = document.querySelector('input[name="ticketSub"]:checked')?.value || 'Other';
     const body = new FormData();
+    body.append('complaintDesk', window.getActiveComplaintDeskId?.() || 'it');
     body.append('kind', kind);
     body.append('primary', kind === 'Material request' ? 'Material request' : (document.querySelector('input[name="primaryCategory"]:checked')?.value || 'Network / Hardware'));
     body.append('sub', sub);
@@ -6812,7 +6873,20 @@ window.chooseInvoiceType=()=>{if(document.body.classList.contains('viewer-mode')
     const arr = Array.isArray(list) ? list : [];
     const allowed = window.getAllowedComplaintDesks();
     if(allowed === null) return arr;
-    return arr.filter(t => allowed.includes(slugDeskId(t?.complaintDesk || 'it', 'it')));
+    let uname = '', dname = '';
+    try{
+      if(typeof serverProfile !== 'undefined' && serverProfile){
+        uname = String(serverProfile.username || '').trim().toLowerCase();
+        dname = String(serverProfile.name || '').trim().toLowerCase();
+      }
+    }catch(_){}
+    return arr.filter(t => {
+      if(t?.isOwn) return true;
+      const tu = String(t?.username || '').trim().toLowerCase();
+      const td = String(t?.name || t?.requester || '').trim().toLowerCase();
+      if((uname && tu && tu === uname) || (dname && td && td === dname)) return true;
+      return allowed.includes(slugDeskId(t?.complaintDesk || 'it', 'it'));
+    });
   };
 
   window.getDeskLabel = function(deskId){
@@ -8125,6 +8199,12 @@ let lastPulseGatepassRev = '';
     const cfgObj = rawCfg && typeof rawCfg === 'object' ? rawCfg : {};
     const sa = cfgObj.soundAlerts && typeof cfgObj.soundAlerts === 'object' ? cfgObj.soundAlerts : cfgObj;
     const base = JSON.parse(JSON.stringify(DEFAULT_SOUND_CFG));
+    if(typeof serverAdmin !== 'undefined' && !serverAdmin && !(sa.events && typeof sa.events === 'object')){
+      ['visitor','gatepass','online','offline','critical'].forEach(k => {
+        if(base.events[k]) base.events[k].enabled = false;
+      });
+      base.defaultNewTypeSilent = true;
+    }
     if('masterEnabled' in sa) base.masterEnabled = Boolean(sa.masterEnabled);
     else if('enabled' in sa) base.masterEnabled = Boolean(sa.enabled);
     if('desktopNotifications' in sa) base.desktopNotifications = Boolean(sa.desktopNotifications);
@@ -8656,9 +8736,13 @@ let lastPulseGatepassRev = '';
 
     const recentTickets = Array.isArray(feed.latestTickets) ? feed.latestTickets
       : (Array.isArray(feed.tickets) ? feed.tickets : []);
+    window.__nsSeenTicketSigs = window.__nsSeenTicketSigs || new Map();
     recentTickets.forEach(t => {
       const id = String(t.id || '');
       if(!id) return;
+      const sig = [t.status || 'Open', t.assigned || '', t.updated || ''].join('|');
+      const prevSig = window.__nsSeenTicketSigs.get(id);
+      window.__nsSeenTicketSigs.set(id, sig);
       if(!seenTicketIds.has(id)){
         seenTicketIds.add(id);
         if(!isInitialSeed){
@@ -8668,7 +8752,7 @@ let lastPulseGatepassRev = '';
           const meta = {
             id: (isMr ? 'mr-' : 'ticket-') + id,
             kind: isMr ? 'material_request' : 'ticket',
-            targetView: 'ticketing',
+            targetView: t.isOwn ? 'tickets' : 'ticketing',
             targetTab: isMr ? 'materials' : 'tickets',
             targetId: id,
             factory: t.site || t.factory || ''
@@ -8676,6 +8760,20 @@ let lastPulseGatepassRev = '';
           triggered.push({ type: 'ticket', id, isMaterialRequest: isMr });
           triggerEventAlert('ticket', evTitle, evBody, 'info', meta);
         }
+      } else if(!isInitialSeed && prevSig && prevSig !== sig){
+        const isMr = window.isMaterialRequestTicket(t);
+        const evTitle = `Ticket ${id} Updated · ${t.status || 'Open'}`;
+        const evBody = `${t.sub || t.primary || ''}${t.assigned && t.assigned !== 'Unassigned' ? ' · Assigned: ' + t.assigned : ''}`;
+        const meta = {
+          id: 'ticket-upd-' + id + '-' + (t.updated || Date.now()),
+          kind: isMr ? 'material_request' : 'ticket',
+          targetView: 'tickets',
+          targetTab: isMr ? 'materials' : 'tickets',
+          targetId: id,
+          factory: t.site || t.factory || ''
+        };
+        triggered.push({ type: 'ticket_update', id });
+        triggerEventAlert('ticket', evTitle, evBody, t.status === 'Resolved' || t.status === 'Closed' ? 'ok' : 'info', meta);
       }
     });
 
@@ -20146,6 +20244,27 @@ let lastPulseGatepassRev = '';
   // =========================================================================
   // 2. CLICKABLE TICKETING KPI VALUATION-STYLE MULTI-LEVEL DRILLDOWN
   // =========================================================================
+  function bindSafeBackdropClose(modalEl, closeFn){
+    if(!modalEl || modalEl.dataset.safeBackdropBound) return;
+    modalEl.dataset.safeBackdropBound = '1';
+    let downOnBackdrop = false;
+    modalEl.addEventListener('mousedown', e => {
+      downOnBackdrop = (e.target === modalEl);
+    });
+    modalEl.addEventListener('touchstart', e => {
+      downOnBackdrop = (e.target === modalEl);
+    }, { passive: true });
+    modalEl.addEventListener('click', e => {
+      const ok = (e.target === modalEl) && downOnBackdrop;
+      downOnBackdrop = false;
+      if(ok) closeFn();
+    });
+    const innerModal = modalEl.querySelector('.modal');
+    if(innerModal){
+      innerModal.addEventListener('click', e => e.stopPropagation());
+    }
+  }
+
   let tkDrillState = { mode: 'open', level: 1, dimension: 'factory', selectedGroupKey: '', search: '' };
 
   function ensureTicketDrillModal(){
@@ -20153,6 +20272,7 @@ let lastPulseGatepassRev = '';
     const m = document.createElement('div');
     m.id = 'tkKpiDrillModal';
     m.className = 'modal-backdrop';
+    m.style.zIndex = '10020';
     m.innerHTML = `<div class="modal" style="max-width:1060px;width:94vw;max-height:90vh;display:flex;flex-direction:column;border-radius:18px;overflow:hidden">
       <div class="modal-head" style="background:linear-gradient(135deg,#f8fcfa,#ffffff);border-bottom:1px solid #e2e8f0;padding:16px 20px">
         <div style="min-width:0;flex:1">
@@ -20185,7 +20305,7 @@ let lastPulseGatepassRev = '';
       </div>
     </div>`;
     document.body.appendChild(m);
-    m.addEventListener('click', e => { if(e.target === m) window.closeTicketKpiDrill(); });
+    bindSafeBackdropClose(m, () => window.closeTicketKpiDrill());
     document.getElementById('tkDrillBackBtn').onclick = () => {
       tkDrillState.level = 1;
       tkDrillState.selectedGroupKey = '';
@@ -20386,12 +20506,34 @@ let lastPulseGatepassRev = '';
   let adminPresenceList = [];
   let myAdminPresence = null;
   let myDraftStatus = null;
+  let myTaskShortcuts = [];
+  let myDefaultShortcuts = [];
+  let shortcutEditorOpen = false;
 
   function loadLocalPresenceFallback(){
     try{ return JSON.parse(localStorage.getItem('northstar-admin-presence') || '{}'); }catch(_){ return {}; }
   }
   function saveLocalPresenceFallback(map){
     try{ localStorage.setItem('northstar-admin-presence', JSON.stringify(map || {})); }catch(_){}
+  }
+  function currentPresenceUserKey(){
+    return String(myAdminPresence?.username || (typeof currentProfile !== 'undefined' && currentProfile?.username) || 'admin').trim().toLowerCase() || 'admin';
+  }
+  function loadLocalShortcutsForUser(uname){
+    try{
+      const raw = JSON.parse(localStorage.getItem('ns_pres_shortcuts_' + String(uname || 'admin').toLowerCase()) || 'null');
+      return Array.isArray(raw) && raw.length ? raw : null;
+    }catch(_){ return null; }
+  }
+  function saveLocalShortcutsForUser(uname, list){
+    try{ localStorage.setItem('ns_pres_shortcuts_' + String(uname || 'admin').toLowerCase(), JSON.stringify(list || [])); }catch(_){}
+  }
+  function roleDefaultShortcutsFallback(){
+    const role = String((typeof currentProfile !== 'undefined' && (currentProfile?.role || currentProfile?.title || currentProfile?.dept)) || '').toLowerCase();
+    if(role.includes('plumb')) return ['Pipe / Tap Repair', 'Water Line Check', 'Washroom / Drainage Fix', 'Pump / Valve Inspection', 'Tank & Utility Maintenance'];
+    if(role.includes('electr')) return ['Panel / Breaker Check', 'Lighting / Socket Repair', 'UPS / Generator Check', 'Wiring / Load Fault', 'AC / HVAC Power Issue'];
+    if(role.includes('admin') && role.includes('dept')) return ['Stationery & Keys Issue', 'Seating / Furniture Request', 'Visitor / Gate Coordination', 'Housekeeping Follow-up', 'Facility Vendor Escort'];
+    return ['Fixing Printer', 'Configuring Network Switch', 'PC / Software Issue', 'CCTV / NVR Check', 'Server / Firewall Work'];
   }
 
   async function refreshAdminPresence(){
@@ -20402,6 +20544,14 @@ let lastPulseGatepassRev = '';
         if(res){
           adminPresenceList = Array.isArray(res.presence) ? res.presence : [];
           myAdminPresence = res.myPresence || null;
+          const uKey = currentPresenceUserKey();
+          if(Array.isArray(res.defaultShortcuts) && res.defaultShortcuts.length) myDefaultShortcuts = res.defaultShortcuts;
+          if(Array.isArray(res.myShortcuts) && res.myShortcuts.length){
+            myTaskShortcuts = res.myShortcuts;
+            saveLocalShortcutsForUser(uKey, myTaskShortcuts);
+          } else {
+            myTaskShortcuts = loadLocalShortcutsForUser(uKey) || (myDefaultShortcuts.length ? [...myDefaultShortcuts] : roleDefaultShortcutsFallback());
+          }
         }
       }catch(_){}
     } else {
@@ -20409,10 +20559,40 @@ let lastPulseGatepassRev = '';
       adminPresenceList = Object.values(m);
       const u = String((typeof currentProfile !== 'undefined' && currentProfile?.username) || 'admin').toLowerCase();
       myAdminPresence = m[u] || { username: u, name: (typeof currentProfile !== 'undefined' && currentProfile?.name) || 'IT Admin', status: 'Available', currentTask: '', etaMinutes: 0, etaRemainingMin: 0 };
+      myDefaultShortcuts = roleDefaultShortcutsFallback();
+      myTaskShortcuts = loadLocalShortcutsForUser(u) || [...myDefaultShortcuts];
     }
     renderPresencePanels();
   }
   window.refreshAdminPresence = refreshAdminPresence;
+
+  async function saveMyTaskShortcuts(nextList, toastMsg){
+    const cleaned = [...new Set((Array.isArray(nextList) ? nextList : []).map(x => String(x || '').trim()).filter(Boolean))].slice(0, 14);
+    const uKey = currentPresenceUserKey();
+    myTaskShortcuts = cleaned.length ? cleaned : (myDefaultShortcuts.length ? [...myDefaultShortcuts] : roleDefaultShortcutsFallback());
+    saveLocalShortcutsForUser(uKey, myTaskShortcuts);
+    const inSrv = typeof serverMode !== 'undefined' && Boolean(serverMode);
+    if(inSrv && typeof apiFetch === 'function'){
+      try{
+        const res = await apiFetch('/api/tickets/admin-presence', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: myDraftStatus || myAdminPresence?.status || 'Available',
+            currentTask: myAdminPresence?.currentTask || '',
+            etaMinutes: Number(computeLiveRemainingMin(myAdminPresence) || myAdminPresence?.etaMinutes || 0),
+            taskShortcuts: myTaskShortcuts
+          })
+        });
+        if(Array.isArray(res?.myShortcuts)) myTaskShortcuts = res.myShortcuts;
+        if(Array.isArray(res?.defaultShortcuts)) myDefaultShortcuts = res.defaultShortcuts;
+      }catch(err){
+        window.showToast?.('Could not sync shortcuts: ' + (err?.message || err), 'error');
+      }
+    }
+    renderPresencePanels();
+    if(toastMsg) window.showToast?.(toastMsg);
+  }
 
   function computeLiveRemainingMin(p){
     if(!p || !['In work', 'Away'].includes(p.status)) return 0;
@@ -20440,6 +20620,7 @@ let lastPulseGatepassRev = '';
         });
         adminPresenceList = Array.isArray(res?.presence) ? res.presence : adminPresenceList;
         myAdminPresence = res?.myPresence || myAdminPresence;
+        if(Array.isArray(res?.myShortcuts) && res.myShortcuts.length) myTaskShortcuts = res.myShortcuts;
         myDraftStatus = null;
         window.broadcastLiveTicketSync?.('ticket-changed', { action: 'presence' });
         renderPresencePanels();
@@ -20473,7 +20654,10 @@ let lastPulseGatepassRev = '';
       { id: 'Away', label: '🟡 Away / On Floor' },
       { id: 'Offline', label: '⚫ Offline' }
     ];
-    const quickTasks = ['Fixing Printer', 'Configuring Network Switch', 'PC / Software Issue', 'CCTV / NVR Check', 'Server / Firewall Work'];
+    const quickTasks = myTaskShortcuts.length
+      ? myTaskShortcuts
+      : (myDefaultShortcuts.length ? myDefaultShortcuts : roleDefaultShortcutsFallback());
+    const uKey = currentPresenceUserKey();
 
     const teamHtml = adminPresenceList.length ? adminPresenceList.map(p => {
       const rem = computeLiveRemainingMin(p);
@@ -20500,10 +20684,19 @@ let lastPulseGatepassRev = '';
           ${statuses.map(s => `<button type="button" class="ns-pres-pill ${curSt === s.id ? 'active' : ''}" data-status="${escT(s.id)}">${s.label}</button>`).join('')}
         </div>
         <div>
-          <input type="text" class="filter-input ns-pres-task-inp" value="${escT(curTask)}" placeholder="What are you working on right now? (e.g. Fixing Printer)" style="width:100%">
-          <div class="ns-task-chips">
-            ${quickTasks.map(qt => `<button type="button" class="ns-task-chip" data-task="${escT(qt)}">${escT(qt)}</button>`).join('')}
+          <input type="text" class="filter-input ns-pres-task-inp" value="${escT(curTask)}" placeholder="What are you working on right now? (e.g. ${escT(quickTasks[0] || 'Fixing Issue')})" style="width:100%">
+          <div class="ns-task-chips" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:6px">
+            ${quickTasks.map((qt, idx) => shortcutEditorOpen
+              ? `<span class="ns-task-chip" style="display:inline-flex;align-items:center;gap:5px;padding-right:6px;background:#ecfdf5;border-color:#86efac"><span data-task="${escT(qt)}" style="cursor:pointer">${escT(qt)}</span><button type="button" class="ns-shortcut-del-btn" data-del-idx="${idx}" title="Remove shortcut" style="border:none;background:#fee2e2;color:#b91c1c;border-radius:999px;width:16px;height:16px;font-size:11px;font-weight:900;line-height:1;cursor:pointer;padding:0">×</button></span>`
+              : `<button type="button" class="ns-task-chip" data-task="${escT(qt)}">${escT(qt)}</button>`).join('')}
+            <button type="button" class="btn ns-pres-cust-btn" style="padding:3px 9px;font-size:11px;border-style:dashed">${shortcutEditorOpen ? '✓ Done Editing' : '⚙ Customize Shortcuts'}</button>
           </div>
+          ${shortcutEditorOpen ? `<div class="ns-shortcut-editor" style="margin-top:8px;padding:9px 10px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-size:11px;font-weight:800;color:#0f766e">Shortcuts for @${escT(uKey)}:</span>
+            <input type="text" class="filter-input ns-shortcut-add-inp" maxlength="60" placeholder="Add new shortcut (e.g. UPS Check, Tap Repair)..." style="flex:1;min-width:190px;padding:5px 8px;font-size:12px">
+            <button type="button" class="btn primary ns-shortcut-add-btn" style="padding:5px 10px;font-size:11.5px">+ Add</button>
+            <button type="button" class="btn ns-shortcut-reset-btn" style="padding:5px 10px;font-size:11.5px">↺ Reset Role Defaults</button>
+          </div>` : ''}
         </div>
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
           <span style="font-size:11px;font-weight:700;color:#475569">ETA (min):</span>
@@ -20528,9 +20721,10 @@ let lastPulseGatepassRev = '';
         if(myDraftStatus === 'Available' && etaInp) etaInp.value = '0';
       });
     });
-    container.querySelectorAll('.ns-task-chip[data-task]').forEach(ch => {
+    container.querySelectorAll('.ns-task-chip[data-task], .ns-task-chip [data-task]').forEach(ch => {
       ch.addEventListener('click', () => {
-        if(taskInp) taskInp.value = ch.dataset.task;
+        const val = ch.dataset.task || '';
+        if(taskInp) taskInp.value = val;
         const busyBtn = container.querySelector('.ns-pres-pill[data-status="In work"]');
         if(busyBtn && myDraftStatus !== 'In work'){
           myDraftStatus = 'In work';
@@ -20538,6 +20732,38 @@ let lastPulseGatepassRev = '';
           if(etaInp && Number(etaInp.value) === 0) etaInp.value = '30';
         }
       });
+    });
+    container.querySelector('.ns-pres-cust-btn')?.addEventListener('click', () => {
+      shortcutEditorOpen = !shortcutEditorOpen;
+      renderPresencePanels();
+    });
+    container.querySelectorAll('.ns-shortcut-del-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.delIdx || '-1', 10);
+        const cur = myTaskShortcuts.length ? [...myTaskShortcuts] : [...(myDefaultShortcuts.length ? myDefaultShortcuts : roleDefaultShortcutsFallback())];
+        if(idx >= 0 && idx < cur.length){
+          cur.splice(idx, 1);
+          saveMyTaskShortcuts(cur, 'Shortcut removed for your ID.');
+        }
+      });
+    });
+    const addInp = container.querySelector('.ns-shortcut-add-inp');
+    const addBtn = container.querySelector('.ns-shortcut-add-btn');
+    const doAddShortcut = () => {
+      const val = String(addInp?.value || '').trim();
+      if(!val) return window.showToast?.('Enter a shortcut name first.', 'error');
+      const cur = myTaskShortcuts.length ? [...myTaskShortcuts] : [...(myDefaultShortcuts.length ? myDefaultShortcuts : roleDefaultShortcutsFallback())];
+      if(!cur.some(x => x.toLowerCase() === val.toLowerCase())) cur.push(val);
+      saveMyTaskShortcuts(cur, `Saved shortcut "${val}" for @${currentPresenceUserKey()}.`);
+    };
+    addBtn?.addEventListener('click', doAddShortcut);
+    addInp?.addEventListener('keydown', e => {
+      if(e.key === 'Enter'){ e.preventDefault(); doAddShortcut(); }
+    });
+    container.querySelector('.ns-shortcut-reset-btn')?.addEventListener('click', () => {
+      const defs = myDefaultShortcuts.length ? [...myDefaultShortcuts] : roleDefaultShortcutsFallback();
+      saveMyTaskShortcuts(defs, 'Restored default shortcuts for your role.');
     });
     container.querySelectorAll('.ns-eta-quick').forEach(b => {
       b.addEventListener('click', () => { if(etaInp) etaInp.value = b.dataset.mins; });
@@ -20565,7 +20791,7 @@ let lastPulseGatepassRev = '';
         if(anchor && anchor.parentNode === view) view.insertBefore(wrap, anchor);
         else view.appendChild(wrap);
       }
-      if(wrap.querySelector('input:focus')) return;
+      if(wrap.querySelector('input:focus, select:focus')) return;
       wrap.innerHTML = buildPresenceCardHtml(cfg.viewId);
       bindPresenceEvents(wrap);
     });
@@ -20634,6 +20860,7 @@ let lastPulseGatepassRev = '';
     const m = document.createElement('div');
     m.id = 'nsTicketInspectModal';
     m.className = 'modal-backdrop';
+    m.style.zIndex = '10040';
     m.innerHTML = `<div class="modal" style="max-width:860px;width:94vw;max-height:90vh;display:flex;flex-direction:column;border-radius:16px;overflow:hidden">
       <div class="modal-head" style="padding:15px 20px;border-bottom:1px solid #e2e8f0">
         <div>
@@ -20646,7 +20873,7 @@ let lastPulseGatepassRev = '';
       <div id="nsTkDetBody" style="padding:18px 20px;overflow-y:auto;flex:1"></div>
     </div>`;
     document.body.appendChild(m);
-    m.addEventListener('click', e => { if(e.target === m) m.classList.remove('open'); });
+    bindSafeBackdropClose(m, () => m.classList.remove('open'));
   }
 
   window.openTicketDetailModal = async function(tid){
@@ -20901,7 +21128,7 @@ let lastPulseGatepassRev = '';
       renderUserNotificationsPanel();
       decorateTicketingRowsWithRemoteAndInspect();
       evaluateUnrespondedSlaAlarm();
-      if(document.getElementById('tkKpiDrillModal')?.classList.contains('open')) renderTicketKpiDrill();
+      if(document.getElementById('tkKpiDrillModal')?.classList.contains('open') && !document.getElementById('nsTicketInspectModal')?.classList.contains('open') && document.activeElement?.id !== 'tkDrillSearchInput') renderTicketKpiDrill();
       return res;
     };
   }
@@ -20929,14 +21156,394 @@ let lastPulseGatepassRev = '';
 
   document.addEventListener('keydown', e => {
     if(e.key === 'Escape'){
-      window.closeTicketKpiDrill();
-      document.getElementById('nsTicketInspectModal')?.classList.remove('open');
+      const assetDet = document.getElementById('assetDetailModal');
+      const inspectM = document.getElementById('nsTicketInspectModal');
+      const drillM = document.getElementById('tkKpiDrillModal');
+      if(assetDet && assetDet.classList.contains('open')){ assetDet.classList.remove('open'); return; }
+      if(inspectM && inspectM.classList.contains('open')){ inspectM.classList.remove('open'); return; }
+      if(drillM && drillM.classList.contains('open')){ window.closeTicketKpiDrill(); return; }
     }
     if((e.key === 'Enter' || e.key === ' ') && e.target?.classList?.contains('ns-ticket-kpi-card')){
       e.preventDefault();
       e.target.click();
     }
   });
+
+  // =========================================================================
+  // 8. LARGE COLORFUL 360° ASSET & CUSTODIAN DETAILS VIEW (#assetDetailModal)
+  // =========================================================================
+  function injectAsset360Styles(){
+    if(document.getElementById('nsAsset360Styles')) return;
+    const st = document.createElement('style');
+    st.id = 'nsAsset360Styles';
+    st.textContent = `
+      #assetDetailModal .modal{max-width:min(1180px,96vw)!important;width:min(1180px,96vw)!important;max-height:92vh!important;border-radius:20px!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;}
+      #assetDetailModal .modal-body,#assetDetailModal #assetDetailBody{overflow-y:auto!important;flex:1!important;padding:18px 20px!important;background:#f4f8f6!important;}
+      .ns-a360-hero{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:18px 20px;border-radius:16px;color:#fff;margin-bottom:14px;box-shadow:0 10px 26px rgba(15,23,42,.12);}
+      .ns-a360-hero-left{display:flex;align-items:center;gap:14px;min-width:0;flex:1;}
+      .ns-a360-icon{width:58px;height:58px;border-radius:16px;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;border:1px solid rgba(255,255,255,.28);}
+      .ns-a360-badges{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px;}
+      .ns-a360-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:11.5px;font-weight:800;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.25);}
+      .ns-a360-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:14px;}
+      .ns-a360-kpi{padding:13px 15px;border-radius:14px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(15,23,42,.04);position:relative;overflow:hidden;}
+      .ns-a360-kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:var(--kpi-acc,#10b981);}
+      .ns-a360-kpi-lbl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#64748b;display:flex;align-items:center;gap:6px;}
+      .ns-a360-kpi-val{font-size:16px;font-weight:900;color:#0f172a;margin-top:5px;word-break:break-word;}
+      .ns-a360-kpi-sub{font-size:11.5px;color:#475569;margin-top:3px;}
+      .ns-a360-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(370px,1fr));gap:14px;}
+      .ns-a360-card{background:#fff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 3px 12px rgba(15,23,42,.04);display:flex;flex-direction:column;}
+      .ns-a360-card-head{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #f1f5f9;}
+      .ns-a360-card-title{font-size:13.5px;font-weight:900;color:#0f172a;display:flex;align-items:center;gap:8px;}
+      .ns-a360-card-body{padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
+      .ns-a360-kv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;}
+      .ns-a360-kv{padding:9px 11px;border-radius:11px;background:#f8fafc;border:1px solid #e2e8f0;}
+      .ns-a360-kv-k{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.45px;color:#64748b;}
+      .ns-a360-kv-v{font-size:13px;font-weight:800;color:#0f172a;margin-top:3px;word-break:break-word;}
+      .ns-a360-user-banner{display:flex;align-items:center;gap:12px;padding:12px;border-radius:13px;background:linear-gradient(135deg,#ecfdf5,#f0fdfa);border:1px solid #a7f3d0;}
+      .ns-a360-avatar{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#059669,#0d9488);color:#fff;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+      .ns-a360-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+      .ns-a360-table th{text-align:left;font-size:10.5px;font-weight:800;text-transform:uppercase;color:#64748b;padding:7px 8px;border-bottom:1px solid #e2e8f0;background:#f8fafc;}
+      .ns-a360-table td{padding:8px;border-bottom:1px solid #f1f5f9;color:#0f172a;}
+    `;
+    document.head.appendChild(st);
+  }
+
+  function assetThemeMeta(a){
+    const tl = String(a?.type || '').toLowerCase();
+    const sl = String(a?.subtype || '').toLowerCase();
+    if(tl.includes('print')) return { icon:'🖨️', grad:'linear-gradient(135deg,#7c3aed,#4f46e5)' };
+    if(tl.includes('network') || sl.includes('switch')) return { icon: sl.includes('fire') ? '🛡️' : sl.includes('rout') || sl.includes('access') ? '📡' : '🔀', grad:'linear-gradient(135deg,#0284c7,#0369a1)' };
+    if(tl.includes('cctv') || tl.includes('nvr') || sl.includes('cam')) return { icon:'📷', grad:'linear-gradient(135deg,#d97706,#b45309)' };
+    if(tl.includes('server')) return { icon:'🗄️', grad:'linear-gradient(135deg,#334155,#0f172a)' };
+    if(tl.includes('laptop') || tl.includes('mobile') || tl.includes('tablet')) return { icon:'💻', grad:'linear-gradient(135deg,#059669,#0d9488)' };
+    return { icon:'🖥️', grad:'linear-gradient(135deg,#15803d,#0f766e)' };
+  }
+
+  function findMatchedUserForAsset(a){
+    const list = (typeof users !== 'undefined' && Array.isArray(users)) ? users : [];
+    const owner = String(a?.owner || '').trim().toLowerCase();
+    const ip = String(a?.ipAddress || '').trim().toLowerCase();
+    if(!list.length) return null;
+    if(owner){
+      const byName = list.find(u => {
+        const vals = [u.name, u.display_name, u.username, u.id].filter(Boolean).map(v => String(v).trim().toLowerCase());
+        return vals.includes(owner);
+      });
+      if(byName) return byName;
+    }
+    if(ip){
+      return list.find(u => {
+        const uip = String(u.ip_address || '').trim().toLowerCase();
+        const uips = Array.isArray(u.ip_addresses) ? u.ip_addresses.map(x => String(x).trim().toLowerCase()) : [];
+        return uip === ip || uips.includes(ip);
+      }) || null;
+    }
+    return null;
+  }
+
+  function buildAsset360PlainText(a, u, specEntries){
+    const lines = [
+      `=== ASSET 360 SUMMARY: ${a.name || a.tag} (${a.tag || '-'}) ===`,
+      `Category: ${a.type || '-'}${a.subtype ? ' / ' + a.subtype : ''}`,
+      `Status: ${a.status || '-'} | Reachability: ${a.ipStatus || '-'}`,
+      `Factory / Dept: ${a.site || '-'} / ${a.dept || '-'}`,
+      `Manufacturer / Model: ${a.manufacturer || '-'} / ${a.model || '-'}`,
+      `Serial No: ${a.serial || '-'}`,
+      `OS: ${a.osType || '-'} ${a.osVersion || ''}`.trim(),
+      `IP Address: ${a.ipAddress || '-'} | MAC: ${a.macAddress || '-'}`,
+      `Asset Value: ${a.assetValue ? 'INR ' + a.assetValue : '-'} | Purchase: ${a.purchaseDate || '-'} | Warranty: ${a.warranty || '-'}`
+    ];
+    if(a.remoteApp || a.remoteId) lines.push(`Remote Access: ${a.remoteApp || 'Remote'} · ID ${a.remoteId || '-'}`);
+    if(specEntries.length){
+      lines.push('', '--- TECHNICAL SPECS ---');
+      specEntries.forEach(([k, v]) => lines.push(`${k}: ${v}`));
+    }
+    if(a.owner || u){
+      lines.push('', '--- ASSIGNED USER / CUSTODIAN ---');
+      lines.push(`Name: ${u?.name || a.owner || '-'} (${u?.username || u?.id || 'No ID'})`);
+      lines.push(`Role / Title: ${u?.title || u?.role || '-'} | Gender: ${u?.gender || 'Auto'}`);
+      lines.push(`Dept / Site: ${u?.dept || a.dept || '-'}${u?.subdept ? ' · ' + u.subdept : ''} / ${u?.site || a.site || '-'}`);
+      lines.push(`Email: ${u?.email || '-'} | Phone: ${u?.phone || '-'}`);
+    }
+    return lines.join('\n');
+  }
+
+  const prevOpenAssetDetails = window.openAssetDetails;
+  window.openAssetDetails = function(tag){
+    if(typeof prevOpenAssetDetails === 'function') prevOpenAssetDetails(tag);
+    const list = (typeof assets !== 'undefined' && Array.isArray(assets)) ? assets : [];
+    const a = list.find(x => x.tag === tag);
+    const modal = document.getElementById('assetDetailModal');
+    if(!a || !modal) return;
+
+    injectAsset360Styles();
+    modal.style.zIndex = '10045';
+    bindSafeBackdropClose(modal, () => modal.classList.remove('open'));
+    modal.classList.add('open');
+
+    const titleEl = document.getElementById('assetDetailTitle');
+    const subEl = document.getElementById('assetDetailSub');
+    const bodyEl = document.getElementById('assetDetailBody');
+    const copyBtn = document.getElementById('assetDetailCopy');
+    const mgmtBtn = document.getElementById('assetManagementOpen');
+    if(titleEl) titleEl.textContent = `${a.name || 'Unnamed Asset'} · 360° Full View`;
+    if(subEl) subEl.textContent = `${a.tag || ''} · ${a.type || ''}${a.subtype ? ' / ' + a.subtype : ''} · ${a.site || 'No Factory'} · ${a.dept || 'No Department'}`;
+    if(mgmtBtn){
+      if(a.managementUrl){
+        mgmtBtn.style.display = '';
+        mgmtBtn.onclick = () => window.open(a.managementUrl, '_blank', 'noopener');
+      } else {
+        mgmtBtn.style.display = 'none';
+      }
+    }
+
+    const theme = assetThemeMeta(a);
+    const u = findMatchedUserForAsset(a);
+    const rawSpecs = (typeof savedSpecs === 'function') ? savedSpecs(a.specs) : {};
+    const specLabels = {
+      cpu:'CPU', cpuGeneration:'CPU Generation', ramGb:'RAM (GB)', ramSpec:'RAM Specs / Freq',
+      ssdGb:'SSD (GB)', ssdCapacity:'SSD Capacity', ssdType:'SSD Type', hddCapacity:'HDD Capacity', hddGb:'HDD (GB)',
+      graphics:'GPU / Graphics', wifiAdapter:'Wi-Fi Adapter', osActivation:'OS Activation',
+      motherboardType:'Motherboard Type', motherboardManufacturer:'Motherboard Make',
+      keyboard:'Keyboard', mouse:'Mouse', switchMake:'Switch Make', switchModel:'Switch Model',
+      usablePorts:'Usable Ports', switchManageability:'Switch Type', routerSpecs:'Router / AP Specs',
+      firewallModel:'Firewall Model', printerCategory:'Printer Type', printerMakeModel:'Printer Model',
+      storageGb:'Storage (GB)', otherSpecs:'Other Specs & Notes'
+    };
+    const specEntries = [];
+    Object.entries(rawSpecs || {}).forEach(([k, v]) => {
+      if(k === 'hddUnit' || k === 'ssdUnit' || v === '' || v === null || v === undefined) return;
+      if(k === 'hddCapacity' || k === 'hddGb') specEntries.push([specLabels[k] || k, `${v} ${rawSpecs.hddUnit || 'GB'}`]);
+      else if(k === 'ssdCapacity') specEntries.push([specLabels[k] || k, `${v} ${rawSpecs.ssdUnit || 'GB'}`]);
+      else specEntries.push([specLabels[k] || k, String(v)]);
+    });
+
+    const ipSt = String(a.ipStatus || 'Unchecked');
+    const ipBadgeBg = ipSt === 'Online' ? 'rgba(16,185,129,.28)' : ipSt === 'Offline' ? 'rgba(239,68,68,.32)' : 'rgba(255,255,255,.2)';
+    const ipDot = ipSt === 'Online' ? '🟢' : ipSt === 'Offline' ? '🔴' : '⚪';
+    const rApp = String(a.remoteApp || '').trim();
+    const rId = String(a.remoteId || '').trim();
+    const rPwd = String(a.remotePassword || '').trim();
+    const rUrl = remoteLaunchHref(rApp, rId);
+
+    const maintList = (typeof maintenance !== 'undefined' && Array.isArray(maintenance))
+      ? maintenance.filter(m => String(m.tag || m.assetTag || '').trim() === String(a.tag || '').trim())
+      : [];
+    const relTickets = allTickets().filter(t => {
+      const tagLow = String(a.tag || '').toLowerCase();
+      const descLow = `${t.description || ''} ${t.title || ''}`.toLowerCase();
+      const ownerLow = String(u?.name || a.owner || '').trim().toLowerCase();
+      return (tagLow && descLow.includes(tagLow)) || (ownerLow && ownerLow !== 'unassigned' && String(t.requester || '').trim().toLowerCase() === ownerLow);
+    }).slice(0, 8);
+
+    const initials = String(u?.name || a.owner || 'NA').split(/\s+/).map(s => s[0] || '').join('').slice(0, 2).toUpperCase() || 'NA';
+    const userIps = [u?.ip_address, ...(Array.isArray(u?.ip_addresses) ? u.ip_addresses : [])].filter(Boolean);
+    const ifaces = Array.isArray(a.networkInterfaces) ? a.networkInterfaces : [];
+    const allIfaces = ifaces.length ? ifaces : (a.ipAddress || a.macAddress ? [{ name: 'Primary Interface', ipAddress: a.ipAddress, macAddress: a.macAddress, status: a.status, ipStatus: a.ipStatus, lastSeen: a.lastSeen || a.ipCheckedAt }] : []);
+
+    const assetInfoRows = [
+      ['🏷️ Asset Tag', a.tag || '—'],
+      ['📦 Type / Subtype', `${a.type || '—'}${a.subtype ? ' · ' + a.subtype : ''}`],
+      ['🏭 Factory / Site', a.site || '—'],
+      ['🏢 Department', a.dept || '—'],
+      ['🏭 Manufacturer', a.manufacturer || '—'],
+      ['🧩 Model', a.model || '—'],
+      ['🔢 Serial Number', a.serial || '—'],
+      ['🪟 OS & Version', [a.osType, a.osVersion].filter(Boolean).join(' ') || '—'],
+      ['💾 Primary Storage', a.storageCapacity ? `${a.storageCapacity} ${a.storageUnit || 'GB'}` : '—'],
+      ['💰 Asset Value', a.assetValue ? `₹ ${Number(a.assetValue).toLocaleString('en-IN')}` : '—'],
+      ['🗓️ Purchase Date', a.purchaseDate || '—'],
+      ['🛡️ Warranty Until', a.warranty || '—'],
+      ['🛠️ Last Service', a.lastMaintenance || '—'],
+      ['📶 Last Seen / Checked', a.lastSeen || a.ipCheckedAt || a.seen || '—']
+    ];
+
+    const heroRemoteHtml = (rApp || rId)
+      ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          ${rUrl ? `<a href="${escT(rUrl)}" class="btn" style="background:#fff;color:#0f172a;font-weight:800;border:none">🖥️ Connect ${escT(rApp || 'Remote')}</a>` : ''}
+          <button type="button" class="btn ns-a360-copy-id" data-copy="${escT(rId)}" style="background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.35)">📋 ID: ${escT(rId || '—')}</button>
+        </div>` : '';
+
+    bodyEl.innerHTML = `
+      <div class="ns-a360-hero" style="background:${theme.grad}">
+        <div class="ns-a360-hero-left">
+          <div class="ns-a360-icon">${theme.icon}</div>
+          <div style="min-width:0;flex:1">
+            <div style="font-size:11px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;opacity:.88">COMPLETE ASSET &amp; CUSTODIAN DOSSIER</div>
+            <div style="font-size:21px;font-weight:900;line-height:1.2;margin-top:2px">${escT(a.name || 'Unnamed Asset')} <span style="font-size:13px;font-weight:700;opacity:.85">(${escT(a.tag || '-')})</span></div>
+            <div class="ns-a360-badges">
+              <span class="ns-a360-pill" style="background:${ipBadgeBg}">${ipDot} ${escT(ipSt)}</span>
+              <span class="ns-a360-pill">⚡ Status: ${escT(a.status || 'Active')}</span>
+              <span class="ns-a360-pill">🏭 ${escT(a.site || 'Unassigned Factory')}</span>
+              <span class="ns-a360-pill">🏢 ${escT(a.dept || 'Unassigned Dept')}</span>
+              <span class="ns-a360-pill">👤 ${escT(u?.name || a.owner || 'Unassigned')}</span>
+            </div>
+          </div>
+        </div>
+        ${heroRemoteHtml}
+      </div>
+
+      <div class="ns-a360-kpis">
+        <div class="ns-a360-kpi" style="--kpi-acc:#0284c7">
+          <div class="ns-a360-kpi-lbl">🌐 Network Endpoint</div>
+          <div class="ns-a360-kpi-val">${escT(a.ipAddress || 'No Primary IP')}</div>
+          <div class="ns-a360-kpi-sub">MAC: ${escT(a.macAddress || '—')} · ${allIfaces.length} interface(s)</div>
+        </div>
+        <div class="ns-a360-kpi" style="--kpi-acc:#10b981">
+          <div class="ns-a360-kpi-lbl">👤 Assigned Custodian</div>
+          <div class="ns-a360-kpi-val">${escT(u?.name || a.owner || 'Unassigned')}</div>
+          <div class="ns-a360-kpi-sub">${escT(u?.title || u?.role || (a.dept ? a.dept + ' Dept' : 'No user profile linked'))}</div>
+        </div>
+        <div class="ns-a360-kpi" style="--kpi-acc:#8b5cf6">
+          <div class="ns-a360-kpi-lbl">💰 Valuation &amp; Warranty</div>
+          <div class="ns-a360-kpi-val">${a.assetValue ? '₹ ' + escT(Number(a.assetValue).toLocaleString('en-IN')) : '₹ —'}</div>
+          <div class="ns-a360-kpi-sub">Purchased: ${escT(a.purchaseDate || '—')} · Warranty: ${escT(a.warranty || '—')}</div>
+        </div>
+        <div class="ns-a360-kpi" style="--kpi-acc:#f59e0b">
+          <div class="ns-a360-kpi-lbl">🛠️ Service &amp; Tickets</div>
+          <div class="ns-a360-kpi-val">${maintList.length} Service · ${relTickets.length} Tickets</div>
+          <div class="ns-a360-kpi-sub">Last Maintenance: ${escT(a.lastMaintenance || 'Not logged')}</div>
+        </div>
+      </div>
+
+      <div class="ns-a360-grid">
+        <div class="ns-a360-card">
+          <div class="ns-a360-card-head" style="background:linear-gradient(135deg,#eff6ff,#ffffff)">
+            <div class="ns-a360-card-title"><span>💻</span> Hardware, Identity &amp; Technical Specifications</div>
+            <span class="pill" style="background:#dbeafe;color:#1d4ed8;font-size:11px;font-weight:800">${specEntries.length} Custom Specs</span>
+          </div>
+          <div class="ns-a360-card-body">
+            <div class="ns-a360-kv-grid">
+              ${assetInfoRows.map(([k, v]) => `<div class="ns-a360-kv"><div class="ns-a360-kv-k">${k}</div><div class="ns-a360-kv-v">${escT(v)}</div></div>`).join('')}
+            </div>
+            ${specEntries.length ? `<div style="margin-top:4px">
+              <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#1d4ed8;margin-bottom:7px;letter-spacing:.5px">⚙️ Detailed Component Specifications</div>
+              <div class="ns-a360-kv-grid">
+                ${specEntries.map(([k, v]) => `<div class="ns-a360-kv" style="background:#f0f7ff;border-color:#bfdbfe"><div class="ns-a360-kv-k" style="color:#1e40af">${escT(k)}</div><div class="ns-a360-kv-v">${escT(v)}</div></div>`).join('')}
+              </div>
+            </div>` : ''}
+          </div>
+        </div>
+
+        <div class="ns-a360-card">
+          <div class="ns-a360-card-head" style="background:linear-gradient(135deg,#ecfdf5,#ffffff)">
+            <div class="ns-a360-card-title"><span>👤</span> Assigned User &amp; Custodian Information</div>
+            <span class="pill" style="background:${u ? '#dcfce7' : '#fef3c7'};color:${u ? '#15803d' : '#b45309'};font-size:11px;font-weight:800">${u ? 'Matched Directory User' : (a.owner ? 'Name Only' : 'Unassigned')}</span>
+          </div>
+          <div class="ns-a360-card-body">
+            <div class="ns-a360-user-banner">
+              <div class="ns-a360-avatar">${escT(initials)}</div>
+              <div style="min-width:0;flex:1">
+                <div style="font-size:15.5px;font-weight:900;color:#0f172a">${escT(u?.name || a.owner || 'Unassigned / Shared Pool')}</div>
+                <div style="font-size:12px;color:#047857;font-weight:700">${escT([u?.title, u?.role].filter(Boolean).join(' · ') || 'Custodian Record')}</div>
+              </div>
+              ${u?.gender ? `<span class="pill" style="background:#fff;border:1px solid #a7f3d0;color:#065f46;font-size:11px;font-weight:800">${u.gender === 'Male' ? '👨 Male · Sir' : u.gender === 'Female' ? '👩 Female · Ma’am' : '✨ ' + escT(u.gender)}</span>` : ''}
+            </div>
+            <div class="ns-a360-kv-grid">
+              <div class="ns-a360-kv"><div class="ns-a360-kv-k">🆔 Username / Emp ID</div><div class="ns-a360-kv-v">${escT(u?.username || u?.id || '—')}</div></div>
+              <div class="ns-a360-kv"><div class="ns-a360-kv-k">💼 Employment / Status</div><div class="ns-a360-kv-v">${escT(u?.employment || (u?.active === false ? 'Inactive' : u ? 'Active' : '—'))}</div></div>
+              <div class="ns-a360-kv"><div class="ns-a360-kv-k">🏭 Factory</div><div class="ns-a360-kv-v">${escT(u?.site || a.site || '—')}</div></div>
+              <div class="ns-a360-kv"><div class="ns-a360-kv-k">🏢 Dept &amp; Sub-Dept</div><div class="ns-a360-kv-v">${escT([u?.dept || a.dept, u?.subdept].filter(Boolean).join(' / ') || '—')}</div></div>
+              <div class="ns-a360-kv"><div class="ns-a360-kv-k">📧 Email Address</div><div class="ns-a360-kv-v">${u?.email ? `<a href="mailto:${escT(u.email)}" style="color:#0369a1;text-decoration:none">${escT(u.email)}</a>` : '—'}</div></div>
+              <div class="ns-a360-kv"><div class="ns-a360-kv-k">📞 Phone / Extension</div><div class="ns-a360-kv-v">${u?.phone ? `<a href="tel:${escT(u.phone)}" style="color:#0f766e;text-decoration:none">${escT(u.phone)}</a>` : '—'}</div></div>
+              <div class="ns-a360-kv"><div class="ns-a360-kv-k">🌐 User Assigned IP(s)</div><div class="ns-a360-kv-v">${escT(userIps.length ? userIps.join(', ') : (a.ipAddress || '—'))}</div></div>
+              <div class="ns-a360-kv"><div class="ns-a360-kv-k">🕒 User Last Active</div><div class="ns-a360-kv-v">${escT(u?.lastActive || '—')}</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ns-a360-card">
+          <div class="ns-a360-card-head" style="background:linear-gradient(135deg,#ecfeff,#ffffff)">
+            <div class="ns-a360-card-title"><span>🌐</span> Network Interfaces &amp; Remote Support Access</div>
+            <span class="pill" style="background:#cffafe;color:#0e7490;font-size:11px;font-weight:800">${allIfaces.length} NICs</span>
+          </div>
+          <div class="ns-a360-card-body">
+            ${(rApp || rId || rPwd) ? `<div style="padding:12px;border-radius:12px;background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border:1px solid #bae6fd">
+              <div style="font-size:11px;font-weight:900;color:#0369a1;text-transform:uppercase;margin-bottom:8px">🖥️ Remote Desktop Credentials (${escT(rApp || 'Remote App')})</div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span style="padding:5px 10px;border-radius:8px;background:#fff;border:1px solid #bae6fd;font-weight:800;font-size:12.5px">ID: ${escT(rId || '—')}</span>
+                ${rPwd ? `<span style="padding:5px 10px;border-radius:8px;background:#fff;border:1px solid #bae6fd;font-weight:800;font-size:12.5px">Pass: <span class="ns-a360-rpwd" data-shown="0" data-pwd="${escT(rPwd)}">••••••••</span></span>` : ''}
+                ${rId ? `<button type="button" class="btn ns-a360-copy-id" data-copy="${escT(rId)}" style="padding:5px 10px;font-size:11.5px">📋 Copy ID</button>` : ''}
+                ${rPwd ? `<button type="button" class="btn ns-a360-toggle-pwd" style="padding:5px 10px;font-size:11.5px">👁 Reveal</button>` : ''}
+                ${rPwd ? `<button type="button" class="btn ns-a360-copy-id" data-copy="${escT(rPwd)}" style="padding:5px 10px;font-size:11.5px">🔑 Copy Pass</button>` : ''}
+                ${rUrl ? `<a href="${escT(rUrl)}" class="btn primary" style="padding:5px 11px;font-size:11.5px">🚀 Launch</a>` : ''}
+              </div>
+            </div>` : '<div style="font-size:12px;color:#64748b;padding:8px 10px;background:#f8fafc;border-radius:10px;border:1px dashed #cbd5e1">No Remote Desktop ID configured yet. Click Edit to add TeamViewer / AnyDesk / UltraViewer credentials.</div>'}
+            ${allIfaces.length ? `<div style="overflow-x:auto"><table class="ns-a360-table">
+              <thead><tr><th>Interface</th><th>IP Address</th><th>MAC Address</th><th>Status</th></tr></thead>
+              <tbody>${allIfaces.map(nif => `<tr>
+                <td><b>${escT(nif.name || 'NIC')}</b></td>
+                <td><code>${escT(nif.ipAddress || '—')}</code></td>
+                <td><code>${escT(nif.macAddress || '—')}</code></td>
+                <td>${escT(nif.ipStatus || nif.status || '—')}</td>
+              </tr>`).join('')}</tbody>
+            </table></div>` : '<div style="font-size:12px;color:#64748b">No network interfaces recorded.</div>'}
+          </div>
+        </div>
+
+        <div class="ns-a360-card">
+          <div class="ns-a360-card-head" style="background:linear-gradient(135deg,#fffbeb,#ffffff)">
+            <div class="ns-a360-card-title"><span>🔧</span> Maintenance Log &amp; Related Support Tickets</div>
+            <span class="pill" style="background:#fef3c7;color:#b45309;font-size:11px;font-weight:800">${maintList.length + relTickets.length} Records</span>
+          </div>
+          <div class="ns-a360-card-body">
+            ${maintList.length ? `<div>
+              <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#b45309;margin-bottom:6px">🛠️ Service History (${maintList.length})</div>
+              ${maintList.slice(0, 5).map(m => `<div style="padding:8px 10px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;margin-bottom:6px;font-size:12px">
+                <div style="display:flex;justify-content:space-between;font-weight:800;color:#78350f"><span>${escT(m.type || m.issue || 'Service')}</span><span>${escT(m.date || '')}${m.cost ? ' · ₹' + escT(m.cost) : ''}</span></div>
+                ${m.vendor || m.notes || m.summary ? `<div style="color:#92400e;margin-top:2px">${escT([m.vendor, m.notes || m.summary].filter(Boolean).join(' — '))}</div>` : ''}
+              </div>`).join('')}
+            </div>` : ''}
+            <div>
+              <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#15803d;margin-bottom:6px">🎫 Recent Support Tickets (${relTickets.length})</div>
+              ${relTickets.length ? relTickets.map(tk => `<div style="padding:8px 10px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <div style="min-width:0;flex:1">
+                  <div style="font-size:12px;font-weight:800;color:#0f172a">${escT(tk.id)} · ${escT(tk.status || 'Open')} <span style="color:#64748b;font-weight:600">(${escT(tk.primary || tk.sub || 'General')})</span></div>
+                  <div style="font-size:11.5px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escT(tk.description || '')}</div>
+                </div>
+                <button type="button" class="btn ns-a360-open-tk" data-tk-id="${escT(tk.id)}" style="padding:4px 9px;font-size:11px">🔍 Inspect</button>
+              </div>`).join('') : '<div style="font-size:12px;color:#64748b">No support tickets matched this asset tag or owner yet.</div>'}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    bodyEl.querySelectorAll('.ns-a360-copy-id').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const txt = btn.dataset.copy || '';
+        if(!txt) return;
+        navigator.clipboard?.writeText(txt).catch(()=>{});
+        window.showToast?.('Copied to clipboard.');
+      });
+    });
+    bodyEl.querySelectorAll('.ns-a360-toggle-pwd').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sp = bodyEl.querySelector('.ns-a360-rpwd');
+        if(!sp) return;
+        const shown = sp.dataset.shown === '1';
+        sp.dataset.shown = shown ? '0' : '1';
+        sp.textContent = shown ? '••••••••' : (sp.dataset.pwd || '');
+        btn.textContent = shown ? '👁 Reveal' : '🙈 Hide';
+      });
+    });
+    bodyEl.querySelectorAll('.ns-a360-open-tk').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.tkId;
+        if(id){
+          modal.classList.remove('open');
+          window.openTicketDetailModal?.(id);
+        }
+      });
+    });
+    if(copyBtn){
+      copyBtn.onclick = () => {
+        const summaryText = buildAsset360PlainText(a, u, specEntries);
+        navigator.clipboard?.writeText(summaryText).catch(()=>{});
+        window.showToast?.('Complete 360° Asset & User summary copied.');
+      };
+    }
+  };
 
   document.addEventListener('DOMContentLoaded', () => {
     try{

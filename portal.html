@@ -277,19 +277,6 @@ html,body{overflow-x:hidden;max-width:100%}
           <select id="employee" required disabled><option value="">Select department first</option></select>
         </div>
       </div>
-      <div class="grid-2" style="margin-bottom:8px">
-        <div class="field" style="margin-bottom:0">
-          <label for="requesterGender">Preferred Salutation (Time &amp; Gender Notification)</label>
-          <select id="requesterGender">
-            <option value="Unspecified">Auto / Standard (Sir / Ma'am)</option>
-            <option value="Male">Male (Sir)</option>
-            <option value="Female">Female (Ma'am)</option>
-          </select>
-        </div>
-        <div class="field" style="margin-bottom:0;display:flex;align-items:flex-end">
-          <div class="small" style="padding:8px 10px;border-radius:9px;background:#f8fafc;border:1px solid #e2e8f0;width:100%">You will receive time-based greetings (<b>Good Morning / Afternoon / Evening Sir/Ma’am</b>) &amp; detailed ETA notifications at every ticket stage.</div>
-        </div>
-      </div>
 
       <div class="field" id="complaintDeskBox" style="margin-bottom:14px;padding:12px;border:1px solid #d5e5dc;border-radius:12px;background:#f7fbf8">
         <label style="color:#145b40">Complaint Department / Service Desk *</label>
@@ -335,7 +322,8 @@ html,body{overflow-x:hidden;max-width:100%}
       <div class="grid-2">
         <div class="field">
           <label for="description">Describe the issue / request in detail *</label>
-          <textarea id="description" maxlength="5000" required placeholder="Describe the issue, asset tag (if any), error message or exact requirements..."></textarea>
+          <textarea id="description" maxlength="5000" required placeholder="Describe the issue, asset tag (if any), error message or exact requirements... (Tip: Paste screenshots directly with Ctrl+V)"></textarea>
+          <div class="small" style="margin-top:4px;color:#157a54;font-weight:600">💡 Tip: Press Ctrl+V inside this box to paste a copied screenshot directly (like WhatsApp).</div>
         </div>
         <div class="field" id="portalFilesField">
           <label for="portalFiles">Attach screenshots (optional · up to 5 images)</label>
@@ -1118,12 +1106,21 @@ function renderSubcategories(){
 function renderPendingFiles(){
   const box = $('portalFileChips');
   if(!pendingFiles.length){ box.innerHTML = ''; return; }
-  box.innerHTML = pendingFiles.map((f, i) => `
-    <span class="file-chip">
-      📷 <b>${h(f.name)}</b> <span class="small">(${Math.round(f.size/1024)} KB)</span>
-      <button type="button" onclick="removePortalFile(${i})" title="Remove image">✕</button>
-    </span>
-  `).join('');
+  box.innerHTML = '';
+  pendingFiles.forEach((f, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'file-chip';
+    chip.style.alignItems = 'center';
+    let thumbUrl = '';
+    try{ if(String(f.type || '').startsWith('image/')) thumbUrl = URL.createObjectURL(f); }catch(_){}
+    chip.innerHTML = (thumbUrl ? `<img src="${h(thumbUrl)}" alt="Preview" style="width:28px;height:28px;object-fit:cover;border-radius:5px;border:1px solid #cbd5e1">` : '📷 ') +
+      `<b>${h(f.name)}</b> <span class="small">(${Math.max(1, Math.round(f.size/1024))} KB)</span> <button type="button" onclick="removePortalFile(${i})" title="Remove image">✕</button>`;
+    if(thumbUrl){
+      const imgEl = chip.querySelector('img');
+      if(imgEl) imgEl.onload = () => { try{ URL.revokeObjectURL(thumbUrl); }catch(_){} };
+    }
+    box.appendChild(chip);
+  });
 }
 
 window.removePortalFile = function(i){
@@ -1131,20 +1128,59 @@ window.removePortalFile = function(i){
   renderPendingFiles();
 };
 
-$('portalFiles').addEventListener('change', e => {
-  const incoming = [...e.target.files];
-  for(const f of incoming){
+function addIncomingPortalFiles(fileList){
+  let added = 0;
+  for(const rawFile of fileList){
+    if(!rawFile) continue;
     if(pendingFiles.length >= 5){
-      alert('You can attach up to 5 screenshots.');
+      showPortalToast('Attachment limit reached', 'You can attach up to 5 screenshots.', false);
       break;
     }
-    if(!pendingFiles.some(x => x.name === f.name && x.size === f.size)){
-      pendingFiles.push(f);
+    let file = rawFile;
+    if(!file.name || file.name === 'image.png' || file.name === 'blob'){
+      const ext = (file.type === 'image/jpeg') ? '.jpg' : (file.type === 'image/webp' ? '.webp' : '.png');
+      const stamp = new Date().toTimeString().slice(0,8).replace(/:/g,'');
+      file = new File([rawFile], `pasted-screenshot-${stamp}-${pendingFiles.length + 1}${ext}`, { type: file.type || 'image/png' });
+    }
+    if(!pendingFiles.some(x => x.name === file.name && x.size === file.size)){
+      pendingFiles.push(file);
+      added++;
     }
   }
+  if(added > 0) renderPendingFiles();
+  return added;
+}
+
+$('portalFiles').addEventListener('change', e => {
+  addIncomingPortalFiles([...e.target.files]);
   e.target.value = '';
-  renderPendingFiles();
 });
+
+function handlePortalScreenshotPaste(e){
+  const dt = e.clipboardData;
+  if(!dt) return;
+  const imgFiles = [];
+  if(dt.items){
+    for(const item of dt.items){
+      if(item.kind === 'file' && String(item.type || '').startsWith('image/')){
+        const f = item.getAsFile();
+        if(f) imgFiles.push(f);
+      }
+    }
+  }
+  if(!imgFiles.length && dt.files && dt.files.length){
+    for(const f of dt.files){
+      if(String(f.type || '').startsWith('image/')) imgFiles.push(f);
+    }
+  }
+  if(imgFiles.length){
+    e.preventDefault();
+    const n = addIncomingPortalFiles(imgFiles);
+    if(n > 0) showPortalToast('Screenshot pasted', `${n} pasted screenshot${n > 1 ? 's' : ''} attached to ticket.`, false);
+  }
+}
+$('description')?.addEventListener('paste', handlePortalScreenshotPaste);
+$('ticketForm')?.addEventListener('paste', handlePortalScreenshotPaste);
 
 document.querySelectorAll('input[name="requestKind"]').forEach(el => {
   el.addEventListener('change', renderSubcategories);
@@ -1152,13 +1188,6 @@ document.querySelectorAll('input[name="requestKind"]').forEach(el => {
 
 $('factory').addEventListener('change', fillDepartments);
 $('department').addEventListener('change', fillEmployees);
-$('employee')?.addEventListener('change', () => {
-  const empKey = $('employee').value;
-  const emp = (data?.employees || []).find(e => e.key === empKey);
-  if($('requesterGender') && emp?.gender && ['Male','Female'].includes(emp.gender)){
-    $('requesterGender').value = emp.gender;
-  }
-});
 
 const PORTAL_SEEN_NOTIFS = new Set();
 let portalNotifsSeeded = false;
@@ -1505,7 +1534,6 @@ $('ticketForm').addEventListener('submit', async e => {
     fd.append('department', $('department').value);
     fd.append('employee', $('employee').value);
     fd.append('complaintDesk', activeDeskId);
-    fd.append('gender', $('requesterGender')?.value || 'Unspecified');
     fd.append('kind', kind);
     fd.append('primary', primary);
     fd.append('sub', sub);
