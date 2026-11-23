@@ -1954,6 +1954,7 @@ def _record_notification_event(conn, item):
         "targetView": str(item.get("targetView") or "")[:40],
         "targetTab": str(item.get("targetTab") or "")[:40],
         "targetId": str(item.get("targetId") or "")[:120],
+        "targetThreadId": str(item.get("targetThreadId") or "")[:120],
         "targetTag": str(item.get("targetTag") or "")[:120],
         "targetIp": str(item.get("targetIp") or "")[:64],
         "deviceType": str(item.get("deviceType") or "")[:60],
@@ -2118,7 +2119,7 @@ def get_notification_history():
     is_adm = bool(session.get("is_admin"))
     uname_cf = str(who.get("username") or "").strip().casefold()
     dname_cf = str(who.get("name") or "").strip().casefold()
-    can_tickets = is_adm or module_access(who, "tickets")
+    can_tickets = is_adm or who.get("role") == "IT Ticketing" or module_access(who, "tickets", write=True) or (module_access(who, "tickets") and isinstance(who.get("allowed_complaint_desks"), list) and len(who.get("allowed_complaint_desks")) > 0)
     can_visitors = is_adm or module_access(who, "visitors")
     can_gatepass = is_adm or module_access(who, "gatepass")
     can_devices = is_adm or module_access(who, "notifications")
@@ -2272,7 +2273,7 @@ def live_alerts_feed():
     is_adm = bool(session.get("is_admin"))
     uname_cf = str(who.get("username") or "").strip().casefold()
     dname_cf = str(who.get("name") or "").strip().casefold()
-    can_tickets = is_adm or module_access(who, "tickets")
+    can_tickets = is_adm or who.get("role") == "IT Ticketing" or module_access(who, "tickets", write=True) or (module_access(who, "tickets") and isinstance(who.get("allowed_complaint_desks"), list) and len(who.get("allowed_complaint_desks")) > 0)
     can_tk_mgr = is_adm or who.get("role") == "IT Ticketing" or module_access(who, "tickets", write=True)
     can_devices = is_adm or module_access(who, "notifications")
     want_tickets = request.args.get("tickets", "1") != "0"
@@ -3965,6 +3966,7 @@ def _sync_ticket_notif_to_helpdesk_tx(
         """,
         (msg_id, tid_thread, "helpdesk-auto", f"{sec_label} Auto-Update", str(ticket_id or "")[:80], body[:3000], json.dumps(meta)),
     )
+    _pg_emit_notify(conn, "helpdesk_message", {"threadId": tid_thread, "sectionId": sec, "ticketId": str(ticket_id or "")[:80]})
     return tid_thread
 
 
@@ -4211,6 +4213,8 @@ def create_public_ticket():
         welcome_notif = _build_and_record_ticket_user_notification(
             conn, ticket_id=ticket_id, event_type="created", actor="Support Portal", detail=description, explicit_gender=req_gender
         )
+        req_key = _resolve_ticket_requester_key(conn, username, str(user.get("name") or ""))
+        thr_id = _helpdesk_thread_id(desk_obj["id"], req_key)
         _record_notification_event(conn, {
             "eventKey": f"ticket:{ticket_id}",
             "kind": "material_request" if is_mr else "ticket",
@@ -4218,10 +4222,12 @@ def create_public_ticket():
             "title": f"{'New Material Request' if is_mr else f'New {desk_label} Ticket'}: {ticket_id}",
             "body": f"{str(user.get('name') or username)} · {sub or primary} ({factory or '-'})",
             "factory": factory,
-            "targetView": "ticketing",
-            "targetTab": "materials" if is_mr else "tickets",
-            "targetId": ticket_id,
-            "targetUsername": str(user.get("username") or "").strip()[:80],
+            "targetView": "messages",
+            "targetTab": desk_obj["id"],
+            "targetId": thr_id,
+            "targetThreadId": thr_id,
+            "targetTicketId": ticket_id,
+            "targetUsername": req_key[:80],
             "requesterName": str(user.get("name") or "")[:120],
             "complaintDesk": desk_obj["id"],
         })
@@ -5341,7 +5347,28 @@ def issue_material_for_ticket(ticket_id):
         conn.execute("UPDATE tickets SET status=%s, note=%s, assigned_to=CASE WHEN assigned_to='Unassigned' THEN %s ELSE assigned_to END, first_responded_at=COALESCE(first_responded_at, now()), updated_at=now() WHERE id=%s",
                      (new_status, ticket_note[:1000], actor, ticket_id))
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'material_issued',%s)", (ticket_id, actor, ticket_note[:1000]))
-        _build_and_record_ticket_user_notification(conn, ticket_id=ticket_id, event_type="material_issued", actor=actor, detail=ticket_note[:500], status=new_status, note=ticket_note[:500])
+        mat_notif = _build_and_record_ticket_user_notification(conn, ticket_id=ticket_id, event_type="material_issued", actor=actor, detail=ticket_note[:500], status=new_status, note=ticket_note[:500])
+        if mat_notif:
+            req_key = _resolve_ticket_requester_key(conn, mat_notif.get("requesterUsername", ""), mat_notif.get("requesterName", ""))
+            desk_m = mat_notif.get("complaintDesk") or t_row[6]
+            thr_id = _helpdesk_thread_id(desk_m, req_key)
+            _record_notification_event(conn, {
+                "eventKey": f"ticket-mat:{ticket_id}:{mat_notif.get('id','')}",
+                "kind": "material_request",
+                "level": "ok" if new_status in ("Resolved", "Closed") else "info",
+                "title": mat_notif.get("title") or f"Parts Issued · {ticket_id}",
+                "body": mat_notif.get("message") or ticket_note[:360],
+                "factory": t_row[3] or "",
+                "targetView": "messages",
+                "targetTab": desk_m,
+                "targetId": thr_id,
+                "targetThreadId": thr_id,
+                "targetTicketId": ticket_id,
+                "targetRole": "requester",
+                "targetUsername": req_key[:80],
+                "requesterName": str(t_row[1] or "")[:120],
+                "complaintDesk": desk_m,
+            })
         _pg_emit_notify(conn, "ticket", {"action": "issue-material", "ticketId": ticket_id, "status": new_status})
         issued_list = issued_parts_map_from_conn(conn).get(ticket_id, [])
     return jsonify(ok=True, assignment=assignment, status=new_status, note=ticket_note, issuedParts=issued_list, parts_inventory=inv_list, parts_assignments=asgn_list)
@@ -5414,6 +5441,8 @@ def create_ticket():
         welcome_notif = _build_and_record_ticket_user_notification(conn, ticket_id=ticket_id, event_type="created", actor=profile["name"] or profile["username"], detail=description, explicit_gender=contact["gender"])
         is_mr = (kind == "Material request")
         desk_label = desk_obj.get("name") or "IT"
+        req_key = _resolve_ticket_requester_key(conn, profile["username"], profile["name"])
+        thr_id = _helpdesk_thread_id(desk_obj["id"], req_key)
         _record_notification_event(conn, {
             "eventKey": f"ticket:{ticket_id}",
             "kind": "material_request" if is_mr else "ticket",
@@ -5421,10 +5450,12 @@ def create_ticket():
             "title": f"{'New Material Request' if is_mr else f'New {desk_label} Ticket'}: {ticket_id}",
             "body": f"{profile.get('name') or profile['username']} · {sub or primary} ({profile.get('site', '-')})",
             "factory": profile.get("site", ""),
-            "targetView": "ticketing",
-            "targetTab": "materials" if is_mr else "tickets",
-            "targetId": ticket_id,
-            "targetUsername": str(profile.get("username") or "").strip()[:80],
+            "targetView": "messages",
+            "targetTab": desk_obj["id"],
+            "targetId": thr_id,
+            "targetThreadId": thr_id,
+            "targetTicketId": ticket_id,
+            "targetUsername": req_key[:80],
             "requesterName": str(profile.get("name") or "")[:120],
             "complaintDesk": desk_obj["id"],
         })

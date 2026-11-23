@@ -366,11 +366,17 @@ public class MainActivity extends Activity {
         if (targetView != null && !targetView.isEmpty()) {
             intent.removeExtra("targetView");
             intent.removeExtra("targetId");
-            String js = "if(typeof window.go==='function'){window.go(" + org.json.JSONObject.quote(targetView) + ");}";
+            String tvQ = org.json.JSONObject.quote(targetView);
+            String tidQ = org.json.JSONObject.quote(targetId != null ? targetId : "");
+            String js = "window.__nsPendingApkTarget={view:" + tvQ + ",id:" + tidQ + "};if(typeof window.go==='function'){window.go(" + tvQ + ");}";
             if ("messages".equals(targetView)) {
-                js = "if(typeof window.openHelpdeskMessages==='function'){setTimeout(function(){window.openHelpdeskMessages({threadId:" + org.json.JSONObject.quote(targetId != null ? targetId : "") + "});},250);}else if(typeof window.go==='function'){window.go('messages');}";
+                js = "window.__nsPendingApkTarget={view:'messages',id:" + tidQ + "};"
+                        + "if(typeof window.openHelpdeskMessages==='function'){"
+                        + "var _pId=" + tidQ + ";"
+                        + "setTimeout(function(){window.openHelpdeskMessages(_pId&&_pId.indexOf('hd-')===0?{threadId:_pId}:{ticketId:_pId});},250);"
+                        + "}else if(typeof window.go==='function'){window.go('messages');}";
             } else if (targetId != null && !targetId.isEmpty()) {
-                js += "if(typeof window.jumpToTicketInQueue==='function'){setTimeout(function(){window.jumpToTicketInQueue(" + org.json.JSONObject.quote(targetId) + ");},300);}";
+                js += "if(typeof window.jumpToTicketInQueue==='function'){setTimeout(function(){window.jumpToTicketInQueue(" + tidQ + ");},300);}";
             }
             webView.evaluateJavascript(js, null);
         }

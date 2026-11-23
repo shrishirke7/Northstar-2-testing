@@ -561,6 +561,8 @@ button,a,.btn,.site-chip,.nav button,.mb-nav-item,.ov-mob-tab{touch-action:manip
   body:has(.val-modal-backdrop.open) #mobileBottomNav,
   body:has(.sidebar.mobile-open) #mobileBottomNav,
   body:has(#nsVaultPrivacyVeil.active) #mobileBottomNav,
+  body:has(#nsMsgFloatingDrawer.open) #mobileBottomNav,
+  body.ns-msg-drawer-open #mobileBottomNav,
   body.ns-modal-open #pwaInstallBanner,
   body.ns-kbd-open #pwaInstallBanner {
     display: none !important;
@@ -9640,7 +9642,9 @@ let lastPulseGatepassRev = '';
       targetView: String(n.targetView || ''),
       targetTab: String(n.targetTab || ''),
       targetId: String(n.targetId || ''),
+      targetThreadId: String(n.targetThreadId || ''),
       targetTicketId: String(n.targetTicketId || ''),
+      targetRole: String(n.targetRole || ''),
       complaintDesk: String(n.complaintDesk || ''),
       targetTag: String(n.targetTag || ''),
       targetIp: String(n.targetIp || ''),
@@ -9727,7 +9731,7 @@ let lastPulseGatepassRev = '';
 
     const list = notifItems.filter(item => {
       if(shadeFilter === 'unread') return !item.read;
-      if(shadeFilter === 'tickets') return item.kind === 'ticket' || item.kind === 'material_request';
+      if(shadeFilter === 'tickets') return item.kind === 'ticket' || item.kind === 'material_request' || item.kind === 'helpdesk_message';
       if(shadeFilter === 'devices') return item.kind === 'online' || item.kind === 'offline' || item.kind === 'critical';
       return true;
     }).slice(0, 35);
@@ -9761,7 +9765,7 @@ let lastPulseGatepassRev = '';
       ${statusStripHtml}
       <div class="ns-shade-subbar">
         <div class="ns-shade-chips">
-          ${[['all','All'],['unread','Unread ('+unread+')'],['tickets','Tickets & MR'],['devices','Devices']].map(([k,lbl]) =>
+          ${[['all','All'],['unread','Unread ('+unread+')'],['tickets','Tickets & Chat'],['devices','Devices']].map(([k,lbl]) =>
             `<button type="button" class="ns-shade-chip ${shadeFilter===k?'active':''}" data-shade-filter="${k}">${lbl}</button>`
           ).join('')}
         </div>
@@ -9781,10 +9785,11 @@ let lastPulseGatepassRev = '';
                 <span style="font-size:9.5px;color:#738079;white-space:nowrap">${esc(timeAgo(n.createdAt))}</span>
               </div>
               <div style="font-size:11px;color:#4f5f56;margin-top:2px;line-height:1.35">${esc(n.body)}</div>
-              <div style="display:flex;gap:6px;align-items:center;margin-top:5px">
+              <div style="display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap">
                 <span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:99px;background:#eef3f0;color:#2c4336">${esc(meta.label)}</span>
+                ${n.targetTicketId ? `<span style="font-size:9px;font-weight:800;padding:2px 6px;border-radius:99px;background:#e0f2fe;color:#0369a1">#${esc(n.targetTicketId)}</span>` : ''}
                 ${n.factory ? `<span style="font-size:9px;color:#6c7a72">${esc(n.factory)}</span>` : ''}
-                <span style="margin-left:auto;font-size:9.5px;color:#157a54;font-weight:700">Open →</span>
+                <span style="margin-left:auto;font-size:9.5px;color:#157a54;font-weight:700">${(n.kind === 'helpdesk_message' || n.kind === 'ticket' || n.kind === 'material_request' || n.targetView === 'messages') ? '💬 Open Chat →' : 'Open →'}</span>
               </div>
             </div>
             ${n.read ? '' : '<span class="ns-notif-unread-dot" title="Unread"></span>'}
@@ -9834,6 +9839,7 @@ let lastPulseGatepassRev = '';
             <option value="">All types</option>
             <option value="ticket">IT Tickets</option>
             <option value="material_request">Material Requests</option>
+            <option value="helpdesk_message">Helpdesk Chat &amp; Updates</option>
             <option value="gatepass">Gate Pass / Returnable</option>
             <option value="visitor">Visitor Pass</option>
             <option value="critical">Critical Devices</option>
@@ -10013,11 +10019,14 @@ let lastPulseGatepassRev = '';
     }
 
     const kind = item.kind;
-    if((kind === 'helpdesk_message' || item.targetView === 'messages') && typeof window.openHelpdeskMessages === 'function'){
+    if((kind === 'helpdesk_message' || kind === 'ticket' || kind === 'material_request' || item.targetView === 'messages' || item.targetView === 'tickets' || item.targetView === 'ticketing' || item.targetThreadId) && typeof window.openHelpdeskMessages === 'function'){
+      const tid = String(item.targetId || '');
+      const thId = item.targetThreadId || (item.targetView === 'messages' || tid.startsWith('hd-') ? tid : '');
+      const tkId = item.targetTicketId || (!tid.startsWith('hd-') ? tid : '');
       window.openHelpdeskMessages({
-        threadId: item.targetId || '',
-        sectionId: item.targetTab || item.complaintDesk || '',
-        ticketId: item.targetTicketId || ''
+        threadId: thId,
+        sectionId: item.complaintDesk || (item.targetTab && !['tickets','materials'].includes(item.targetTab) ? item.targetTab : ''),
+        ticketId: tkId
       });
       return;
     }
@@ -15014,8 +15023,13 @@ let lastPulseGatepassRev = '';
   </button>
   <button type="button" class="mb-nav-item" data-mb-view="tickets" id="mbNavTickets" onclick="go('tickets')">
     <span class="mb-ico">🎫</span>
-    <span class="mb-label">Help Desk</span>
+    <span class="mb-label">Tickets</span>
     <span class="mb-badge" id="mbTicketBadge" style="display:none">0</span>
+  </button>
+  <button type="button" class="mb-nav-item" data-mb-view="messages" id="mbNavMessages" onclick="window.openHelpdeskMessages ? window.openHelpdeskMessages() : go('messages')">
+    <span class="mb-ico">💬</span>
+    <span class="mb-label">Chats</span>
+    <span class="mb-badge" id="mbMsgBadge" style="display:none">0</span>
   </button>
   <button type="button" class="mb-nav-item" id="mbNavAlerts" onclick="window.nsNotifCenter?.toggleShade?.()">
     <span class="mb-ico">🔔</span>
@@ -15312,7 +15326,11 @@ let lastPulseGatepassRev = '';
       window.triggerMobileVibrate([200, 100, 200]);
       const nb = window.ShreeAndroid || window.ShreeIOS;
       if(nb && typeof nb.notify === 'function'){
-        nb.notify(String(title || 'Shree IT Alert'), String(body || ''), String(meta?.targetView || 'notifications'), String(meta?.targetId || ''));
+        const mKind = String(meta?.kind || '');
+        const isChatRoute = mKind === 'ticket' || mKind === 'material_request' || mKind === 'helpdesk_message' || meta?.targetView === 'messages' || Boolean(meta?.targetThreadId);
+        const navView = isChatRoute ? 'messages' : String(meta?.targetView || 'notifications');
+        const navId = String(meta?.targetThreadId || (isChatRoute ? (meta?.targetTicketId || meta?.targetId || '') : (meta?.targetId || '')));
+        nb.notify(String(title || 'Shree IT Alert'), String(body || ''), navView, navId);
         return;
       }
       if(typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
@@ -21607,65 +21625,94 @@ let lastPulseGatepassRev = '';
 })();
 </script>
 <style id="nsHdMsgCss">
-  .ns-hd-fab{position:fixed;right:20px;bottom:20px;z-index:9980;display:none;align-items:center;gap:8px;padding:11px 16px;border-radius:999px;background:linear-gradient(135deg,#059669,#0d9488);color:#fff;font-weight:800;font-size:13px;border:2px solid rgba(255,255,255,.85);box-shadow:0 12px 28px rgba(5,150,105,.38);cursor:grab;user-select:none;touch-action:none;transition:box-shadow .18s,transform .14s;}
-  .ns-hd-fab:hover{box-shadow:0 16px 34px rgba(5,150,105,.48);transform:translateY(-1px);}
+  .ns-hd-fab{position:fixed;right:20px;bottom:20px;z-index:9980;display:none;align-items:center;gap:8px;padding:11px 16px;border-radius:999px;background:linear-gradient(135deg,#0b5d47,#0d9488);color:#fff;font-weight:800;font-size:13px;border:2px solid rgba(255,255,255,.88);box-shadow:0 12px 28px rgba(11,93,71,.36);cursor:grab;user-select:none;touch-action:none;transition:box-shadow .18s,transform .14s;}
+  .ns-hd-fab:hover{box-shadow:0 16px 34px rgba(11,93,71,.48);transform:translateY(-1px);}
   .ns-hd-fab.dragging{cursor:grabbing;transform:scale(1.04);}
   .ns-hd-fab-badge{background:#ef4444;color:#fff;font-size:11px;font-weight:900;min-width:20px;height:20px;padding:0 6px;border-radius:999px;display:none;align-items:center;justify-content:center;}
-  .ns-msg-drawer{position:fixed;right:18px;bottom:84px;width:min(860px,95vw);height:min(660px,84vh);background:#fff;border-radius:20px;border:1px solid #cbd5e1;box-shadow:0 24px 64px rgba(15,23,42,.26);z-index:10015;display:none;flex-direction:column;overflow:hidden;}
+  .ns-msg-drawer{position:fixed;right:18px;bottom:84px;width:min(900px,95vw);height:min(680px,85vh);background:#fff;border-radius:20px;border:1px solid #cbd5e1;box-shadow:0 24px 64px rgba(15,23,42,.26);z-index:10015;display:none;flex-direction:column;overflow:hidden;}
   .ns-msg-drawer.open{display:flex;}
   .ns-msg-drawer.expanded{right:2.5vw;bottom:3vh;width:95vw;height:92vh;}
   .ns-msg-fullwrap{background:#fff;border-radius:18px;border:1px solid #e2e8f0;box-shadow:0 8px 26px rgba(15,23,42,.06);height:calc(100vh - 135px);min-height:560px;display:flex;flex-direction:column;overflow:hidden;}
-  .ns-msg-topbar{padding:11px 15px;background:linear-gradient(135deg,#075e54,#0d9488);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;}
-  .ns-msg-sections{display:flex;gap:6px;padding:9px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;overflow-x:auto;flex-shrink:0;}
+  .ns-msg-topbar{padding:11px 15px;background:linear-gradient(135deg,#0b5d47,#0d9488);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;}
+  .ns-msg-sections{display:flex;gap:6px;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;overflow-x:auto;flex-shrink:0;scrollbar-width:none;}
+  .ns-msg-sections::-webkit-scrollbar{display:none;}
   .ns-msg-sec-chip{border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:999px;padding:5px 11px;font-size:11.5px;font-weight:800;white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .12s;}
-  .ns-msg-sec-chip.active{background:#059669;color:#fff;border-color:#059669;box-shadow:0 2px 8px rgba(5,150,105,.25);}
-  .ns-msg-split{display:grid;grid-template-columns:270px 1fr;flex:1;min-height:0;overflow:hidden;}
-  .ns-msg-list{border-right:1px solid #e2e8f0;background:#fff;overflow-y:auto;display:flex;flex-direction:column;}
-  .ns-msg-thr{padding:11px 13px;border-bottom:1px solid #f1f5f9;cursor:pointer;display:flex;gap:10px;align-items:flex-start;transition:background .12s;}
+  .ns-msg-sec-chip.active{background:#0b5d47;color:#fff;border-color:#0b5d47;box-shadow:0 2px 8px rgba(11,93,71,.24);}
+  .ns-msg-split{display:grid;grid-template-columns:295px 1fr;flex:1;min-height:0;overflow:hidden;}
+  .ns-msg-list{border-right:1px solid #e2e8f0;background:#fff;overflow-y:auto;display:flex;flex-direction:column;position:relative;}
+  .ns-msg-searchbar{padding:8px 10px;border-bottom:1px solid #eef2f7;background:#fff;position:sticky;top:0;z-index:2;display:flex;gap:6px;align-items:center;}
+  .ns-msg-searchinp{flex:1;min-width:0;border:1px solid #dbe4ea;background:#f1f5f9;border-radius:999px;padding:7px 12px;font-size:12.5px;outline:none;transition:border-color .15s,background .15s;}
+  .ns-msg-searchinp:focus{background:#fff;border-color:#0d9488;}
+  .ns-msg-thr{padding:11px 13px;border-bottom:1px solid #f1f5f9;cursor:pointer;display:flex;gap:11px;align-items:center;transition:background .12s;-webkit-tap-highlight-color:transparent;}
   .ns-msg-thr:hover{background:#f8fafc;}
-  .ns-msg-thr.active{background:#ecfdf5;border-left:4px solid #059669;padding-left:9px;}
-  .ns-msg-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#10b981,#0284c7);color:#fff;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-  .ns-msg-chat{display:flex;flex-direction:column;min-height:0;background:#efeae2;position:relative;}
-  .ns-msg-chat-head{padding:10px 14px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;flex-shrink:0;}
-  .ns-msg-tkstrip{padding:7px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;gap:6px;overflow-x:auto;align-items:center;flex-shrink:0;}
-  .ns-msg-tkpill{border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:8px;padding:4px 9px;font-size:11px;font-weight:800;white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center;gap:5px;}
-  .ns-msg-tkpill.active{background:#e0f2fe;border-color:#0284c7;color:#0369a1;}
-  .ns-msg-feed{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:9px;min-height:0;}
+  .ns-msg-thr.active{background:#ecfdf5;border-left:4px solid #0b5d47;padding-left:9px;}
+  .ns-msg-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#059669,#0284c7);color:#fff;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;box-shadow:0 2px 6px rgba(15,23,42,.1);}
+  .ns-msg-avatar-dot{position:absolute;right:0;bottom:0;width:11px;height:11px;border-radius:50%;border:2px solid #fff;background:#10b981;}
+  .ns-msg-avatar-dot.bot{background:#0ea5e9;}
+  .ns-msg-quickdesks{padding:12px 12px 24px;border-top:1px dashed #e2e8f0;background:#fafdfb;}
+  .ns-msg-quickgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:8px;}
+  .ns-msg-qdesk-btn{display:flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid #dbe7e1;background:#fff;border-radius:12px;font-size:11.5px;font-weight:800;color:#1e293b;cursor:pointer;text-align:left;transition:transform .12s,border-color .12s;}
+  .ns-msg-qdesk-btn:hover{border-color:#0d9488;background:#f0fdfa;transform:translateY(-1px);}
+  .ns-msg-chat{display:flex;flex-direction:column;min-height:0;background:#ede9e0;background-image:radial-gradient(rgba(11,93,71,.07) 1px,transparent 1px);background-size:18px 18px;position:relative;}
+  .ns-msg-chat-head{position:relative;padding:9px 13px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;flex-shrink:0;}
+  .ns-msg-chat-actions{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
+  .ns-msg-kebab{display:none;width:34px;height:34px;border-radius:50%;border:1px solid #e2e8f0;background:#f8fafc;color:#0f172a;font-size:16px;font-weight:900;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+  .ns-msg-tkstrip{padding:6px 10px;background:rgba(248,250,252,.94);backdrop-filter:blur(6px);border-bottom:1px solid #e2e8f0;display:flex;gap:6px;overflow-x:auto;align-items:center;flex-shrink:0;scrollbar-width:none;}
+  .ns-msg-tkstrip::-webkit-scrollbar{display:none;}
+  .ns-msg-tkpill{border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800;white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center;gap:5px;flex-shrink:0;}
+  .ns-msg-tkpill.active{background:#0b5d47;border-color:#0b5d47;color:#fff;}
+  .ns-msg-feed{flex:1;overflow-y:auto;padding:12px 13px;display:flex;flex-direction:column;gap:8px;min-height:0;-webkit-overflow-scrolling:touch;}
   .ns-msg-row{display:flex;flex-direction:column;max-width:82%;position:relative;}
   .ns-msg-row.out{align-self:flex-end;align-items:flex-end;}
   .ns-msg-row.in{align-self:flex-start;align-items:flex-start;}
-  .ns-msg-row.sys{align-self:center;align-items:center;max-width:92%;}
-  .ns-msg-bubble{padding:9px 12px;border-radius:14px;font-size:12.8px;line-height:1.45;word-break:break-word;box-shadow:0 1px 3px rgba(15,23,42,.08);position:relative;}
-  .ns-msg-row.out .ns-msg-bubble{background:#d9fdd3;color:#111b21;border-top-right-radius:4px;}
-  .ns-msg-row.in .ns-msg-bubble{background:#ffffff;color:#111b21;border-top-left-radius:4px;}
+  .ns-msg-row.sys{align-self:center;align-items:stretch;width:min(94%,460px);max-width:94%;}
+  .ns-msg-bubble{padding:8px 12px;border-radius:16px;font-size:13px;line-height:1.42;word-break:break-word;box-shadow:0 1px 2px rgba(15,23,42,.08);position:relative;}
+  .ns-msg-row.out .ns-msg-bubble{background:#dcfce7;color:#0f172a;border-top-right-radius:4px;border:1px solid #bbf7d0;}
+  .ns-msg-row.in .ns-msg-bubble{background:#ffffff;color:#0f172a;border-top-left-radius:4px;border:1px solid #e2e8f0;}
   .ns-msg-row.in.bot .ns-msg-bubble{background:#f0f9ff;border:1px solid #bae6fd;}
-  .ns-msg-row.sys .ns-msg-bubble{background:#fffbeb;border:1px solid #fde68a;color:#78350f;text-align:left;border-radius:12px;}
-  .ns-msg-botbar{padding:6px 10px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;gap:6px;overflow-x:auto;flex-shrink:0;}
-  .ns-msg-botbtn{border:1px solid #99f6e4;background:#f0fdfa;color:#0f766e;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800;white-space:nowrap;cursor:pointer;}
-  .ns-msg-botbtn.expert{border-color:#059669;background:#059669;color:#fff;}
-  .ns-msg-composer{padding:8px 10px calc(8px + env(safe-area-inset-bottom, 0px));background:#f0f2f5;border-top:1px solid #d1d5db;display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
+  .ns-msg-row.sys .ns-msg-bubble{background:#fffef9;border:1px solid #e2e8f0;border-left:4px solid #0284c7;color:#1e293b;text-align:left;border-radius:12px;padding:9px 12px;}
+  .ns-msg-row.sys.st-ok .ns-msg-bubble{border-left-color:#15803d;background:#f7fef9;}
+  .ns-msg-row.sys.st-warn .ns-msg-bubble{border-left-color:#d97706;background:#fffdf5;}
+  .ns-msg-row.sys.st-mat .ns-msg-bubble{border-left-color:#7c3aed;background:#faf8ff;}
+  .ns-msg-botbar{padding:6px 10px;background:rgba(255,255,255,.92);border-top:1px solid #e2e8f0;display:flex;gap:6px;overflow-x:auto;flex-shrink:0;scrollbar-width:none;}
+  .ns-msg-botbar::-webkit-scrollbar{display:none;}
+  .ns-msg-botbtn{border:1px solid #bae6fd;background:#f0f9ff;color:#0369a1;border-radius:999px;padding:5px 11px;font-size:11.5px;font-weight:800;white-space:nowrap;cursor:pointer;flex-shrink:0;}
+  .ns-msg-botbtn.expert{border-color:#0b5d47;background:#0b5d47;color:#fff;}
+  .ns-msg-composer{padding:7px 10px calc(7px + env(safe-area-inset-bottom, 0px));background:#f0f2f5;border-top:1px solid #d1d5db;display:flex;flex-direction:column;gap:5px;flex-shrink:0;}
   .ns-msg-composer-top{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
   .ns-msg-composer-row{display:flex;gap:7px;align-items:flex-end;}
-  .ns-msg-ta{flex:1;min-height:38px;max-height:110px;resize:none;border:1px solid #cbd5e1;border-radius:18px;padding:8px 13px;font-size:13px;font-family:inherit;background:#fff;outline:none;}
-  .ns-msg-send{width:40px;height:40px;border-radius:50%;border:0;background:#059669;color:#fff;font-size:16px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .ns-msg-pill-box{flex:1;min-width:0;display:flex;align-items:flex-end;gap:4px;background:#fff;border:1px solid #cbd5e1;border-radius:22px;padding:4px 8px 4px 12px;box-shadow:0 1px 2px rgba(15,23,42,.04);}
+  .ns-msg-pill-box:focus-within{border-color:#0d9488;box-shadow:0 0 0 2px rgba(13,148,136,.12);}
+  .ns-msg-ta{flex:1;min-width:0;min-height:28px;max-height:96px;resize:none;border:0;padding:5px 2px;font-size:13.5px;line-height:1.35;font-family:inherit;background:transparent;outline:none;overflow-y:auto;}
+  .ns-msg-attach-ico{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;color:#475569;cursor:pointer;font-size:17px;flex-shrink:0;margin:0;}
+  .ns-msg-attach-ico:hover{background:#f1f5f9;color:#0b5d47;}
+  .ns-msg-send{width:42px;height:42px;border-radius:50%;border:0;background:linear-gradient(135deg,#0b5d47,#0d9488);color:#fff;font-size:17px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(11,93,71,.28);}
   .ns-msg-mobile-back{display:none;}
   @media(max-width:768px){
+    .ns-hd-fab{right:14px!important;bottom:calc(72px + env(safe-area-inset-bottom, 0px))!important;padding:9px 14px!important;font-size:12.5px!important;}
+    .mobile-bottom-nav .mb-nav-item{padding:5px 1px;font-size:9.5px;}
+    .mobile-bottom-nav .mb-ico{font-size:17px;}
     .ns-msg-drawer{inset:0!important;right:0!important;bottom:0!important;width:100vw!important;height:100dvh!important;border-radius:0!important;border:0!important;}
-    .ns-msg-fullwrap{height:calc(100dvh - 76px);border-radius:12px;}
+    .ns-msg-fullwrap{height:calc(100dvh - 126px - env(safe-area-inset-bottom, 0px));min-height:380px;border-radius:12px;}
     .ns-msg-split{grid-template-columns:minmax(0,1fr)!important;}
     .ns-msg-chat,.ns-msg-list,.ns-msg-ws{min-width:0!important;max-width:100%!important;width:100%!important;box-sizing:border-box!important;}
     .ns-msg-sections,.ns-msg-tkstrip,.ns-msg-botbar{max-width:100%!important;min-width:0!important;box-sizing:border-box!important;}
-    .ns-msg-chat-head{padding:8px 10px!important;gap:6px!important;flex-direction:column!important;align-items:stretch!important;}
-    .ns-msg-chat-head > div{width:100%!important;}
-    #nsMsgBackBtn{padding:4px 8px!important;white-space:nowrap!important;flex-shrink:0!important;}
-    #nsMsgExpandBtn{display:none!important;}
-    #nsMsgExpertSelect{max-width:165px!important;flex:1;min-width:0!important;}
-    #nsMsgTagSelect{max-width:190px!important;flex:1;min-width:0!important;}
-    .ns-msg-ta{min-width:0!important;}
-    .ns-msg-row{max-width:90%!important;}
     .ns-msg-ws[data-mobile-pane="list"] .ns-msg-chat{display:none!important;}
     .ns-msg-ws[data-mobile-pane="chat"] .ns-msg-list{display:none!important;}
-    .ns-msg-mobile-back{display:inline-flex!important;}
+    .ns-msg-ws[data-mobile-pane="chat"] .ns-msg-topbar,
+    .ns-msg-ws[data-mobile-pane="chat"] .ns-msg-sections{display:none!important;}
+    .ns-msg-mobile-back{display:inline-flex!important;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;padding:0!important;font-size:16px;font-weight:900;border:0;background:rgba(255,255,255,.16);color:#fff;flex-shrink:0;}
+    .ns-msg-chat-head{padding:calc(8px + env(safe-area-inset-top, 0px)) 10px 8px!important;background:linear-gradient(135deg,#0b5d47,#0d9488)!important;color:#fff!important;border-bottom:0!important;gap:8px!important;flex-direction:row!important;align-items:center!important;flex-wrap:nowrap!important;}
+    .ns-msg-chat-title{color:#fff!important;font-size:14.5px!important;}
+    .ns-msg-chat-sub{color:rgba(255,255,255,.88)!important;font-size:11px!important;}
+    .ns-msg-kebab{display:inline-flex!important;background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.25);}
+    .ns-msg-chat-actions{display:none!important;position:absolute;top:calc(100% + 4px);right:10px;left:10px;z-index:25;background:#ffffff;color:#0f172a;border:1px solid #cbd5e1;border-radius:14px;padding:10px;gap:7px;flex-wrap:wrap;box-shadow:0 14px 36px rgba(15,23,42,.22);}
+    .ns-msg-chat-actions.mobile-open{display:flex!important;}
+    #nsMsgExpandBtn{display:none!important;}
+    #nsMsgExpertSelect{max-width:170px!important;flex:1;min-width:0!important;}
+    #nsMsgTagSelect{max-width:210px!important;flex:1;min-width:0!important;font-size:11px!important;}
+    .ns-msg-row{max-width:89%!important;}
+    .ns-msg-row.sys{max-width:96%!important;width:96%!important;}
   }
 </style>
 
@@ -21675,10 +21722,14 @@ let lastPulseGatepassRev = '';
   window.__northstarHelpdeskMsgLoaded = true;
 
   function escM(v){ return String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  const SHREE_CHAT_LOGO = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="3" width="16" height="13" rx="5" fill="#fff" fill-opacity=".22" stroke="#fff" stroke-width="1.6"/><path d="M7 16L4.5 20L10.5 16" fill="#fff" fill-opacity=".22"/><circle cx="7" cy="9.5" r="1.2" fill="#fff"/><circle cx="10.2" cy="9.5" r="1.2" fill="#fff"/><circle cx="13.4" cy="9.5" r="1.2" fill="#fff"/><rect x="12" y="10" width="10" height="8.5" rx="3.5" fill="#10b981" stroke="#fff" stroke-width="1.3"/></svg>`;
+
   const msgState = {
     openDrawer: false,
     expanded: false,
     mobilePane: 'list',
+    mobileMenuOpen: false,
+    searchQuery: '',
     activeSection: 'all',
     activeThreadId: '',
     selectedTicketId: '',
@@ -21705,13 +21756,12 @@ let lastPulseGatepassRev = '';
       fab.type = 'button';
       fab.className = 'ns-hd-fab';
       fab.setAttribute('aria-label', 'Helpdesk Messages & Smart Assistant');
-      fab.innerHTML = `<span style="font-size:18px;line-height:1">💬</span><span>Helpdesk</span><span id="nsMsgFabBadge" class="ns-hd-fab-badge">0</span>`;
+      fab.innerHTML = `<span style="display:inline-flex;align-items:center">${SHREE_CHAT_LOGO}</span><span>Helpdesk</span><span id="nsMsgFabBadge" class="ns-hd-fab-badge">0</span>`;
       document.body.appendChild(fab);
 
-      // Restore dragged coordinates cleanly
       try{
         const saved = JSON.parse(localStorage.getItem('ns-hd-fab-pos') || 'null');
-        if(saved && typeof saved.left === 'number' && typeof saved.top === 'number'){
+        if(saved && typeof saved.left === 'number' && typeof saved.top === 'number' && window.innerWidth > 768){
           const maxL = Math.max(12, window.innerWidth - 140);
           const maxT = Math.max(12, window.innerHeight - 60);
           fab.style.left = Math.max(10, Math.min(maxL, saved.left)) + 'px';
@@ -21763,16 +21813,20 @@ let lastPulseGatepassRev = '';
     const shell = document.getElementById('appShell');
     const inFullMsg = document.getElementById('view-messages')?.classList.contains('active');
     const drOpen = document.getElementById('nsMsgFloatingDrawer')?.classList.contains('open');
+    document.body.classList.toggle('ns-msg-drawer-open', !!drOpen);
     const visible = !!(shell && shell.style.display !== 'none' && !inFullMsg && !drOpen);
     fab.style.display = visible ? 'inline-flex' : 'none';
     const b1 = document.getElementById('nsMsgFabBadge');
     const b2 = document.getElementById('messagesBadge');
+    const b3 = document.getElementById('mbMsgBadge');
     const cnt = Number(msgState.unreadTotal || 0);
-    [b1, b2].forEach(b => {
+    [b1, b2, b3].forEach(b => {
       if(!b) return;
       b.style.display = cnt > 0 ? 'inline-flex' : 'none';
       b.textContent = cnt > 99 ? '99+' : String(cnt);
     });
+    const mbBtn = document.getElementById('mbNavMessages');
+    if(mbBtn) mbBtn.classList.toggle('active', Boolean(inFullMsg || drOpen));
   }
 
   function ensureDrawer(){
@@ -21801,6 +21855,22 @@ let lastPulseGatepassRev = '';
     return d;
   }
 
+  function resolveThreadByTicketId(tkId){
+    if(!tkId || !Array.isArray(msgState.threads)) return null;
+    const low = String(tkId).trim().toLowerCase();
+    const direct = msgState.threads.find(t => String(t.ticketId || '').toLowerCase() === low);
+    if(direct) return direct;
+    const tk = (msgState.allTickets || []).find(t => String(t.id || '').toLowerCase() === low);
+    if(tk){
+      const desk = String(tk.complaintDesk || 'it').toLowerCase();
+      return msgState.threads.find(t => String(t.sectionId || '').toLowerCase() === desk && (
+        String(t.requesterUsername || '').toLowerCase() === String(tk.username || '').toLowerCase() ||
+        (tk.name && String(t.requesterName || '').toLowerCase() === String(tk.name || '').toLowerCase())
+      )) || msgState.threads.find(t => String(t.sectionId || '').toLowerCase() === desk) || null;
+    }
+    return null;
+  }
+
   async function loadBootstrapAndThreads(){
     const inSrv = typeof serverMode !== 'undefined' && Boolean(serverMode);
     if(!inSrv) return;
@@ -21815,6 +21885,10 @@ let lastPulseGatepassRev = '';
       const qs = msgState.activeSection && msgState.activeSection !== 'all' ? ('?section_id=' + encodeURIComponent(msgState.activeSection)) : '';
       const tr = await apiMsg('/api/messages/threads' + qs, { cache: 'no-store' });
       msgState.threads = Array.isArray(tr.threads) ? tr.threads : [];
+      if(!msgState.activeThreadId && msgState.selectedTicketId){
+        const hit = resolveThreadByTicketId(msgState.selectedTicketId);
+        if(hit) msgState.activeThreadId = hit.id;
+      }
       if(!msgState.activeThreadId && msgState.threads.length){
         msgState.activeThreadId = msgState.threads[0].id;
       }
@@ -21857,6 +21931,18 @@ let lastPulseGatepassRev = '';
     return list.map(t => ({ id: t.id, label: `${t.id} · ${t.sub || t.primary || 'Support'} (${t.status})`, status: t.status, assigned: t.assigned, eta: t.eta }));
   }
 
+  function filterVisibleThreads(all){
+    const q = String(msgState.searchQuery || '').trim().toLowerCase();
+    if(!q) return all;
+    return all.filter(t => [t.requesterName, t.sectionLabel, t.assignedExpertName, t.ticketId, t.lastMessagePreview].join(' ').toLowerCase().includes(q));
+  }
+
+  function formatShortTime(m){
+    const s = String(m.createdDisplay || '');
+    const match = s.match(/(\d{1,2}:\d{2}\s*(?:AM|PM))/i);
+    return match ? match[1] : s;
+  }
+
   function renderMountedHelpdesk(){
     const target = activeMountTarget();
     if(!target) return;
@@ -21867,70 +21953,100 @@ let lastPulseGatepassRev = '';
     const tagOptions = ticketsForTagPicker(secId);
     const taggedTkObj = msgState.allTickets.find(x => x.id === (msgState.selectedTicketId || thr?.ticketId)) || null;
     const canDel = Boolean(msgState.me?.isAdmin);
+    const canStaffQueue = Boolean(msgState.me?.isAdmin || msgState.me?.role === 'IT Ticketing' || (typeof canAccessMod === 'function' && canAccessMod('tickets', true)));
 
     const activeTa = target.querySelector('#nsMsgComposerTa');
+    const activeSearch = target.querySelector('#nsMsgSearchInp');
     const savedDraft = activeTa ? activeTa.value : '';
-    const hadFocus = document.activeElement === activeTa;
+    const hadTaFocus = document.activeElement === activeTa;
+    const hadSearchFocus = document.activeElement === activeSearch;
 
     const sectionsBarHtml = [
-      `<button type="button" class="ns-msg-sec-chip ${msgState.activeSection === 'all' ? 'active' : ''}" data-hd-sec="all">📥 All Sections</button>`,
+      `<button type="button" class="ns-msg-sec-chip ${msgState.activeSection === 'all' ? 'active' : ''}" data-hd-sec="all">📥 All</button>`,
       ...msgState.sections.map(s => `<button type="button" class="ns-msg-sec-chip ${msgState.activeSection === s.id ? 'active' : ''}" data-hd-sec="${escM(s.id)}">${escM(s.icon || '🎫')} ${escM(s.label)}</button>`)
     ].join('');
 
-    const threadsHtml = msgState.threads.length ? msgState.threads.map(t => {
+    const visibleThreads = filterVisibleThreads(msgState.threads);
+    const threadsHtml = visibleThreads.length ? visibleThreads.map(t => {
       const initials = String(t.isStaffView ? t.requesterName : t.sectionLabel || 'HD').split(/\s+/).map(w => w[0] || '').join('').slice(0, 2).toUpperCase() || 'HD';
-      const title = t.isStaffView ? `${t.requesterName} (${t.sectionLabel})` : `${t.sectionLabel}`;
+      const title = t.isStaffView ? `${t.requesterName} · ${t.sectionLabel}` : `${t.sectionLabel}`;
       const subExp = t.assignedExpertName ? `Expert: ${t.assignedExpertName}` : 'Smart Assistant';
       return `<div class="ns-msg-thr ${t.id === msgState.activeThreadId ? 'active' : ''}" data-hd-thr="${escM(t.id)}">
-        <div class="ns-msg-avatar">${escM(initials)}</div>
+        <div class="ns-msg-avatar">${escM(initials)}<span class="ns-msg-avatar-dot ${t.mode === 'expert' ? '' : 'bot'}"></span></div>
         <div style="min-width:0;flex:1">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
-            <b style="font-size:12.8px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escM(title)}</b>
-            ${t.unreadCount > 0 ? `<span style="background:#059669;color:#fff;font-size:10px;font-weight:900;padding:1px 6px;border-radius:999px">${t.unreadCount}</span>` : ''}
+            <b style="font-size:13.5px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escM(title)}</b>
+            <span style="font-size:10.5px;color:${t.unreadCount > 0 ? '#0b5d47' : '#64748b'};font-weight:${t.unreadCount > 0 ? '800' : '600'};flex-shrink:0">${t.mode === 'expert' ? 'Live' : 'Bot'}</span>
           </div>
-          <div style="font-size:10.5px;color:#0f766e;font-weight:700;margin-top:1px">${t.mode === 'expert' ? '👨‍💻 ' : '🤖 '}${escM(subExp)}${t.ticketId ? ' · #' + escM(t.ticketId) : ''}</div>
-          <div style="font-size:11.5px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">${escM(t.lastMessagePreview || 'Tap to open conversation')}</div>
+          <div style="font-size:11px;color:#0b5d47;font-weight:700;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.mode === 'expert' ? '👨‍💻 ' : '🤖 '}${escM(subExp)}${t.ticketId ? ' · #' + escM(t.ticketId) : ''}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px">
+            <div style="font-size:12px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">${escM(t.lastMessagePreview || 'Tap to view notifications & chat')}</div>
+            ${t.unreadCount > 0 ? `<span style="background:#0b5d47;color:#fff;font-size:10.5px;font-weight:900;min-width:20px;height:20px;padding:0 6px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${t.unreadCount}</span>` : ''}
+          </div>
         </div>
       </div>`;
-    }).join('') : `<div style="padding:20px;text-align:center;color:#64748b;font-size:12.5px">Select any department section tab above to start a 1-on-1 Helpdesk conversation or ask the Smart Assistant!</div>`;
+    }).join('') : `<div style="padding:20px 14px;text-align:center;color:#64748b;font-size:12.5px">${msgState.searchQuery ? 'No matching chats for "' + escM(msgState.searchQuery) + '".' : 'Tap any department below to start a 1-on-1 Helpdesk conversation.'}</div>`;
+
+    const quickDesksHtml = msgState.sections.length ? `<div class="ns-msg-quickdesks">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span style="font-size:10.5px;font-weight:800;color:#0b5d47;letter-spacing:.4px;text-transform:uppercase">💬 Start Desk Chat or Track Ticket</span>
+        <span style="font-size:10px;color:#64748b">🔒 Private 1-to-1</span>
+      </div>
+      <div class="ns-msg-quickgrid">
+        ${msgState.sections.map(s => `<button type="button" class="ns-msg-qdesk-btn" data-hd-sec="${escM(s.id)}"><span>${escM(s.icon || '🎫')}</span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escM(s.label)}</span></button>`).join('')}
+      </div>
+    </div>` : '';
 
     const msgsHtml = msgState.messages.length ? msgState.messages.map(m => {
       const role = String(m.senderRole || 'user');
       const isMe = m.senderUsername && m.senderUsername.toLowerCase() === String(msgState.me?.username || '').toLowerCase() && role !== 'bot' && role !== 'system';
-      const rowCls = role === 'system' ? 'sys' : (isMe ? 'out' : (role === 'bot' ? 'in bot' : 'in'));
+      let sysCls = '';
+      if(role === 'system'){
+        const stTxt = String(m.meta?.stage || m.body || '').toLowerCase();
+        if(stTxt.includes('resolved') || stTxt.includes('closed')) sysCls = ' st-ok';
+        else if(m.meta?.eventType === 'material_issued' || stTxt.includes('issued')) sysCls = ' st-mat';
+        else if(stTxt.includes('assigned') || stTxt.includes('work')) sysCls = ' st-warn';
+      }
+      const rowCls = role === 'system' ? ('sys' + sysCls) : (isMe ? 'out' : (role === 'bot' ? 'in bot' : 'in'));
+      const senderLabel = role === 'bot' ? '🤖 ' + escM(m.senderName || 'Assistant') : role === 'system' ? '🔔 ' + escM(m.meta?.title || m.senderName || 'Ticket Update') : role === 'expert' ? '👨‍💻 ' + escM(m.senderName || m.senderUsername) : escM(m.senderName || m.senderUsername);
       return `<div class="ns-msg-row ${rowCls}">
         <div class="ns-msg-bubble">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:3px;font-size:10.5px;font-weight:800;color:${role === 'bot' ? '#0369a1' : role === 'system' ? '#92400e' : '#0f766e'}">
-            <span>${role === 'bot' ? '🤖 ' : role === 'system' ? '🔔 ' : role === 'expert' ? '👨‍💻 ' : ''}${escM(m.senderName || m.senderUsername)}</span>
-            <span style="display:inline-flex;align-items:center;gap:6px">
-              ${m.taggedTicketId ? `<span style="background:#e0f2fe;color:#0369a1;padding:1px 6px;border-radius:6px;font-size:10px">#${escM(m.taggedTicketId)}</span>` : ''}
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px;font-size:11px;font-weight:800;color:${role === 'bot' ? '#0369a1' : role === 'system' ? '#0f172a' : '#0b5d47'}">
+            <span>${senderLabel}</span>
+            <span style="display:inline-flex;align-items:center;gap:5px;flex-shrink:0">
+              ${m.taggedTicketId ? `<span style="background:#e0f2fe;color:#0369a1;padding:1px 7px;border-radius:999px;font-size:10px">#${escM(m.taggedTicketId)}</span>` : ''}
               ${canDel ? `<button type="button" class="ns-msg-del-btn" data-del-msg="${escM(m.id)}" title="Administrator Delete" style="border:0;background:transparent;color:#dc2626;cursor:pointer;font-size:12px;padding:0">🗑</button>` : ''}
             </span>
           </div>
           <div style="white-space:pre-wrap">${escM(m.body)}</div>
-          ${m.attachmentUrl ? `<div style="margin-top:6px"><a href="${escM(m.attachmentUrl)}" target="_blank" rel="noopener"><img src="${escM(m.attachmentUrl)}" alt="${escM(m.attachmentName || 'Screenshot')}" style="max-width:220px;max-height:160px;border-radius:10px;border:1px solid #cbd5e1;display:block"></a></div>` : ''}
-          <div style="font-size:10px;color:#64748b;text-align:right;margin-top:4px">${escM(m.createdDisplay || '')}</div>
+          ${m.attachmentUrl ? `<div style="margin-top:6px"><a href="${escM(m.attachmentUrl)}" target="_blank" rel="noopener"><img src="${escM(m.attachmentUrl)}" alt="${escM(m.attachmentName || 'Screenshot')}" style="max-width:220px;max-height:170px;border-radius:10px;border:1px solid #cbd5e1;display:block"></a></div>` : ''}
+          <div style="font-size:10px;color:#64748b;text-align:right;margin-top:4px;display:flex;justify-content:flex-end;align-items:center;gap:4px">
+            <span>${escM(formatShortTime(m))}</span>
+            ${isMe ? '<span style="color:#0284c7;font-weight:800">✓✓</span>' : ''}
+          </div>
         </div>
       </div>`;
-    }).join('') : `<div style="margin:auto;text-align:center;background:#fff;padding:18px;border-radius:14px;border:1px solid #e2e8f0;max-width:360px">
-      <div style="font-size:24px">${escM(secMeta.icon || '🤖')}</div>
-      <div style="font-weight:900;font-size:14px;color:#0f172a;margin-top:4px">${escM(secMeta.label)} Smart Assistant</div>
-      <div style="font-size:12px;color:#475569;margin-top:4px">Ask about your ticket status, ETA, or click <b>👨‍💻 Talk to Expert</b> below to chat 1-on-1 with a support specialist.</div>
+    }).join('') : `<div style="margin:auto;text-align:center;background:#fff;padding:18px;border-radius:16px;border:1px solid #e2e8f0;max-width:340px;box-shadow:0 4px 14px rgba(15,23,42,.06)">
+      <div style="font-size:28px">${escM(secMeta.icon || '🤖')}</div>
+      <div style="font-weight:900;font-size:14.5px;color:#0f172a;margin-top:5px">${escM(secMeta.label)} Smart Assistant</div>
+      <div style="font-size:12px;color:#475569;margin-top:5px;line-height:1.45">All notifications for your tickets arrive right here as chat updates. Ask about status/ETA or tap <b>👨‍💻 Talk to Expert</b> below!</div>
     </div>`;
 
     const expertsOpts = msgState.experts.map(e => `<option value="${escM(e.username)}" ${thr?.assignedExpertUsername === e.username ? 'selected' : ''}>${escM(e.name)} · ${escM(e.status)}${e.etaRemainingMin ? ' (~' + e.etaRemainingMin + 'm)' : ''}</option>`).join('');
+    const thrInitials = String(thr ? (thr.isStaffView ? thr.requesterName : thr.sectionLabel) : secMeta.label || 'HD').split(/\s+/).map(w => w[0] || '').join('').slice(0, 2).toUpperCase() || 'HD';
 
     const html = `
       <div class="${isFullView ? 'ns-msg-fullwrap' : ''} ns-msg-ws" data-mobile-pane="${escM(msgState.mobilePane)}" style="${isFullView ? '' : 'display:flex;flex-direction:column;flex:1;min-height:0;'}">
         <div class="ns-msg-topbar">
           <div style="display:flex;align-items:center;gap:10px;min-width:0">
-            <span style="font-size:20px">💬</span>
+            <span style="display:inline-flex;align-items:center;flex-shrink:0">${SHREE_CHAT_LOGO}</span>
             <div style="min-width:0">
-              <div style="font-weight:900;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Helpdesk Messages &amp; Smart Support</div>
-              <div style="font-size:11px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">1-to-1 User ↔ Support Desk · Auto Stage Updates + Live Bot + Expert Chat</div>
+              <div style="font-weight:900;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Swarnshilp Helpdesk</div>
+              <div style="font-size:10.5px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Your Ticket Alerts + Live Expert &amp; Smart Bot Chat</div>
             </div>
           </div>
-          <div style="display:flex;gap:6px;align-items:center">
+          <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+            <button type="button" class="btn" id="nsMsgRaiseTicketBtn" style="padding:5px 10px;font-size:11.5px;font-weight:800;background:#fff;color:#0b5d47;border:0;border-radius:999px">＋ Ticket</button>
             ${!isFullView ? `<button type="button" class="btn" id="nsMsgExpandBtn" style="padding:4px 9px;font-size:11.5px;background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.3)">${msgState.expanded ? '🗗 Dock' : '⛶ Expand'}</button>` : ''}
             ${!isFullView ? `<button type="button" class="btn" id="nsMsgCloseBtn" style="padding:4px 10px;font-size:12px;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.35)">✕</button>` : ''}
           </div>
@@ -21939,54 +22055,65 @@ let lastPulseGatepassRev = '';
         <div class="ns-msg-sections">${sectionsBarHtml}</div>
 
         <div class="ns-msg-split">
-          <div class="ns-msg-list">${threadsHtml}</div>
+          <div class="ns-msg-list">
+            <div class="ns-msg-searchbar">
+              <input type="search" id="nsMsgSearchInp" class="ns-msg-searchinp" placeholder="🔍  Search chats, #ticket or update..." value="${escM(msgState.searchQuery)}">
+            </div>
+            ${threadsHtml}
+            ${quickDesksHtml}
+          </div>
           <div class="ns-msg-chat">
             <div class="ns-msg-chat-head">
-              <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1">
-                <button type="button" class="btn ns-msg-mobile-back" id="nsMsgBackBtn" style="padding:4px 9px;font-size:12px">← Chats</button>
-                <div style="min-width:0">
-                  <div style="font-weight:900;font-size:13.5px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escM(thr ? (thr.isStaffView ? `${thr.requesterName} ↔ ${thr.sectionLabel}` : `${thr.sectionLabel} Helpdesk`) : secMeta.label)}</div>
-                  <div style="font-size:11px;color:#0f766e;font-weight:700">${thr?.mode === 'expert' ? '👨‍💻 Live Expert Mode' : '🤖 Smart Bot Mode'} · Expert: <b>${escM(thr?.assignedExpertName || 'Desk Queue')}</b></div>
+              <div style="display:flex;align-items:center;gap:9px;min-width:0;flex:1">
+                <button type="button" class="btn ns-msg-mobile-back" id="nsMsgBackBtn" aria-label="Back to chats">←</button>
+                <div class="ns-msg-avatar" style="width:36px;height:36px;font-size:12px;box-shadow:none">${escM(thrInitials)}<span class="ns-msg-avatar-dot ${thr?.mode === 'expert' ? '' : 'bot'}"></span></div>
+                <div style="min-width:0;flex:1">
+                  <div class="ns-msg-chat-title" style="font-weight:900;font-size:13.5px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escM(thr ? (thr.isStaffView ? `${thr.requesterName} · ${thr.sectionLabel}` : `${thr.sectionLabel} Helpdesk`) : secMeta.label)}</div>
+                  <div class="ns-msg-chat-sub" style="font-size:11px;color:#0b5d47;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${thr?.mode === 'expert' ? '● Live Expert Mode' : '● Smart Bot Mode'} · ${escM(thr?.assignedExpertName || 'Desk Queue')}</div>
                 </div>
               </div>
-              <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
-                ${msgState.experts.length && thr ? `<div style="display:inline-flex;gap:4px;align-items:center">
+              <button type="button" class="ns-msg-kebab" id="nsMsgMenuToggleBtn" title="Chat &amp; Expert Options" aria-label="Chat options">⋮</button>
+              <div class="ns-msg-chat-actions ${msgState.mobileMenuOpen ? 'mobile-open' : ''}" id="nsMsgChatActions">
+                ${msgState.experts.length && thr ? `<div style="display:inline-flex;gap:4px;align-items:center;flex:1;min-width:0">
                   <select id="nsMsgExpertSelect" class="filter-select" style="padding:4px 7px;font-size:11px;max-width:170px">${expertsOpts}</select>
-                  <button type="button" class="btn" id="nsMsgSwitchExpertBtn" style="padding:4px 8px;font-size:11px" title="Switch or Assign Expert">${thr.isOwn ? '🔄 Switch Expert' : '✓ Assign'}</button>
+                  <button type="button" class="btn" id="nsMsgSwitchExpertBtn" style="padding:4px 8px;font-size:11px;white-space:nowrap" title="Switch or Assign Expert">${thr.isOwn ? '🔄 Switch' : '✓ Assign'}</button>
                 </div>` : ''}
-                ${thr ? `<button type="button" class="btn" id="nsMsgToggleModeBtn" style="padding:4px 8px;font-size:11px">${thr.mode === 'expert' ? '🤖 Bot Mode' : '👨‍💻 Talk to Expert'}</button>` : ''}
-                ${canDel && thr ? `<button type="button" class="btn" id="nsMsgClearThrBtn" style="padding:4px 8px;font-size:11px;color:#dc2626;border-color:#fecaca" title="Administrator Only Delete Thread">🗑 Clear</button>` : ''}
+                ${thr ? `<button type="button" class="btn" id="nsMsgToggleModeBtn" style="padding:4px 8px;font-size:11px;white-space:nowrap">${thr.mode === 'expert' ? '🤖 Bot Mode' : '👨‍💻 Live Expert'}</button>` : ''}
+                ${taggedTkObj ? `<button type="button" class="btn" id="nsMsgQueueJumpBtn" style="padding:4px 8px;font-size:11px;white-space:nowrap" title="Open Ticket Details">${canStaffQueue ? '📋 Queue' : '🎫 Details'}</button>` : ''}
+                ${canDel && thr ? `<button type="button" class="btn" id="nsMsgClearThrBtn" style="padding:4px 8px;font-size:11px;color:#dc2626;border-color:#fecaca;white-space:nowrap" title="Administrator Only Delete Thread">🗑 Clear</button>` : ''}
               </div>
             </div>
 
             ${tagOptions.length ? `<div class="ns-msg-tkstrip">
-              <span style="font-size:10.5px;font-weight:800;color:#64748b;text-transform:uppercase;white-space:nowrap">${escM(secMeta.label)} Items:</span>
+              <span style="font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;white-space:nowrap">${escM(secMeta.label)}:</span>
               ${tagOptions.slice(0, 10).map(it => `<button type="button" class="ns-msg-tkpill ${msgState.selectedTicketId === it.id ? 'active' : ''}" data-hd-tkpill="${escM(it.id)}">#${escM(it.id)} · ${escM(it.status)}</button>`).join('')}
-              ${taggedTkObj && ['Resolved','Closed'].includes(taggedTkObj.status) ? `<button type="button" class="btn primary" id="nsMsgReopenBtn" style="padding:3px 9px;font-size:11px;margin-left:auto">🔁 Reopen #${escM(taggedTkObj.id)}</button>` : ''}
+              ${taggedTkObj && ['Resolved','Closed'].includes(taggedTkObj.status) ? `<button type="button" class="btn primary" id="nsMsgReopenBtn" style="padding:4px 10px;font-size:11px;margin-left:auto;border-radius:999px;white-space:nowrap;flex-shrink:0">🔁 Reopen</button>` : ''}
             </div>` : ''}
 
             <div class="ns-msg-feed" id="nsMsgFeed">${msgsHtml}</div>
 
             <div class="ns-msg-botbar">
-              <button type="button" class="ns-msg-botbtn" data-hd-bot="status">📋 Ticket Status</button>
+              <button type="button" class="ns-msg-botbtn" data-hd-bot="status">📋 Status</button>
               <button type="button" class="ns-msg-botbtn" data-hd-bot="eta">⏱️ Check ETA</button>
-              <button type="button" class="ns-msg-botbtn" data-hd-bot="reopen">🔁 Reopen Query</button>
+              <button type="button" class="ns-msg-botbtn" data-hd-bot="reopen">🔁 Reopen</button>
               <button type="button" class="ns-msg-botbtn expert" data-hd-bot="talk_to_expert">👨‍💻 Talk to Expert</button>
             </div>
 
             <div class="ns-msg-composer">
               <div class="ns-msg-composer-top">
-                <select id="nsMsgTagSelect" class="filter-select" style="padding:4px 8px;font-size:11.5px;max-width:260px">
-                  <option value="">🏷️ Tag #Ticket / Entry (optional)</option>
+                <select id="nsMsgTagSelect" class="filter-select" style="padding:4px 8px;font-size:11.5px;max-width:250px;border-radius:999px">
+                  <option value="">🏷️ Tag #Ticket (optional)</option>
                   ${tagOptions.map(it => `<option value="${escM(it.id)}" ${msgState.selectedTicketId === it.id ? 'selected' : ''}>#${escM(it.label)}</option>`).join('')}
                 </select>
-                <label class="btn" style="padding:4px 9px;font-size:11.5px;cursor:pointer;margin:0">
-                  📎 Screenshot <input type="file" id="nsMsgFileInp" accept=".png,.jpg,.jpeg,.webp,image/*" style="display:none">
-                </label>
-                ${msgState.pendingPreviewUrl ? `<span style="display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:8px;font-size:11px"><img src="${escM(msgState.pendingPreviewUrl)}" style="width:24px;height:24px;object-fit:cover;border-radius:4px"><span>${escM(msgState.pendingFile?.name || 'pasted.png')}</span><button type="button" id="nsMsgDropFileBtn" style="border:0;background:transparent;cursor:pointer;font-weight:900;color:#dc2626">×</button></span>` : ''}
+                ${msgState.pendingPreviewUrl ? `<span style="display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:999px;font-size:11px"><img src="${escM(msgState.pendingPreviewUrl)}" style="width:22px;height:22px;object-fit:cover;border-radius:4px"><span>${escM(msgState.pendingFile?.name || 'pasted.png')}</span><button type="button" id="nsMsgDropFileBtn" style="border:0;background:transparent;cursor:pointer;font-weight:900;color:#dc2626">×</button></span>` : ''}
               </div>
               <div class="ns-msg-composer-row">
-                <textarea id="nsMsgComposerTa" class="ns-msg-ta" placeholder="Ask Bot a ticket status/ETA question, type #TicketID, paste screenshot (Ctrl+V), or talk to expert...">${escM(savedDraft)}</textarea>
+                <div class="ns-msg-pill-box">
+                  <textarea id="nsMsgComposerTa" rows="1" class="ns-msg-ta" placeholder="Message or #TicketID...">${escM(savedDraft)}</textarea>
+                  <label class="ns-msg-attach-ico" title="Attach or snap screenshot">
+                    📎 <input type="file" id="nsMsgFileInp" accept=".png,.jpg,.jpeg,.webp,image/*" style="display:none">
+                  </label>
+                </div>
                 <button type="button" id="nsMsgSendBtn" class="ns-msg-send" title="Send">➤</button>
               </div>
             </div>
@@ -21998,11 +22125,51 @@ let lastPulseGatepassRev = '';
 
     const feedEl = target.querySelector('#nsMsgFeed');
     if(feedEl) feedEl.scrollTop = feedEl.scrollHeight;
-    if(hadFocus){
+    if(hadTaFocus){
       const ta2 = target.querySelector('#nsMsgComposerTa');
       if(ta2){ ta2.focus(); ta2.selectionStart = ta2.selectionEnd = ta2.value.length; }
+    } else if(hadSearchFocus){
+      const s2 = target.querySelector('#nsMsgSearchInp');
+      if(s2){ s2.focus(); s2.selectionStart = s2.selectionEnd = s2.value.length; }
     }
 
+    const taEl = target.querySelector('#nsMsgComposerTa');
+    const resizeTa = () => {
+      if(!taEl) return;
+      taEl.style.height = 'auto';
+      taEl.style.height = Math.min(96, Math.max(28, taEl.scrollHeight)) + 'px';
+    };
+    resizeTa();
+
+    target.querySelector('#nsMsgSearchInp')?.addEventListener('input', e => {
+      msgState.searchQuery = e.target.value || '';
+      renderMountedHelpdesk();
+    });
+    target.querySelector('#nsMsgRaiseTicketBtn')?.addEventListener('click', () => {
+      msgState.openDrawer = false;
+      ensureDrawer().classList.remove('open');
+      ensureFab();
+      if(typeof window.go === 'function') window.go('tickets');
+      setTimeout(() => document.getElementById('ticketFormCard')?.scrollIntoView({ behavior: 'smooth' }), 120);
+    });
+    target.querySelector('#nsMsgMenuToggleBtn')?.addEventListener('click', () => {
+      msgState.mobileMenuOpen = !msgState.mobileMenuOpen;
+      target.querySelector('#nsMsgChatActions')?.classList.toggle('mobile-open', msgState.mobileMenuOpen);
+    });
+    target.querySelector('#nsMsgQueueJumpBtn')?.addEventListener('click', () => {
+      const tkId = msgState.selectedTicketId || thr?.ticketId;
+      if(!tkId) return;
+      msgState.openDrawer = false;
+      ensureDrawer().classList.remove('open');
+      ensureFab();
+      if(canStaffQueue && typeof window.go === 'function'){
+        window.go('ticketing');
+        if(typeof window.jumpToTicketInQueue === 'function') setTimeout(() => window.jumpToTicketInQueue(tkId), 150);
+      } else if(typeof window.go === 'function'){
+        window.go('tickets');
+        if(typeof window.jumpToTicketInQueue === 'function') setTimeout(() => window.jumpToTicketInQueue(tkId), 150);
+      }
+    });
     target.querySelector('#nsMsgCloseBtn')?.addEventListener('click', () => {
       msgState.openDrawer = false;
       ensureDrawer().classList.remove('open');
@@ -22015,6 +22182,7 @@ let lastPulseGatepassRev = '';
     });
     target.querySelector('#nsMsgBackBtn')?.addEventListener('click', () => {
       msgState.mobilePane = 'list';
+      msgState.mobileMenuOpen = false;
       renderMountedHelpdesk();
     });
     target.querySelectorAll('[data-hd-sec]').forEach(btn => {
@@ -22022,12 +22190,14 @@ let lastPulseGatepassRev = '';
         msgState.activeSection = btn.dataset.hdSec || 'all';
         msgState.activeThreadId = '';
         msgState.selectedTicketId = '';
+        if(msgState.activeSection !== 'all') msgState.mobilePane = 'chat';
         await loadBootstrapAndThreads();
       });
     });
     target.querySelectorAll('[data-hd-thr]').forEach(el => {
       el.addEventListener('click', async () => {
         msgState.mobilePane = 'chat';
+        msgState.mobileMenuOpen = false;
         await loadThreadDetail(el.dataset.hdThr);
       });
     });
@@ -22053,7 +22223,7 @@ let lastPulseGatepassRev = '';
       msgState.pendingFile = null; msgState.pendingPreviewUrl = '';
       renderMountedHelpdesk();
     });
-    const taEl = target.querySelector('#nsMsgComposerTa');
+    taEl?.addEventListener('input', resizeTa);
     taEl?.addEventListener('paste', e => {
       const items = [...(e.clipboardData?.items || [])];
       const imgItem = items.find(it => it.type && it.type.startsWith('image/'));
@@ -22163,13 +22333,17 @@ let lastPulseGatepassRev = '';
 
   window.openHelpdeskMessages = async function(opts){
     const o = opts || {};
+    msgState.mobileMenuOpen = false;
     if(o.sectionId) msgState.activeSection = String(o.sectionId).toLowerCase();
+    else if(!o.threadId && !o.ticketId) msgState.activeSection = 'all';
     if(o.ticketId) msgState.selectedTicketId = String(o.ticketId);
     if(o.threadId){
       msgState.activeThreadId = String(o.threadId);
       msgState.mobilePane = 'chat';
-    } else if(o.sectionId){
+    } else if(o.ticketId || o.sectionId){
       msgState.mobilePane = 'chat';
+    } else if(window.innerWidth <= 768){
+      msgState.mobilePane = 'list';
     }
     const fullView = document.getElementById('view-messages');
     const inFull = fullView && fullView.classList.contains('active');
@@ -22179,6 +22353,7 @@ let lastPulseGatepassRev = '';
       msgState.openDrawer = true;
     }
     renderMountedHelpdesk();
+    ensureFab();
     await loadBootstrapAndThreads();
   };
 
@@ -22213,7 +22388,7 @@ let lastPulseGatepassRev = '';
 
   document.addEventListener('keydown', e => {
     if(e.key !== 'Escape') return;
-    if(document.querySelector('#assetDetailModal.open, #nsTicketInspectModal.open, #tkKpiDrillModal.open')) return;
+    if(document.querySelector('#assetDetailModal.open, #nsTicketInspectModal.open, #tkKpiDrillModal.open, #nsMappedAssetsModal.open')) return;
     const dr = document.getElementById('nsMsgFloatingDrawer');
     if(dr && dr.classList.contains('open')){
       msgState.openDrawer = false;
@@ -22228,7 +22403,36 @@ let lastPulseGatepassRev = '';
     if(shell && typeof MutationObserver !== 'undefined'){
       new MutationObserver(() => ensureFab()).observe(shell, { attributes: true, attributeFilter: ['style'] });
     }
-    setTimeout(() => loadBootstrapAndThreads(), 900);
+    const checkColdDeepLink = () => {
+      try{
+        if(typeof serverMode === 'undefined' || !serverMode) return;
+        const p = window.__nsPendingApkTarget;
+        if(p && p.view === 'messages'){
+          window.__nsPendingApkTarget = null;
+          window.openHelpdeskMessages(String(p.id || '').startsWith('hd-') ? { threadId: p.id } : { ticketId: p.id });
+          return;
+        }
+        const sp = new URLSearchParams(location.search);
+        if(sp.get('view') === 'messages'){
+          const th = sp.get('thread') || '', tk = sp.get('ticket') || '', dk = sp.get('desk') || '';
+          try{
+            const u = new URL(location.href);
+            u.searchParams.delete('view'); u.searchParams.delete('thread'); u.searchParams.delete('ticket'); u.searchParams.delete('desk');
+            history.replaceState({}, '', u.pathname + u.search + u.hash);
+          }catch(_){}
+          window.openHelpdeskMessages({ threadId: th, ticketId: tk, sectionId: dk });
+        }
+      }catch(_){}
+    };
+    if(typeof window.hydrateServer === 'function'){
+      const prevHydMsg = window.hydrateServer;
+      window.hydrateServer = async function(...args){
+        const r = await prevHydMsg.apply(this, args);
+        setTimeout(() => { loadBootstrapAndThreads(); checkColdDeepLink(); }, 60);
+        return r;
+      };
+    }
+    setTimeout(() => { loadBootstrapAndThreads(); checkColdDeepLink(); }, 950);
     setInterval(() => {
       ensureFab();
       if(activeMountTarget()) loadBootstrapAndThreads();

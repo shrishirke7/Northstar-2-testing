@@ -234,6 +234,13 @@ public class AlertMonitorService extends Service {
 
             String targetView = latest.optString("targetView", "notifications");
             String targetId = latest.optString("targetId", "");
+            String targetThreadId = latest.optString("targetThreadId", "");
+            String targetTicketId = latest.optString("targetTicketId", "");
+            if (!targetThreadId.isEmpty() || "ticket".equals(kind) || "material_request".equals(kind) || "helpdesk_message".equals(kind)) {
+                targetView = "messages";
+                if (!targetThreadId.isEmpty()) targetId = targetThreadId;
+                else if (targetId.isEmpty() && !targetTicketId.isEmpty()) targetId = targetTicketId;
+            }
             NotificationHelper.showAlert(this, title, body, targetView, targetId);
         } catch (Exception ignored) {
         }

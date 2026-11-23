@@ -114,7 +114,15 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const data = event.notification.data || {};
   const view = data.targetView || data.view || 'notifications';
-  const targetUrl = data.url || `/?view=${encodeURIComponent(view)}`;
+  const thId = data.targetThreadId || (view === 'messages' ? (data.targetId || data.id || '') : '');
+  const tkId = data.targetTicketId || '';
+  const secId = data.complaintDesk || data.targetTab || '';
+  let targetUrl = data.url || `/?view=${encodeURIComponent(view)}`;
+  if (!data.url) {
+    if (thId) targetUrl += `&thread=${encodeURIComponent(thId)}`;
+    if (tkId) targetUrl += `&ticket=${encodeURIComponent(tkId)}`;
+    if (secId) targetUrl += `&desk=${encodeURIComponent(secId)}`;
+  }
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
