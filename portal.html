@@ -1233,16 +1233,32 @@ function renderPortalNotifCardHtml(n){
   </div>`;
 }
 
+const PORTAL_TK_STORE = 'ns-portal-ticket-tokens';
+function getSavedPortalTicketTokens(){
+  try{ return JSON.parse(localStorage.getItem(PORTAL_TK_STORE) || '{}') || {}; }catch(_){ return {}; }
+}
+function savePortalTicketToken(id, tok){
+  if(!tok) return;
+  const map = getSavedPortalTicketTokens();
+  map[id || ('tk-' + Date.now())] = tok;
+  const keys = Object.keys(map);
+  if(keys.length > 40) delete map[keys[0]];
+  try{ localStorage.setItem(PORTAL_TK_STORE, JSON.stringify(map)); }catch(_){}
+}
+
 async function loadPortalTicketNotifications(opts){
   const host = $('portalNotifList');
   if(!host) return;
   const deskQ = SHOW_ALL_DESKS ? ($('listDesk')?.value || 'all') : (activeDeskId || 'it');
   const facQ = $('listFactory')?.value || '';
-  const token = new URLSearchParams(location.hash.slice(1)).get('track') || '';
+  const urlToken = new URLSearchParams(location.hash.slice(1)).get('track') || '';
+  if(urlToken) savePortalTicketToken('', urlToken);
+  const allTokens = [...new Set([urlToken, ...Object.values(getSavedPortalTicketTokens())].filter(Boolean))].slice(0, 40);
   try{
     const qs = new URLSearchParams({ desk: deskQ });
     if(facQ) qs.set('factory', facQ);
-    if(token) qs.set('tracking_token', token);
+    if(urlToken) qs.set('tracking_token', urlToken);
+    if(allTokens.length) qs.set('tracking_tokens', allTokens.join(','));
     const r = await fetch('/api/public/ticket-notifications?' + qs.toString(), { cache: 'no-store' });
     if(!r.ok) return;
     const d = await r.json();
@@ -1258,7 +1274,7 @@ async function loadPortalTicketNotifications(opts){
     if(fresh.length && !(opts && opts.silent)){
       showPortalToast(fresh[0].title || 'Ticket Update', fresh[0].message || '', true);
     }
-    host.innerHTML = list.length ? list.map(renderPortalNotifCardHtml).join('') : '<div class="small" style="padding:10px">No stage notifications yet. Notifications appear automatically when a ticket is raised, assigned, updated, or resolved.</div>';
+    host.innerHTML = list.length ? list.map(renderPortalNotifCardHtml).join('') : '<div class="small" style="padding:10px">Personal stage notifications are private and appear here only for tickets raised or tracked on this device.</div>';
   }catch(_){}
 }
 $('refreshPortalNotifsBtn')?.addEventListener('click', () => loadPortalTicketNotifications({ silent: true }));
@@ -1496,6 +1512,7 @@ $('clearFilters').addEventListener('click', () => {
 });
 
 function showTracking(token, id){
+  savePortalTicketToken(id, token);
   $('ticketForm').classList.add('hidden');
   const showTrack = effectivePortalConfig().showTrackingPanel !== false;
   $('trackPanel').classList.toggle('hidden', !showTrack);

@@ -155,7 +155,7 @@ final class AlertMonitor: NSObject, URLSessionDelegate {
             self.fetchJson(urlString: "\(origin)/api/notifications/sounds", cookie: cookie) { sObj in
                 if let soundAlerts = sObj?["soundAlerts"] as? [String: Any] {
                     let evMap = soundAlerts["events"] as? [String: Any]
-                    let evKey = (kind == "material_request") ? "ticket" : kind
+                    let evKey = (kind == "material_request" || kind == "helpdesk_message") ? "ticket" : kind
                     if let evRule = evMap?[evKey] as? [String: Any], (evRule["enabled"] as? Bool) == false {
                         completion?()
                         return

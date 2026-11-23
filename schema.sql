@@ -311,3 +311,44 @@ ALTER TABLE vault_documents ADD COLUMN IF NOT EXISTS shared_depts jsonb NOT NULL
 CREATE INDEX IF NOT EXISTS vault_docs_owner_idx ON vault_documents(owner_username);
 
 ALTER TABLE vault_audit_logs ADD COLUMN IF NOT EXISTS owner_scope text NOT NULL DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS helpdesk_threads (
+  id text PRIMARY KEY,
+  requester_username text NOT NULL DEFAULT '',
+  requester_name text NOT NULL DEFAULT '',
+  requester_dept text NOT NULL DEFAULT '',
+  requester_factory text NOT NULL DEFAULT '',
+  requester_gender text NOT NULL DEFAULT '',
+  section_id text NOT NULL DEFAULT 'it',
+  section_label text NOT NULL DEFAULT 'IT Support',
+  ticket_id text NOT NULL DEFAULT '',
+  assigned_expert_username text NOT NULL DEFAULT '',
+  assigned_expert_name text NOT NULL DEFAULT '',
+  mode text NOT NULL DEFAULT 'bot',
+  last_message_preview text NOT NULL DEFAULT '',
+  last_message_at timestamptz NOT NULL DEFAULT now(),
+  unread_for_requester integer NOT NULL DEFAULT 0,
+  unread_for_staff integer NOT NULL DEFAULT 0,
+  deleted_by_admin boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS hd_threads_req_idx ON helpdesk_threads(requester_username, updated_at DESC);
+CREATE INDEX IF NOT EXISTS hd_threads_sec_idx ON helpdesk_threads(section_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS hd_threads_exp_idx ON helpdesk_threads(assigned_expert_username, updated_at DESC);
+CREATE INDEX IF NOT EXISTS hd_threads_tk_idx ON helpdesk_threads(ticket_id);
+
+CREATE TABLE IF NOT EXISTS helpdesk_messages (
+  id text PRIMARY KEY,
+  thread_id text NOT NULL REFERENCES helpdesk_threads(id) ON DELETE CASCADE,
+  sender_username text NOT NULL DEFAULT '',
+  sender_name text NOT NULL DEFAULT '',
+  sender_role text NOT NULL DEFAULT 'user',
+  tagged_ticket_id text NOT NULL DEFAULT '',
+  body text NOT NULL DEFAULT '',
+  attachment_url text NOT NULL DEFAULT '',
+  attachment_name text NOT NULL DEFAULT '',
+  meta jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS hd_msgs_thread_idx ON helpdesk_messages(thread_id, created_at ASC);

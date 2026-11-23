@@ -180,7 +180,7 @@ public class AlertMonitorService extends Service {
                     JSONObject soundAlerts = sObj.optJSONObject("soundAlerts");
                     if (soundAlerts != null) {
                         JSONObject evMap = soundAlerts.optJSONObject("events");
-                        String evKey = "material_request".equals(kind) ? "ticket" : kind;
+                        String evKey = ("material_request".equals(kind) || "helpdesk_message".equals(kind)) ? "ticket" : kind;
                         if (evMap != null && !evKey.isEmpty()) {
                             JSONObject evRule = evMap.optJSONObject(evKey);
                             if (evRule != null && !evRule.optBoolean("enabled", true)) {

@@ -209,9 +209,13 @@ final class MainViewController: UIViewController,
         let targetId = note.userInfo?["targetId"] as? String ?? ""
         guard !targetView.isEmpty else { return }
         let js = """
-        if(typeof window.go==='function'){window.go(\(jsonLiteral(targetView)));}
-        if(\(jsonLiteral(targetId)) && typeof window.jumpToTicketInQueue==='function'){
-          setTimeout(function(){window.jumpToTicketInQueue(\(jsonLiteral(targetId)));}, 300);
+        if(\(jsonLiteral(targetView)) === 'messages' && typeof window.openHelpdeskMessages==='function'){
+          setTimeout(function(){window.openHelpdeskMessages({threadId:\(jsonLiteral(targetId))});}, 250);
+        } else {
+          if(typeof window.go==='function'){window.go(\(jsonLiteral(targetView)));}
+          if(\(jsonLiteral(targetId)) && typeof window.jumpToTicketInQueue==='function'){
+            setTimeout(function(){window.jumpToTicketInQueue(\(jsonLiteral(targetId)));}, 300);
+          }
         }
         """
         webView.evaluateJavaScript(js, completionHandler: nil)

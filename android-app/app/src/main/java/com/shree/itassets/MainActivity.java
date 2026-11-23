@@ -367,7 +367,9 @@ public class MainActivity extends Activity {
             intent.removeExtra("targetView");
             intent.removeExtra("targetId");
             String js = "if(typeof window.go==='function'){window.go(" + org.json.JSONObject.quote(targetView) + ");}";
-            if (targetId != null && !targetId.isEmpty()) {
+            if ("messages".equals(targetView)) {
+                js = "if(typeof window.openHelpdeskMessages==='function'){setTimeout(function(){window.openHelpdeskMessages({threadId:" + org.json.JSONObject.quote(targetId != null ? targetId : "") + "});},250);}else if(typeof window.go==='function'){window.go('messages');}";
+            } else if (targetId != null && !targetId.isEmpty()) {
                 js += "if(typeof window.jumpToTicketInQueue==='function'){setTimeout(function(){window.jumpToTicketInQueue(" + org.json.JSONObject.quote(targetId) + ");},300);}";
             }
             webView.evaluateJavascript(js, null);

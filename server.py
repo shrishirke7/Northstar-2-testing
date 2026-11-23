@@ -54,6 +54,8 @@ FIRMWARE_UPLOAD_DIR = UPLOAD_DIR / "firmware"
 FIRMWARE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 VAULT_DOCS_DIR = UPLOAD_DIR / "vault_docs"
 VAULT_DOCS_DIR.mkdir(parents=True, exist_ok=True)
+MSG_UPLOAD_DIR = UPLOAD_DIR / "messages"
+MSG_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 BACKUP_DIR = Path(os.getenv("BACKUP_DIR", "/backups"))
 RESTORE_LOCK_PATH = Path("/tmp/northstar-restore-in-progress")
 DEFAULT_CAMERA_PROFILES = [
@@ -515,7 +517,7 @@ def enforce_module_access():
         "/api/notifications/silent", "/api/notifications/history", "/api/notifications/history/read",
         "/api/speedtest/ping", "/api/speedtest/download", "/api/speedtest/upload",
         "/api/network/speedtest", "/api/network/speedtest/run", "/api/network/speedtest/settings",
-    ) or (path == "/api/notifications/sounds" and method == "GET") or (path in ("/api/tickets/admin-presence", "/api/tickets/user-notifications") and method == "GET") or (path == "/api/tickets" and method in ("GET", "POST")) or (path.startswith("/api/tickets/") and (path.endswith("/worklog") or "/attachments/" in path) and method == "GET") or path.startswith("/api/recovery/"):
+    ) or (path == "/api/notifications/sounds" and method == "GET") or (path in ("/api/tickets/admin-presence", "/api/tickets/user-notifications") and method == "GET") or (path == "/api/tickets" and method in ("GET", "POST")) or (path.startswith("/api/tickets/") and (path.endswith("/worklog") or "/attachments/" in path) and method == "GET") or path == "/api/messages" or path.startswith("/api/messages/") or path.startswith("/api/recovery/"):
         return None
     is_write = method in ("POST", "PUT", "PATCH", "DELETE")
     module = next((value for prefix, value in MODULE_API_PATHS.items() if path == prefix or path.startswith(prefix + "/")), None)
@@ -1807,15 +1809,19 @@ def _pulse_versions(conn, include_internal=False):
           COALESCE((SELECT extract(epoch FROM max(updated_at))::text FROM material_gate_passes), '0'),
           (SELECT count(*)::bigint FROM material_gate_passes),
           COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='admin_presence'), '0'),
-          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='ticket_user_notifications'), '0')
+          COALESCE((SELECT extract(epoch FROM updated_at)::text FROM app_state WHERE key='ticket_user_notifications'), '0'),
+          COALESCE((SELECT extract(epoch FROM max(updated_at))::text FROM helpdesk_threads), '0'),
+          (SELECT count(*)::bigint FROM helpdesk_messages)
     """).fetchone()
     ticket_rev = f"{row[0]}:{row[1]}:{row[2]}:{row[13]}:{row[14]}"
     visitor_rev = f"{row[9]}:{row[10]}"
     gatepass_rev = f"{row[11]}:{row[12]}"
+    messages_rev = f"{row[15] if len(row) > 15 else '0'}:{row[16] if len(row) > 16 else 0}"
     out = {
         "ticketRev": ticket_rev,
         "visitorRev": visitor_rev,
         "gatepassRev": gatepass_rev,
+        "messagesRev": messages_rev,
         "settingsRev": str(row[3] or "0"),
         "presenceRev": str(row[13] or "0"),
         "ticketNotifRev": str(row[14] or "0"),
@@ -1957,6 +1963,9 @@ def _record_notification_event(conn, item):
         "targetUsername": str(item.get("targetUsername") or "")[:120],
         "targetHostName": str(item.get("targetHostName") or "")[:120],
         "requesterName": str(item.get("requesterName") or "")[:120],
+        "targetRole": str(item.get("targetRole") or "")[:24],
+        "targetAssignee": str(item.get("targetAssignee") or "")[:120],
+        "targetTicketId": str(item.get("targetTicketId") or "")[:120],
         "createdAt": str(item.get("createdAt") or now_iso)[:40],
     }
     doc["events"] = [ev] + doc["events"]
@@ -2116,11 +2125,29 @@ def get_notification_history():
     unread_count = 0
     for ev in doc["events"]:
         ev_kind = str(ev.get("kind") or "")
-        if ev_kind in ("ticket", "material_request"):
+        if ev_kind == "helpdesk_message":
             ev_user = str(ev.get("targetUsername") or "").strip().casefold()
             ev_req = str(ev.get("requesterName") or "").strip().casefold()
+            ev_exp = str(ev.get("targetAssignee") or "").strip().casefold()
+            t_role = str(ev.get("targetRole") or "").strip().lower()
+            sec_id = str(ev.get("complaintDesk") or "it").strip().lower()
             is_own_ev = (uname_cf and ev_user and ev_user == uname_cf) or (dname_cf and ev_req and ev_req == dname_cf)
-            if not is_own_ev and (not can_tickets or not ticket_desk_allowed(who, ev.get("complaintDesk") or "it")):
+            if t_role == "requester":
+                if not is_own_ev:
+                    continue
+            else:
+                can_sec = _helpdesk_caller_can_staff_section(who, is_adm, sec_id)
+                if not is_adm and not (uname_cf and ev_exp and ev_exp == uname_cf) and not can_sec:
+                    continue
+        elif ev_kind in ("ticket", "material_request"):
+            ev_user = str(ev.get("targetUsername") or "").strip().casefold()
+            ev_req = str(ev.get("requesterName") or "").strip().casefold()
+            t_role = str(ev.get("targetRole") or "").strip().lower()
+            is_own_ev = (uname_cf and ev_user and ev_user == uname_cf) or (dname_cf and ev_req and ev_req == dname_cf)
+            if t_role == "requester":
+                if not is_own_ev:
+                    continue
+            elif not is_own_ev and (not can_tickets or not ticket_desk_allowed(who, ev.get("complaintDesk") or "it")):
                 continue
         elif ev_kind == "visitor":
             if not can_visitors or not visitor_row_visible({
@@ -3753,9 +3780,191 @@ def _build_and_record_ticket_user_notification(conn, *, ticket_id, event_type, a
         (json.dumps(items),),
     )
     _pg_emit_notify(conn, "ticket", {"action": "user-notification", "ticketId": tid, "eventType": event_type, "stage": eff_status, "complaintDesk": desk_id})
+    _sync_ticket_notif_to_helpdesk_tx(
+        conn,
+        raw_username=uname,
+        requester_name=(dname or contact.get("name") or uname),
+        dept=dept,
+        factory=factory,
+        gender=contact.get("gender") or "",
+        section_id=desk_id,
+        ticket_id=tid,
+        assigned_to=eff_assigned,
+        title=title,
+        body=body,
+        stage=eff_status,
+        stage_index=stage_idx,
+        eta_display=eta_text,
+        event_type=event_type,
+    )
     if contact.get("email"):
         _maybe_send_ticket_email(contact["email"], title, body)
     return {k: v for k, v in notif.items() if k != "trackingTokenHash"}
+
+
+def _helpdesk_section_meta_list(conn):
+    srow = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
+    cfg = normalize_ticketing_settings(srow[0] if srow else {})
+    desks = cfg.get("complaintDesks") or []
+    icon_map = {"it": "💻", "plumber": "🔧", "electrician": "⚡", "admin": "🏢"}
+    color_map = {"it": "#059669", "plumber": "#0284c7", "electrician": "#d97706", "admin": "#7c3aed"}
+    sections = []
+    for d in desks:
+        did = _slug_desk_id(d.get("id") or "it", "it")
+        sections.append({
+            "id": did,
+            "label": str(d.get("name") or d.get("title") or did.title())[:60],
+            "icon": icon_map.get(did, "🎫"),
+            "color": color_map.get(did, "#0f766e"),
+            "kind": "desk",
+        })
+    sections.append({"id": "visitor", "label": "Visitor Pass", "icon": "🪪", "color": "#0284c7", "kind": "visitor"})
+    sections.append({"id": "gatepass", "label": "Material Entry", "icon": "📦", "color": "#b45309", "kind": "gatepass"})
+    return sections
+
+
+def _helpdesk_caller_can_staff_section(profile, is_admin, section_id):
+    if is_admin:
+        return True
+    if not isinstance(profile, dict):
+        return False
+    sec = _slug_desk_id(section_id or "it", "it")
+    if sec == "visitor":
+        return module_access(profile, "visitors", write=True)
+    if sec == "gatepass":
+        return module_access(profile, "gatepass", write=True)
+    return (profile.get("role") == "IT Ticketing" or module_access(profile, "tickets", write=True)) and ticket_desk_allowed(profile, sec)
+
+
+def _user_can_staff_section(user_rec, section_id):
+    if not isinstance(user_rec, dict) or not user_rec.get("active", True):
+        return False
+    role = str(user_rec.get("role") or "")
+    if role == "Administrator":
+        return True
+    sec = _slug_desk_id(section_id or "it", "it")
+    if sec == "visitor":
+        return module_access(user_rec, "visitors", write=True) or module_access(user_rec, "visitors")
+    if sec == "gatepass":
+        return module_access(user_rec, "gatepass", write=True) or module_access(user_rec, "gatepass")
+    return (role == "IT Ticketing" or module_access(user_rec, "tickets", write=True)) and ticket_desk_allowed(user_rec, sec)
+
+
+def _helpdesk_section_experts(conn, section_id):
+    urow = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
+    prow = conn.execute("SELECT value FROM app_state WHERE key='admin_presence'").fetchone()
+    users = urow[0] if urow and isinstance(urow[0], list) else []
+    pres = _clean_admin_presence_map(prow[0] if prow else {})
+    sec = _slug_desk_id(section_id or "it", "it")
+    out = []
+    seen = set()
+    for u in users:
+        if not isinstance(u, dict) or not _user_can_staff_section(u, sec):
+            continue
+        uname = str(u.get("username") or "").strip().casefold()
+        if not uname or uname in seen:
+            continue
+        seen.add(uname)
+        p = pres.get(uname) or {}
+        st = p.get("status") or "Available"
+        out.append({
+            "username": uname,
+            "name": str(u.get("name") or uname)[:120],
+            "role": str(u.get("role") or ""),
+            "title": str(u.get("title") or u.get("dept") or "")[:80],
+            "status": st,
+            "currentTask": str(p.get("currentTask") or ""),
+            "etaRemainingMin": int(p.get("etaRemainingMin") or 0),
+        })
+    rank = {"Available": 0, "In work": 1, "Away": 2, "Offline": 3}
+    out.sort(key=lambda x: (rank.get(x["status"], 4), x["name"].casefold()))
+    return out
+
+
+def _resolve_ticket_requester_key(conn, raw_username="", raw_display_name=""):
+    u = str(raw_username or "").strip().casefold()
+    if u:
+        return u
+    contact = _lookup_requester_contact(conn, "", raw_display_name)
+    if contact.get("username"):
+        return str(contact["username"]).strip().casefold()
+    slug = _slug_desk_id(raw_display_name or "guest", "guest")
+    return f"portal:{slug}"
+
+
+def _helpdesk_thread_id(section_id, requester_key):
+    sec = _slug_desk_id(section_id or "it", "it")[:20]
+    rk = str(requester_key or "guest").strip().casefold() or "guest"
+    return f"hd-{sec}-{hashlib.sha1(rk.encode('utf-8')).hexdigest()[:12]}"
+
+
+def _sync_ticket_notif_to_helpdesk_tx(
+    conn, *, raw_username="", requester_name="", dept="", factory="", gender="",
+    section_id="it", ticket_id="", assigned_to="", title="", body="", stage="Open",
+    stage_index=1, eta_display="", event_type="updated",
+):
+    req_key = _resolve_ticket_requester_key(conn, raw_username, requester_name)
+    sec = _slug_desk_id(section_id or "it", "it")
+    tid_thread = _helpdesk_thread_id(sec, req_key)
+    sections = _helpdesk_section_meta_list(conn)
+    sec_label = next((s["label"] for s in sections if s["id"] == sec), sec.title())
+
+    exp_name = str(assigned_to or "").strip()
+    if exp_name == "Unassigned":
+        exp_name = ""
+    exp_uname = ""
+    if exp_name:
+        urow = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
+        for u in (urow[0] if urow and isinstance(urow[0], list) else []):
+            if str(u.get("name") or "").strip().casefold() == exp_name.casefold() or str(u.get("username") or "").strip().casefold() == exp_name.casefold():
+                exp_uname = str(u.get("username") or "").strip().casefold()
+                exp_name = str(u.get("name") or exp_uname)[:120]
+                break
+
+    preview = f"{title}: {body}"[:180]
+    conn.execute(
+        """
+        INSERT INTO helpdesk_threads(
+          id, requester_username, requester_name, requester_dept, requester_factory, requester_gender,
+          section_id, section_label, ticket_id, assigned_expert_username, assigned_expert_name,
+          mode, last_message_preview, last_message_at, unread_for_requester, unread_for_staff,
+          deleted_by_admin, updated_at
+        ) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'bot',%s,now(),1,0,false,now())
+        ON CONFLICT(id) DO UPDATE SET
+          requester_name=CASE WHEN excluded.requester_name<>'' THEN excluded.requester_name ELSE helpdesk_threads.requester_name END,
+          requester_dept=CASE WHEN excluded.requester_dept<>'' THEN excluded.requester_dept ELSE helpdesk_threads.requester_dept END,
+          requester_factory=CASE WHEN excluded.requester_factory<>'' THEN excluded.requester_factory ELSE helpdesk_threads.requester_factory END,
+          requester_gender=CASE WHEN excluded.requester_gender<>'' THEN excluded.requester_gender ELSE helpdesk_threads.requester_gender END,
+          section_label=excluded.section_label,
+          ticket_id=CASE WHEN excluded.ticket_id<>'' THEN excluded.ticket_id ELSE helpdesk_threads.ticket_id END,
+          assigned_expert_username=CASE WHEN excluded.assigned_expert_username<>'' THEN excluded.assigned_expert_username ELSE helpdesk_threads.assigned_expert_username END,
+          assigned_expert_name=CASE WHEN excluded.assigned_expert_name<>'' THEN excluded.assigned_expert_name ELSE helpdesk_threads.assigned_expert_name END,
+          last_message_preview=excluded.last_message_preview,
+          last_message_at=now(),
+          unread_for_requester=helpdesk_threads.unread_for_requester + 1,
+          deleted_by_admin=false,
+          updated_at=now()
+        """,
+        (
+            tid_thread, req_key, str(requester_name or req_key)[:120], str(dept or "")[:120],
+            str(factory or "")[:80], str(gender or "")[:20], sec, sec_label,
+            str(ticket_id or "")[:80], exp_uname, exp_name[:120], preview,
+        ),
+    )
+    msg_id = "hdm-" + uuid.uuid4().hex[:14]
+    meta = {
+        "title": title, "stage": stage, "stageIndex": stage_index,
+        "etaDisplay": eta_display, "eventType": event_type, "assignedTo": exp_name,
+    }
+    conn.execute(
+        """
+        INSERT INTO helpdesk_messages(
+          id, thread_id, sender_username, sender_name, sender_role, tagged_ticket_id, body, meta
+        ) VALUES(%s,%s,%s,%s,'system',%s,%s,%s::jsonb)
+        """,
+        (msg_id, tid_thread, "helpdesk-auto", f"{sec_label} Auto-Update", str(ticket_id or "")[:80], body[:3000], json.dumps(meta)),
+    )
+    return tid_thread
 
 
 def _sanitize_public_user_notif(item):
@@ -4071,37 +4280,31 @@ def public_admin_presence():
 @app.get("/api/public/ticket-notifications")
 def public_ticket_notifications():
     tracking_token = str(request.args.get("tracking_token") or "").strip()
+    raw_multi = str(request.args.get("tracking_tokens") or "").strip()
     ticket_id = str(request.args.get("ticket_id") or "").strip()
-    factory = str(request.args.get("factory") or "").strip()
-    desk = str(request.args.get("desk") or "").strip().lower()
-    requester = str(request.args.get("requester") or "").strip().casefold()
-    token_hash = hashlib.sha256(tracking_token.encode()).hexdigest() if tracking_token and re.fullmatch(r"[A-Za-z0-9_-]{40,60}", tracking_token) else ""
+    tokens = []
+    if tracking_token:
+        tokens.append(tracking_token)
+    if raw_multi:
+        tokens.extend([x.strip() for x in raw_multi.split(",") if x.strip()])
+    token_hashes = {
+        hashlib.sha256(tk.encode()).hexdigest()
+        for tk in tokens[:60]
+        if re.fullmatch(r"[A-Za-z0-9_-]{40,60}", tk)
+    }
+    if not token_hashes:
+        return jsonify(notifications=[])
     with db() as conn:
-        srow = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
-        ticketing_cfg = normalize_ticketing_settings(srow[0] if srow else {})
-        show_all = bool(ticketing_cfg.get("showAllDesksOnPortal", False))
-        desks = ticketing_cfg.get("complaintDesks") or []
-        valid_ids = {d["id"] for d in desks}
-        default_desk = desks[0]["id"] if desks else "it"
-        desk_filter = None if (show_all and desk in ("", "all")) else (desk if desk in valid_ids else (default_desk if not show_all else None))
         nrow = conn.execute("SELECT value FROM app_state WHERE key='ticket_user_notifications'").fetchone()
         raw = nrow[0] if nrow and isinstance(nrow[0], list) else []
     out = []
     for n in raw:
         if not isinstance(n, dict):
             continue
-        if token_hash:
-            if n.get("trackingTokenHash") != token_hash and (not ticket_id or n.get("ticketId") != ticket_id):
-                continue
-        else:
-            if ticket_id and str(n.get("ticketId") or "") != ticket_id:
-                continue
-            if desk_filter and _slug_desk_id(n.get("complaintDesk") or "it", "it") != desk_filter:
-                continue
-            if factory and str(n.get("factory") or "").casefold() != factory.casefold():
-                continue
-            if requester and str(n.get("requesterName") or "").casefold() != requester:
-                continue
+        if n.get("trackingTokenHash") not in token_hashes:
+            continue
+        if ticket_id and str(n.get("ticketId") or "") != ticket_id:
+            continue
         out.append(_sanitize_public_user_notif(n))
         if len(out) >= 60:
             break
@@ -4906,6 +5109,8 @@ def list_ticket_user_notifications():
         if ticket_id and str(n.get("ticketId") or "") != ticket_id:
             continue
         is_owner = (uname and str(n.get("requesterUsername") or "").casefold() == uname) or (dname and str(n.get("requesterName") or "").casefold() == dname)
+        if not ticket_id and not is_owner:
+            continue
         if mine_only and not is_owner:
             continue
         if not can_manage and not is_owner:
@@ -5238,6 +5443,8 @@ def update_ticket(ticket_id):
             t_fac = t_row[7] if len(t_row) > 7 else ""
             t_kind = t_row[8] if len(t_row) > 8 else ""
             is_mr = (t_kind == "Material request")
+            req_key = _resolve_ticket_requester_key(conn, t_user, t_disp)
+            thr_id = _helpdesk_thread_id(t_row[0], req_key)
             _record_notification_event(conn, {
                 "eventKey": f"ticket-upd:{ticket_id}:{last_notif.get('id','')}",
                 "kind": "material_request" if is_mr else "ticket",
@@ -5245,10 +5452,12 @@ def update_ticket(ticket_id):
                 "title": last_notif.get("title") or f"Ticket {ticket_id} Updated",
                 "body": last_notif.get("message") or detail,
                 "factory": t_fac or "",
-                "targetView": "tickets",
-                "targetTab": "materials" if is_mr else "tickets",
-                "targetId": ticket_id,
-                "targetUsername": str(t_user or "").strip()[:80],
+                "targetView": "messages",
+                "targetTab": t_row[0],
+                "targetId": thr_id,
+                "targetTicketId": ticket_id,
+                "targetRole": "requester",
+                "targetUsername": req_key[:80],
                 "requesterName": str(t_disp or "")[:120],
                 "complaintDesk": t_row[0],
             })
@@ -5282,6 +5491,8 @@ def add_ticket_worklog(ticket_id):
             w_fac = t_row[3] if len(t_row) > 3 else ""
             w_kind = t_row[4] if len(t_row) > 4 else ""
             is_mr = (w_kind == "Material request")
+            req_key = _resolve_ticket_requester_key(conn, w_user, w_disp)
+            thr_id = _helpdesk_thread_id(t_row[0], req_key)
             _record_notification_event(conn, {
                 "eventKey": f"ticket-wl:{ticket_id}:{w_notif.get('id','')}",
                 "kind": "material_request" if is_mr else "ticket",
@@ -5289,10 +5500,12 @@ def add_ticket_worklog(ticket_id):
                 "title": w_notif.get("title") or f"Work Update: {ticket_id}",
                 "body": w_notif.get("message") or detail,
                 "factory": w_fac or "",
-                "targetView": "tickets",
-                "targetTab": "materials" if is_mr else "tickets",
-                "targetId": ticket_id,
-                "targetUsername": str(w_user or "").strip()[:80],
+                "targetView": "messages",
+                "targetTab": t_row[0],
+                "targetId": thr_id,
+                "targetTicketId": ticket_id,
+                "targetRole": "requester",
+                "targetUsername": req_key[:80],
                 "requesterName": str(w_disp or "")[:120],
                 "complaintDesk": t_row[0],
             })
@@ -9887,6 +10100,772 @@ def too_large(_):
     else:
         limit = "64 MB"
     return jsonify(error=f"Request too large (maximum {limit})"), 413
+
+
+# =============================================================================
+# HELPDESK 1-TO-1 MESSAGES, SECTION CHANNELS & SMART AUTO-BOT
+# =============================================================================
+
+def _hd_thread_json(row):
+    return {
+        "id": row[0],
+        "requesterUsername": row[1],
+        "requesterName": row[2],
+        "requesterDept": row[3],
+        "requesterFactory": row[4],
+        "requesterGender": row[5],
+        "sectionId": row[6],
+        "sectionLabel": row[7],
+        "ticketId": row[8],
+        "assignedExpertUsername": row[9],
+        "assignedExpertName": row[10],
+        "mode": row[11] or "bot",
+        "lastMessagePreview": row[12],
+        "lastMessageAt": row[13].isoformat(timespec="seconds") if row[13] else "",
+        "unreadForRequester": int(row[14] or 0),
+        "unreadForStaff": int(row[15] or 0),
+        "updatedAt": row[16].isoformat(timespec="seconds") if len(row) > 16 and row[16] else "",
+    }
+
+
+def _hd_msg_json(row):
+    return {
+        "id": row[0],
+        "threadId": row[1],
+        "senderUsername": row[2],
+        "senderName": row[3],
+        "senderRole": row[4] or "user",
+        "taggedTicketId": row[5] or "",
+        "body": row[6] or "",
+        "attachmentUrl": row[7] or "",
+        "attachmentName": row[8] or "",
+        "meta": row[9] if isinstance(row[9], dict) else {},
+        "createdAt": row[10].isoformat(timespec="seconds") if row[10] else "",
+        "createdDisplay": row[10].astimezone(_local_now_dt().tzinfo).strftime("%d %b %Y, %I:%M %p") if row[10] else "",
+    }
+
+
+def _hd_can_access_thread(profile, is_admin, thr):
+    if is_admin:
+        return True, True
+    uname = str(profile.get("username") or "").strip().casefold()
+    is_req = bool(uname and str(thr["requesterUsername"] or "").strip().casefold() == uname)
+    is_staff = _helpdesk_caller_can_staff_section(profile, is_admin, thr["sectionId"])
+    return (is_req or is_staff), is_staff
+
+
+def _hd_save_attachment(file_storage):
+    if not file_storage or not file_storage.filename:
+        return "", ""
+    ext = Path(file_storage.filename).suffix.lower()
+    if ext not in (".png", ".jpg", ".jpeg", ".webp"):
+        raise ValueError("Use PNG, JPG, or WebP screenshots (up to 3 MB).")
+    data = file_storage.stream.read(3 * 1024 * 1024 + 1)
+    valid = (
+        (ext == ".png" and data.startswith(b"\x89PNG\r\n\x1a\n"))
+        or (ext in (".jpg", ".jpeg") and data.startswith(b"\xff\xd8\xff"))
+        or (ext == ".webp" and data.startswith(b"RIFF") and data[8:12] == b"WEBP")
+    )
+    if not data or len(data) > 3 * 1024 * 1024 or not valid:
+        raise ValueError("Invalid or oversized screenshot image (max 3 MB).")
+    safe_name = "msg-" + uuid.uuid4().hex + ext
+    (MSG_UPLOAD_DIR / safe_name).write_bytes(data)
+    return f"/api/messages/attachments/{safe_name}", secure_filename(file_storage.filename)[:120] or safe_name
+
+
+def _hd_find_tagged_or_latest_ticket(conn, requester_username, requester_name, section_id, explicit_ticket_id="", text_body=""):
+    explicit = str(explicit_ticket_id or "").strip()
+    if not explicit and text_body:
+        m = re.search(r"#?([A-Za-z]{1,6}\d{1,4}/\d{2}-\d{2}-\d{4})", text_body)
+        if m:
+            explicit = m.group(1).strip()
+    if explicit:
+        r = conn.execute(f"SELECT {TICKET_COLUMNS} FROM tickets WHERE id=%s", (explicit,)).fetchone()
+        if r:
+            t = ticket_json(r)
+            if t["username"].casefold() == requester_username.casefold() or t["complaintDesk"].casefold() == section_id.casefold():
+                return t
+    if section_id not in ("visitor", "gatepass"):
+        rows = conn.execute(f"SELECT {TICKET_COLUMNS} FROM tickets ORDER BY created_at DESC LIMIT 200").fetchall()
+        for r in rows:
+            t = ticket_json(r)
+            own = (requester_username and t["username"].casefold() == requester_username.casefold()) or (requester_name and t["name"].casefold() == requester_name.casefold())
+            if own and t["complaintDesk"].casefold() == section_id.casefold():
+                return t
+    return None
+
+
+def _hd_build_bot_reply(conn, thr, user_text, tagged_ticket_id, bot_action=""):
+    sec = str(thr.get("sectionId") or "it").lower()
+    sec_label = str(thr.get("sectionLabel") or sec.title())
+    req_uname = str(thr.get("requesterUsername") or "")
+    req_name = str(thr.get("requesterName") or req_uname or "User")
+    contact = _lookup_requester_contact(conn, req_uname, req_name, thr.get("requesterGender") or "")
+    now_local = _local_now_dt()
+    greeting = f"{_time_salutation(now_local)} {req_name.split()[0] if req_name else ''} {_gender_honorific(contact['gender'])}, Greetings of the day!"
+    low = f"{user_text} {bot_action}".strip().lower()
+
+    # Check Talk to Expert escalation intent
+    if bot_action == "talk_to_expert" or any(kw in low for kw in ("talk to expert", "connect expert", "human", "agent", "speak with", "call me", "real person", "escalate", "expert se")):
+        experts = _helpdesk_section_experts(conn, sec)
+        chosen = None
+        if thr.get("assignedExpertUsername"):
+            chosen = next((e for e in experts if e["username"] == thr["assignedExpertUsername"]), None)
+        if not chosen and experts:
+            chosen = experts[0]
+        exp_uname = chosen["username"] if chosen else ""
+        exp_name = chosen["name"] if chosen else f"{sec_label} Support"
+        exp_status = f" ({chosen['status']}" + (f", ~{chosen['etaRemainingMin']}m left" if chosen and chosen.get("etaRemainingMin") else "") + ")" if chosen else ""
+        conn.execute(
+            "UPDATE helpdesk_threads SET mode='expert', assigned_expert_username=CASE WHEN %s<>'' THEN %s ELSE assigned_expert_username END, assigned_expert_name=CASE WHEN %s<>'' THEN %s ELSE assigned_expert_name END, updated_at=now() WHERE id=%s",
+            (exp_uname, exp_uname, exp_name, exp_name, thr["id"]),
+        )
+        return {
+            "reply": f"{greeting} I have connected your conversation directly to {exp_name}{exp_status} in the {sec_label} team and sent them an instant alert. Feel free to describe your issue or tag your #TicketID below — an expert will reply right here!",
+            "switchedToExpert": True,
+            "expertUsername": exp_uname,
+            "expertName": exp_name,
+            "taggedTicketId": tagged_ticket_id or thr.get("ticketId") or "",
+        }
+
+    # Visitor or Gate Pass section auto-assistant
+    if sec == "visitor":
+        vrows = conn.execute(
+            "SELECT id, visitor_name, host_name, status, factory, department, created_at FROM visitor_passes WHERE lower(host_username)=lower(%s) OR lower(host_name)=lower(%s) ORDER BY created_at DESC LIMIT 5",
+            (req_uname, req_name),
+        ).fetchall()
+        if vrows:
+            v = vrows[0]
+            return {
+                "reply": f"{greeting} Your latest Visitor Pass ({v[0]}) for guest {v[1]} at {v[4]} ({v[5]}) is currently '{v[3]}'. Need gate desk coordination or approval help? Click '👨‍💻 Talk to Expert' anytime.",
+                "switchedToExpert": False,
+                "taggedTicketId": str(v[0]),
+            }
+        return {
+            "reply": f"{greeting} Welcome to {sec_label} Support! Ask about any Visitor Pass or click '👨‍💻 Talk to Expert' to chat directly with Security/Front Desk.",
+            "switchedToExpert": False,
+            "taggedTicketId": tagged_ticket_id,
+        }
+
+    if sec == "gatepass":
+        grows = conn.execute(
+            "SELECT id, direction, material_name, status, factory, party_name, created_at FROM material_gate_passes WHERE lower(for_username)=lower(%s) OR lower(for_name)=lower(%s) ORDER BY created_at DESC LIMIT 5",
+            (req_uname, req_name),
+        ).fetchall()
+        if grows:
+            g = grows[0]
+            return {
+                "reply": f"{greeting} Your latest Material {g[1]} Pass ({g[0]}) for {g[2]} (Party: {g[5] or '-'}) at {g[4]} has status '{g[3]}'. Click '👨‍💻 Talk to Expert' to connect with Gate/Material Desk.",
+                "switchedToExpert": False,
+                "taggedTicketId": str(g[0]),
+            }
+        return {
+            "reply": f"{greeting} Welcome to {sec_label} Support! Share a pass ID or click '👨‍💻 Talk to Expert' to talk directly to our Gate/Material team.",
+            "switchedToExpert": False,
+            "taggedTicketId": tagged_ticket_id,
+        }
+
+    # Helpdesk ticket lookup & intelligent reply
+    t = _hd_find_tagged_or_latest_ticket(conn, req_uname, req_name, sec, tagged_ticket_id, user_text)
+    avail = _summarize_admin_availability(conn, desk_id=sec, assigned_to=(t["assigned"] if t else ""))
+    if t:
+        tid = t["id"]
+        st = t["status"] or "Open"
+        stage_map = {"Open": "Stage 1 of 4 · Open", "In progress": "Stage 2 of 4 · In progress", "Resolved": "Stage 3 of 4 · Resolved", "Closed": "Stage 4 of 4 · Closed"}
+        stage_lbl = stage_map.get(st, st)
+        exp = t["assigned"] if t["assigned"] and t["assigned"] != "Unassigned" else "Desk Queue (Awaiting Assignment)"
+        eta_txt, _ = _format_eta_detail(t["eta"]) if t.get("eta") else ("", 0)
+        note_part = f' Latest Work Update: "{t["note"]}".' if t.get("note") else ""
+        if any(k in low for k in ("reopen", "still", "not solved", "not resolved", "again")) or bot_action == "reopen":
+            if st in ("Resolved", "Closed"):
+                return {
+                    "reply": f"{greeting} Ticket #{tid} is currently '{st}'. You can click the '🔁 Reopen Ticket' button right on ticket #{tid} to reopen it back to Open and alert {exp}, or click '👨‍💻 Talk to Expert' to chat live.",
+                    "switchedToExpert": False,
+                    "taggedTicketId": tid,
+                    "canReopen": True,
+                }
+            return {
+                "reply": f"{greeting} Ticket #{tid} is already active ({stage_lbl}) with {exp}. {avail['summarySentence']}{note_part} Need urgent help? Click '👨‍💻 Talk to Expert'.",
+                "switchedToExpert": False,
+                "taggedTicketId": tid,
+            }
+        if any(k in low for k in ("eta", "time", "when", "wait", "long", "kiti", "busy")):
+            eta_msg = f"Expected completion is {eta_txt}." if eta_txt else "No fixed ETA timestamp has been locked yet."
+            return {
+                "reply": f"{greeting} ETA check for #{tid} ({stage_lbl}): Assigned to {exp}. {eta_msg} {avail['summarySentence']}{note_part} Want to speak directly or switch expert? Use the buttons above or click '👨‍💻 Talk to Expert'.",
+                "switchedToExpert": False,
+                "taggedTicketId": tid,
+            }
+        return {
+            "reply": f"{greeting} Here is the live status of your {sec_label} ticket #{tid} ({t['primary']} · {t['sub']}): {stage_lbl}, Assigned to {exp}.{(' Expected ETA: ' + eta_txt + '.') if eta_txt else ''} {avail['summarySentence']}{note_part} You can tag another #TicketID or click '👨‍💻 Talk to Expert' for 1-to-1 live help.",
+            "switchedToExpert": False,
+            "taggedTicketId": tid,
+        }
+
+    return {
+        "reply": f"{greeting} Welcome to {sec_label} Helpdesk! {avail['summarySentence']} You don't have a tagged ticket selected right now — pick a ticket using '🏷️ Tag Ticket', type your question, or click '👨‍💻 Talk to Expert' to connect directly with a specialist.",
+        "switchedToExpert": False,
+        "taggedTicketId": tagged_ticket_id,
+    }
+
+
+@app.get("/api/messages/bootstrap")
+@signed_in
+def messages_bootstrap():
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname = str(profile.get("username") or "").strip().casefold()
+    dname = str(profile.get("name") or "").strip().casefold()
+    with db() as conn:
+        sections = _helpdesk_section_meta_list(conn)
+        for sec in sections:
+            sec["experts"] = _helpdesk_section_experts(conn, sec["id"])
+            sec["canStaff"] = _helpdesk_caller_can_staff_section(profile, is_adm, sec["id"])
+
+        t_rows = conn.execute(f"SELECT {TICKET_COLUMNS} FROM tickets ORDER BY created_at DESC LIMIT 400").fetchall()
+        visible_tickets = []
+        can_tickets = is_adm or module_access(profile, "tickets")
+        for r in t_rows:
+            t = ticket_json(r)
+            is_own = (uname and t["username"].casefold() == uname) or (dname and t["name"].casefold() == dname)
+            t["isOwn"] = is_own
+            if is_own or (can_tickets and ticket_desk_allowed(profile, t["complaintDesk"])):
+                visible_tickets.append(t)
+
+        v_rows = conn.execute("SELECT id, visitor_name, host_name, host_username, status, factory, department FROM visitor_passes ORDER BY created_at DESC LIMIT 80").fetchall()
+        can_vis = is_adm or module_access(profile, "visitors")
+        visible_visitors = [
+            {"id": v[0], "label": f"{v[0]} · {v[1]} ({v[3]})", "status": v[3], "factory": v[4], "dept": v[5]}
+            for v in v_rows
+            if can_vis or (uname and str(v[3] or "").casefold() == uname) or (dname and str(v[2] or "").casefold() == dname)
+        ][:30]
+
+        g_rows = conn.execute("SELECT id, direction, material_name, for_name, for_username, status, factory, department FROM material_gate_passes ORDER BY created_at DESC LIMIT 80").fetchall()
+        can_gp = is_adm or module_access(profile, "gatepass")
+        visible_gatepasses = [
+            {"id": g[0], "label": f"{g[0]} · {g[1]} {g[2]} ({g[5]})", "status": g[5], "factory": g[6], "dept": g[7]}
+            for g in g_rows
+            if can_gp or (uname and str(g[4] or "").casefold() == uname) or (dname and str(g[3] or "").casefold() == dname)
+        ][:30]
+
+        thr_rows = conn.execute(
+            "SELECT id, requester_username, requester_name, requester_dept, requester_factory, requester_gender, section_id, section_label, ticket_id, assigned_expert_username, assigned_expert_name, mode, last_message_preview, last_message_at, unread_for_requester, unread_for_staff, updated_at FROM helpdesk_threads WHERE deleted_by_admin=false ORDER BY last_message_at DESC LIMIT 400"
+        ).fetchall()
+        unread_total = 0
+        for tr in thr_rows:
+            t_obj = _hd_thread_json(tr)
+            allowed, is_staff = _hd_can_access_thread(profile, is_adm, t_obj)
+            if not allowed:
+                continue
+            is_own_t = (t_obj["requesterUsername"].casefold() == uname)
+            unread_total += t_obj["unreadForRequester"] if is_own_t else t_obj["unreadForStaff"]
+
+    return jsonify(
+        sections=sections,
+        me={
+            "username": uname,
+            "name": str(profile.get("name") or uname),
+            "isAdmin": is_adm,
+            "canDelete": is_adm,
+            "role": str(profile.get("role") or "User"),
+        },
+        tickets=visible_tickets[:200],
+        visitors=visible_visitors,
+        gatepasses=visible_gatepasses,
+        unreadTotal=unread_total,
+    )
+
+
+@app.get("/api/messages/threads")
+@signed_in
+def list_helpdesk_threads():
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname = str(profile.get("username") or "").strip().casefold()
+    sec_filter = str(request.args.get("section_id") or "").strip().lower()
+    with db() as conn:
+        sections = _helpdesk_section_meta_list(conn)
+        valid_secs = {s["id"] for s in sections}
+        if sec_filter and sec_filter not in ("all", "") and sec_filter in valid_secs:
+            # Ensure caller always has their own 1-to-1 section thread ready to open
+            my_tid = _helpdesk_thread_id(sec_filter, uname)
+            sec_meta = next((s for s in sections if s["id"] == sec_filter), {"id": sec_filter, "label": sec_filter.title()})
+            exps = _helpdesk_section_experts(conn, sec_filter)
+            def_exp_u = exps[0]["username"] if exps else ""
+            def_exp_n = exps[0]["name"] if exps else ""
+            contact = _lookup_requester_contact(conn, uname, profile.get("name", ""))
+            conn.execute(
+                """
+                INSERT INTO helpdesk_threads(
+                  id, requester_username, requester_name, requester_dept, requester_factory, requester_gender,
+                  section_id, section_label, assigned_expert_username, assigned_expert_name, mode,
+                  last_message_preview, deleted_by_admin
+                ) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'bot','Ready to help — ask Bot or Talk to Expert',false)
+                ON CONFLICT(id) DO UPDATE SET deleted_by_admin=false WHERE helpdesk_threads.deleted_by_admin=true
+                """,
+                (
+                    my_tid, uname, str(profile.get("name") or uname)[:120],
+                    str(profile.get("dept") or "")[:120], str(profile.get("site") or "")[:80],
+                    contact["gender"], sec_filter, sec_meta["label"], def_exp_u, def_exp_n,
+                ),
+            )
+        rows = conn.execute(
+            "SELECT id, requester_username, requester_name, requester_dept, requester_factory, requester_gender, section_id, section_label, ticket_id, assigned_expert_username, assigned_expert_name, mode, last_message_preview, last_message_at, unread_for_requester, unread_for_staff, updated_at FROM helpdesk_threads WHERE deleted_by_admin=false ORDER BY last_message_at DESC LIMIT 400"
+        ).fetchall()
+    out = []
+    for row in rows:
+        thr = _hd_thread_json(row)
+        if sec_filter and sec_filter != "all" and thr["sectionId"] != sec_filter:
+            continue
+        allowed, is_staff = _hd_can_access_thread(profile, is_adm, thr)
+        if not allowed:
+            continue
+        is_own = (thr["requesterUsername"].casefold() == uname)
+        thr["isOwn"] = is_own
+        thr["isStaffView"] = bool(is_staff and not is_own)
+        thr["unreadCount"] = thr["unreadForRequester"] if is_own else thr["unreadForStaff"]
+        out.append(thr)
+    return jsonify(threads=out)
+
+
+@app.get("/api/messages/threads/<path:thread_id>")
+@signed_in
+def get_helpdesk_thread_detail(thread_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname = str(profile.get("username") or "").strip().casefold()
+    with db() as conn:
+        trow = conn.execute(
+            "SELECT id, requester_username, requester_name, requester_dept, requester_factory, requester_gender, section_id, section_label, ticket_id, assigned_expert_username, assigned_expert_name, mode, last_message_preview, last_message_at, unread_for_requester, unread_for_staff, updated_at FROM helpdesk_threads WHERE id=%s AND deleted_by_admin=false",
+            (thread_id,),
+        ).fetchone()
+        if not trow:
+            return jsonify(error="Conversation thread not found."), 404
+        thr = _hd_thread_json(trow)
+        allowed, is_staff = _hd_can_access_thread(profile, is_adm, thr)
+        if not allowed:
+            return jsonify(error="Access denied: 1-to-1 conversations are private to the requester and assigned desk."), 403
+        is_own = (thr["requesterUsername"].casefold() == uname)
+        if is_own and thr["unreadForRequester"] > 0:
+            conn.execute("UPDATE helpdesk_threads SET unread_for_requester=0 WHERE id=%s", (thread_id,))
+            thr["unreadForRequester"] = 0
+        elif not is_own and thr["unreadForStaff"] > 0:
+            conn.execute("UPDATE helpdesk_threads SET unread_for_staff=0 WHERE id=%s", (thread_id,))
+            thr["unreadForStaff"] = 0
+        mrows = conn.execute(
+            "SELECT id, thread_id, sender_username, sender_name, sender_role, tagged_ticket_id, body, attachment_url, attachment_name, meta, created_at FROM helpdesk_messages WHERE thread_id=%s ORDER BY created_at ASC LIMIT 300",
+            (thread_id,),
+        ).fetchall()
+        experts = _helpdesk_section_experts(conn, thr["sectionId"])
+        section_tickets = []
+        if thr["sectionId"] not in ("visitor", "gatepass"):
+            tlist = conn.execute(f"SELECT {TICKET_COLUMNS} FROM tickets ORDER BY created_at DESC LIMIT 250").fetchall()
+            for r in tlist:
+                tj = ticket_json(r)
+                if tj["complaintDesk"].casefold() == thr["sectionId"].casefold() and (
+                    tj["username"].casefold() == thr["requesterUsername"].casefold()
+                    or (thr["requesterName"] and tj["name"].casefold() == thr["requesterName"].casefold())
+                ):
+                    section_tickets.append(tj)
+    thr["isOwn"] = is_own
+    thr["isStaffView"] = bool(is_staff and not is_own)
+    thr["unreadCount"] = 0
+    return jsonify(
+        thread=thr,
+        messages=[_hd_msg_json(m) for m in mrows],
+        experts=experts,
+        sectionTickets=section_tickets,
+        canDelete=is_adm,
+    )
+
+
+@app.post("/api/messages/send")
+@signed_in
+def send_helpdesk_message():
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname = str(profile.get("username") or "").strip().casefold()
+    uname_disp = str(profile.get("name") or uname)[:120]
+
+    if request.content_type and "multipart/form-data" in request.content_type.lower():
+        data = request.form
+        up_file = request.files.get("attachment")
+    else:
+        data = request.get_json(silent=True) or {}
+        up_file = None
+
+    thread_id = str(data.get("threadId") or "").strip()
+    section_id = _slug_desk_id(data.get("sectionId") or "it", "it")
+    tagged_ticket_id = str(data.get("taggedTicketId") or "").strip()[:80]
+    body_text = str(data.get("body") or "").strip()[:3000]
+    bot_action = str(data.get("botAction") or "").strip()[:40]
+    talk_to_expert = str(data.get("talkToExpert") or "").lower() in ("1", "true", "yes") or (data.get("talkToExpert") is True)
+    req_expert = str(data.get("expertUsername") or "").strip().casefold()
+
+    try:
+        att_url, att_name = _hd_save_attachment(up_file) if up_file else ("", "")
+    except ValueError as err:
+        return jsonify(error=str(err)), 400
+
+    if not body_text and not att_url and not talk_to_expert and not bot_action:
+        return jsonify(error="Write a message or attach a screenshot first."), 400
+
+    with db() as conn:
+        sections = _helpdesk_section_meta_list(conn)
+        if not thread_id:
+            thread_id = _helpdesk_thread_id(section_id, uname)
+            sec_meta = next((s for s in sections if s["id"] == section_id), {"id": section_id, "label": section_id.title()})
+            contact = _lookup_requester_contact(conn, uname, uname_disp)
+            exps = _helpdesk_section_experts(conn, section_id)
+            chosen_exp = next((e for e in exps if e["username"] == req_expert), None) or (exps[0] if exps else None)
+            conn.execute(
+                """
+                INSERT INTO helpdesk_threads(
+                  id, requester_username, requester_name, requester_dept, requester_factory, requester_gender,
+                  section_id, section_label, ticket_id, assigned_expert_username, assigned_expert_name,
+                  mode, last_message_preview, deleted_by_admin
+                ) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'',false)
+                ON CONFLICT(id) DO UPDATE SET deleted_by_admin=false
+                """,
+                (
+                    thread_id, uname, uname_disp, str(profile.get("dept") or "")[:120],
+                    str(profile.get("site") or "")[:80], contact["gender"],
+                    section_id, sec_meta["label"], tagged_ticket_id,
+                    chosen_exp["username"] if chosen_exp else "",
+                    chosen_exp["name"] if chosen_exp else "",
+                    "expert" if talk_to_expert else "bot",
+                ),
+            )
+
+        trow = conn.execute(
+            "SELECT id, requester_username, requester_name, requester_dept, requester_factory, requester_gender, section_id, section_label, ticket_id, assigned_expert_username, assigned_expert_name, mode, last_message_preview, last_message_at, unread_for_requester, unread_for_staff, updated_at FROM helpdesk_threads WHERE id=%s FOR UPDATE",
+            (thread_id,),
+        ).fetchone()
+        if not trow:
+            return jsonify(error="Thread not found."), 404
+        thr = _hd_thread_json(trow)
+        allowed, is_staff = _hd_can_access_thread(profile, is_adm, thr)
+        if not allowed:
+            return jsonify(error="You cannot message inside another user's private helpdesk thread."), 403
+
+        is_own = (thr["requesterUsername"].casefold() == uname)
+        sender_role = "user" if is_own else "expert"
+        if req_expert:
+            exps = _helpdesk_section_experts(conn, thr["sectionId"])
+            matched_e = next((e for e in exps if e["username"] == req_expert), None)
+            if matched_e:
+                thr["assignedExpertUsername"] = matched_e["username"]
+                thr["assignedExpertName"] = matched_e["name"]
+                conn.execute("UPDATE helpdesk_threads SET assigned_expert_username=%s, assigned_expert_name=%s WHERE id=%s", (matched_e["username"], matched_e["name"], thread_id))
+
+        effective_text = body_text or ("Connected to Helpdesk Expert" if talk_to_expert else (f"[{bot_action}]" if bot_action else att_name))
+        msg_id = "hdm-" + uuid.uuid4().hex[:14]
+        conn.execute(
+            """
+            INSERT INTO helpdesk_messages(
+              id, thread_id, sender_username, sender_name, sender_role, tagged_ticket_id, body, attachment_url, attachment_name
+            ) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """,
+            (msg_id, thread_id, uname, uname_disp, sender_role, tagged_ticket_id, effective_text, att_url, att_name),
+        )
+
+        bot_msg_obj = None
+        if sender_role == "expert":
+            # Staff/Admin replying to requester -> format notification politely & notify ONLY requester
+            contact = _lookup_requester_contact(conn, thr["requesterUsername"], thr["requesterName"], thr["requesterGender"])
+            greeting = f"{_time_salutation(_local_now_dt())} {_gender_honorific(contact['gender'])}, Greetings of the day!"
+            conn.execute(
+                """
+                UPDATE helpdesk_threads
+                SET mode='expert', assigned_expert_username=%s, assigned_expert_name=%s,
+                    ticket_id=CASE WHEN %s<>'' THEN %s ELSE ticket_id END,
+                    last_message_preview=%s, last_message_at=now(),
+                    unread_for_requester=unread_for_requester + 1, unread_for_staff=0, updated_at=now()
+                WHERE id=%s
+                """,
+                (uname, uname_disp, tagged_ticket_id, tagged_ticket_id, f"{uname_disp}: {effective_text}"[:180], thread_id),
+            )
+            _record_notification_event(conn, {
+                "eventKey": f"hd-msg:{msg_id}",
+                "kind": "helpdesk_message",
+                "level": "info",
+                "title": f"💬 Reply from {uname_disp} ({thr['sectionLabel']})",
+                "body": f"{greeting} {uname_disp}: {effective_text}"[:360],
+                "factory": thr["requesterFactory"],
+                "targetView": "messages",
+                "targetTab": thr["sectionId"],
+                "targetId": thread_id,
+                "targetTicketId": tagged_ticket_id or thr["ticketId"],
+                "targetRole": "requester",
+                "targetUsername": thr["requesterUsername"][:80],
+                "requesterName": thr["requesterName"][:120],
+                "complaintDesk": thr["sectionId"],
+            })
+        else:
+            # User sending message -> check Bot vs Talk-to-Expert mode
+            use_expert = (thr["mode"] == "expert") and not bot_action and not talk_to_expert
+            if not use_expert:
+                eff_bot_action = "talk_to_expert" if (talk_to_expert and not bot_action) else bot_action
+                bot_res = _hd_build_bot_reply(conn, thr, body_text, tagged_ticket_id, bot_action=eff_bot_action)
+                bot_id = "hdm-" + uuid.uuid4().hex[:14]
+                b_tag = bot_res.get("taggedTicketId") or tagged_ticket_id
+                conn.execute(
+                    """
+                    INSERT INTO helpdesk_messages(
+                      id, thread_id, sender_username, sender_name, sender_role, tagged_ticket_id, body, meta
+                    ) VALUES(%s,%s,'helpdesk-bot',%s,'bot',%s,%s,%s::jsonb)
+                    """,
+                    (
+                        bot_id, thread_id, f"{thr['sectionLabel']} Assistant", b_tag[:80],
+                        bot_res["reply"][:3000], json.dumps({"canReopen": bool(bot_res.get("canReopen"))}),
+                    ),
+                )
+                new_mode = "expert" if (bot_res.get("switchedToExpert") or thr["mode"] == "expert") else "bot"
+                conn.execute(
+                    """
+                    UPDATE helpdesk_threads
+                    SET mode=%s, ticket_id=CASE WHEN %s<>'' THEN %s ELSE ticket_id END,
+                        last_message_preview=%s, last_message_at=now(),
+                        unread_for_staff=CASE WHEN %s='expert' THEN unread_for_staff + 1 ELSE unread_for_staff END,
+                        updated_at=now()
+                    WHERE id=%s
+                    """,
+                    (new_mode, b_tag, b_tag, bot_res["reply"][:180], new_mode, thread_id),
+                )
+                if bot_res.get("switchedToExpert"):
+                    _record_notification_event(conn, {
+                        "eventKey": f"hd-esc:{msg_id}",
+                        "kind": "helpdesk_message",
+                        "level": "info",
+                        "title": f"👨‍💻 Live Help Requested · {thr['requesterName']} ({thr['sectionLabel']})",
+                        "body": f"{thr['requesterName']} requested Talk to Expert" + (f" ({b_tag})" if b_tag else "") + f": {effective_text}"[:240],
+                        "factory": thr["requesterFactory"],
+                        "targetView": "messages",
+                        "targetTab": thr["sectionId"],
+                        "targetId": thread_id,
+                        "targetTicketId": b_tag,
+                        "targetRole": "expert",
+                        "targetAssignee": bot_res.get("expertUsername") or thr["assignedExpertUsername"],
+                        "complaintDesk": thr["sectionId"],
+                    })
+                bot_msg_obj = {"id": bot_id, "body": bot_res["reply"], "switchedToExpert": bool(bot_res.get("switchedToExpert"))}
+            else:
+                conn.execute(
+                    """
+                    UPDATE helpdesk_threads
+                    SET mode='expert', ticket_id=CASE WHEN %s<>'' THEN %s ELSE ticket_id END,
+                        last_message_preview=%s, last_message_at=now(),
+                        unread_for_staff=unread_for_staff + 1, unread_for_requester=0, updated_at=now()
+                    WHERE id=%s
+                    """,
+                    (tagged_ticket_id, tagged_ticket_id, f"{uname_disp}: {effective_text}"[:180], thread_id),
+                )
+                _record_notification_event(conn, {
+                    "eventKey": f"hd-usr:{msg_id}",
+                    "kind": "helpdesk_message",
+                    "level": "info",
+                    "title": f"💬 {thr['requesterName']} ({thr['sectionLabel']})",
+                    "body": (f"[{tagged_ticket_id}] " if tagged_ticket_id else "") + effective_text[:300],
+                    "factory": thr["requesterFactory"],
+                    "targetView": "messages",
+                    "targetTab": thr["sectionId"],
+                    "targetId": thread_id,
+                    "targetTicketId": tagged_ticket_id or thr["ticketId"],
+                    "targetRole": "expert",
+                    "targetAssignee": thr["assignedExpertUsername"],
+                    "complaintDesk": thr["sectionId"],
+                })
+
+        _pg_emit_notify(conn, "helpdesk_message", {"threadId": thread_id, "sectionId": thr["sectionId"]})
+    return jsonify(ok=True, threadId=thread_id, messageId=msg_id, botReply=bot_msg_obj)
+
+
+@app.post("/api/messages/threads/<path:thread_id>/mode")
+@signed_in
+def switch_helpdesk_thread_mode(thread_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    body = request.get_json(silent=True) or {}
+    mode = "expert" if str(body.get("mode") or "").lower() == "expert" else "bot"
+    with db() as conn:
+        trow = conn.execute(
+            "SELECT id, requester_username, requester_name, requester_dept, requester_factory, requester_gender, section_id, section_label, ticket_id, assigned_expert_username, assigned_expert_name, mode, last_message_preview, last_message_at, unread_for_requester, unread_for_staff, updated_at FROM helpdesk_threads WHERE id=%s AND deleted_by_admin=false",
+            (thread_id,),
+        ).fetchone()
+        if not trow:
+            return jsonify(error="Thread not found."), 404
+        thr = _hd_thread_json(trow)
+        allowed, _ = _hd_can_access_thread(profile, is_adm, thr)
+        if not allowed:
+            return jsonify(error="Access denied."), 403
+        conn.execute("UPDATE helpdesk_threads SET mode=%s, updated_at=now() WHERE id=%s", (mode, thread_id))
+        _pg_emit_notify(conn, "helpdesk_message", {"threadId": thread_id, "mode": mode})
+    return jsonify(ok=True, threadId=thread_id, mode=mode)
+
+
+@app.post("/api/messages/threads/<path:thread_id>/assign-expert")
+@signed_in
+def assign_helpdesk_thread_expert(thread_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname = str(profile.get("username") or "").strip().casefold()
+    uname_disp = str(profile.get("name") or uname)[:120]
+    body = request.get_json(silent=True) or {}
+    expert_uname = str(body.get("expertUsername") or "").strip().casefold()
+    ticket_id = str(body.get("ticketId") or "").strip()
+
+    with db() as conn:
+        trow = conn.execute(
+            "SELECT id, requester_username, requester_name, requester_dept, requester_factory, requester_gender, section_id, section_label, ticket_id, assigned_expert_username, assigned_expert_name, mode, last_message_preview, last_message_at, unread_for_requester, unread_for_staff, updated_at FROM helpdesk_threads WHERE id=%s AND deleted_by_admin=false FOR UPDATE",
+            (thread_id,),
+        ).fetchone()
+        if not trow:
+            return jsonify(error="Thread not found."), 404
+        thr = _hd_thread_json(trow)
+        allowed, _ = _hd_can_access_thread(profile, is_adm, thr)
+        if not allowed:
+            return jsonify(error="Access denied."), 403
+
+        experts = _helpdesk_section_experts(conn, thr["sectionId"])
+        chosen = next((e for e in experts if e["username"] == expert_uname), None)
+        if not chosen:
+            return jsonify(error=f"Selected expert does not handle {thr['sectionLabel']}."), 400
+
+        conn.execute(
+            "UPDATE helpdesk_threads SET assigned_expert_username=%s, assigned_expert_name=%s, mode='expert', ticket_id=CASE WHEN %s<>'' THEN %s ELSE ticket_id END, updated_at=now() WHERE id=%s",
+            (chosen["username"], chosen["name"], ticket_id, ticket_id, thread_id),
+        )
+        msg_text = f"{uname_disp} switched/assigned {chosen['name']} ({thr['sectionLabel']} · {chosen['status']}) for this conversation" + (f" and ticket #{ticket_id}." if ticket_id else ".")
+        msg_id = "hdm-" + uuid.uuid4().hex[:14]
+        conn.execute(
+            "INSERT INTO helpdesk_messages(id, thread_id, sender_username, sender_name, sender_role, tagged_ticket_id, body) VALUES(%s,%s,%s,%s,'system',%s,%s)",
+            (msg_id, thread_id, "helpdesk-auto", f"{thr['sectionLabel']} Routing", ticket_id, msg_text),
+        )
+
+        # If a specific ticket in the same section was selected, allow requester (own ticket) or staff to route it to that expert
+        ticket_routed = False
+        if ticket_id and thr["sectionId"] not in ("visitor", "gatepass"):
+            tk = conn.execute("SELECT id, username, display_name, COALESCE(NULLIF(complaint_desk,''),'it'), status FROM tickets WHERE id=%s FOR UPDATE", (ticket_id,)).fetchone()
+            if tk:
+                is_tk_owner = (uname and str(tk[1] or "").casefold() == uname) or (str(profile.get("name") or "").casefold() == str(tk[2] or "").casefold())
+                can_tk_staff = _helpdesk_caller_can_staff_section(profile, is_adm, tk[3])
+                if is_tk_owner or can_tk_staff:
+                    conn.execute("UPDATE tickets SET assigned_to=%s, updated_at=now() WHERE id=%s", (chosen["name"], ticket_id))
+                    conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'updated',%s)", (ticket_id, uname_disp, f"assigned: {chosen['name']} (via Helpdesk Messages)"))
+                    _build_and_record_ticket_user_notification(conn, ticket_id=ticket_id, event_type="assigned", actor=uname_disp, assigned_to=chosen["name"], status=tk[4])
+                    ticket_routed = True
+
+        _record_notification_event(conn, {
+            "eventKey": f"hd-assign:{msg_id}",
+            "kind": "helpdesk_message",
+            "level": "info",
+            "title": f"🔄 Assigned to {chosen['name']} ({thr['sectionLabel']})",
+            "body": msg_text,
+            "factory": thr["requesterFactory"],
+            "targetView": "messages",
+            "targetTab": thr["sectionId"],
+            "targetId": thread_id,
+            "targetTicketId": ticket_id or thr["ticketId"],
+            "targetRole": "expert",
+            "targetAssignee": chosen["username"],
+            "complaintDesk": thr["sectionId"],
+        })
+        _pg_emit_notify(conn, "helpdesk_message", {"threadId": thread_id})
+    return jsonify(ok=True, assignedExpert=chosen, ticketRouted=ticket_routed)
+
+
+@app.post("/api/messages/tickets/<path:ticket_id>/reopen")
+@signed_in
+def reopen_ticket_from_messages(ticket_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname = str(profile.get("username") or "").strip().casefold()
+    dname = str(profile.get("name") or "").strip().casefold()
+    actor = str(profile.get("name") or uname or "User")[:120]
+    body = request.get_json(silent=True) or {}
+    reason = str(body.get("reason") or "Reopened from Helpdesk Messages").strip()[:400]
+
+    with db() as conn:
+        t_row = conn.execute("SELECT id, username, display_name, COALESCE(NULLIF(complaint_desk,''),'it'), status, assigned_to, factory FROM tickets WHERE id=%s FOR UPDATE", (ticket_id,)).fetchone()
+        if not t_row:
+            return jsonify(error="Ticket not found."), 404
+        is_owner = (uname and str(t_row[1] or "").casefold() == uname) or (dname and str(t_row[2] or "").casefold() == dname)
+        is_staff = _helpdesk_caller_can_staff_section(profile, is_adm, t_row[3])
+        if not is_owner and not is_staff:
+            return jsonify(error="Only the ticket requester or support desk staff can reopen this ticket."), 403
+        conn.execute("UPDATE tickets SET status='Open', note=%s, updated_at=now() WHERE id=%s", (f"[Reopened] {reason}", ticket_id))
+        conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'updated',%s)", (ticket_id, actor, f"status: Open; reason: {reason}"))
+        notif = _build_and_record_ticket_user_notification(conn, ticket_id=ticket_id, event_type="status_change", actor=actor, status="Open", note=f"Ticket reopened: {reason}")
+        req_key = _resolve_ticket_requester_key(conn, t_row[1], t_row[2])
+        thr_id = _helpdesk_thread_id(t_row[3], req_key)
+        _record_notification_event(conn, {
+            "eventKey": f"hd-reopen:{ticket_id}:{uuid.uuid4().hex[:8]}",
+            "kind": "helpdesk_message",
+            "level": "info",
+            "title": f"🔁 Ticket {ticket_id} Reopened by {actor}",
+            "body": f"Reason: {reason}",
+            "factory": t_row[6] or "",
+            "targetView": "messages",
+            "targetTab": t_row[3],
+            "targetId": thr_id,
+            "targetTicketId": ticket_id,
+            "targetRole": "expert",
+            "complaintDesk": t_row[3],
+        })
+        _pg_emit_notify(conn, "ticket", {"action": "reopen", "ticketId": ticket_id, "complaintDesk": t_row[3]})
+    return jsonify(ok=True, ticketId=ticket_id, status="Open", notification=notif)
+
+
+@app.delete("/api/messages/item/<path:msg_id>")
+@administrator
+def admin_delete_helpdesk_message(msg_id):
+    with db() as conn:
+        row = conn.execute("DELETE FROM helpdesk_messages WHERE id=%s RETURNING thread_id", (msg_id,)).fetchone()
+        if not row:
+            return jsonify(error="Message not found."), 404
+        thr_id = row[0]
+        last = conn.execute("SELECT sender_name, body, created_at FROM helpdesk_messages WHERE thread_id=%s ORDER BY created_at DESC LIMIT 1", (thr_id,)).fetchone()
+        preview = f"{last[0]}: {last[1]}"[:180] if last else "Conversation cleared by Administrator"
+        conn.execute("UPDATE helpdesk_threads SET last_message_preview=%s, updated_at=now() WHERE id=%s", (preview, thr_id))
+        _pg_emit_notify(conn, "helpdesk_message", {"threadId": thr_id, "deleted": True})
+    return jsonify(ok=True, deletedId=msg_id, threadId=thr_id)
+
+
+@app.delete("/api/messages/threads/<path:thread_id>")
+@administrator
+def admin_delete_helpdesk_thread(thread_id):
+    with db() as conn:
+        conn.execute("DELETE FROM helpdesk_messages WHERE thread_id=%s", (thread_id,))
+        row = conn.execute("UPDATE helpdesk_threads SET deleted_by_admin=true, last_message_preview='', unread_for_requester=0, unread_for_staff=0, updated_at=now() WHERE id=%s RETURNING id", (thread_id,)).fetchone()
+        if not row:
+            return jsonify(error="Thread not found."), 404
+        _pg_emit_notify(conn, "helpdesk_message", {"threadId": thread_id, "threadDeleted": True})
+    return jsonify(ok=True, deletedThreadId=thread_id)
+
+
+@app.get("/api/messages/attachments/<path:filename>")
+@signed_in
+def serve_helpdesk_attachment(filename):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    clean_name = Path(filename).name
+    if not clean_name or clean_name != filename:
+        abort(404)
+    rel_url = f"/api/messages/attachments/{clean_name}"
+    with db() as conn:
+        row = conn.execute(
+            "SELECT t.id, t.requester_username, t.section_id FROM helpdesk_messages m JOIN helpdesk_threads t ON t.id=m.thread_id WHERE m.attachment_url=%s LIMIT 1",
+            (rel_url,),
+        ).fetchone()
+    if not row:
+        abort(404)
+    allowed, _ = _hd_can_access_thread(profile, is_adm, {"id": row[0], "requesterUsername": row[1], "sectionId": row[2]})
+    if not allowed:
+        abort(403)
+    target = (MSG_UPLOAD_DIR / clean_name).resolve()
+    if not target.is_relative_to(MSG_UPLOAD_DIR.resolve()) or not target.is_file():
+        abort(404)
+    return send_from_directory(str(MSG_UPLOAD_DIR), clean_name, as_attachment=False)
 
 
 init_db()
