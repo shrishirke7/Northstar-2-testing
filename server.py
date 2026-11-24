@@ -4387,7 +4387,7 @@ def get_data():
         out = {k: (conn.execute("SELECT value FROM app_state WHERE key=%s", (k,)).fetchone() or ([],))[0] for k in keys}
         settings_val = out.get("settings") if isinstance(out.get("settings"), dict) else {}
         ticketing_cfg = normalize_ticketing_settings(settings_val)
-        safe_factories = {k: settings_val[k] for k in ("factories", "factoryOrder", "removedFactoryCodes", "factoryTerm", "factoryTermPlural", "assetTypes", "assetSubcategories", "categoryTileHidden", "companyName") if k in settings_val}
+        safe_factories = {k: settings_val[k] for k in ("factories", "factoryOrder", "removedFactoryCodes", "factoryTerm", "factoryTermPlural", "assetTypes", "assetSubcategories", "categoryTileHidden", "companyName", "moduleLabels") if k in settings_val}
         safe_factories.update(ticketing_cfg)
         if session.get("is_admin"):
             if isinstance(out.get("settings"), dict):
@@ -4647,9 +4647,19 @@ def save_data():
                     s_cur_row = conn.execute("SELECT value FROM app_state WHERE key='settings' FOR UPDATE").fetchone()
                     s_cur = dict(s_cur_row[0]) if s_cur_row and isinstance(s_cur_row[0], dict) else {}
                     merged_s = dict(value)
-                    for keep_k in ("portalConfig", "complaintDesks", "showAllDesksOnPortal", "loginBranding", "uiFontFamily", "customFonts"):
+                    for keep_k in ("portalConfig", "complaintDesks", "showAllDesksOnPortal", "loginBranding", "uiFontFamily", "customFonts", "moduleLabels"):
                         if keep_k not in merged_s and keep_k in s_cur:
                             merged_s[keep_k] = s_cur[keep_k]
+                    if "moduleLabels" in merged_s:
+                        raw_ml = merged_s.get("moduleLabels")
+                        clean_ml = {}
+                        if isinstance(raw_ml, dict):
+                            for mk, mv in list(raw_ml.items())[:60]:
+                                k_str = re.sub(r"[^a-zA-Z0-9_-]+", "", str(mk or ""))[:40]
+                                v_str = re.sub(r"\s+", " ", str(mv or "")).strip()[:60]
+                                if k_str and v_str:
+                                    clean_ml[k_str] = v_str
+                        merged_s["moduleLabels"] = clean_ml
                     # Never let stale client localStorage overwrite saved login slideshow/logo assets
                     cur_lb = s_cur.get("loginBranding")
                     if isinstance(cur_lb, dict) and (cur_lb.get("slides") or cur_lb.get("logoUrl")):
@@ -10261,7 +10271,7 @@ def _hd_find_tagged_or_latest_ticket(conn, requester_username, requester_name, s
     return None
 
 
-def _hd_build_bot_reply(conn, thr, user_text, tagged_ticket_id, bot_action=""):
+def _hd_build_bot_reply(conn, thr, user_text, tagged_ticket_id, bot_action="", req_expert=""):
     sec = str(thr.get("sectionId") or "it").lower()
     sec_label = str(thr.get("sectionLabel") or sec.title())
     req_uname = str(thr.get("requesterUsername") or "")
@@ -10275,8 +10285,12 @@ def _hd_build_bot_reply(conn, thr, user_text, tagged_ticket_id, bot_action=""):
     if bot_action == "talk_to_expert" or any(kw in low for kw in ("talk to expert", "connect expert", "human", "agent", "speak with", "call me", "real person", "escalate", "expert se")):
         experts = _helpdesk_section_experts(conn, sec)
         chosen = None
-        if thr.get("assignedExpertUsername"):
-            chosen = next((e for e in experts if e["username"] == thr["assignedExpertUsername"]), None)
+        if req_expert:
+            req_cf = str(req_expert).strip().casefold()
+            chosen = next((e for e in experts if str(e["username"] or "").strip().casefold() == req_cf), None)
+        if not chosen and thr.get("assignedExpertUsername"):
+            thr_cf = str(thr["assignedExpertUsername"] or "").strip().casefold()
+            chosen = next((e for e in experts if str(e["username"] or "").strip().casefold() == thr_cf), None)
         if not chosen and experts:
             chosen = experts[0]
         exp_uname = chosen["username"] if chosen else ""
@@ -10591,7 +10605,10 @@ def send_helpdesk_message():
                   section_id, section_label, ticket_id, assigned_expert_username, assigned_expert_name,
                   mode, last_message_preview, deleted_by_admin
                 ) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'',false)
-                ON CONFLICT(id) DO UPDATE SET deleted_by_admin=false
+                ON CONFLICT(id) DO UPDATE SET
+                  deleted_by_admin=false,
+                  assigned_expert_username=CASE WHEN excluded.assigned_expert_username<>'' AND %s<>'' THEN excluded.assigned_expert_username ELSE helpdesk_threads.assigned_expert_username END,
+                  assigned_expert_name=CASE WHEN excluded.assigned_expert_name<>'' AND %s<>'' THEN excluded.assigned_expert_name ELSE helpdesk_threads.assigned_expert_name END
                 """,
                 (
                     thread_id, uname, uname_disp, str(profile.get("dept") or "")[:120],
@@ -10600,6 +10617,8 @@ def send_helpdesk_message():
                     chosen_exp["username"] if chosen_exp else "",
                     chosen_exp["name"] if chosen_exp else "",
                     "expert" if talk_to_expert else "bot",
+                    req_expert,
+                    req_expert,
                 ),
             )
 
@@ -10618,7 +10637,7 @@ def send_helpdesk_message():
         sender_role = "user" if is_own else "expert"
         if req_expert:
             exps = _helpdesk_section_experts(conn, thr["sectionId"])
-            matched_e = next((e for e in exps if e["username"] == req_expert), None)
+            matched_e = next((e for e in exps if str(e["username"] or "").strip().casefold() == req_expert), None)
             if matched_e:
                 thr["assignedExpertUsername"] = matched_e["username"]
                 thr["assignedExpertName"] = matched_e["name"]
@@ -10672,7 +10691,7 @@ def send_helpdesk_message():
             use_expert = (thr["mode"] == "expert") and not bot_action and not talk_to_expert
             if not use_expert:
                 eff_bot_action = "talk_to_expert" if (talk_to_expert and not bot_action) else bot_action
-                bot_res = _hd_build_bot_reply(conn, thr, body_text, tagged_ticket_id, bot_action=eff_bot_action)
+                bot_res = _hd_build_bot_reply(conn, thr, body_text, tagged_ticket_id, bot_action=eff_bot_action, req_expert=req_expert)
                 bot_id = "hdm-" + uuid.uuid4().hex[:14]
                 b_tag = bot_res.get("taggedTicketId") or tagged_ticket_id
                 conn.execute(
