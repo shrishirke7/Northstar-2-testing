@@ -147,6 +147,7 @@ MODULE_DATA_KEYS = {
 }
 MODULE_API_PATHS = {
     "/api/invoices": "billing", "/api/tickets": "tickets",
+    "/api/assets": "assets",
     "/api/visitors": "visitors", "/api/gate-passes": "gatepass",
     "/api/firmware-backups": "firmware", "/api/vault": "credentials",
     "/api/camera-profiles": "surveillance", "/api/camera-streams": "surveillance",
@@ -528,7 +529,13 @@ def enforce_module_access():
     if path == "/api/backups" or path.startswith("/api/backups/"):
         return jsonify(error="Administrator access is required."), 403
     if path.startswith("/api/invoices") and not is_write:
-        if any(module_access(profile, m) for m in ("billing", "valuation", "departments", "reports")):
+        if any(module_access(profile, m) for m in ("billing", "valuation", "departments", "reports", "assets", "data_center", "surveillance", "overview")):
+            return None
+    if path.startswith("/api/invoices") and method in ("POST", "PUT"):
+        if module_access(profile, "billing", write=True) or module_access(profile, "assets", write=True):
+            return None
+    if path.startswith("/api/assets/") and "/files/" in path and not is_write:
+        if any(module_access(profile, m) for m in ("assets", "data_center", "surveillance", "overview", "maintenance", "billing", "reports")):
             return None
     if path.startswith(("/api/camera-streams", "/api/camera-profiles", "/api/cctv-media-auth")):
         if module_access(profile, "surveillance", write=is_write) or module_access(profile, "data_center", write=is_write):
@@ -4708,6 +4715,8 @@ TICKET_COLUMNS = "id,kind,username,display_name,department,factory,client_ip,pri
 
 INVOICE_UPLOAD_DIR = UPLOAD_DIR / "invoices"
 INVOICE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+ASSET_UPLOAD_DIR = UPLOAD_DIR / "assets"
+ASSET_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 INVOICE_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".heic", ".heif", ".avif", ".tif", ".tiff", ".svg", ".doc", ".docx", ".docm", ".xls", ".xlsx", ".xlsm", ".ppt", ".pptx", ".pptm", ".odt", ".ods", ".odp", ".rtf", ".txt", ".csv", ".pages", ".numbers", ".key"}
 
 
@@ -4760,6 +4769,7 @@ def _compute_invoice_diff(old_rec, new_rec, added_files_names=None):
         ("department", "Department"),
         ("user", "Assigned User"),
         ("status", "Payment Status"),
+        ("assetTag", "Linked Asset"),
         ("subtotal", "Subtotal"),
         ("gst", "GST"),
         ("total", "Total"),
@@ -4785,8 +4795,15 @@ def _compute_invoice_diff(old_rec, new_rec, added_files_names=None):
 
 
 def save_invoice_request(invoice_id=None):
-    if not session.get("is_admin") and not module_access(session.get("profile", {}), "billing", write=True):
-        abort(403)
+    profile_chk = session.get("profile", {})
+    if not session.get("is_admin") and not module_access(profile_chk, "billing", write=True):
+        # Allow asset managers to create/link purchase invoices while adding/editing assets
+        try:
+            _p_preview = json.loads(request.form.get("invoice", "{}") or "{}")
+        except (TypeError, ValueError):
+            _p_preview = {}
+        if not (isinstance(_p_preview, dict) and (_p_preview.get("assetTag") or _p_preview.get("assetTags")) and module_access(profile_chk, "assets", write=True)):
+            abort(403)
     try:
         payload = json.loads(request.form.get("invoice", "{}"))
     except (TypeError, ValueError):
@@ -4943,6 +4960,7 @@ def invoice_attachment(invoice_id, filename):
         mimetype=inline_mime,
     )
     response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
     return response
 
 
@@ -4959,6 +4977,155 @@ def delete_invoice(invoice_id):
         conn.execute("INSERT INTO app_state(key,value) VALUES('invoices',%s) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value", (json.dumps(kept),))
     shutil.rmtree(INVOICE_UPLOAD_DIR / invoice_id, ignore_errors=True)
     return jsonify(ok=True)
+
+
+def _safe_asset_dir_key(asset_tag):
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", str(asset_tag or "").strip())[:80]
+    return cleaned.strip("._") or "asset"
+
+
+def _validate_media_upload(upload):
+    ext = Path(secure_filename(upload.filename)).suffix.lower()
+    if ext not in INVOICE_EXTENSIONS:
+        raise ValueError("Unsupported file format.")
+    data = upload.stream.read(10 * 1024 * 1024 + 1)
+    if not data or len(data) > 10 * 1024 * 1024:
+        raise ValueError("Each file must be 10 MB or smaller.")
+    if ext == ".pdf" and not data.startswith(b"%PDF-"):
+        raise ValueError("The PDF file is invalid.")
+    if ext in (".jpg", ".jpeg") and not data.startswith(b"\xff\xd8\xff"):
+        raise ValueError("The JPEG image is invalid.")
+    if ext == ".png" and not data.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise ValueError("The PNG image is invalid.")
+    if ext == ".webp" and not (data.startswith(b"RIFF") and data[8:12] == b"WEBP"):
+        raise ValueError("The WebP image is invalid.")
+    safe_name = secure_filename(upload.filename)[:150] or ("asset-photo" + ext)
+    return safe_name, ext, data, (upload.mimetype or "application/octet-stream")
+
+
+@app.post("/api/assets/<path:asset_tag>/files")
+@signed_in
+def upload_asset_files(asset_tag):
+    profile = session.get("profile") or {}
+    if not session.get("is_admin") and not module_access(profile, "assets", write=True):
+        abort(403)
+    files = [f for f in request.files.getlist("files") if f and f.filename]
+    if not files:
+        return jsonify(error="Select at least one image or file to upload."), 400
+    if len(files) > 5:
+        return jsonify(error="Upload up to 5 files per asset."), 400
+    dir_key = _safe_asset_dir_key(asset_tag)
+    validated = []
+    try:
+        for f in files:
+            validated.append(_validate_media_upload(f))
+    except ValueError as err:
+        return jsonify(error=str(err)), 400
+
+    with db() as conn:
+        arow = conn.execute("SELECT value FROM app_state WHERE key='assets' FOR UPDATE").fetchone()
+        asset_list = list(arow[0]) if arow and isinstance(arow[0], list) else []
+        target_asset = next((a for a in asset_list if isinstance(a, dict) and str(a.get("tag") or "").strip().lower() == str(asset_tag or "").strip().lower()), None)
+        existing_photos = list(target_asset.get("photos") or []) if target_asset else []
+        if len(existing_photos) + len(validated) > 5:
+            return jsonify(error="Each asset can keep up to 5 photos/files total."), 400
+        folder = (ASSET_UPLOAD_DIR / dir_key).resolve()
+        if not folder.is_relative_to(ASSET_UPLOAD_DIR.resolve()):
+            abort(400)
+        folder.mkdir(parents=True, exist_ok=True)
+        added = []
+        for safe_name, ext, data, mime_type in validated:
+            stored = uuid.uuid4().hex + ext
+            (folder / stored).write_bytes(data)
+            added.append({
+                "name": safe_name,
+                "file": stored,
+                "size": len(data),
+                "type": mime_type,
+                "dirKey": dir_key,
+                "uploadedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            })
+        merged_photos = existing_photos + added
+        if target_asset is not None:
+            target_asset["photos"] = merged_photos
+            conn.execute(
+                "INSERT INTO app_state(key,value) VALUES('assets',%s) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_at=now()",
+                (json.dumps(asset_list),),
+            )
+    return jsonify(ok=True, photos=merged_photos, added=added), 201
+
+
+@app.get("/api/assets/<path:asset_tag>/files/<path:filename>")
+@signed_in
+def get_asset_file(asset_tag, filename):
+    profile = session.get("profile") or {}
+    if not session.get("is_admin") and not any(module_access(profile, m) for m in ("assets", "data_center", "surveillance", "overview", "maintenance", "billing", "reports")):
+        abort(403)
+    dir_key = _safe_asset_dir_key(asset_tag)
+    base = (ASSET_UPLOAD_DIR / dir_key).resolve()
+    clean_name = Path(filename).name
+    target = (base / clean_name).resolve()
+    if not base.is_relative_to(ASSET_UPLOAD_DIR.resolve()) or not target.is_relative_to(base) or not target.is_file():
+        abort(404)
+    inline_types = {
+        ".pdf": "application/pdf",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".avif": "image/avif",
+        ".svg": "image/svg+xml",
+        ".tif": "image/tiff",
+        ".tiff": "image/tiff",
+        ".heic": "image/heic",
+        ".heif": "image/heif",
+    }
+    ext = Path(clean_name).suffix.lower()
+    inline_mime = inline_types.get(ext)
+    response = send_from_directory(
+        base,
+        clean_name,
+        as_attachment=inline_mime is None,
+        download_name=clean_name,
+        mimetype=inline_mime,
+    )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    if ext == ".svg":
+        response.headers["Content-Security-Policy"] = "sandbox"
+    return response
+
+
+@app.delete("/api/assets/<path:asset_tag>/files/<path:filename>")
+@signed_in
+def delete_asset_file(asset_tag, filename):
+    profile = session.get("profile") or {}
+    if not session.get("is_admin") and not module_access(profile, "assets", write=True):
+        abort(403)
+    dir_key = _safe_asset_dir_key(asset_tag)
+    base = (ASSET_UPLOAD_DIR / dir_key).resolve()
+    clean_name = Path(filename).name
+    target = (base / clean_name).resolve()
+    if not base.is_relative_to(ASSET_UPLOAD_DIR.resolve()) or not target.is_relative_to(base):
+        abort(400)
+    if target.is_file():
+        target.unlink()
+    remaining_photos = None
+    with db() as conn:
+        arow = conn.execute("SELECT value FROM app_state WHERE key='assets' FOR UPDATE").fetchone()
+        if arow and isinstance(arow[0], list):
+            asset_list = list(arow[0])
+            target_asset = next((a for a in asset_list if isinstance(a, dict) and str(a.get("tag") or "").strip().lower() == str(asset_tag or "").strip().lower()), None)
+            if target_asset and isinstance(target_asset.get("photos"), list):
+                target_asset["photos"] = [p for p in target_asset["photos"] if str(p.get("file") or "") != clean_name]
+                remaining_photos = target_asset["photos"]
+                conn.execute(
+                    "INSERT INTO app_state(key,value) VALUES('assets',%s) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_at=now()",
+                    (json.dumps(asset_list),),
+                )
+    return jsonify(ok=True, photos=remaining_photos if remaining_photos is not None else [])
 
 
 @app.get("/api/tickets")
