@@ -519,7 +519,7 @@ def enforce_module_access():
         "/api/notifications/silent", "/api/notifications/history", "/api/notifications/history/read",
         "/api/speedtest/ping", "/api/speedtest/download", "/api/speedtest/upload",
         "/api/network/speedtest", "/api/network/speedtest/run", "/api/network/speedtest/settings",
-    ) or (path == "/api/notifications/sounds" and method == "GET") or (path in ("/api/tickets/admin-presence", "/api/tickets/user-notifications") and method == "GET") or (path == "/api/tickets" and method in ("GET", "POST")) or (path.startswith("/api/tickets/") and (path.endswith("/worklog") or "/attachments/" in path) and method == "GET") or path == "/api/messages" or path.startswith("/api/messages/") or path.startswith("/api/recovery/"):
+    ) or (path == "/api/notifications/sounds" and method == "GET") or (path in ("/api/tickets/admin-presence", "/api/tickets/user-notifications", "/api/tickets/status-reminders") and method == "GET") or (path == "/api/tickets/status-reminders/me" and method in ("GET", "PUT")) or (path == "/api/tickets/status-reminders/check" and method in ("GET", "POST")) or (path == "/api/tickets" and method in ("GET", "POST")) or (path.startswith("/api/tickets/") and (path.endswith("/worklog") or "/attachments/" in path) and method == "GET") or path == "/api/messages" or path.startswith("/api/messages/") or path.startswith("/api/recovery/"):
         return None
     is_write = method in ("POST", "PUT", "PATCH", "DELETE")
     module = next((value for prefix, value in MODULE_API_PATHS.items() if path == prefix or path.startswith(prefix + "/")), None)
@@ -2335,6 +2335,10 @@ def get_notification_history():
                 can_sec = _helpdesk_caller_can_staff_section(who, is_adm, sec_id)
                 if not is_adm and not (uname_cf and ev_exp and ev_exp == uname_cf) and not can_sec:
                     continue
+        elif ev_kind == "ticket_reminder":
+            ev_user = str(ev.get("targetUsername") or "").strip().casefold()
+            if not ev_user or ev_user != uname_cf:
+                continue
         elif ev_kind in ("ticket", "material_request"):
             ev_user = str(ev.get("targetUsername") or "").strip().casefold()
             ev_req = str(ev.get("requesterName") or "").strip().casefold()
@@ -5904,6 +5908,722 @@ def update_portal_config():
     return jsonify(ok=True, portalConfig=normalized["portalConfig"])
 
 
+# =============================================================================
+# DYNAMIC TICKET STATUS UPDATE REMINDERS (ORG / DESK / CATEGORY / PER-USER)
+# =============================================================================
+TICKET_REMINDER_STATUSES = ("Open", "In progress", "Resolved")
+
+DEFAULT_TICKET_REMINDER_STATUSES = {
+    "Open": {
+        "enabled": True,
+        "initialDelayMinutes": 60,
+        "repeatEveryMinutes": 60,
+        "maxReminders": 0,
+        "message": "Please update status on {ticket_id} ({status}) — {category}: {summary}",
+    },
+    "In progress": {
+        "enabled": True,
+        "initialDelayMinutes": 60,
+        "repeatEveryMinutes": 60,
+        "maxReminders": 0,
+        "message": "Please update progress / status on {ticket_id} ({status}) — {category}: {summary}",
+    },
+    "Resolved": {
+        "enabled": True,
+        "initialDelayMinutes": 60,
+        "repeatEveryMinutes": 60,
+        "maxReminders": 0,
+        "message": "Please verify & close {ticket_id} ({status}) — {category}: {summary}",
+    },
+}
+
+
+def _format_elapsed_duration(seconds):
+    try:
+        secs = max(0, int(round(float(seconds or 0))))
+    except (TypeError, ValueError):
+        secs = 0
+    if secs < 5:
+        return "under 1 min"
+    if secs < 60:
+        return f"{secs} sec" + ("" if secs == 1 else "s")
+    mins_total = secs // 60
+    if mins_total < 60:
+        return f"{mins_total} min" + ("" if mins_total == 1 else "s")
+    hrs_total = mins_total // 60
+    rem_mins = mins_total % 60
+    if hrs_total < 24:
+        h_txt = f"{hrs_total} hr" + ("" if hrs_total == 1 else "s")
+        return f"{h_txt} {rem_mins} min" + ("" if rem_mins == 1 else "s") if rem_mins else h_txt
+    days = hrs_total // 24
+    rem_hrs = hrs_total % 24
+    d_txt = f"{days} day" + ("" if days == 1 else "s")
+    if rem_hrs:
+        h_txt = f"{rem_hrs} hr" + ("" if rem_hrs == 1 else "s")
+        return f"{d_txt} {h_txt}"
+    return d_txt
+
+
+def _clamp_int(val, default, lo, hi):
+    try:
+        n = int(float(val))
+    except (TypeError, ValueError):
+        return default
+    return max(lo, min(hi, n))
+
+
+def _clean_username_list(raw):
+    if not isinstance(raw, list):
+        return []
+    out = []
+    seen = set()
+    for item in raw[:60]:
+        u = str(item or "").strip().casefold()[:80]
+        if u and u not in seen:
+            seen.add(u)
+            out.append(u)
+    return out
+
+
+def _normalize_reminder_status_cfg(raw, fallback):
+    src = raw if isinstance(raw, dict) else {}
+    fb = fallback if isinstance(fallback, dict) else DEFAULT_TICKET_REMINDER_STATUSES["Open"]
+    msg = str(src.get("message") if "message" in src else fb.get("message") or "").strip()[:240]
+    if not msg:
+        msg = str(fb.get("message") or "Please update status on {ticket_id} ({status})")[:240]
+    return {
+        "enabled": bool(src.get("enabled", fb.get("enabled", True))),
+        "initialDelayMinutes": _clamp_int(
+            src.get("initialDelayMinutes", fb.get("initialDelayMinutes", 60)),
+            int(fb.get("initialDelayMinutes", 60)),
+            1,
+            10080,
+        ),
+        "repeatEveryMinutes": _clamp_int(
+            src.get("repeatEveryMinutes", fb.get("repeatEveryMinutes", 60)),
+            int(fb.get("repeatEveryMinutes", 60)),
+            1,
+            10080,
+        ),
+        "maxReminders": _clamp_int(
+            src.get("maxReminders", fb.get("maxReminders", 0)),
+            int(fb.get("maxReminders", 0)),
+            0,
+            200,
+        ),
+        "message": msg,
+    }
+
+
+def _normalize_reminder_statuses_map(raw, fallback_map=None):
+    src = raw if isinstance(raw, dict) else {}
+    fb = fallback_map if isinstance(fallback_map, dict) else DEFAULT_TICKET_REMINDER_STATUSES
+    return {
+        st: _normalize_reminder_status_cfg(src.get(st), fb.get(st, DEFAULT_TICKET_REMINDER_STATUSES[st]))
+        for st in TICKET_REMINDER_STATUSES
+    }
+
+
+def _normalize_user_reminder_pref(raw, fallback_statuses=None):
+    src = raw if isinstance(raw, dict) else {}
+    scope = str(src.get("scope") or "desk").strip().lower()
+    if scope not in ("assigned", "desk", "all"):
+        scope = "desk"
+    return {
+        "enabled": bool(src.get("enabled", True)),
+        "useCustom": bool(src.get("useCustom", False)),
+        "scope": scope,
+        "statuses": _normalize_reminder_statuses_map(src.get("statuses"), fallback_statuses or DEFAULT_TICKET_REMINDER_STATUSES),
+        "updatedAt": str(src.get("updatedAt") or "")[:40],
+    }
+
+
+def normalize_ticket_status_reminders(raw):
+    src = raw if isinstance(raw, dict) else {}
+    raw_global = src.get("globalDefaults") if isinstance(src.get("globalDefaults"), dict) else {}
+    global_statuses = _normalize_reminder_statuses_map(raw_global.get("statuses"), DEFAULT_TICKET_REMINDER_STATUSES)
+    global_defaults = {
+        "enabled": bool(raw_global.get("enabled", True)),
+        "notifyAssignee": bool(raw_global.get("notifyAssignee", True)),
+        "notifyDeskTeam": bool(raw_global.get("notifyDeskTeam", True)),
+        "statuses": global_statuses,
+    }
+
+    raw_desks = src.get("deskRules") if isinstance(src.get("deskRules"), dict) else {}
+    clean_desks = {}
+    for dk, dv in list(raw_desks.items())[:40]:
+        if not isinstance(dv, dict):
+            continue
+        did = _slug_desk_id(dk, fallback="")
+        if not did:
+            continue
+        clean_desks[did] = {
+            "enabled": bool(dv.get("enabled", True)),
+            "overrideTiming": bool(dv.get("overrideTiming", False)),
+            "notifyAssignee": bool(dv.get("notifyAssignee", global_defaults["notifyAssignee"])),
+            "notifyDeskTeam": bool(dv.get("notifyDeskTeam", global_defaults["notifyDeskTeam"])),
+            "extraRecipients": _clean_username_list(dv.get("extraRecipients") or dv.get("recipients")),
+            "statuses": _normalize_reminder_statuses_map(dv.get("statuses"), global_statuses),
+        }
+
+    raw_cat_rules = src.get("categoryRules") if isinstance(src.get("categoryRules"), list) else []
+    clean_cat_rules = []
+    seen_ids = set()
+    for idx, cr in enumerate(raw_cat_rules[:120]):
+        if not isinstance(cr, dict):
+            continue
+        did = _slug_desk_id(cr.get("deskId") or "it", fallback="it")
+        cid = str(cr.get("id") or f"tkr-{did}-{idx + 1}").strip()[:64]
+        if cid in seen_ids:
+            cid = f"{cid}-{idx + 1}"[:64]
+        seen_ids.add(cid)
+        pcat = str(cr.get("primaryCategory") or "").strip()[:120]
+        scat = str(cr.get("subCategory") or "").strip()[:120]
+        label = str(cr.get("label") or "").strip()[:120]
+        clean_cat_rules.append({
+            "id": cid,
+            "deskId": did,
+            "primaryCategory": pcat,
+            "subCategory": scat,
+            "label": label,
+            "enabled": bool(cr.get("enabled", True)),
+            "overrideTiming": bool(cr.get("overrideTiming", True)),
+            "notifyAssignee": bool(cr.get("notifyAssignee", True)),
+            "notifyDeskTeam": bool(cr.get("notifyDeskTeam", False)),
+            "recipients": _clean_username_list(cr.get("recipients")),
+            "statuses": _normalize_reminder_statuses_map(cr.get("statuses"), global_statuses),
+        })
+
+    raw_users = src.get("userOverrides") if isinstance(src.get("userOverrides"), dict) else {}
+    clean_users = {}
+    for uk, uv in list(raw_users.items())[:500]:
+        u_cf = str(uk or "").strip().casefold()[:80]
+        if not u_cf or not isinstance(uv, dict):
+            continue
+        clean_users[u_cf] = _normalize_user_reminder_pref(uv, global_statuses)
+
+    return {
+        "globalDefaults": global_defaults,
+        "deskRules": clean_desks,
+        "categoryRules": clean_cat_rules,
+        "userOverrides": clean_users,
+        "updatedAt": str(src.get("updatedAt") or "")[:40],
+    }
+
+
+def _normalize_reminder_state_doc(raw):
+    src = raw if isinstance(raw, dict) else {}
+    sent = src.get("sent") if isinstance(src.get("sent"), dict) else {}
+    entered = src.get("statusEnteredAt") if isinstance(src.get("statusEnteredAt"), dict) else {}
+    return {"sent": dict(sent), "statusEnteredAt": dict(entered)}
+
+
+def _on_ticket_status_changed(conn, ticket_id, new_status):
+    tid = str(ticket_id or "").strip()
+    if not tid:
+        return
+    try:
+        row = conn.execute("SELECT value FROM app_state WHERE key='ticket_reminder_state' FOR UPDATE").fetchone()
+        st_doc = _normalize_reminder_state_doc(row[0] if row else {})
+        now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        prefix = tid + "|"
+        if new_status == "Closed":
+            st_doc["statusEnteredAt"].pop(tid, None)
+            st_doc["sent"] = {k: v for k, v in st_doc["sent"].items() if not str(k).startswith(prefix)}
+        else:
+            st_doc["statusEnteredAt"][tid] = {"status": str(new_status or "Open"), "at": now_iso}
+            keep_prefix = f"{tid}|{new_status}|"
+            st_doc["sent"] = {
+                k: v for k, v in st_doc["sent"].items()
+                if (not str(k).startswith(prefix)) or str(k).startswith(keep_prefix)
+            }
+        # Trim oldest entries if map ever grows very large
+        if len(st_doc["sent"]) > 4000:
+            items = sorted(st_doc["sent"].items(), key=lambda kv: str((kv[1] or {}).get("lastSentAt") or ""), reverse=True)[:3000]
+            st_doc["sent"] = dict(items)
+        conn.execute(
+            "INSERT INTO app_state(key,value) VALUES('ticket_reminder_state',%s::jsonb) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+            (json.dumps(st_doc),),
+        )
+    except Exception:
+        pass
+
+
+def _parse_utc_dt(val):
+    if isinstance(val, datetime):
+        return val if val.tzinfo else val.replace(tzinfo=timezone.utc)
+    s = str(val or "").strip()
+    if not s:
+        return None
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def _resolve_ticket_reminder_rule(cfg, desk_id, primary_cat, sub_cat):
+    gd = cfg["globalDefaults"]
+    did = _slug_desk_id(desk_id or "it", fallback="it")
+    p_cf = str(primary_cat or "").strip().casefold()
+    s_cf = str(sub_cat or "").strip().casefold()
+
+    eff = {
+        "enabled": bool(gd.get("enabled", True)),
+        "notifyAssignee": bool(gd.get("notifyAssignee", True)),
+        "notifyDeskTeam": bool(gd.get("notifyDeskTeam", True)),
+        "recipients": [],
+        "statuses": json.loads(json.dumps(gd["statuses"])),
+        "matchedRuleId": "",
+        "matchedRuleLabel": "",
+    }
+
+    desk_rule = (cfg.get("deskRules") or {}).get(did)
+    if isinstance(desk_rule, dict):
+        eff["enabled"] = bool(desk_rule.get("enabled", True))
+        eff["notifyAssignee"] = bool(desk_rule.get("notifyAssignee", eff["notifyAssignee"]))
+        eff["notifyDeskTeam"] = bool(desk_rule.get("notifyDeskTeam", eff["notifyDeskTeam"]))
+        eff["recipients"] = list(desk_rule.get("extraRecipients") or [])
+        if desk_rule.get("overrideTiming"):
+            eff["statuses"] = json.loads(json.dumps(desk_rule["statuses"]))
+
+    best = None
+    best_score = -1
+    for cr in (cfg.get("categoryRules") or []):
+        if _slug_desk_id(cr.get("deskId") or "it", fallback="it") != did:
+            continue
+        cr_p = str(cr.get("primaryCategory") or "").strip().casefold()
+        cr_s = str(cr.get("subCategory") or "").strip().casefold()
+        if cr_p and cr_p != p_cf:
+            continue
+        if cr_s and cr_s != s_cf:
+            continue
+        score = (2 if cr_p else 0) + (4 if cr_s else 0)
+        if score > best_score:
+            best_score = score
+            best = cr
+
+    if isinstance(best, dict):
+        eff["enabled"] = bool(best.get("enabled", True))
+        eff["notifyAssignee"] = bool(best.get("notifyAssignee", eff["notifyAssignee"]))
+        eff["notifyDeskTeam"] = bool(best.get("notifyDeskTeam", eff["notifyDeskTeam"]))
+        merged_recs = list(eff["recipients"])
+        for u in (best.get("recipients") or []):
+            if u not in merged_recs:
+                merged_recs.append(u)
+        eff["recipients"] = merged_recs
+        if best.get("overrideTiming", True):
+            eff["statuses"] = json.loads(json.dumps(best["statuses"]))
+        eff["matchedRuleId"] = str(best.get("id") or "")
+        eff["matchedRuleLabel"] = str(best.get("label") or best.get("subCategory") or best.get("primaryCategory") or "")
+
+    return eff
+
+
+def _user_is_active_staff(u):
+    if not isinstance(u, dict):
+        return False
+    if u.get("active") is False:
+        return False
+    emp = str(u.get("employment") or "Active").strip().lower()
+    return emp != "inactive"
+
+
+def _resolve_ticket_reminder_recipients(ticket_info, rule, users, desk_name_map):
+    desk_id = _slug_desk_id(ticket_info.get("complaintDesk") or "it", fallback="it")
+    desk_name_cf = str(desk_name_map.get(desk_id) or desk_id).strip().casefold()
+    assigned_raw = str(ticket_info.get("assigned") or "").strip()
+    assigned_cf = assigned_raw.casefold() if assigned_raw and assigned_raw.lower() != "unassigned" else ""
+    req_u_cf = str(ticket_info.get("username") or "").strip().casefold()
+
+    active_users = [u for u in (users or []) if _user_is_active_staff(u) and str(u.get("username") or "").strip()]
+    by_uname = {str(u.get("username") or "").strip().casefold(): u for u in active_users}
+
+    recipients = {}  # uname_cf -> role tag ("assignee" | "explicit" | "desk")
+
+    # 1. Assigned user currently working on the ticket
+    assignee_uname = ""
+    if assigned_cf:
+        if assigned_cf in by_uname:
+            assignee_uname = assigned_cf
+        else:
+            for u_cf, u in by_uname.items():
+                if str(u.get("name") or "").strip().casefold() == assigned_cf or str(u.get("id") or "").strip().casefold() == assigned_cf:
+                    assignee_uname = u_cf
+                    break
+        if assignee_uname and rule.get("notifyAssignee", True):
+            recipients[assignee_uname] = "assignee"
+
+    # 2. Explicit category/desk recipients
+    for u_cf in (rule.get("recipients") or []):
+        if u_cf in by_uname:
+            recipients.setdefault(u_cf, "explicit")
+
+    # 3. Department / desk team members
+    if rule.get("notifyDeskTeam", True):
+        for u_cf, u in by_uname.items():
+            if u_cf == req_u_cf and u_cf != assignee_uname:
+                # Avoid nagging a regular requester unless they are also desk staff
+                pass
+            role_val = str(u.get("role") or "")
+            u_desks = u.get("allowed_complaint_desks")
+            has_explicit_desks = isinstance(u_desks, list) and len(u_desks) > 0
+            u_desk_slugs = {_slug_desk_id(x, fallback="") for x in (u_desks or []) if str(x or "").strip() and str(x).strip() != "*"}
+            has_wildcard_desk = isinstance(u_desks, list) and any(str(x).strip() == "*" for x in u_desks)
+            u_dept_cf = str(u.get("dept") or u.get("department") or "").strip().casefold()
+            dept_matches = bool(u_dept_cf and (u_dept_cf == desk_id or u_dept_cf == desk_name_cf))
+
+            is_team = False
+            if has_explicit_desks:
+                is_team = has_wildcard_desk or (desk_id in u_desk_slugs)
+            elif role_val == "Administrator":
+                is_team = True
+            elif role_val == "IT Ticketing" and desk_id == "it":
+                is_team = True
+            elif module_access(u, "tickets", write=True) and ticket_desk_allowed(u, desk_id):
+                is_team = True
+            elif dept_matches and (module_access(u, "tickets") or role_val in ("IT Ticketing", "Technician", "Staff", "Manager")):
+                is_team = True
+            if is_team:
+                recipients.setdefault(u_cf, "desk")
+
+    return recipients, assignee_uname
+
+
+def _format_reminder_message(template, ctx):
+    tpl = str(template or "Please update status on {ticket_id} ({status}) — {summary}")
+    for k, v in ctx.items():
+        tpl = tpl.replace("{" + k + "}", str(v or ""))
+    return tpl[:380]
+
+
+def _evaluate_ticket_status_reminders(conn, caller_username_cf="", now_dt=None):
+    now = now_dt or datetime.now(timezone.utc)
+    now_iso = now.isoformat(timespec="seconds")
+
+    cfg_row = conn.execute("SELECT value FROM app_state WHERE key='ticket_status_reminders'").fetchone()
+    cfg = normalize_ticket_status_reminders(cfg_row[0] if cfg_row else {})
+
+    st_row = conn.execute("SELECT value FROM app_state WHERE key='ticket_reminder_state' FOR UPDATE").fetchone()
+    st_doc = _normalize_reminder_state_doc(st_row[0] if st_row else {})
+
+    u_row = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
+    users = u_row[0] if u_row and isinstance(u_row[0], list) else []
+
+    set_row = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
+    t_settings = normalize_ticketing_settings(set_row[0] if set_row else {})
+    desk_name_map = {d["id"]: d["name"] for d in (t_settings.get("complaintDesks") or [])}
+
+    rows = conn.execute(f"SELECT {TICKET_COLUMNS} FROM tickets ORDER BY created_at DESC LIMIT 1000").fetchall()
+    tickets_active = [ticket_json(r) for r in rows if r and str(r[13] or "") in TICKET_REMINDER_STATUSES]
+
+    state_dirty = False
+    fired_total = []
+    fired_for_caller = []
+
+    for tk in tickets_active:
+        tid = str(tk.get("id") or "").strip()
+        status = str(tk.get("status") or "Open").strip()
+        if not tid or status not in TICKET_REMINDER_STATUSES:
+            continue
+        desk_id = _slug_desk_id(tk.get("complaintDesk") or "it", fallback="it")
+        primary = str(tk.get("primary") or "").strip()
+        sub = str(tk.get("sub") or "").strip()
+
+        rule = _resolve_ticket_reminder_rule(cfg, desk_id, primary, sub)
+        if not rule.get("enabled", True):
+            continue
+
+        recipients, assignee_uname = _resolve_ticket_reminder_recipients(tk, rule, users, desk_name_map)
+        if not recipients:
+            continue
+
+        # Also check any active user who opted into scope='all' with personal custom override and has desk access
+        for u_cf, upref in (cfg.get("userOverrides") or {}).items():
+            if u_cf in recipients or not upref.get("enabled", True):
+                continue
+            if upref.get("scope") == "all":
+                u_obj = next((u for u in users if _user_is_active_staff(u) and str(u.get("username") or "").strip().casefold() == u_cf), None)
+                if u_obj and (u_obj.get("role") == "Administrator" or (module_access(u_obj, "tickets") and ticket_desk_allowed(u_obj, desk_id))):
+                    recipients[u_cf] = "desk"
+
+        entered_info = st_doc["statusEnteredAt"].get(tid)
+        if isinstance(entered_info, dict) and entered_info.get("status") == status:
+            entered_dt = _parse_utc_dt(entered_info.get("at"))
+        else:
+            entered_dt = None
+        if entered_dt is None:
+            fallback_ts = tk.get("createdAt") or tk.get("created") if status == "Open" else (tk.get("updated") or tk.get("createdAt") or tk.get("created"))
+            entered_dt = _parse_utc_dt(fallback_ts) or now
+
+        elapsed_status_min = (now - entered_dt).total_seconds() / 60.0
+        if elapsed_status_min < 0:
+            elapsed_status_min = 0.0
+
+        summary_txt = str(tk.get("description") or tk.get("material") or f"{primary} / {sub}").strip().replace("\n", " ")[:120]
+        desk_label = desk_name_map.get(desk_id, desk_id.upper())
+        is_mr = str(tk.get("kind") or "") == "Material request"
+
+        for u_cf, rec_role in recipients.items():
+            upref = (cfg.get("userOverrides") or {}).get(u_cf)
+            st_cfg = dict(rule["statuses"][status])
+            if isinstance(upref, dict):
+                if not upref.get("enabled", True):
+                    continue
+                if upref.get("scope") == "assigned" and u_cf != assignee_uname:
+                    continue
+                if upref.get("useCustom"):
+                    u_st = (upref.get("statuses") or {}).get(status)
+                    if isinstance(u_st, dict):
+                        st_cfg["enabled"] = bool(u_st.get("enabled", True))
+                        st_cfg["initialDelayMinutes"] = int(u_st.get("initialDelayMinutes", st_cfg["initialDelayMinutes"]))
+                        st_cfg["repeatEveryMinutes"] = int(u_st.get("repeatEveryMinutes", st_cfg["repeatEveryMinutes"]))
+                        st_cfg["maxReminders"] = int(u_st.get("maxReminders", st_cfg["maxReminders"]))
+
+            if not st_cfg.get("enabled", True):
+                continue
+
+            max_rem = int(st_cfg.get("maxReminders") or 0)
+            init_min = max(1, int(st_cfg.get("initialDelayMinutes") or 60))
+            rep_min = max(1, int(st_cfg.get("repeatEveryMinutes") or 60))
+
+            skey = f"{tid}|{status}|{u_cf}"
+            entry = st_doc["sent"].get(skey) if isinstance(st_doc["sent"].get(skey), dict) else {}
+            sent_count = int(entry.get("count") or 0)
+            if max_rem > 0 and sent_count >= max_rem:
+                continue
+
+            due = False
+            if sent_count == 0:
+                due = elapsed_status_min >= init_min
+            else:
+                last_dt = _parse_utc_dt(entry.get("lastSentAt"))
+                if last_dt is None or ((now - last_dt).total_seconds() / 60.0) >= rep_min:
+                    due = True
+
+            if not due:
+                continue
+
+            new_count = sent_count + 1
+            st_doc["sent"][skey] = {
+                "ticketId": tid,
+                "status": status,
+                "recipient": u_cf,
+                "count": new_count,
+                "lastSentAt": now_iso,
+            }
+            state_dirty = True
+
+            cat_txt = " · ".join(p for p in (primary, sub) if p) or desk_label
+            body_txt = _format_reminder_message(
+                st_cfg.get("message"),
+                {
+                    "ticket_id": tid,
+                    "status": status,
+                    "desk": desk_label,
+                    "category": cat_txt,
+                    "sub": sub,
+                    "assignee": tk.get("assigned") or "Unassigned",
+                    "requester": tk.get("name") or "",
+                    "summary": summary_txt,
+                    "count": new_count,
+                },
+            )
+            title_txt = f"Status Update Reminder #{new_count} · {tid} ({status})"
+            ev = _record_notification_event(conn, {
+                "eventKey": f"tkr:{tid}:{status.lower().replace(' ', '_')}:{u_cf}:{new_count}",
+                "kind": "ticket_reminder",
+                "level": "warn",
+                "title": title_txt,
+                "body": body_txt,
+                "factory": str(tk.get("site") or ""),
+                "targetView": "ticketing",
+                "targetTab": "materials" if is_mr else "tickets",
+                "targetId": tid,
+                "targetTicketId": tid,
+                "targetRole": rec_role,
+                "targetUsername": u_cf,
+                "targetAssignee": str(tk.get("assigned") or ""),
+                "requesterName": str(tk.get("name") or ""),
+                "complaintDesk": desk_id,
+                "createdAt": now_iso,
+            })
+            rec_item = {
+                "id": ev.get("id") if isinstance(ev, dict) else f"tkr-{tid}-{new_count}",
+                "ticketId": tid,
+                "status": status,
+                "desk": desk_id,
+                "deskLabel": desk_label,
+                "category": cat_txt,
+                "recipient": u_cf,
+                "recipientRole": rec_role,
+                "count": new_count,
+                "maxReminders": max_rem,
+                "title": title_txt,
+                "body": body_txt,
+                "createdAt": now_iso,
+            }
+            fired_total.append(rec_item)
+            if caller_username_cf and u_cf == caller_username_cf:
+                fired_for_caller.append(rec_item)
+
+    if state_dirty:
+        conn.execute(
+            "INSERT INTO app_state(key,value) VALUES('ticket_reminder_state',%s::jsonb) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+            (json.dumps(st_doc),),
+        )
+
+    return fired_for_caller, fired_total
+
+
+def _can_edit_org_reminders(profile, is_adm):
+    if is_adm or profile.get("role") == "IT Ticketing":
+        return True
+    return bool(module_access(profile, "tickets", write=True))
+
+
+@app.get("/api/tickets/status-reminders")
+@signed_in
+def get_ticket_status_reminders():
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname_cf = str(profile.get("username") or "").strip().casefold()
+    can_edit_org = _can_edit_org_reminders(profile, is_adm)
+    allowed_desks = allowed_complaint_desks_for(profile)
+    with db() as conn:
+        cfg_row = conn.execute("SELECT value FROM app_state WHERE key='ticket_status_reminders'").fetchone()
+        set_row = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
+        u_row = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
+    cfg = normalize_ticket_status_reminders(cfg_row[0] if cfg_row else {})
+    t_settings = normalize_ticketing_settings(set_row[0] if set_row else {})
+    desks = t_settings.get("complaintDesks") or []
+    users_raw = u_row[0] if u_row and isinstance(u_row[0], list) else []
+    users_clean = [
+        {
+            "username": str(u.get("username") or "").strip(),
+            "name": str(u.get("name") or u.get("username") or "").strip(),
+            "dept": str(u.get("dept") or u.get("department") or "").strip(),
+            "site": str(u.get("site") or "").strip(),
+            "role": str(u.get("role") or "User").strip(),
+            "allowed_complaint_desks": u.get("allowed_complaint_desks") if isinstance(u.get("allowed_complaint_desks"), list) else [],
+        }
+        for u in users_raw
+        if _user_is_active_staff(u) and str(u.get("username") or "").strip()
+    ]
+    my_prefs = cfg["userOverrides"].get(uname_cf) or _normalize_user_reminder_pref({}, cfg["globalDefaults"]["statuses"])
+    public_cfg = {
+        "globalDefaults": cfg["globalDefaults"],
+        "deskRules": cfg["deskRules"],
+        "categoryRules": cfg["categoryRules"],
+        "updatedAt": cfg["updatedAt"],
+    }
+    return jsonify(
+        config=public_cfg,
+        myPrefs=my_prefs,
+        canEditOrg=can_edit_org,
+        isAdmin=is_adm,
+        allowedDesks=(sorted(allowed_desks) if isinstance(allowed_desks, set) else ["*"]),
+        desks=desks,
+        users=users_clean if can_edit_org else [],
+    )
+
+
+@app.put("/api/tickets/status-reminders")
+@signed_in
+def save_ticket_status_reminders_org():
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    if not _can_edit_org_reminders(profile, is_adm):
+        return jsonify(error="Ticketing write permission or Administrator access is required to edit department reminder rules."), 403
+    body = request.get_json(silent=True) or {}
+    if not isinstance(body, dict):
+        return jsonify(error="Invalid reminder configuration payload."), 400
+    patch = body.get("config") if isinstance(body.get("config"), dict) else body
+    allowed_desks = allowed_complaint_desks_for(profile)
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='ticket_status_reminders' FOR UPDATE").fetchone()
+        cur = normalize_ticket_status_reminders(row[0] if row else {})
+        merged = json.loads(json.dumps(cur))
+        if isinstance(patch.get("globalDefaults"), dict):
+            if is_adm or allowed_desks is None:
+                merged["globalDefaults"] = patch["globalDefaults"]
+        if isinstance(patch.get("deskRules"), dict):
+            if is_adm or allowed_desks is None:
+                merged["deskRules"] = patch["deskRules"]
+            else:
+                for dk, dv in patch["deskRules"].items():
+                    did = _slug_desk_id(dk, fallback="")
+                    if did and did in allowed_desks:
+                        merged["deskRules"][did] = dv
+        if isinstance(patch.get("categoryRules"), list):
+            if is_adm or allowed_desks is None:
+                merged["categoryRules"] = patch["categoryRules"]
+            else:
+                kept = [r for r in merged["categoryRules"] if _slug_desk_id(r.get("deskId") or "it", "it") not in allowed_desks]
+                incoming = [r for r in patch["categoryRules"] if isinstance(r, dict) and _slug_desk_id(r.get("deskId") or "it", "it") in allowed_desks]
+                merged["categoryRules"] = kept + incoming
+        merged["updatedAt"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        clean = normalize_ticket_status_reminders(merged)
+        conn.execute(
+            "INSERT INTO app_state(key,value) VALUES('ticket_status_reminders',%s::jsonb) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+            (json.dumps(clean),),
+        )
+        _pg_emit_notify(conn, "pulse", {"source": "ticket_status_reminders"})
+    return jsonify(
+        ok=True,
+        config={
+            "globalDefaults": clean["globalDefaults"],
+            "deskRules": clean["deskRules"],
+            "categoryRules": clean["categoryRules"],
+            "updatedAt": clean["updatedAt"],
+        },
+    )
+
+
+@app.route("/api/tickets/status-reminders/me", methods=["GET", "PUT"])
+@signed_in
+def ticket_status_reminders_me():
+    profile = session.get("profile") or {}
+    uname_cf = str(profile.get("username") or "").strip().casefold()
+    if not uname_cf:
+        return jsonify(error="Signed-in user account required."), 401
+    if request.method == "GET":
+        with db() as conn:
+            row = conn.execute("SELECT value FROM app_state WHERE key='ticket_status_reminders'").fetchone()
+        cfg = normalize_ticket_status_reminders(row[0] if row else {})
+        my_prefs = cfg["userOverrides"].get(uname_cf) or _normalize_user_reminder_pref({}, cfg["globalDefaults"]["statuses"])
+        return jsonify(ok=True, myPrefs=my_prefs)
+    body = request.get_json(silent=True) or {}
+    if not isinstance(body, dict):
+        return jsonify(error="Invalid personal reminder preferences."), 400
+    patch = body.get("myPrefs") if isinstance(body.get("myPrefs"), dict) else body
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='ticket_status_reminders' FOR UPDATE").fetchone()
+        cfg = normalize_ticket_status_reminders(row[0] if row else {})
+        patch_clean = dict(patch)
+        patch_clean["updatedAt"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        cfg["userOverrides"][uname_cf] = _normalize_user_reminder_pref(patch_clean, cfg["globalDefaults"]["statuses"])
+        conn.execute(
+            "INSERT INTO app_state(key,value) VALUES('ticket_status_reminders',%s::jsonb) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+            (json.dumps(cfg),),
+        )
+    return jsonify(ok=True, myPrefs=cfg["userOverrides"][uname_cf])
+
+
+@app.route("/api/tickets/status-reminders/check", methods=["GET", "POST"])
+@signed_in
+def check_ticket_status_reminders():
+    profile = session.get("profile") or {}
+    uname_cf = str(profile.get("username") or "").strip().casefold()
+    with db() as conn:
+        mine, total = _evaluate_ticket_status_reminders(conn, caller_username_cf=uname_cf)
+    return jsonify(ok=True, reminders=mine, evaluatedCount=len(total), serverNow=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+
+
 @app.get("/api/tickets/parts-options")
 @ticket_manager
 def ticket_parts_options():
@@ -6023,6 +6743,7 @@ def issue_material_for_ticket(ticket_id):
             ticket_note += f" · {notes}"
         conn.execute("UPDATE tickets SET status=%s, note=%s, assigned_to=CASE WHEN assigned_to='Unassigned' THEN %s ELSE assigned_to END, first_responded_at=COALESCE(first_responded_at, now()), updated_at=now() WHERE id=%s",
                      (new_status, ticket_note[:1000], actor, ticket_id))
+        _on_ticket_status_changed(conn, ticket_id, new_status)
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'material_issued',%s)", (ticket_id, actor, ticket_note[:1000]))
         mat_notif = _build_and_record_ticket_user_notification(conn, ticket_id=ticket_id, event_type="material_issued", actor=actor, detail=ticket_note[:500], status=new_status, note=ticket_note[:500])
         if mat_notif:
@@ -6048,7 +6769,11 @@ def issue_material_for_ticket(ticket_id):
             })
         _pg_emit_notify(conn, "ticket", {"action": "issue-material", "ticketId": ticket_id, "status": new_status})
         issued_list = issued_parts_map_from_conn(conn).get(ticket_id, [])
-    return jsonify(ok=True, assignment=assignment, status=new_status, note=ticket_note, issuedParts=issued_list, parts_inventory=inv_list, parts_assignments=asgn_list)
+        closed_meta = _build_ticket_closed_meta(conn, ticket_id, actor, t_row[6]) if new_status == "Closed" else None
+    resp_data = dict(ok=True, assignment=assignment, status=new_status, note=ticket_note, issuedParts=issued_list, parts_inventory=inv_list, parts_assignments=asgn_list)
+    if closed_meta:
+        resp_data["closedMeta"] = closed_meta
+    return jsonify(**resp_data)
 
 
 @app.get("/api/tickets/<path:ticket_id>/attachments/<path:filename>")
@@ -6139,6 +6864,32 @@ def create_ticket():
     return jsonify(id=ticket_id, complaintDesk=desk_obj["id"], availabilityNotice=(welcome_notif or {}).get("availabilityNotice", ""), welcomeNotification=welcome_notif), 201
 
 
+def _build_ticket_closed_meta(conn, ticket_id, actor, desk_id):
+    now = datetime.now(timezone.utc)
+    created_dt = None
+    primary = ""
+    sub = ""
+    try:
+        meta_row = conn.execute("SELECT created_at, primary_category, sub_category FROM tickets WHERE id=%s", (ticket_id,)).fetchone()
+        if meta_row:
+            created_dt = _parse_utc_dt(meta_row[0])
+            primary = str(meta_row[1] or "")
+            sub = str(meta_row[2] or "")
+    except Exception:
+        pass
+    elapsed_sec = max(1, int((now - created_dt).total_seconds())) if created_dt else 0
+    return {
+        "ticketId": str(ticket_id or ""),
+        "actorName": str(actor or "Team Member")[:120],
+        "desk": _slug_desk_id(desk_id or "it", fallback="it"),
+        "primary": primary[:120],
+        "sub": sub[:120],
+        "durationSeconds": elapsed_sec,
+        "durationText": _format_elapsed_duration(elapsed_sec) if elapsed_sec > 0 else "just now",
+        "closedAt": now.isoformat(timespec="seconds"),
+    }
+
+
 @app.patch("/api/tickets/<path:ticket_id>")
 @ticket_manager
 def update_ticket(ticket_id):
@@ -6156,6 +6907,7 @@ def update_ticket(ticket_id):
     assignments = ", ".join(f"{column}=%s" for column,_ in fields)
     profile = session.get("profile", {})
     actor = str(profile.get("name") or profile.get("username") or "IT Support")[:120]
+    closed_meta = None
     with db() as conn:
         t_row = conn.execute("SELECT COALESCE(NULLIF(complaint_desk,''),'it'),assigned_to,status,eta,note,username,display_name,factory,kind FROM tickets WHERE id=%s FOR UPDATE", (ticket_id,)).fetchone()
         if not t_row:
@@ -6171,6 +6923,10 @@ def update_ticket(ticket_id):
         new_eta_str = new_eta_dt.isoformat(timespec="minutes") if new_eta_dt else ""
         detail = "; ".join(f"{k}: {v}" for k,v in body.items() if k in allowed)[:1000]
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'updated',%s)", (ticket_id,profile["username"],detail))
+        if new_status != old_status:
+            _on_ticket_status_changed(conn, ticket_id, new_status)
+            if new_status == "Closed":
+                closed_meta = _build_ticket_closed_meta(conn, ticket_id, actor, t_row[0])
         last_notif = None
         if "assigned" in body and str(new_assigned or "").strip() and new_assigned != old_assigned and new_assigned != "Unassigned":
             last_notif = _build_and_record_ticket_user_notification(conn, ticket_id=ticket_id, event_type="assigned", actor=actor, assigned_to=new_assigned, status=new_status, eta=new_eta_dt, note=new_note)
@@ -6205,7 +6961,10 @@ def update_ticket(ticket_id):
                 "complaintDesk": t_row[0],
             })
         _pg_emit_notify(conn, "ticket", {"action": "update", "ticketId": ticket_id, "complaintDesk": t_row[0]})
-    return jsonify(ok=True)
+    resp_out = {"ok": True, "status": new_status}
+    if closed_meta:
+        resp_out["closedMeta"] = closed_meta
+    return jsonify(**resp_out)
 
 
 @app.post("/api/tickets/<path:ticket_id>/worklog")
