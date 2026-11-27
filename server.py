@@ -1,4 +1,5 @@
 import json
+import gzip
 import queue
 import os
 import re
@@ -519,7 +520,7 @@ def enforce_module_access():
         "/api/notifications/silent", "/api/notifications/history", "/api/notifications/history/read",
         "/api/speedtest/ping", "/api/speedtest/download", "/api/speedtest/upload",
         "/api/network/speedtest", "/api/network/speedtest/run", "/api/network/speedtest/settings",
-    ) or (path == "/api/notifications/sounds" and method == "GET") or (path in ("/api/tickets/admin-presence", "/api/tickets/user-notifications", "/api/tickets/status-reminders") and method == "GET") or (path == "/api/tickets/status-reminders/me" and method in ("GET", "PUT")) or (path == "/api/tickets/status-reminders/check" and method in ("GET", "POST")) or (path == "/api/tickets" and method in ("GET", "POST")) or (path.startswith("/api/tickets/") and (path.endswith("/worklog") or "/attachments/" in path) and method == "GET") or path == "/api/messages" or path.startswith("/api/messages/") or path.startswith("/api/recovery/"):
+    ) or (path == "/api/notifications/sounds" and method == "GET") or (path in ("/api/tickets/admin-presence", "/api/tickets/user-notifications", "/api/tickets/status-reminders") and method == "GET") or (path == "/api/tickets/status-reminders/me" and method in ("GET", "PUT")) or (path == "/api/tickets/status-reminders/check" and method in ("GET", "POST")) or (path == "/api/tickets" and method in ("GET", "POST")) or (path.startswith("/api/tickets/") and path.endswith("/return") and method == "POST") or (path.startswith("/api/tickets/") and (path.endswith("/worklog") or "/attachments/" in path) and method == "GET") or path == "/api/messages" or path.startswith("/api/messages/") or path.startswith("/api/recovery/"):
         return None
     is_write = method in ("POST", "PUT", "PATCH", "DELETE")
     module = next((value for prefix, value in MODULE_API_PATHS.items() if path == prefix or path.startswith(prefix + "/")), None)
@@ -575,6 +576,28 @@ def add_security_headers(response):
     if request.path in ("/", "/setup", "/portal") or (request.path.startswith("/api/") and request.path not in ("/api/live-stream", "/api/public/live-stream")):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
+    try:
+        ae = str(request.headers.get("Accept-Encoding") or "").lower()
+        ct = str(getattr(response, "mimetype", "") or "").lower()
+        compressible = ct in ("text/html", "application/json", "application/javascript", "text/javascript", "text/css", "image/svg+xml")
+        if "gzip" in ae and getattr(response, "status_code", 200) == 200 and compressible and "Content-Encoding" not in response.headers:
+            if getattr(response, "direct_passthrough", False):
+                if request.path in ("/", "/index.html", "/portal", "/portal.html", "/cctv-live.js", "/sw.js", "/manifest.json"):
+                    response.direct_passthrough = False
+                else:
+                    return response
+            raw_body = response.get_data()
+            if isinstance(raw_body, (bytes, bytearray)) and len(raw_body) >= 1024:
+                gz_body = gzip.compress(raw_body, compresslevel=5)
+                if len(gz_body) < len(raw_body):
+                    response.set_data(gz_body)
+                    response.headers["Content-Encoding"] = "gzip"
+                    response.headers["Content-Length"] = str(len(gz_body))
+                    vary = str(response.headers.get("Vary") or "")
+                    if "accept-encoding" not in vary.lower():
+                        response.headers["Vary"] = (vary + ", Accept-Encoding").strip(", ")
+    except Exception:
+        pass
     return response
 
 
@@ -5632,6 +5655,49 @@ def delete_part_entry_file(entry_id, filename):
     return jsonify(ok=True, photos=[])
 
 
+def _load_ticket_reopen_map(conn):
+    try:
+        row = conn.execute("SELECT value FROM app_state WHERE key='ticket_reopen_meta'").fetchone()
+        return dict(row[0]) if row and isinstance(row[0], dict) else {}
+    except Exception:
+        return {}
+
+
+def _record_ticket_reopen_meta(conn, ticket_id, actor, reason, desk_id="it", prev_status="Closed"):
+    tid = str(ticket_id or "").strip()
+    if not tid:
+        return {}
+    now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    try:
+        row = conn.execute("SELECT value FROM app_state WHERE key='ticket_reopen_meta' FOR UPDATE").fetchone()
+        doc = dict(row[0]) if row and isinstance(row[0], dict) else {}
+        cur = doc.get(tid) if isinstance(doc.get(tid), dict) else {}
+        hist = list(cur.get("history") or [])
+        hist.insert(0, {
+            "at": now_iso,
+            "by": str(actor or "User")[:120],
+            "reason": str(reason or "")[:400],
+            "fromStatus": str(prev_status or "Closed")[:40],
+        })
+        entry = {
+            "reopenCount": int(cur.get("reopenCount") or 0) + 1,
+            "lastReopenedAt": now_iso,
+            "lastReopenedBy": str(actor or "User")[:120],
+            "lastReason": str(reason or "")[:400],
+            "desk": _slug_desk_id(desk_id or "it", fallback="it"),
+            "history": hist[:25],
+        }
+        doc[tid] = entry
+        conn.execute(
+            "INSERT INTO app_state(key,value) VALUES('ticket_reopen_meta',%s::jsonb) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+            (json.dumps(doc),),
+        )
+        return entry
+    except Exception:
+        return {"reopenCount": 1, "lastReopenedAt": now_iso, "lastReopenedBy": str(actor or "User")[:120], "lastReason": str(reason or "")[:400]}
+
+
 @app.get("/api/tickets")
 @signed_in
 def list_tickets():
@@ -5645,6 +5711,7 @@ def list_tickets():
         rows = conn.execute(f"SELECT {TICKET_COLUMNS} FROM tickets ORDER BY created_at DESC LIMIT 1000").fetchall()
         repair_map = repair_map_from_conn(conn)
         issued_map = issued_parts_map_from_conn(conn)
+        reopen_map = _load_ticket_reopen_map(conn)
     filtered = []
     for r in rows:
         desk_id = (r[17] if len(r) > 17 and r[17] else "it")
@@ -5655,8 +5722,93 @@ def list_tickets():
             continue
         if req_desk and req_desk != "all" and _slug_desk_id(desk_id, "it") != _slug_desk_id(req_desk, "it"):
             continue
-        filtered.append({**ticket_json(r), "repair": repair_map.get(r[0]), "issuedParts": issued_map.get(r[0], []), "isOwn": is_owner})
+        rm = reopen_map.get(r[0]) if isinstance(reopen_map.get(r[0]), dict) else None
+        reopen_cnt = int(rm.get("reopenCount") or 0) if rm else 0
+        filtered.append({
+            **ticket_json(r),
+            "repair": repair_map.get(r[0]),
+            "issuedParts": issued_map.get(r[0], []),
+            "isOwn": is_owner,
+            "isReopened": reopen_cnt > 0,
+            "reopenCount": reopen_cnt,
+            "reopenedAt": str(rm.get("lastReopenedAt") or "") if rm else "",
+            "reopenedBy": str(rm.get("lastReopenedBy") or "") if rm else "",
+            "reopenReason": str(rm.get("lastReason") or "") if rm else "",
+            "reopenHistory": list(rm.get("history") or []) if rm else [],
+        })
     return jsonify(tickets=filtered)
+
+
+@app.post("/api/tickets/<path:ticket_id>/return")
+@signed_in
+def return_reopen_ticket(ticket_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname = str(profile.get("username") or "").strip().casefold()
+    dname = str(profile.get("name") or "").strip().casefold()
+    actor = str(profile.get("name") or uname or "User")[:120]
+    body = request.get_json(silent=True) or {}
+    reason = str(body.get("reason") or "Issue recurred — returned by user").strip()[:400]
+    if not reason:
+        reason = "Issue recurred — returned by user"
+
+    with db() as conn:
+        t_row = conn.execute(
+            "SELECT COALESCE(NULLIF(complaint_desk,''),'it'),assigned_to,status,eta,note,username,display_name,factory,kind FROM tickets WHERE id=%s FOR UPDATE",
+            (ticket_id,),
+        ).fetchone()
+        if not t_row:
+            return jsonify(error="Ticket not found."), 404
+        desk_id = str(t_row[0] or "it")
+        old_assigned = str(t_row[1] or "Unassigned")
+        old_status = str(t_row[2] or "Open")
+        t_user = str(t_row[5] or "")
+        t_disp = str(t_row[6] or "")
+        t_fac = str(t_row[7] or "")
+        t_kind = str(t_row[8] or "")
+
+        is_owner = (uname and t_user.strip().casefold() == uname) or (dname and t_disp.strip().casefold() == dname)
+        is_staff = is_adm or profile.get("role") == "IT Ticketing" or (module_access(profile, "tickets", write=True) and ticket_desk_allowed(profile, desk_id))
+        if not is_owner and not is_staff:
+            return jsonify(error="Only the ticket requester or authorized department staff can return/reopen this ticket."), 403
+        if old_status not in ("Closed", "Resolved"):
+            return jsonify(error=f"Only Closed or Resolved tickets can be returned (current status: {old_status})."), 400
+
+        note_txt = f"[Returned / Re-opened] {reason}"[:1000]
+        conn.execute("UPDATE tickets SET status='Open', note=%s, updated_at=now() WHERE id=%s", (note_txt, ticket_id))
+        conn.execute(
+            "INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'reopened',%s)",
+            (ticket_id, actor, f"Returned / Re-opened from {old_status}: {reason}"[:1000]),
+        )
+        reopen_meta = _record_ticket_reopen_meta(conn, ticket_id, actor, reason, desk_id=desk_id, prev_status=old_status)
+        _on_ticket_status_changed(conn, ticket_id, "Open")
+        notif = _build_and_record_ticket_user_notification(
+            conn,
+            ticket_id=ticket_id,
+            event_type="status_change",
+            actor=actor,
+            assigned_to=old_assigned,
+            status="Open",
+            note=note_txt,
+        )
+        is_mr = (t_kind == "Material request")
+        _record_notification_event(conn, {
+            "eventKey": f"tkt-return:{ticket_id}:{reopen_meta.get('reopenCount', 1)}:{uuid.uuid4().hex[:6]}",
+            "kind": "material_request" if is_mr else "ticket",
+            "level": "warn",
+            "title": f"↩ Returned / Re-opened #{reopen_meta.get('reopenCount', 1)} · {ticket_id}",
+            "body": f"{actor} returned this ticket to Open: {reason}",
+            "factory": t_fac,
+            "targetView": "ticketing",
+            "targetTab": "materials" if is_mr else "tickets",
+            "targetId": ticket_id,
+            "targetTicketId": ticket_id,
+            "targetAssignee": old_assigned,
+            "requesterName": t_disp,
+            "complaintDesk": desk_id,
+        })
+        _pg_emit_notify(conn, "ticket", {"action": "return", "ticketId": ticket_id, "complaintDesk": desk_id, "reopenCount": reopen_meta.get("reopenCount", 1)})
+    return jsonify(ok=True, ticketId=ticket_id, status="Open", reopenMeta=reopen_meta, notification=notif)
 
 
 @app.get("/api/tickets/remote-directory")
@@ -7028,7 +7180,7 @@ def list_ticket_worklog(ticket_id):
         is_owner = (uname_cf and str(t_row[1] or "").strip().casefold() == uname_cf) or (dname_cf and str(t_row[2] or "").strip().casefold() == dname_cf)
         if not is_owner and not session.get("is_admin") and not (module_access(profile, "tickets") and ticket_desk_allowed(profile, t_row[0])):
             abort(403)
-        rows = conn.execute("SELECT actor,detail,created_at FROM ticket_events WHERE ticket_id=%s AND event_type IN ('created','updated','worklog') ORDER BY created_at DESC LIMIT 100", (ticket_id,)).fetchall()
+        rows = conn.execute("SELECT actor,detail,created_at FROM ticket_events WHERE ticket_id=%s AND event_type IN ('created','updated','worklog','reopened') ORDER BY created_at DESC LIMIT 100", (ticket_id,)).fetchall()
     return jsonify(events=[{"actor":r[0],"detail":r[1],"created":r[2].isoformat(timespec="minutes")} for r in rows])
 
 
@@ -12308,6 +12460,8 @@ def reopen_ticket_from_messages(ticket_id):
             return jsonify(error="Only the ticket requester or support desk staff can reopen this ticket."), 403
         conn.execute("UPDATE tickets SET status='Open', note=%s, updated_at=now() WHERE id=%s", (f"[Reopened] {reason}", ticket_id))
         conn.execute("INSERT INTO ticket_events(ticket_id,actor,event_type,detail) VALUES(%s,%s,'updated',%s)", (ticket_id, actor, f"status: Open; reason: {reason}"))
+        _record_ticket_reopen_meta(conn, ticket_id, actor, reason, desk_id=t_row[3], prev_status=t_row[4])
+        _on_ticket_status_changed(conn, ticket_id, "Open")
         notif = _build_and_record_ticket_user_notification(conn, ticket_id=ticket_id, event_type="status_change", actor=actor, status="Open", note=f"Ticket reopened: {reason}")
         req_key = _resolve_ticket_requester_key(conn, t_row[1], t_row[2])
         thr_id = _helpdesk_thread_id(t_row[3], req_key)
