@@ -473,7 +473,7 @@ def _default_gateway_ip():
     return ""
 
 
-def _tcp_reachability_probe(ip_str, ports=(80, 443, 445, 139, 3389, 22, 554, 9100), timeout=0.35):
+def _tcp_reachability_probe(ip_str, ports=(80, 443, 445, 554, 139, 3389, 22, 9100), timeout=0.28):
     """Fast non-blocking parallel TCP SYN check for cross-VLAN hosts that block ICMP."""
     import select
     socks = []
@@ -768,9 +768,12 @@ def arp_sweep(network):
 
 _SCAN_LOCK = threading.Lock()
 _SCAN_THREAD = None
+_STATUS_THREAD = None
+_SNMP_THREAD = None
+_NOTIF_THREAD = None
 
 
-def _fast_probe(ip, skip_rdns=False, arp_hosts=None, snmp_arp=None, snmp_community=""):
+def _fast_probe(ip, skip_rdns=False, arp_hosts=None, snmp_arp=None, snmp_community="", tcp_ports=(80, 443, 445, 554, 139, 3389, 22, 9100)):
     ip_s = str(ip)
     command = ["ping", "-n", "-c", "1", "-W", "1", ip_s] if platform.system().lower() != "windows" else ["ping", "-n", "1", "-w", "700", ip_s]
     started = time.monotonic()
@@ -789,7 +792,7 @@ def _fast_probe(ip, skip_rdns=False, arp_hosts=None, snmp_arp=None, snmp_communi
 
     if not method:
         # Cross-VLAN firewalls often drop ICMP; verify via common management/device TCP ports
-        method, tcp_lat = _tcp_reachability_probe(ip_s)
+        method, tcp_lat = _tcp_reachability_probe(ip_s, ports=tcp_ports, timeout=0.26)
         if method:
             latency_ms = tcp_lat
         elif arp_entry:
@@ -837,6 +840,19 @@ def _fast_probe(ip, skip_rdns=False, arp_hosts=None, snmp_arp=None, snmp_communi
     }
 
 
+def _post_scan_progress(scan_id, status, progress, results, error=False):
+    payload = {"id": scan_id, "status": status, "progress": progress, "results": results}
+    if error:
+        payload["error"] = True
+    try:
+        request_json("/api/internal/scanner-progress", payload, timeout=15)
+        return True
+    except urllib.error.HTTPError as exc:
+        if exc.code == 409:
+            return False
+        raise
+
+
 def run_task(task):
     scan_id = task["id"]
     networks = []
@@ -850,34 +866,49 @@ def run_task(task):
     total_hosts = sum(n.num_addresses - (2 if n.prefixlen < 31 else 0) for n in networks)
     results = []
     progress = 0
-    step = max(256, min(2048, (total_hosts // 40) or 256))
-    workers = min(256, max(64, total_hosts // 64))
+    step = max(32, min(512, (total_hosts // 25) or 32))
+    workers = min(96, max(32, total_hosts // 32))
+    tcp_ports = (80, 443, 445, 554) if total_hosts > 1024 else (80, 443, 445, 554, 139, 3389, 22, 9100)
     skip_rdns = total_hosts > 4096
     collectors = task.get("arpCollectors") or []
     snmp_community = str(task.get("snmpCommunity") or "").strip()
     try:
+        if not _post_scan_progress(scan_id, "running", 0, []):
+            return
         arp_hosts = {}
         for network in networks:
             arp_hosts.update(arp_sweep(network))
         snmp_arp = fetch_snmp_arp_table(collectors, default_community=snmp_community)
+        if arp_hosts:
+            now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            seed_rows = [
+                {"ip": ip_k, "mac": info.get("mac", ""), "vendor": info.get("vendor", "") or lookup_mac_vendor(info.get("mac", "")),
+                 "hostname": info.get("hostname", ""), "via": "ARP", "status": "Online", "latency_ms": 1, "last_seen": now_iso}
+                for ip_k, info in sorted(arp_hosts.items(), key=lambda kv: tuple(int(p) for p in kv[0].split(".")))
+            ]
+            if not _post_scan_progress(scan_id, "running", 0, seed_rows):
+                return
 
         def host_iter():
             for network in networks:
                 for host in network.hosts():
                     yield host
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+        last_push = time.monotonic()
+        cancelled = False
+        pool = concurrent.futures.ThreadPoolExecutor(max_workers=workers)
+        try:
             pending = {}
             it = host_iter()
             exhausted = False
-            while not exhausted or pending:
-                while not exhausted and len(pending) < workers * 4:
+            while (not exhausted or pending) and not cancelled:
+                while not exhausted and len(pending) < workers * 3:
                     try:
                         ip = next(it)
                     except StopIteration:
                         exhausted = True
                         break
-                    pending[pool.submit(_fast_probe, ip, skip_rdns, arp_hosts, snmp_arp, snmp_community)] = str(ip)
+                    pending[pool.submit(_fast_probe, ip, skip_rdns, arp_hosts, snmp_arp, snmp_community, tcp_ports)] = str(ip)
                 if not pending:
                     break
                 done, _ = concurrent.futures.wait(pending.keys(), return_when=concurrent.futures.FIRST_COMPLETED)
@@ -896,16 +927,25 @@ def run_task(task):
                     if row:
                         results.append(row)
                     progress += 1
-                    if progress % step == 0 or (exhausted and not pending):
+                    now_m = time.monotonic()
+                    if progress % step == 0 or (now_m - last_push >= 1.8) or (exhausted and not pending):
                         results.sort(key=lambda r: tuple(int(part) for part in r["ip"].split(".")))
-                        request_json("/api/internal/scanner-progress", {"id":scan_id, "status":"running", "progress":progress, "results":results}, timeout=15)
+                        last_push = now_m
+                        if not _post_scan_progress(scan_id, "running", progress, results):
+                            cancelled = True
+                            break
+        finally:
+            pool.shutdown(wait=not cancelled, cancel_futures=cancelled)
+        if cancelled:
+            print(f"Scan {scan_id} cancelled by server", flush=True)
+            return
         results.sort(key=lambda row:tuple(int(part) for part in row["ip"].split(".")))
-        request_json("/api/internal/scanner-progress", {"id":scan_id, "status":"completed", "progress":progress, "results":results}, timeout=15)
+        _post_scan_progress(scan_id, "completed", progress, results)
         print(f"Scan {scan_id} complete: {len(results)} responsive devices across {total_hosts} addresses (L2-ARP={len(arp_hosts)}, SNMP-ARP={len(snmp_arp)})", flush=True)
     except Exception as exc:
         print(f"Scan {scan_id} failed: {type(exc).__name__}", flush=True)
         try:
-            request_json("/api/internal/scanner-progress", {"id":scan_id, "status":"failed", "progress":progress, "results":results, "error":True}, timeout=15)
+            _post_scan_progress(scan_id, "failed", progress, results, error=True)
         except Exception:
             pass
 
@@ -1096,7 +1136,18 @@ def run_notification_task(task):
     print(f"Notification {job.get('channel', '')} {'sent' if ok else 'failed'} ({error or 'accepted'})", flush=True)
 
 
+def _run_snmp_batch(items):
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        futures = [pool.submit(poll_snmp_profile, profile) for profile in items]
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                future.result()
+            except Exception:
+                pass
+
+
 def main():
+    global _SCAN_THREAD, _STATUS_THREAD, _SNMP_THREAD, _NOTIF_THREAD
     if len(TOKEN) < 40:
         raise SystemExit("APP_SECRET must be configured before the scanner agent starts")
     print("Northstar host-network scanner agent started", flush=True)
@@ -1112,26 +1163,28 @@ def main():
                 if isinstance(hb, dict) and "siteName" in hb:
                     update_lan_hostnames(hb.get("siteName", ""))
                 last_heartbeat = time.monotonic()
-            notification = request_json("/api/internal/notification-task", timeout=5)
-            if notification:
-                run_notification_task(notification)
-            snmp_task = request_json("/api/internal/snmp-task", timeout=5)
-            if snmp_task:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
-                    futures = [pool.submit(poll_snmp_profile, profile) for profile in snmp_task.get("items", [])]
-                    for future in concurrent.futures.as_completed(futures):
-                        future.result()
+            if not _NOTIF_THREAD or not _NOTIF_THREAD.is_alive():
+                notification = request_json("/api/internal/notification-task", timeout=5)
+                if notification:
+                    _NOTIF_THREAD = threading.Thread(target=run_notification_task, args=(notification,), daemon=True)
+                    _NOTIF_THREAD.start()
+            if not _SNMP_THREAD or not _SNMP_THREAD.is_alive():
+                snmp_task = request_json("/api/internal/snmp-task", timeout=5)
+                if snmp_task and snmp_task.get("items"):
+                    _SNMP_THREAD = threading.Thread(target=_run_snmp_batch, args=(snmp_task.get("items", []),), daemon=True)
+                    _SNMP_THREAD.start()
             if not _SCAN_THREAD or not _SCAN_THREAD.is_alive():
                 task = request_json("/api/internal/scanner-task", timeout=5)
                 if task:
                     print(f"Starting authorized scan {task['id']} over {task.get('total', 0)} addresses", flush=True)
                     _SCAN_THREAD = threading.Thread(target=run_task, args=(task,), daemon=True)
                     _SCAN_THREAD.start()
-            status_task = request_json("/api/internal/ip-status-task", timeout=5)
-            if status_task:
-                run_ip_status_task(status_task)
-            else:
-                time.sleep(POLL_SECONDS)
+            if not _STATUS_THREAD or not _STATUS_THREAD.is_alive():
+                status_task = request_json("/api/internal/ip-status-task", timeout=5)
+                if status_task:
+                    _STATUS_THREAD = threading.Thread(target=run_ip_status_task, args=(status_task,), daemon=True)
+                    _STATUS_THREAD.start()
+            time.sleep(POLL_SECONDS)
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
             print(f"Northstar app unavailable: {type(exc).__name__}", flush=True)
             time.sleep(POLL_SECONDS)

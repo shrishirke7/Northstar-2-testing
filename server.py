@@ -1405,7 +1405,7 @@ def network_scans():
 @app.put("/api/admin/network-scan/collectors")
 @signed_in
 def save_network_scan_collectors():
-    if not session.get("is_admin") and module_access(session.get("profile", {}), "network") != "write":
+    if not session.get("is_admin") and not module_access(session.get("profile", {}), "network", write=True):
         abort(403)
     body = request.get_json(silent=True) or {}
     raw_hosts = body.get("collectorHosts") if isinstance(body.get("collectorHosts"), list) else []
@@ -1492,6 +1492,25 @@ def start_network_scan():
         NETWORK_SCAN_STATE = {"id":scan_id,"status":"queued","progress":0,"total":hosts_count,"results":[],"error":"","started_at":datetime.now(timezone.utc).isoformat(),"finished_at":""}
         conn.execute("INSERT INTO app_state(key,value) VALUES('network_scan',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(NETWORK_SCAN_STATE),))
     return jsonify(ok=True, scan_id=scan_id, total=hosts_count), 202
+
+
+@app.post("/api/network-scan/cancel")
+@app.post("/api/admin/network-scan/cancel")
+@signed_in
+def cancel_network_scan():
+    global NETWORK_SCAN_STATE
+    if not session.get("is_admin") and not module_access(session.get("profile", {}), "network", write=True):
+        abort(403)
+    with db() as conn:
+        row = conn.execute("SELECT value FROM app_state WHERE key='network_scan' FOR UPDATE").fetchone()
+        state = dict(row[0]) if row and isinstance(row[0], dict) else {}
+        if state.get("status") in ("queued", "running"):
+            state["status"] = "failed" if not state.get("results") else "completed"
+            state["error"] = "Scan stopped by user."
+            state["finished_at"] = datetime.now(timezone.utc).isoformat()
+            NETWORK_SCAN_STATE = state
+            conn.execute("INSERT INTO app_state(key,value) VALUES('network_scan',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(state),))
+    return jsonify(ok=True, scan=state)
 
 
 def _scanner_authorized():
@@ -2863,17 +2882,30 @@ def scanner_task():
             if not isinstance(sm, dict) or not sm.get("host"):
                 continue
             sh = str(sm["host"]).strip()
-            arp_collectors.append({
-                "host": sh,
-                "version": "3" if sm.get("username") else "2c",
-                "port": int(sm.get("port") or 161),
-                "username": str(sm.get("username") or ""),
-                "authProtocol": str(sm.get("authProtocol") or "SHA"),
-                "authSecret": str(sm.get("authSecret") or ""),
-                "privacyProtocol": str(sm.get("privacyProtocol") or "AES"),
-                "privacySecret": str(sm.get("privacySecret") or ""),
-                "community": snmp_comm or "public",
-            })
+            if sm.get("username"):
+                try:
+                    auth_sec = snmp_secret_box().decrypt(str(sm.get("authSecret") or "").encode()).decode()
+                    priv_sec = snmp_secret_box().decrypt(str(sm.get("privacySecret") or "").encode()).decode()
+                except (KeyError, InvalidToken, ValueError, TypeError):
+                    continue
+                arp_collectors.append({
+                    "host": sh,
+                    "version": "3",
+                    "port": int(sm.get("port") or 161),
+                    "username": str(sm.get("username") or ""),
+                    "authProtocol": str(sm.get("authProtocol") or "SHA"),
+                    "authSecret": auth_sec,
+                    "privacyProtocol": str(sm.get("privacyProtocol") or "AES"),
+                    "privacySecret": priv_sec,
+                    "community": snmp_comm or "public",
+                })
+            else:
+                arp_collectors.append({
+                    "host": sh,
+                    "version": "2c",
+                    "port": int(sm.get("port") or 161),
+                    "community": snmp_comm or "public",
+                })
     return jsonify(id=state.get("id"), ranges=ranges, total=state.get("total", 0), arpCollectors=arp_collectors, snmpCommunity=snmp_comm)
 
 
