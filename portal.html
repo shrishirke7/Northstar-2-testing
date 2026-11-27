@@ -149,6 +149,8 @@ tr:hover td{background:#fafdfb}
 .pg-badge{display:inline-flex;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:800}
 .pg-badge.pending{background:#fef3c7;color:#b45309}.pg-badge.approved{background:#e0f2fe;color:#0369a1}.pg-badge.in{background:#dcfce7;color:#15803d}.pg-badge.out{background:#f1f5f9;color:#475569}.pg-badge.rejected{background:#fee2e2;color:#b91c1c}
 .portal-panel-stack{display:grid;gap:18px}.portal-panel-stack.hidden{display:none!important}
+#portalTicketQueueCard .table-scroll{max-height:min(60vh,540px);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+#portalTicketQueueCard .table-scroll thead th{position:sticky;top:0;z-index:3;background:#edf8f2;box-shadow:inset 0 -1px 0 #d5e5dc}
 html,body{overflow-x:hidden;max-width:100%}
 @media(max-width:900px){.grid-3,.mat-box.active{grid-template-columns:1fr}.grid-2{grid-template-columns:1fr}.card{padding:18px}}
 @media(max-width:768px){
@@ -180,6 +182,7 @@ html,body{overflow-x:hidden;max-width:100%}
   .pg-dir-btn{flex-direction:column;padding:9px 6px;font-size:11px;gap:5px;border-radius:12px}
   .portal-tab{flex:1 1 140px;justify-content:center;font-size:12px;padding:9px 10px;text-align:center}
   .table-scroll{overflow-x:visible;border:0;margin-top:10px}
+  #portalTicketQueueCard .table-scroll{max-height:none;overflow:visible}
   #publicTable,#publicTable tbody,#publicTable tr,#publicTable td,#pubVisTable,#pubVisTable tbody,#pubVisTable tr,#pubVisTable td,#pubGpTable,#pubGpTable tbody,#pubGpTable tr,#pubGpTable td{display:block;width:100%;min-width:0!important;box-sizing:border-box}
   #publicTable thead,#pubVisTable thead,#pubGpTable thead{display:none}
   #publicTable tbody tr,#pubVisTable tbody tr,#pubGpTable tbody tr{background:#ffffff;border:1px solid #d5e2da;border-radius:14px;padding:12px 13px;margin-bottom:10px;box-shadow:0 3px 12px rgba(22,36,28,.06)}
