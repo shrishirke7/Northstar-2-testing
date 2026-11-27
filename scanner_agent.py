@@ -350,6 +350,359 @@ def neighbor_mac(ip):
         return ""
 
 
+_EMBEDDED_OUI = {
+    "000c29": "VMware", "005056": "VMware", "000569": "VMware",
+    "00155d": "Microsoft Hyper-V", "525400": "QEMU / KVM", "080027": "Oracle VirtualBox",
+    "001b21": "Intel", "001e67": "Intel", "3c970e": "Intel", "8086f2": "Intel", "a4bf01": "Intel", "d4bed9": "Dell",
+    "001422": "Dell", "180373": "Dell", "24b6fd": "Dell", "549f35": "Dell", "b083fe": "Dell", "f8bc12": "Dell", "00219b": "Dell",
+    "001b78": "Hewlett Packard", "0025b3": "Hewlett Packard", "3c4a92": "Hewlett Packard Enterprise", "9457a5": "Hewlett Packard",
+    "d4c9ef": "HP", "ec9a74": "HP", "0001e6": "HP", "00215a": "HP",
+    "000b86": "Aruba / HPE", "204c03": "Aruba / HPE", "24de9a": "Aruba / HPE", "94b40f": "Aruba / HPE", "ac1702": "Aruba / HPE", "d8c7c8": "Aruba / HPE",
+    "001122": "Cisco", "000e83": "Cisco", "001bd5": "Cisco", "0026cb": "Cisco", "68bc0c": "Cisco", "f4cf e2": "Cisco",
+    "001a8c": "Sophos", "005018": "Sophos", "c84f86": "Sophos", "7c5a1c": "Sophos",
+    "00090f": "Fortinet", "085b0e": "Fortinet", "704ca5": "Fortinet", "906cac": "Fortinet",
+    "18e829": "Ubiquiti", "24a43c": "Ubiquiti", "44d9e7": "Ubiquiti", "7483c2": "Ubiquiti", "802aa8": "Ubiquiti", "b4fbe4": "Ubiquiti", "dc9fdb": "Ubiquiti", "fc ecda": "Ubiquiti",
+    "000c42": "MikroTik", "4c5e0c": "MikroTik", "64d154": "MikroTik", "d4ca6d": "MikroTik", "dc2c6e": "MikroTik", "b869f4": "MikroTik",
+    "14cc20": "TP-Link", "50c7bf": "TP-Link", "60e327": "TP-Link", "98da c4": "TP-Link", "b0be76": "TP-Link", "c025e9": "TP-Link", "d807b6": "TP-Link", "e8de27": "TP-Link",
+    "000d88": "D-Link", "1c7ee5": "D-Link", "28107b": "D-Link", "c8d3a3": "D-Link",
+    "00095b": "Netgear", "204e7f": "Netgear", "a021b7": "Netgear", "c03f0e": "Netgear",
+    "001132": "Synology", "0011d8": "Synology", "245ebe": "QNAP",
+    "1868cb": "Hikvision", "2857be": "Hikvision", "4419b6": "Hikvision", "4cb d8f": "Hikvision", "54c415": "Hikvision", "8c e748": "Hikvision", "a41437": "Hikvision", "c056e3": "Hikvision", "c42f90": "Hikvision",
+    "14a78b": "Dahua", "3c ef8c": "Dahua", "4c11bf": "Dahua", "9002a9": "Dahua", "a0bd1d": "Dahua", "e0508b": "Dahua",
+    "48ea63": "Uniview (UNV)", "6c f17e": "Uniview (UNV)", "c47905": "Uniview (UNV)",
+    "00408c": "Axis", "accc8e": "Axis", "b8a44f": "Axis",
+    "00105a": "Lenovo", "00215c": "Lenovo", "28d244": "Lenovo", "503eaa": "Lenovo", "98fa9b": "Lenovo", "c85b76": "Lenovo",
+    "001e8c": "ASUS", "1c872c": "ASUS", "2c4d54": "ASUS", "38d547": "ASUS", "d850e6": "ASUS",
+    "0013d4": "Realtek", "00e04c": "Realtek", "485b39": "Realtek", "52544c": "Realtek", "98e7f4": "Realtek",
+    "001f81": "Canon", "000085": "Canon", "180c ac": "Canon", "f48139": "Canon",
+    "000048": "Epson", "0026ab": "Epson", "44d244": "Epson", "64eb8c": "Epson",
+    "001ba9": "Brother", "008077": "Brother", "30055c": "Brother", "b42200": "Brother",
+    "000074": "Ricoh", "002673": "Ricoh", "001599": "Samsung", "0000f0": "Samsung",
+    "002590": "Supermicro", "0c c47a": "Supermicro", "3cecef": "Supermicro", "ac1f6b": "Supermicro",
+    "b827eb": "Raspberry Pi", "dc a632": "Raspberry Pi", "e45f01": "Raspberry Pi", "28cdc1": "Raspberry Pi",
+    "000393": "Apple", "3c0754": "Apple", "a45e60": "Apple", "f01898": "Apple",
+}
+_OUI_CACHE = None
+_OUI_LOCK = threading.Lock()
+
+
+def _load_oui_db():
+    global _OUI_CACHE
+    with _OUI_LOCK:
+        if _OUI_CACHE is not None:
+            return _OUI_CACHE
+        db = {k.replace(" ", "").lower(): v for k, v in _EMBEDDED_OUI.items()}
+        for path in (
+            "/usr/share/ieee-data/oui.txt",
+            "/usr/share/arp-scan/ieee-oui.txt",
+            "/usr/share/misc/oui.txt",
+            "/etc/ieee-oui.txt",
+        ):
+            if not os.path.isfile(path):
+                continue
+            try:
+                with open(path, "r", encoding="utf-8", errors="ignore") as fh:
+                    for line in fh:
+                        line_s = line.strip()
+                        if not line_s or line_s.startswith("#"):
+                            continue
+                        m_hex = re.match(r"^([0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2})\s*\(hex\)\s+(.+)$", line_s)
+                        if m_hex:
+                            prefix = re.sub(r"[^0-9a-f]", "", m_hex.group(1).lower())
+                            vendor = m_hex.group(2).strip()[:80]
+                            if len(prefix) == 6 and vendor:
+                                db.setdefault(prefix, vendor)
+                            continue
+                        m_tab = re.match(r"^([0-9A-Fa-f]{6})\s+(.+)$", line_s)
+                        if m_tab:
+                            prefix = m_tab.group(1).lower()
+                            vendor = m_tab.group(2).strip()[:80]
+                            if vendor:
+                                db.setdefault(prefix, vendor)
+            except OSError:
+                continue
+        _OUI_CACHE = db
+        return _OUI_CACHE
+
+
+def lookup_mac_vendor(mac):
+    cleaned = re.sub(r"[^0-9a-f]", "", str(mac or "").lower())
+    if len(cleaned) < 6:
+        return ""
+    vendor = _load_oui_db().get(cleaned[:6], "")
+    if vendor:
+        return vendor
+    # Check locally-administered randomized/virtual MAC bit only as fallback note when not in OUI table
+    return ""
+
+
+def _local_interface_subnets():
+    subnets = []
+    if platform.system().lower() != "windows":
+        try:
+            res = subprocess.run(["ip", "-o", "-4", "addr", "show", "up"], capture_output=True, text=True, timeout=3, check=False)
+            for line in res.stdout.splitlines():
+                m_if = re.match(r"^\d+:\s+(\S+)\s+inet\s+(\d+\.\d+\.\d+\.\d+/\d+)", line.strip())
+                if not m_if:
+                    continue
+                ifname, cidr = m_if.group(1), m_if.group(2)
+                if ifname == "lo" or ifname.startswith("docker") or ifname.startswith("br-") or ifname.startswith("veth"):
+                    continue
+                try:
+                    net = ipaddress.ip_network(cidr, strict=False)
+                except ValueError:
+                    continue
+                if net.version == 4 and net.is_private and not net.is_loopback and not net.is_link_local:
+                    s = str(net)
+                    if s not in subnets:
+                        subnets.append(s)
+        except Exception:
+            pass
+    return subnets
+
+
+def _default_gateway_ip():
+    if platform.system().lower() != "windows":
+        try:
+            res = subprocess.run(["ip", "-4", "route", "show", "default"], capture_output=True, text=True, timeout=2, check=False)
+            m = re.search(r"\bvia\s+(\d+\.\d+\.\d+\.\d+)", res.stdout)
+            if m:
+                return m.group(1)
+        except Exception:
+            pass
+    return ""
+
+
+def _tcp_reachability_probe(ip_str, ports=(80, 443, 445, 139, 3389, 22, 554, 9100), timeout=0.35):
+    """Fast non-blocking parallel TCP SYN check for cross-VLAN hosts that block ICMP."""
+    import select
+    socks = []
+    started = time.monotonic()
+    try:
+        for port in ports:
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.setblocking(False)
+                err = s.connect_ex((ip_str, port))
+                if err == 0:
+                    for x, _ in socks:
+                        x.close()
+                    s.close()
+                    return f"TCP:{port}", round((time.monotonic() - started) * 1000)
+                socks.append((s, port))
+            except OSError:
+                pass
+        if not socks:
+            return "", None
+        _, writable, _ = select.select([], [s for s, _ in socks], [], timeout)
+        for s in writable:
+            err = s.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+            # err == 0 (connected) or 111/10061 ECONNREFUSED on a non-routed firewall RST confirms host up?
+            # Strictly treat err == 0 (open port) as Online to avoid router-generated RST false positives!
+            if err == 0:
+                port = next((p for x, p in socks if x is s), 80)
+                return f"TCP:{port}", round((time.monotonic() - started) * 1000)
+    except Exception:
+        pass
+    finally:
+        for x, _ in socks:
+            try:
+                x.close()
+            except OSError:
+                pass
+    return "", None
+
+
+def _probe_netbios(ip_str, timeout=0.38):
+    """Query UDP/137 NBSTAT to extract both Windows/NAS Device Name and MAC address across L3 VLANs."""
+    txid = os.urandom(2)
+    # Query for wildcard '*' (0x2A + 15x0x00) encoded per RFC 1001 ('CKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+    pkt = txid + b"\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x20CKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\x00\x00\x21\x00\x01"
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.settimeout(timeout)
+        s.sendto(pkt, (ip_str, 137))
+        data, _ = s.recvfrom(1024)
+        if len(data) < 57 or data[:2] != txid:
+            return "", ""
+        num_names = data[56]
+        offset = 57
+        hostname = ""
+        for _ in range(num_names):
+            if offset + 18 > len(data):
+                break
+            raw_name = data[offset:offset + 15].decode("ascii", errors="ignore").strip()
+            suffix = data[offset + 15]
+            flags = struct.unpack("!H", data[offset + 16:offset + 18])[0]
+            offset += 18
+            if raw_name and suffix in (0x00, 0x20) and not (flags & 0x8000):
+                if not raw_name.startswith("MSBROWSE") and not raw_name.startswith("__"):
+                    hostname = raw_name
+                    break
+        mac = ""
+        if offset + 6 <= len(data):
+            unit = data[offset:offset + 6]
+            if any(b != 0 for b in unit):
+                mac = ":".join(f"{b:02x}" for b in unit)
+        return hostname, mac
+    except OSError:
+        return "", ""
+    finally:
+        s.close()
+
+
+_BRAND_HINTS = (
+    ("sophos", "Sophos"), ("aruba", "Aruba / HPE"), ("hewlett", "HP / HPE"), ("hp ", "HP"),
+    ("laserjet", "HP"), ("dell", "Dell"), ("lenovo", "Lenovo"), ("hikvision", "Hikvision"),
+    ("dahua", "Dahua"), ("uniview", "Uniview (UNV)"), ("unv", "Uniview (UNV)"), ("cp plus", "CP Plus"),
+    ("fortinet", "Fortinet"), ("fortigate", "Fortinet"), ("cisco", "Cisco"), ("mikrotik", "MikroTik"),
+    ("ubiquiti", "Ubiquiti"), ("unifi", "Ubiquiti"), ("tp-link", "TP-Link"), ("d-link", "D-Link"),
+    ("netgear", "Netgear"), ("synology", "Synology"), ("qnap", "QNAP"), ("canon", "Canon"),
+    ("epson", "Epson"), ("brother", "Brother"), ("ricoh", "Ricoh"), ("kyocera", "Kyocera"),
+    ("xerox", "Xerox"), ("axis", "Axis"), ("proxmox", "Proxmox"), ("vmware", "VMware"),
+)
+
+
+def _infer_vendor_from_text(*parts):
+    joined = " ".join(str(p or "") for p in parts).lower()
+    if not joined.strip():
+        return ""
+    for needle, brand in _BRAND_HINTS:
+        if needle in joined:
+            return brand
+    return ""
+
+
+def _probe_http_tls_hint(ip_str, timeout=0.45):
+    """Best-effort TLS CN/Org or HTTP Title/Server lookup to identify non-NetBIOS appliances."""
+    name_hint, vendor_hint = "", ""
+    # Try HTTPS cert first
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        with socket.create_connection((ip_str, 443), timeout=timeout) as raw_sock:
+            with ctx.wrap_socket(raw_sock, server_hostname=ip_str) as tls_sock:
+                cert = tls_sock.getpeercert(binary_form=False) or {}
+                for tup in cert.get("subject", ()):
+                    for k, v in tup:
+                        if k == "commonName" and v and not name_hint and not v.replace(".", "").isdigit():
+                            name_hint = str(v)[:120]
+                        elif k == "organizationName" and v and not vendor_hint:
+                            vendor_hint = str(v)[:80]
+    except Exception:
+        pass
+    if name_hint and vendor_hint:
+        return name_hint, (_infer_vendor_from_text(vendor_hint, name_hint) or vendor_hint)
+    # Fallback brief HTTP GET / HEAD on port 80
+    try:
+        with socket.create_connection((ip_str, 80), timeout=timeout) as s:
+            s.settimeout(timeout)
+            s.sendall(b"GET / HTTP/1.0\r\nHost: " + ip_str.encode("ascii") + b"\r\nConnection: close\r\n\r\n")
+            chunks = s.recv(4096).decode("utf-8", errors="ignore")
+            srv_m = re.search(r"^Server:\s*([^\r\n]+)", chunks, re.I | re.M)
+            title_m = re.search(r"<title[^>]*>\s*([^<]{2,120}?)\s*</title>", chunks, re.I | re.S)
+            srv_txt = srv_m.group(1).strip() if srv_m else ""
+            ttl_txt = re.sub(r"\s+", " ", title_m.group(1)).strip() if title_m else ""
+            if ttl_txt and not name_hint and not ttl_txt.lower().startswith(("401 ", "403 ", "404 ", "index of")):
+                name_hint = ttl_txt[:120]
+            v = _infer_vendor_from_text(ttl_txt, srv_txt, vendor_hint, name_hint)
+            if v:
+                vendor_hint = v
+    except Exception:
+        pass
+    return name_hint, vendor_hint
+
+
+def _parse_snmp_mac(raw_val):
+    cleaned = raw_val.strip().strip('"')
+    # Hex-STRING: 00 11 22 33 44 55  or  STRING: "0:11:22:33:44:55"  or 6-byte hex
+    bytes_hex = re.findall(r"[0-9a-f]{2}", cleaned, re.I) if ":" in cleaned or " " in cleaned else []
+    if not bytes_hex:
+        # Handle dotted/short hex like 0:1a:8c:1:2:3
+        parts = [p for p in re.split(r"[:\-\s]+", cleaned) if re.fullmatch(r"[0-9a-f]{1,2}", p, re.I)]
+        if len(parts) == 6:
+            return ":".join(f"{int(p, 16):02x}" for p in parts)
+    if len(bytes_hex) == 6:
+        return ":".join(b.lower() for b in bytes_hex)
+    return ""
+
+
+def fetch_snmp_arp_table(collectors, default_community=""):
+    """Collect IP -> MAC across ALL routed VLANs from L3 switches / firewall / router ARP tables."""
+    ip_to_mac = {}
+    items = list(collectors or [])
+    if default_community and not items:
+        gw = _default_gateway_ip()
+        if gw:
+            items.append({"host": gw, "version": "2c", "community": default_community, "port": 161})
+    for c in items:
+        host = str(c.get("host") or "").strip()
+        if not host:
+            continue
+        port = int(c.get("port") or 161)
+        ver = str(c.get("version") or ("3" if c.get("username") else "2c")).strip()
+        base_cmd = ["snmpwalk", "-On", "-t", "3", "-r", "0"]
+        if ver == "3" and c.get("username"):
+            base_cmd += [
+                "-v3", "-l", "authPriv",
+                "-u", str(c["username"]),
+                "-a", str(c.get("authProtocol") or "SHA"), "-A", str(c.get("authSecret") or ""),
+                "-x", str(c.get("privacyProtocol") or "AES"), "-X", str(c.get("privacySecret") or ""),
+            ]
+        else:
+            comm = str(c.get("community") or default_community or "").strip()
+            if not comm:
+                continue
+            base_cmd += ["-v2c", "-c", comm]
+        target = f"udp:{host}:{port}"
+        for oid in (".1.3.6.1.2.1.4.22.1.2", ".1.3.6.1.2.1.4.35.1.4"):
+            try:
+                res = subprocess.run(base_cmd + [target, oid], capture_output=True, text=True, timeout=12, check=False)
+                if res.returncode != 0 or not res.stdout:
+                    continue
+                for line in res.stdout.splitlines():
+                    left, sep, right = line.partition("=")
+                    if not sep:
+                        continue
+                    val = right.split(":", 1)[-1]
+                    mac = _parse_snmp_mac(val)
+                    if not mac or mac == "00:00:00:00:00:00" or mac == "ff:ff:ff:ff:ff:ff":
+                        continue
+                    # ipNetToMediaPhysAddress.<ifIndex>.<a>.<b>.<c>.<d>
+                    m4 = re.search(r"\.(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s*$", left.strip())
+                    if m4:
+                        ip_s = m4.group(1)
+                        try:
+                            ip_obj = ipaddress.ip_address(ip_s)
+                            if ip_obj.version == 4 and ip_obj.is_private:
+                                ip_to_mac.setdefault(str(ip_obj), mac)
+                        except ValueError:
+                            pass
+            except Exception:
+                continue
+    return ip_to_mac
+
+
+def _probe_snmp_sys(ip_str, community, timeout=1):
+    if not community or platform.system().lower() == "windows":
+        return "", ""
+    try:
+        res = subprocess.run(
+            ["snmpget", "-Oqv", "-t", str(timeout), "-r", "0", "-v2c", "-c", community, f"udp:{ip_str}:161",
+             ".1.3.6.1.2.1.1.5.0", ".1.3.6.1.2.1.1.1.0"],
+            capture_output=True, text=True, timeout=3, check=False,
+        )
+        if res.returncode != 0 or not res.stdout:
+            return "", ""
+        lines = [x.strip().strip('"') for x in res.stdout.splitlines() if x.strip()]
+        sys_name = lines[0][:120] if len(lines) >= 1 and "no such" not in lines[0].lower() else ""
+        sys_desc = lines[1][:180] if len(lines) >= 2 and "no such" not in lines[1].lower() else ""
+        return sys_name, _infer_vendor_from_text(sys_desc, sys_name)
+    except Exception:
+        return "", ""
+
+
 def probe(ip):
     command = ["ping", "-n", "-c", "1", "-W", "1", str(ip)] if platform.system().lower() != "windows" else ["ping", "-n", "1", "-w", "1000", str(ip)]
     started = time.monotonic()
@@ -362,19 +715,23 @@ def probe(ip):
         except (OSError, socket.herror):
             hostname = ""
         time.sleep(0.05)
-        return {"ip":str(ip), "mac":neighbor_mac(str(ip)), "hostname":hostname, "status":"Online", "latency_ms":round((time.monotonic()-started)*1000), "last_seen":datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        mac = neighbor_mac(str(ip))
+        return {"ip":str(ip), "mac":mac, "vendor":lookup_mac_vendor(mac), "hostname":hostname, "status":"Online", "latency_ms":round((time.monotonic()-started)*1000), "last_seen":datetime.datetime.now(datetime.timezone.utc).isoformat()}
     except (OSError, subprocess.TimeoutExpired):
         return None
 
 
 def ping_reachable(ip):
-    """Fast status-only probe; avoid DNS and neighbor-table delays per device."""
-    command = ["ping", "-n", "-c", "1", "-W", "1", str(ip)] if platform.system().lower() != "windows" else ["ping", "-n", "1", "-w", "1000", str(ip)]
-    try:
-        result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2, check=False)
-        return result.returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        return False
+    """Fast status-only probe with 1 verification retry on packet drop to prevent Overview Online/Offline flicker."""
+    command = ["ping", "-n", "-c", "1", "-W", "1", str(ip)] if platform.system().lower() != "windows" else ["ping", "-n", "1", "-w", "900", str(ip)]
+    for attempt in range(2):
+        try:
+            result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2, check=False)
+            if result.returncode == 0:
+                return True
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    return False
 
 
 def arp_sweep(network):
@@ -401,7 +758,9 @@ def arp_sweep(network):
                 except ValueError:
                     continue
                 if ip in network:
-                    found[str(ip)] = {"mac": match.group(2).lower(), "hostname": (match.group(3) or "").strip()}
+                    mac_s = match.group(2).lower()
+                    tail = (match.group(3) or "").strip()
+                    found[str(ip)] = {"mac": mac_s, "hostname": "", "vendor": lookup_mac_vendor(mac_s) or tail}
         return found
     except (OSError, subprocess.TimeoutExpired):
         return {}
@@ -411,22 +770,71 @@ _SCAN_LOCK = threading.Lock()
 _SCAN_THREAD = None
 
 
-def _fast_probe(ip, skip_rdns=False):
-    command = ["ping", "-n", "-c", "1", "-W", "1", str(ip)] if platform.system().lower() != "windows" else ["ping", "-n", "1", "-w", "700", str(ip)]
+def _fast_probe(ip, skip_rdns=False, arp_hosts=None, snmp_arp=None, snmp_community=""):
+    ip_s = str(ip)
+    command = ["ping", "-n", "-c", "1", "-W", "1", ip_s] if platform.system().lower() != "windows" else ["ping", "-n", "1", "-w", "700", ip_s]
     started = time.monotonic()
+    method = ""
+    latency_ms = None
     try:
-        result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1.6, check=False)
-        if result.returncode:
-            return None
-        hostname = ""
-        if not skip_rdns:
-            try:
-                hostname = socket.gethostbyaddr(str(ip))[0]
-            except (OSError, socket.herror):
-                hostname = ""
-        return {"ip":str(ip), "mac":neighbor_mac(str(ip)), "hostname":hostname, "status":"Online", "latency_ms":round((time.monotonic()-started)*1000), "last_seen":datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1.5, check=False)
+        if result.returncode == 0:
+            method = "ICMP"
+            latency_ms = round((time.monotonic() - started) * 1000)
     except (OSError, subprocess.TimeoutExpired):
-        return None
+        pass
+
+    arp_entry = (arp_hosts or {}).get(ip_s)
+    snmp_mac = (snmp_arp or {}).get(ip_s, "")
+
+    if not method:
+        # Cross-VLAN firewalls often drop ICMP; verify via common management/device TCP ports
+        method, tcp_lat = _tcp_reachability_probe(ip_s)
+        if method:
+            latency_ms = tcp_lat
+        elif arp_entry:
+            method = "ARP"
+            latency_ms = 1
+        else:
+            return None
+
+    mac = (arp_entry or {}).get("mac") or neighbor_mac(ip_s) or snmp_mac or ""
+    nb_name, nb_mac = _probe_netbios(ip_s)
+    if not mac and nb_mac:
+        mac = nb_mac
+
+    hostname = nb_name or (arp_entry or {}).get("hostname") or ""
+    if not hostname and not skip_rdns:
+        try:
+            hostname = socket.gethostbyaddr(ip_s)[0]
+        except (OSError, socket.herror):
+            hostname = ""
+
+    vendor = lookup_mac_vendor(mac) or (arp_entry or {}).get("vendor") or ""
+    if (not hostname or not vendor) and snmp_community:
+        s_name, s_ven = _probe_snmp_sys(ip_s, snmp_community)
+        if s_name and not hostname:
+            hostname = s_name
+        if s_ven and not vendor:
+            vendor = s_ven
+
+    if not hostname or not vendor:
+        h_name, h_ven = _probe_http_tls_hint(ip_s)
+        if h_name and not hostname:
+            hostname = h_name
+        if h_ven and not vendor:
+            vendor = h_ven
+
+    return {
+        "ip": ip_s,
+        "mac": mac,
+        "vendor": vendor[:120],
+        "hostname": hostname[:255],
+        "via": method or "ICMP",
+        "status": "Online",
+        "latency_ms": latency_ms if latency_ms is not None else round((time.monotonic() - started) * 1000),
+        "last_seen": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    }
 
 
 def run_task(task):
@@ -445,10 +853,13 @@ def run_task(task):
     step = max(256, min(2048, (total_hosts // 40) or 256))
     workers = min(256, max(64, total_hosts // 64))
     skip_rdns = total_hosts > 4096
+    collectors = task.get("arpCollectors") or []
+    snmp_community = str(task.get("snmpCommunity") or "").strip()
     try:
         arp_hosts = {}
         for network in networks:
             arp_hosts.update(arp_sweep(network))
+        snmp_arp = fetch_snmp_arp_table(collectors, default_community=snmp_community)
 
         def host_iter():
             for network in networks:
@@ -466,7 +877,7 @@ def run_task(task):
                     except StopIteration:
                         exhausted = True
                         break
-                    pending[pool.submit(_fast_probe, ip, skip_rdns)] = str(ip)
+                    pending[pool.submit(_fast_probe, ip, skip_rdns, arp_hosts, snmp_arp, snmp_community)] = str(ip)
                 if not pending:
                     break
                 done, _ = concurrent.futures.wait(pending.keys(), return_when=concurrent.futures.FIRST_COMPLETED)
@@ -474,9 +885,14 @@ def run_task(task):
                     scanned_ip = pending.pop(future)
                     row = future.result()
                     if row and scanned_ip in arp_hosts:
-                        row["mac"] = arp_hosts[scanned_ip]["mac"]
+                        if not row.get("mac"):
+                            row["mac"] = arp_hosts[scanned_ip]["mac"]
+                        if not row.get("vendor"):
+                            row["vendor"] = arp_hosts[scanned_ip].get("vendor", "") or lookup_mac_vendor(row["mac"])
                         if not row.get("hostname") and arp_hosts[scanned_ip].get("hostname"):
                             row["hostname"] = arp_hosts[scanned_ip]["hostname"]
+                    if row and not row.get("vendor") and row.get("mac"):
+                        row["vendor"] = lookup_mac_vendor(row["mac"])
                     if row:
                         results.append(row)
                     progress += 1
@@ -485,7 +901,7 @@ def run_task(task):
                         request_json("/api/internal/scanner-progress", {"id":scan_id, "status":"running", "progress":progress, "results":results}, timeout=15)
         results.sort(key=lambda row:tuple(int(part) for part in row["ip"].split(".")))
         request_json("/api/internal/scanner-progress", {"id":scan_id, "status":"completed", "progress":progress, "results":results}, timeout=15)
-        print(f"Scan {scan_id} complete: {len(results)} responsive devices across {total_hosts} addresses", flush=True)
+        print(f"Scan {scan_id} complete: {len(results)} responsive devices across {total_hosts} addresses (L2-ARP={len(arp_hosts)}, SNMP-ARP={len(snmp_arp)})", flush=True)
     except Exception as exc:
         print(f"Scan {scan_id} failed: {type(exc).__name__}", flush=True)
         try:
@@ -692,7 +1108,7 @@ def main():
     while True:
         try:
             if time.monotonic() - last_heartbeat >= 6:
-                hb = request_json("/api/internal/scanner-heartbeat", payload={}, timeout=5)
+                hb = request_json("/api/internal/scanner-heartbeat", payload={"hostSubnets": _local_interface_subnets(), "gateway": _default_gateway_ip()}, timeout=5)
                 if isinstance(hb, dict) and "siteName" in hb:
                     update_lan_hostnames(hb.get("siteName", ""))
                 last_heartbeat = time.monotonic()
@@ -705,7 +1121,6 @@ def main():
                     futures = [pool.submit(poll_snmp_profile, profile) for profile in snmp_task.get("items", [])]
                     for future in concurrent.futures.as_completed(futures):
                         future.result()
-                continue
             if not _SCAN_THREAD or not _SCAN_THREAD.is_alive():
                 task = request_json("/api/internal/scanner-task", timeout=5)
                 if task:

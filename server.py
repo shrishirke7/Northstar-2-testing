@@ -1250,9 +1250,107 @@ def _persist_network_scan(state, scan_id):
 
 MAX_NETWORK_SCAN_HOSTS = 262144  # Supports /16 through /32 CIDRs (up to 4 x /16 networks combined)
 
+_SRV_EMBEDDED_OUI = {
+    "000c29": "VMware", "005056": "VMware", "000569": "VMware",
+    "00155d": "Microsoft Hyper-V", "525400": "QEMU / KVM", "080027": "Oracle VirtualBox",
+    "001b21": "Intel", "001e67": "Intel", "3c970e": "Intel", "8086f2": "Intel", "a4bf01": "Intel",
+    "d4bed9": "Dell", "001422": "Dell", "180373": "Dell", "24b6fd": "Dell", "549f35": "Dell", "b083fe": "Dell", "f8bc12": "Dell", "00219b": "Dell",
+    "001b78": "Hewlett Packard", "0025b3": "Hewlett Packard", "3c4a92": "Hewlett Packard Enterprise", "9457a5": "Hewlett Packard",
+    "d4c9ef": "HP", "ec9a74": "HP", "0001e6": "HP", "00215a": "HP",
+    "000b86": "Aruba / HPE", "204c03": "Aruba / HPE", "24de9a": "Aruba / HPE", "94b40f": "Aruba / HPE", "ac1702": "Aruba / HPE", "d8c7c8": "Aruba / HPE",
+    "001122": "Cisco", "000e83": "Cisco", "001bd5": "Cisco", "0026cb": "Cisco", "68bc0c": "Cisco", "f4cfe2": "Cisco",
+    "001a8c": "Sophos", "005018": "Sophos", "c84f86": "Sophos", "7c5a1c": "Sophos",
+    "00090f": "Fortinet", "085b0e": "Fortinet", "704ca5": "Fortinet", "906cac": "Fortinet",
+    "18e829": "Ubiquiti", "24a43c": "Ubiquiti", "44d9e7": "Ubiquiti", "7483c2": "Ubiquiti", "802aa8": "Ubiquiti", "b4fbe4": "Ubiquiti", "dc9fdb": "Ubiquiti", "fcecda": "Ubiquiti",
+    "000c42": "MikroTik", "4c5e0c": "MikroTik", "64d154": "MikroTik", "d4ca6d": "MikroTik", "dc2c6e": "MikroTik", "b869f4": "MikroTik",
+    "14cc20": "TP-Link", "50c7bf": "TP-Link", "60e327": "TP-Link", "98dac4": "TP-Link", "b0be76": "TP-Link", "c025e9": "TP-Link", "d807b6": "TP-Link", "e8de27": "TP-Link",
+    "000d88": "D-Link", "1c7ee5": "D-Link", "28107b": "D-Link", "c8d3a3": "D-Link",
+    "00095b": "Netgear", "204e7f": "Netgear", "a021b7": "Netgear", "c03f0e": "Netgear",
+    "001132": "Synology", "0011d8": "Synology", "245ebe": "QNAP",
+    "1868cb": "Hikvision", "2857be": "Hikvision", "4419b6": "Hikvision", "4cbd8f": "Hikvision", "54c415": "Hikvision", "8ce748": "Hikvision", "a41437": "Hikvision", "c056e3": "Hikvision", "c42f90": "Hikvision",
+    "14a78b": "Dahua", "3cef8c": "Dahua", "4c11bf": "Dahua", "9002a9": "Dahua", "a0bd1d": "Dahua", "e0508b": "Dahua",
+    "48ea63": "Uniview (UNV)", "6cf17e": "Uniview (UNV)", "c47905": "Uniview (UNV)",
+    "00408c": "Axis", "accc8e": "Axis", "b8a44f": "Axis",
+    "00105a": "Lenovo", "00215c": "Lenovo", "28d244": "Lenovo", "503eaa": "Lenovo", "98fa9b": "Lenovo", "c85b76": "Lenovo",
+    "001e8c": "ASUS", "1c872c": "ASUS", "2c4d54": "ASUS", "38d547": "ASUS", "d850e6": "ASUS",
+    "0013d4": "Realtek", "00e04c": "Realtek", "485b39": "Realtek", "52544c": "Realtek", "98e7f4": "Realtek",
+    "001f81": "Canon", "000085": "Canon", "180cac": "Canon", "f48139": "Canon",
+    "000048": "Epson", "0026ab": "Epson", "44d244": "Epson", "64eb8c": "Epson",
+    "001ba9": "Brother", "008077": "Brother", "30055c": "Brother", "b42200": "Brother",
+    "000074": "Ricoh", "002673": "Ricoh", "001599": "Samsung", "0000f0": "Samsung",
+    "002590": "Supermicro", "0cc47a": "Supermicro", "3cecef": "Supermicro", "ac1f6b": "Supermicro",
+    "b827eb": "Raspberry Pi", "dca632": "Raspberry Pi", "e45f01": "Raspberry Pi", "28cdc1": "Raspberry Pi",
+    "000393": "Apple", "3c0754": "Apple", "a45e60": "Apple", "f01898": "Apple",
+}
+_SRV_OUI_CACHE = None
+
+
+def _lookup_mac_vendor(mac):
+    global _SRV_OUI_CACHE
+    if _SRV_OUI_CACHE is None:
+        cache = dict(_SRV_EMBEDDED_OUI)
+        for p in ("/usr/share/ieee-data/oui.txt", "/usr/share/arp-scan/ieee-oui.txt", "/usr/share/misc/oui.txt"):
+            if os.path.isfile(p):
+                try:
+                    with open(p, "r", encoding="utf-8", errors="ignore") as fh:
+                        for line in fh:
+                            m1 = re.match(r"^([0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2})\s*\(hex\)\s+(.+)$", line.strip())
+                            if m1:
+                                px = re.sub(r"[^0-9a-f]", "", m1.group(1).lower())
+                                if len(px) == 6 and m1.group(2).strip():
+                                    cache.setdefault(px, m1.group(2).strip()[:80])
+                            else:
+                                m2 = re.match(r"^([0-9A-Fa-f]{6})\s+(.+)$", line.strip())
+                                if m2 and m2.group(2).strip():
+                                    cache.setdefault(m2.group(1).lower(), m2.group(2).strip()[:80])
+                except OSError:
+                    pass
+        _SRV_OUI_CACHE = cache
+    cleaned = re.sub(r"[^0-9a-f]", "", str(mac or "").lower())
+    return _SRV_OUI_CACHE.get(cleaned[:6], "") if len(cleaned) >= 6 else ""
+
 
 def _network_usable_hosts(network):
     return network.num_addresses - (2 if network.prefixlen < 31 else 0)
+
+
+def _suggest_vlan_cidrs(conn, saved_nets, host_subnets):
+    suggested = []
+    seen = set(saved_nets)
+    cand_strs = list(host_subnets or [])
+    for key in ("assets", "manual_users"):
+        rows = (conn.execute("SELECT value FROM app_state WHERE key=%s", (key,)).fetchone() or ([],))[0]
+        if not isinstance(rows, list):
+            continue
+        for item in rows:
+            if not isinstance(item, dict):
+                continue
+            vals = [item.get("ipAddress"), item.get("ip_address")]
+            for nif in (item.get("networkInterfaces") if isinstance(item.get("networkInterfaces"), list) else []):
+                if isinstance(nif, dict):
+                    vals.extend([nif.get("ipAddress"), nif.get("ip_address"), nif.get("ip")])
+            for v in vals:
+                s = str(v or "").strip()
+                if s:
+                    cand_strs.append(s)
+    for raw in cand_strs:
+        try:
+            if "/" in raw:
+                n = ipaddress.ip_network(raw, strict=False)
+            else:
+                ip = ipaddress.ip_address(raw)
+                if ip.version != 4 or not ip.is_private or ip.is_loopback or ip.is_link_local:
+                    continue
+                n = ipaddress.ip_network(f"{ip}/24", strict=False)
+            if n.version != 4 or not n.is_private or n.is_loopback or n.is_link_local:
+                continue
+            if not any(n.subnet_of(s) for s in seen):
+                seen.add(n)
+                suggested.append(str(n))
+        except ValueError:
+            continue
+    suggested.sort(key=lambda x: tuple(int(p) for p in x.split("/")[0].split(".")))
+    return suggested[:64]
 
 
 @app.get("/api/network-scans")
@@ -1262,6 +1360,12 @@ def network_scans():
         ranges = (conn.execute("SELECT value FROM app_state WHERE key='network_ranges'").fetchone() or ([],))[0]
         saved = (conn.execute("SELECT value FROM app_state WHERE key='network_scan'").fetchone() or ({},))[0]
         heartbeat = (conn.execute("SELECT value FROM app_state WHERE key='scanner_heartbeat'").fetchone() or ({},))[0]
+        col_row = (conn.execute("SELECT value FROM app_state WHERE key='network_collectors'").fetchone() or ({},))[0]
+        col_cfg = col_row if isinstance(col_row, dict) else {}
+        snmp_hosts = [str(m.get("host") or "").strip() for m in _snmp_rows(conn) if isinstance(m, dict) and m.get("host")]
+        nets = _parse_authorized_networks(ranges)
+        host_subnets = heartbeat.get("hostSubnets") if isinstance(heartbeat.get("hostSubnets"), list) else []
+        suggested_ranges = _suggest_vlan_cidrs(conn, nets, host_subnets)
     with NETWORK_SCAN_LOCK:
         state = dict(NETWORK_SCAN_STATE)
     if saved:
@@ -1279,9 +1383,52 @@ def network_scans():
         scanner_connected = bool(last_seen) and (datetime.now(timezone.utc) - datetime.fromisoformat(last_seen)).total_seconds() <= 30
     except (ValueError, TypeError):
         scanner_connected = False
-    nets = _parse_authorized_networks(ranges)
     host_count = sum(_network_usable_hosts(n) for n in nets)
-    return jsonify(ranges=ranges, hostCount=host_count, scan=state, scannerConnected=scanner_connected)
+    return jsonify(
+        ranges=ranges,
+        hostCount=host_count,
+        scan=state,
+        scannerConnected=scanner_connected,
+        hostSubnets=host_subnets,
+        gateway=str(heartbeat.get("gateway") or ""),
+        suggestedRanges=suggested_ranges,
+        collectors={
+            "collectorHosts": col_cfg.get("collectorHosts") if isinstance(col_cfg.get("collectorHosts"), list) else [],
+            "snmpCommunity": str(col_cfg.get("snmpCommunity") or ""),
+            "snmpV3Hosts": snmp_hosts,
+        },
+        serverNow=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+@app.put("/api/network-scan/collectors")
+@app.put("/api/admin/network-scan/collectors")
+@signed_in
+def save_network_scan_collectors():
+    if not session.get("is_admin") and module_access(session.get("profile", {}), "network") != "write":
+        abort(403)
+    body = request.get_json(silent=True) or {}
+    raw_hosts = body.get("collectorHosts") if isinstance(body.get("collectorHosts"), list) else []
+    clean_hosts = []
+    for raw_h in raw_hosts[:24]:
+        txt = str(raw_h or "").strip()
+        if not txt:
+            continue
+        try:
+            ip = ipaddress.ip_address(txt)
+        except ValueError:
+            return jsonify(error=f"Invalid collector IPv4 address: {txt[:40]}"), 400
+        if ip.version != 4 or not ip.is_private or ip.is_loopback or ip.is_link_local:
+            return jsonify(error=f"Collector IP must be a private IPv4 address: {txt[:40]}"), 400
+        if str(ip) not in clean_hosts:
+            clean_hosts.append(str(ip))
+    comm = str(body.get("snmpCommunity") or "").strip()[:64]
+    if comm and not re.fullmatch(r"[A-Za-z0-9._@#$%^&+=!-]{1,64}", comm):
+        return jsonify(error="SNMP community string contains unsupported characters."), 400
+    cfg = {"collectorHosts": clean_hosts, "snmpCommunity": comm}
+    with db() as conn:
+        conn.execute("INSERT INTO app_state(key,value) VALUES('network_collectors',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(cfg),))
+    return jsonify(ok=True, collectors=cfg)
 
 
 @app.put("/api/network-scan/ranges")
@@ -2348,6 +2495,7 @@ def live_alerts_feed():
                 for a in a_list if isinstance(a, dict)
             ]
         out["pulse"] = _pulse_versions(conn, include_internal=True)
+        out["serverNow"] = datetime.now(timezone.utc).isoformat()
     return jsonify(**out)
 
 
@@ -2645,7 +2793,27 @@ def scanner_ip_status_results():
 def scanner_heartbeat():
     if not _scanner_authorized():
         abort(403)
-    state = {"last_seen": datetime.now(timezone.utc).isoformat()}
+    body = request.get_json(silent=True) or {}
+    clean_subnets = []
+    for raw_sub in (body.get("hostSubnets") if isinstance(body.get("hostSubnets"), list) else [])[:32]:
+        try:
+            net = ipaddress.ip_network(str(raw_sub).strip(), strict=False)
+            if net.version == 4 and net.is_private and not net.is_loopback and not net.is_link_local:
+                s = str(net)
+                if s not in clean_subnets:
+                    clean_subnets.append(s)
+        except ValueError:
+            continue
+    gw = ""
+    raw_gw = str(body.get("gateway") or "").strip()
+    if raw_gw:
+        try:
+            g_ip = ipaddress.ip_address(raw_gw)
+            if g_ip.version == 4 and g_ip.is_private:
+                gw = str(g_ip)
+        except ValueError:
+            gw = ""
+    state = {"last_seen": datetime.now(timezone.utc).isoformat(), "hostSubnets": clean_subnets, "gateway": gw}
     site_name = ""
     with db() as conn:
         conn.execute("INSERT INTO app_state(key,value) VALUES('scanner_heartbeat',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(state),))
@@ -2681,7 +2849,32 @@ def scanner_task():
             return ("", 204)
         state["status"] = "running"
         conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='network_scan'", (json.dumps(state),))
-    return jsonify(id=state.get("id"), ranges=ranges, total=state.get("total", 0))
+        col_row = (conn.execute("SELECT value FROM app_state WHERE key='network_collectors'").fetchone() or ({},))[0]
+        col_cfg = col_row if isinstance(col_row, dict) else {}
+        snmp_comm = str(col_cfg.get("snmpCommunity") or "").strip()
+        arp_collectors = []
+        seen_col_hosts = set()
+        for ch in (col_cfg.get("collectorHosts") if isinstance(col_cfg.get("collectorHosts"), list) else []):
+            ch_s = str(ch or "").strip()
+            if ch_s and ch_s not in seen_col_hosts:
+                seen_col_hosts.add(ch_s)
+                arp_collectors.append({"host": ch_s, "version": "2c", "community": snmp_comm or "public", "port": 161})
+        for sm in _snmp_rows(conn):
+            if not isinstance(sm, dict) or not sm.get("host"):
+                continue
+            sh = str(sm["host"]).strip()
+            arp_collectors.append({
+                "host": sh,
+                "version": "3" if sm.get("username") else "2c",
+                "port": int(sm.get("port") or 161),
+                "username": str(sm.get("username") or ""),
+                "authProtocol": str(sm.get("authProtocol") or "SHA"),
+                "authSecret": str(sm.get("authSecret") or ""),
+                "privacyProtocol": str(sm.get("privacyProtocol") or "AES"),
+                "privacySecret": str(sm.get("privacySecret") or ""),
+                "community": snmp_comm or "public",
+            })
+    return jsonify(id=state.get("id"), ranges=ranges, total=state.get("total", 0), arpCollectors=arp_collectors, snmpCommunity=snmp_comm)
 
 
 @app.post("/api/internal/scanner-progress")
@@ -2709,7 +2902,17 @@ def scanner_progress():
                 continue
             raw_latency = item.get("latency_ms")
             latency = None if raw_latency is None else max(0, min(60000, int(raw_latency)))
-            clean.append({"ip":str(ip), "mac":mac, "hostname":str(item.get("hostname", ""))[:255], "status":"Online", "latency_ms":latency, "last_seen":str(item.get("last_seen", ""))[:64]})
+            vendor = (str(item.get("vendor") or "").strip() or _lookup_mac_vendor(mac))[:120]
+            clean.append({
+                "ip": str(ip),
+                "mac": mac,
+                "vendor": vendor,
+                "hostname": str(item.get("hostname", ""))[:255],
+                "via": str(item.get("via", "ICMP"))[:32],
+                "status": "Online",
+                "latency_ms": latency,
+                "last_seen": str(item.get("last_seen", ""))[:64],
+            })
         except (ValueError, TypeError, AttributeError):
             continue
     with db() as conn:
@@ -2729,6 +2932,35 @@ def scanner_progress():
             online_ips = {item["ip"] for item in clean}
             checked_at = datetime.now(timezone.utc).isoformat()
             _apply_ip_status_to_records(conn, networks, online_ips, checked_at)
+            by_ip = {item["ip"]: item for item in clean if item.get("mac") or item.get("vendor")}
+            if by_ip:
+                arow = conn.execute("SELECT value FROM app_state WHERE key='assets' FOR UPDATE").fetchone()
+                assets_list = arow[0] if arow and isinstance(arow[0], list) else []
+                mac_updated = False
+                for a in assets_list:
+                    if not isinstance(a, dict):
+                        continue
+                    p_ip = str(a.get("ipAddress") or a.get("ip_address") or "").strip()
+                    hit = by_ip.get(p_ip)
+                    if hit:
+                        if hit.get("mac") and not str(a.get("macAddress") or a.get("mac_address") or "").strip():
+                            a["macAddress"] = hit["mac"]
+                            mac_updated = True
+                        if hit.get("vendor") and not str(a.get("manufacturer") or "").strip():
+                            a["manufacturer"] = hit["vendor"]
+                            mac_updated = True
+                    for nif in (a.get("networkInterfaces") if isinstance(a.get("networkInterfaces"), list) else []):
+                        if not isinstance(nif, dict):
+                            continue
+                        n_ip = str(nif.get("ipAddress") or nif.get("ip_address") or nif.get("ip") or "").strip()
+                        n_hit = by_ip.get(n_ip)
+                        if n_hit and n_hit.get("mac") and not str(nif.get("macAddress") or nif.get("mac_address") or "").strip():
+                            nif["macAddress"] = n_hit["mac"]
+                            mac_updated = True
+                            if n_hit.get("vendor") and not str(a.get("manufacturer") or "").strip():
+                                a["manufacturer"] = n_hit["vendor"]
+                if mac_updated:
+                    conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='assets'", (json.dumps(assets_list),))
     return jsonify(ok=True)
 
 
@@ -4443,6 +4675,7 @@ def get_data():
                 out["users"] = [{k: v for k, v in who.items() if k in ("username", "name", "email", "dept", "department", "site", "role", "gender")}]
             out.pop("settings", None)
             out["factories_config"] = safe_factories
+        out["serverNow"] = datetime.now(timezone.utc).isoformat()
         return jsonify(**out)
 
 
@@ -4499,7 +4732,7 @@ def save_data():
                         })
                     value = clean_ips
                 if key == "assets" and isinstance(value, list):
-                    current = (conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone() or ([],))[0]
+                    current = (conn.execute("SELECT value FROM app_state WHERE key='assets' FOR UPDATE").fetchone() or ([],))[0]
                     prior_by_tag = {str(a.get("tag", "")).casefold(): a for a in current}
                     reconciled = []
                     for item in value:
