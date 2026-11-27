@@ -88,8 +88,8 @@ if len(APP_SECRET) < 40:
 
 app = Flask(__name__, static_folder=None)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
-SESSION_IDLE_MINUTES = max(5, int(os.getenv("SESSION_IDLE_MINUTES", "30")))
-SESSION_MAX_HOURS = max(1, int(os.getenv("SESSION_MAX_HOURS", "8")))
+SESSION_IDLE_MINUTES = max(5, int(os.getenv("SESSION_IDLE_MINUTES", "480")))
+SESSION_MAX_HOURS = max(1, int(os.getenv("SESSION_MAX_HOURS", "24")))
 app.secret_key = APP_SECRET
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -1248,6 +1248,13 @@ def _persist_network_scan(state, scan_id):
         conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='network_scan' AND value->>'id'=%s", (json.dumps(state), scan_id))
 
 
+MAX_NETWORK_SCAN_HOSTS = 262144  # Supports /16 through /32 CIDRs (up to 4 x /16 networks combined)
+
+
+def _network_usable_hosts(network):
+    return network.num_addresses - (2 if network.prefixlen < 31 else 0)
+
+
 @app.get("/api/network-scans")
 @signed_in
 def network_scans():
@@ -1262,17 +1269,19 @@ def network_scans():
     if state.get("status") == "running" and state.get("started_at"):
         try:
             started = datetime.fromisoformat(state["started_at"])
-            if (datetime.now(timezone.utc) - started).total_seconds() > 1800:
+            if (datetime.now(timezone.utc) - started).total_seconds() > 3600:
                 state.update(status="failed", error="Scan stopped unexpectedly; start a new scan.", finished_at=datetime.now(timezone.utc).isoformat())
                 _persist_network_scan(state, state.get("id", ""))
         except (ValueError, TypeError):
             pass
     last_seen = heartbeat.get('last_seen', '')
     try:
-        scanner_connected = bool(last_seen) and (datetime.now(timezone.utc) - datetime.fromisoformat(last_seen)).total_seconds() <= 20
+        scanner_connected = bool(last_seen) and (datetime.now(timezone.utc) - datetime.fromisoformat(last_seen)).total_seconds() <= 30
     except (ValueError, TypeError):
         scanner_connected = False
-    return jsonify(ranges=ranges, scan=state, scannerConnected=scanner_connected)
+    nets = _parse_authorized_networks(ranges)
+    host_count = sum(_network_usable_hosts(n) for n in nets)
+    return jsonify(ranges=ranges, hostCount=host_count, scan=state, scannerConnected=scanner_connected)
 
 
 @app.put("/api/network-scan/ranges")
@@ -1285,18 +1294,27 @@ def save_network_scan_ranges():
         return jsonify(error="Enter up to 25,000 private IPv4 CIDR ranges"), 400
     networks = []
     for value in raw:
+        text = str(value).strip()
+        if not text:
+            continue
         try:
-            network = ipaddress.ip_network(str(value).strip(), strict=False)
+            network = ipaddress.ip_network(text, strict=False)
         except ValueError:
             return jsonify(error=f"Invalid network range: {value}"), 400
-        if network.version != 4 or not network.is_private or network.is_loopback or network.is_link_local or network.num_addresses > 256:
-            return jsonify(error="Only private IPv4 ranges up to /24 can be scanned"), 400
+        if network.version != 4 or not network.is_private or network.is_loopback or network.is_link_local or network.prefixlen < 16 or network.num_addresses > 65536:
+            return jsonify(error="Only private IPv4 CIDR ranges from /16 to /32 (e.g. /24, /23, /22, /21, /20, /19, /18, /17, /16) can be saved"), 400
         if network not in networks:
             networks.append(network)
+    hosts_count = sum(_network_usable_hosts(n) for n in networks)
+    if hosts_count > MAX_NETWORK_SCAN_HOSTS:
+        return jsonify(error=f"Combined address limit is {MAX_NETWORK_SCAN_HOSTS:,} hosts across saved CIDRs"), 400
     values = [str(n) for n in networks]
     with db() as conn:
         conn.execute("INSERT INTO app_state(key,value) VALUES('network_ranges',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps(values),))
-    return jsonify(ok=True, ranges=values)
+        # Reset cooldown so the host scanner immediately re-pings known devices in these saved ranges.
+        conn.execute("INSERT INTO app_state(key,value) VALUES('scanner_ip_status',%s::jsonb) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()", (json.dumps({}),))
+        _pg_emit_notify(conn, "pulse", {"source": "network_ranges", "count": len(values)})
+    return jsonify(ok=True, ranges=values, hostCount=hosts_count)
 
 
 @app.post("/api/network-scan")
@@ -1309,16 +1327,16 @@ def start_network_scan():
         raw = row[0] if row else []
     if not raw:
         return jsonify(error="Add the authorized private network ranges to scan first"), 400
-    networks = [ipaddress.ip_network(value, strict=True) for value in raw]
-    hosts_count = sum(n.num_addresses - (2 if n.prefixlen < 31 else 0) for n in networks)
-    if hosts_count > 25000:
-        return jsonify(error="Combined scan limit is 25,000 addresses. CIDR ranges can be /24 or smaller."), 400
+    networks = _parse_authorized_networks(raw)
+    hosts_count = sum(_network_usable_hosts(n) for n in networks)
+    if hosts_count > MAX_NETWORK_SCAN_HOSTS:
+        return jsonify(error=f"Combined scan limit is {MAX_NETWORK_SCAN_HOSTS:,} addresses (supports /16 through /32 CIDRs)."), 400
     with db() as conn:
         current = conn.execute("SELECT value FROM app_state WHERE key='network_scan' FOR UPDATE").fetchone()
         prior = current[0] if current else {}
         if prior.get("status") == "running" and prior.get("started_at"):
             try:
-                recent = (datetime.now(timezone.utc) - datetime.fromisoformat(prior["started_at"])).total_seconds() < 1800
+                recent = (datetime.now(timezone.utc) - datetime.fromisoformat(prior["started_at"])).total_seconds() < 3600
             except (ValueError, TypeError):
                 recent = False
             if recent:
@@ -2474,7 +2492,7 @@ def scanner_ip_status_task():
         ranges = (conn.execute("SELECT value FROM app_state WHERE key='network_ranges'").fetchone() or ([],))[0]
         if not ranges:
             return ("", 204)
-        networks = [ipaddress.ip_network(value, strict=True) for value in ranges]
+        networks = _parse_authorized_networks(ranges)
         inventory = (conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone() or ([],))[0]
         users = (conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone() or ([],))[0]
         targets = set()
@@ -2500,6 +2518,88 @@ def scanner_ip_status_task():
     return jsonify(id=task_id, ips=state["targets"])
 
 
+def _parse_authorized_networks(raw_ranges):
+    nets = []
+    for value in (raw_ranges or []):
+        try:
+            net = ipaddress.ip_network(str(value).strip(), strict=False)
+        except ValueError:
+            continue
+        if net.version == 4 and net.is_private and not net.is_loopback and not net.is_link_local:
+            nets.append(net)
+    return nets
+
+
+def _apply_ip_status_to_records(conn, networks, responsive, checked_at, target_set=None):
+    inventory_row = conn.execute("SELECT value FROM app_state WHERE key='assets' FOR UPDATE").fetchone()
+    inventory = inventory_row[0] if inventory_row else []
+    users_row = conn.execute("SELECT value FROM app_state WHERE key='manual_users' FOR UPDATE").fetchone()
+    users = users_row[0] if users_row else []
+    notifications_row = conn.execute("SELECT value FROM app_state WHERE key='notifications' FOR UPDATE").fetchone()
+    notifications = notifications_row[0] if notifications_row else {"rules": [], "queue": []}
+    queue_size_before = len(notifications.get("queue", []))
+    assets_changed = users_changed = False
+
+    def in_scope(raw_ip_str):
+        if target_set is not None:
+            return raw_ip_str in target_set
+        try:
+            ip = ipaddress.ip_address(raw_ip_str)
+        except ValueError:
+            return False
+        return ip.version == 4 and ip.is_private and any(ip in net for net in networks)
+
+    for asset in inventory:
+        interfaces = asset.get("networkInterfaces")
+        if not isinstance(interfaces, list):
+            interfaces = []
+        checked_ips = set()
+        for interface in interfaces:
+            if not isinstance(interface, dict):
+                continue
+            raw_ip = str(interface.get("ipAddress", interface.get("ip_address", interface.get("ip", "")))).strip()
+            if not raw_ip or not in_scope(raw_ip):
+                continue
+            interface["ipStatus"] = interface["status"] = "Online" if raw_ip in responsive else "Offline"
+            interface["ipCheckedAt"] = checked_at
+            checked_ips.add(raw_ip)
+            if raw_ip in responsive:
+                interface["lastSeen"] = checked_at
+        primary_ip = str(asset.get("ipAddress", asset.get("ip_address", ""))).strip()
+        if primary_ip and in_scope(primary_ip):
+            checked_ips.add(primary_ip)
+        if not checked_ips:
+            continue
+        previous_status = str(asset.get("ipStatus", asset.get("status", "")))
+        is_online = bool(checked_ips & responsive)
+        asset["status"] = asset["ipStatus"] = "Online" if is_online else "Offline"
+        asset["ipCheckedAt"] = checked_at
+        if is_online:
+            asset["lastSeen"] = checked_at
+        _queue_asset_status_notifications(conn, notifications, asset, previous_status, asset["status"], checked_at, users)
+        if previous_status in ("Online", "Offline") and previous_status != asset["status"]:
+            _record_asset_transition_notification(conn, notifications, asset, asset["status"], checked_at)
+        assets_changed = True
+
+    for user in users:
+        raw_ip = str(user.get("ip_address", user.get("ipAddress", ""))).strip()
+        if not raw_ip or not in_scope(raw_ip):
+            continue
+        user["ipStatus"] = "Online" if raw_ip in responsive else "Offline"
+        user["ipCheckedAt"] = checked_at
+        if raw_ip in responsive:
+            user["lastSeen"] = checked_at
+        users_changed = True
+
+    if assets_changed:
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='assets'", (json.dumps(inventory),))
+        _pg_emit_notify(conn, "asset", {"online": len(responsive)})
+    if users_changed:
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='manual_users'", (json.dumps(users),))
+    if len(notifications.get("queue", [])) != queue_size_before:
+        conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='notifications'", (json.dumps(notifications),))
+
+
 @app.post("/api/internal/ip-status-results")
 def scanner_ip_status_results():
     if not _scanner_authorized():
@@ -2508,7 +2608,7 @@ def scanner_ip_status_results():
     task_id = str(body.get("id", ""))
     responsive = set()
     rows = body.get("online", [])
-    if not task_id or not isinstance(rows, list) or len(rows) > 25000:
+    if not task_id or not isinstance(rows, list) or len(rows) > MAX_NETWORK_SCAN_HOSTS:
         return jsonify(error="Invalid IP status result"), 400
     for value in rows:
         try:
@@ -2524,7 +2624,7 @@ def scanner_ip_status_results():
         if state.get("id") != task_id or state.get("finished_at"):
             return jsonify(error="IP status task is no longer active"), 409
         ranges = (conn.execute("SELECT value FROM app_state WHERE key='network_ranges'").fetchone() or ([],))[0]
-        networks = [ipaddress.ip_network(value, strict=True) for value in ranges]
+        networks = _parse_authorized_networks(ranges)
         target_set = set()
         for value in state.get("targets", []):
             try:
@@ -2534,64 +2634,10 @@ def scanner_ip_status_results():
             except ValueError:
                 continue
         responsive.intersection_update(target_set)
-        inventory_row = conn.execute("SELECT value FROM app_state WHERE key='assets' FOR UPDATE").fetchone()
-        inventory = inventory_row[0] if inventory_row else []
-        users_row = conn.execute("SELECT value FROM app_state WHERE key='manual_users' FOR UPDATE").fetchone()
-        users = users_row[0] if users_row else []
-        notifications_row = conn.execute("SELECT value FROM app_state WHERE key='notifications' FOR UPDATE").fetchone()
-        notifications = notifications_row[0] if notifications_row else {"rules": [], "queue": []}
-        queue_size_before = len(notifications.get("queue", []))
-        assets_changed = users_changed = False
-        for asset in inventory:
-            interfaces = asset.get("networkInterfaces")
-            if not isinstance(interfaces, list):
-                interfaces = []
-            checked_ips = set()
-            for interface in interfaces:
-                if not isinstance(interface, dict):
-                    continue
-                raw_ip = str(interface.get("ipAddress", interface.get("ip_address", interface.get("ip", "")))).strip()
-                if raw_ip not in target_set:
-                    continue
-                interface["ipStatus"] = interface["status"] = "Online" if raw_ip in responsive else "Offline"
-                interface["ipCheckedAt"] = checked_at
-                checked_ips.add(raw_ip)
-                if raw_ip in responsive:
-                    interface["lastSeen"] = checked_at
-            primary_ip = str(asset.get("ipAddress", asset.get("ip_address", ""))).strip()
-            if primary_ip in target_set:
-                checked_ips.add(primary_ip)
-            if not checked_ips:
-                continue
-            previous_status = str(asset.get("ipStatus", asset.get("status", "")))
-            is_online = bool(checked_ips & responsive)
-            asset["status"] = asset["ipStatus"] = "Online" if is_online else "Offline"
-            asset["ipCheckedAt"] = checked_at
-            if is_online:
-                asset["lastSeen"] = checked_at
-            _queue_asset_status_notifications(conn, notifications, asset, previous_status, asset["status"], checked_at, users)
-            if previous_status in ("Online", "Offline") and previous_status != asset["status"]:
-                _record_asset_transition_notification(conn, notifications, asset, asset["status"], checked_at)
-            assets_changed = True
-        for user in users:
-            raw_ip = str(user.get("ip_address", user.get("ipAddress", ""))).strip()
-            if raw_ip not in target_set:
-                continue
-            user["ipStatus"] = "Online" if raw_ip in responsive else "Offline"
-            user["ipCheckedAt"] = checked_at
-            if raw_ip in responsive:
-                user["lastSeen"] = checked_at
-            users_changed = True
-        if assets_changed:
-            conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='assets'", (json.dumps(inventory),))
-            _pg_emit_notify(conn, "asset", {"online": len(responsive), "checked": len(target_set)})
-        if users_changed:
-            conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='manual_users'", (json.dumps(users),))
+        _apply_ip_status_to_records(conn, networks, responsive, checked_at, target_set=target_set)
         state["finished_at"] = checked_at
         state["online_count"] = len(responsive)
         conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='scanner_ip_status'", (json.dumps(state),))
-        if len(notifications.get("queue", [])) != queue_size_before:
-            conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='notifications'", (json.dumps(notifications),))
     return jsonify(ok=True, online=len(responsive), checked=len(target_set))
 
 
@@ -2626,9 +2672,11 @@ def scanner_task():
             except (ValueError, TypeError):
                 due = True
             if due:
-                hosts_count = sum(len(list(ipaddress.ip_network(value, strict=True).hosts())) for value in ranges)
-                state = {"id":str(uuid.uuid4()),"status":"queued","progress":0,"total":hosts_count,"results":[],"error":"","started_at":datetime.now(timezone.utc).isoformat(),"finished_at":""}
-                conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='network_scan'", (json.dumps(state),))
+                networks = _parse_authorized_networks(ranges)
+                hosts_count = sum(_network_usable_hosts(n) for n in networks)
+                if 0 < hosts_count <= MAX_NETWORK_SCAN_HOSTS:
+                    state = {"id":str(uuid.uuid4()),"status":"queued","progress":0,"total":hosts_count,"results":[],"error":"","started_at":datetime.now(timezone.utc).isoformat(),"finished_at":""}
+                    conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='network_scan'", (json.dumps(state),))
         if state.get("status") != "queued":
             return ("", 204)
         state["status"] = "running"
@@ -2646,11 +2694,11 @@ def scanner_progress():
     if not scan_id or status not in ("running", "completed", "failed"):
         return jsonify(error="Invalid scanner progress update"), 400
     try:
-        progress = max(0, min(25000, int(body.get("progress", 0))))
+        progress = max(0, min(MAX_NETWORK_SCAN_HOSTS, int(body.get("progress", 0))))
     except (ValueError, TypeError):
         return jsonify(error="Invalid scan progress"), 400
     results = body.get("results", [])
-    if not isinstance(results, list) or len(results) > 25000:
+    if not isinstance(results, list) or len(results) > MAX_NETWORK_SCAN_HOSTS:
         return jsonify(error="Invalid scan results"), 400
     clean = []
     for item in results:
@@ -2677,44 +2725,10 @@ def scanner_progress():
         conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='network_scan'", (json.dumps(state),))
         if status == "completed":
             ranges = (conn.execute("SELECT value FROM app_state WHERE key='network_ranges'").fetchone() or ([],))[0]
-            networks = [ipaddress.ip_network(value, strict=True) for value in ranges]
-            inventory_row = conn.execute("SELECT value FROM app_state WHERE key='assets' FOR UPDATE").fetchone()
-            inventory = inventory_row[0] if inventory_row else []
-            users_row = conn.execute("SELECT value FROM app_state WHERE key='manual_users' FOR UPDATE").fetchone()
-            users = users_row[0] if users_row else []
+            networks = _parse_authorized_networks(ranges)
             online_ips = {item["ip"] for item in clean}
             checked_at = datetime.now(timezone.utc).isoformat()
-            assets_changed = False
-            users_changed = False
-            for asset in inventory:
-                try:
-                    ip = ipaddress.ip_address(str(asset.get("ipAddress", asset.get("ip_address", ""))).strip())
-                except ValueError:
-                    continue
-                if ip.version != 4 or not any(ip in network for network in networks):
-                    continue
-                asset["status"] = "Online" if str(ip) in online_ips else "Offline"
-                asset["ipStatus"] = asset["status"]
-                asset["ipCheckedAt"] = checked_at
-                if str(ip) in online_ips:
-                    asset["lastSeen"] = checked_at
-                assets_changed = True
-            for user in users:
-                try:
-                    ip = ipaddress.ip_address(str(user.get("ip_address", user.get("ipAddress", ""))).strip())
-                except ValueError:
-                    continue
-                if ip.version != 4 or not any(ip in network for network in networks):
-                    continue
-                user["ipStatus"] = "Online" if str(ip) in online_ips else "Offline"
-                user["ipCheckedAt"] = checked_at
-                if str(ip) in online_ips:
-                    user["lastSeen"] = checked_at
-                users_changed = True
-            if assets_changed:
-                conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='assets'", (json.dumps(inventory),))
-            if users_changed:
-                conn.execute("UPDATE app_state SET value=%s::jsonb,updated_at=now() WHERE key='manual_users'", (json.dumps(users),))
+            _apply_ip_status_to_records(conn, networks, online_ips, checked_at)
     return jsonify(ok=True)
 
 

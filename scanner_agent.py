@@ -379,7 +379,7 @@ def ping_reachable(ip):
 
 def arp_sweep(network):
     """Return L2-visible hosts when the Ubuntu scanner shares their subnet."""
-    if platform.system().lower() == "windows":
+    if platform.system().lower() == "windows" or network.prefixlen < 22:
         return {}
     try:
         first_host = next(network.hosts())
@@ -390,7 +390,7 @@ def arp_sweep(network):
             return {}
         result = subprocess.run(
             ["arp-scan", "--interface=" + interface_match.group(1), "--retry=1", "--timeout=250", str(network)],
-            capture_output=True, text=True, timeout=max(10, min(90, network.num_addresses * 0.08)), check=False,
+            capture_output=True, text=True, timeout=max(10, min(60, network.num_addresses * 0.08)), check=False,
         )
         found = {}
         for line in result.stdout.splitlines():
@@ -407,36 +407,89 @@ def arp_sweep(network):
         return {}
 
 
+_SCAN_LOCK = threading.Lock()
+_SCAN_THREAD = None
+
+
+def _fast_probe(ip, skip_rdns=False):
+    command = ["ping", "-n", "-c", "1", "-W", "1", str(ip)] if platform.system().lower() != "windows" else ["ping", "-n", "1", "-w", "700", str(ip)]
+    started = time.monotonic()
+    try:
+        result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1.6, check=False)
+        if result.returncode:
+            return None
+        hostname = ""
+        if not skip_rdns:
+            try:
+                hostname = socket.gethostbyaddr(str(ip))[0]
+            except (OSError, socket.herror):
+                hostname = ""
+        return {"ip":str(ip), "mac":neighbor_mac(str(ip)), "hostname":hostname, "status":"Online", "latency_ms":round((time.monotonic()-started)*1000), "last_seen":datetime.datetime.now(datetime.timezone.utc).isoformat()}
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
 def run_task(task):
     scan_id = task["id"]
-    networks = [ipaddress.ip_network(value, strict=True) for value in task.get("ranges", [])]
-    hosts = [host for network in networks for host in network.hosts()]
+    networks = []
+    for value in task.get("ranges", []):
+        try:
+            net = ipaddress.ip_network(str(value).strip(), strict=False)
+            if net.version == 4 and net.prefixlen >= 16:
+                networks.append(net)
+        except ValueError:
+            continue
+    total_hosts = sum(n.num_addresses - (2 if n.prefixlen < 31 else 0) for n in networks)
     results = []
     progress = 0
+    step = max(256, min(2048, (total_hosts // 40) or 256))
+    workers = min(256, max(64, total_hosts // 64))
+    skip_rdns = total_hosts > 4096
     try:
         arp_hosts = {}
         for network in networks:
             arp_hosts.update(arp_sweep(network))
-        with concurrent.futures.ThreadPoolExecutor(max_workers=64) as pool:
-            futures = {pool.submit(probe, ip): ip for ip in hosts}
-            for future in concurrent.futures.as_completed(futures):
-                scanned_ip = str(futures[future])
-                row = future.result()
-                if row and scanned_ip in arp_hosts:
-                    row["mac"] = arp_hosts[scanned_ip]["mac"]
-                if row:
-                    results.append(row)
-                progress += 1
-                if progress % 512 == 0 or progress == len(hosts):
-                    results.sort(key=lambda row:tuple(int(part) for part in row["ip"].split(".")))
-                    request_json("/api/internal/scanner-progress", {"id":scan_id, "status":"running", "progress":progress, "results":results}, timeout=10)
+
+        def host_iter():
+            for network in networks:
+                for host in network.hosts():
+                    yield host
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+            pending = {}
+            it = host_iter()
+            exhausted = False
+            while not exhausted or pending:
+                while not exhausted and len(pending) < workers * 4:
+                    try:
+                        ip = next(it)
+                    except StopIteration:
+                        exhausted = True
+                        break
+                    pending[pool.submit(_fast_probe, ip, skip_rdns)] = str(ip)
+                if not pending:
+                    break
+                done, _ = concurrent.futures.wait(pending.keys(), return_when=concurrent.futures.FIRST_COMPLETED)
+                for future in done:
+                    scanned_ip = pending.pop(future)
+                    row = future.result()
+                    if row and scanned_ip in arp_hosts:
+                        row["mac"] = arp_hosts[scanned_ip]["mac"]
+                        if not row.get("hostname") and arp_hosts[scanned_ip].get("hostname"):
+                            row["hostname"] = arp_hosts[scanned_ip]["hostname"]
+                    if row:
+                        results.append(row)
+                    progress += 1
+                    if progress % step == 0 or (exhausted and not pending):
+                        results.sort(key=lambda r: tuple(int(part) for part in r["ip"].split(".")))
+                        request_json("/api/internal/scanner-progress", {"id":scan_id, "status":"running", "progress":progress, "results":results}, timeout=15)
         results.sort(key=lambda row:tuple(int(part) for part in row["ip"].split(".")))
-        request_json("/api/internal/scanner-progress", {"id":scan_id, "status":"completed", "progress":progress, "results":results}, timeout=10)
-        print(f"Scan {scan_id} complete: {len(results)} responsive devices", flush=True)
+        request_json("/api/internal/scanner-progress", {"id":scan_id, "status":"completed", "progress":progress, "results":results}, timeout=15)
+        print(f"Scan {scan_id} complete: {len(results)} responsive devices across {total_hosts} addresses", flush=True)
     except Exception as exc:
         print(f"Scan {scan_id} failed: {type(exc).__name__}", flush=True)
         try:
-            request_json("/api/internal/scanner-progress", {"id":scan_id, "status":"failed", "progress":progress, "results":results, "error":True}, timeout=10)
+            request_json("/api/internal/scanner-progress", {"id":scan_id, "status":"failed", "progress":progress, "results":results, "error":True}, timeout=15)
         except Exception:
             pass
 
@@ -653,11 +706,12 @@ def main():
                     for future in concurrent.futures.as_completed(futures):
                         future.result()
                 continue
-            task = request_json("/api/internal/scanner-task", timeout=5)
-            if task:
-                print(f"Starting authorized scan {task['id']} over {task.get('total', 0)} addresses", flush=True)
-                run_task(task)
-                continue
+            if not _SCAN_THREAD or not _SCAN_THREAD.is_alive():
+                task = request_json("/api/internal/scanner-task", timeout=5)
+                if task:
+                    print(f"Starting authorized scan {task['id']} over {task.get('total', 0)} addresses", flush=True)
+                    _SCAN_THREAD = threading.Thread(target=run_task, args=(task,), daemon=True)
+                    _SCAN_THREAD.start()
             status_task = request_json("/api/internal/ip-status-task", timeout=5)
             if status_task:
                 run_ip_status_task(status_task)
