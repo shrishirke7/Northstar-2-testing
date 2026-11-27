@@ -7102,9 +7102,11 @@ def _normalize_tile_module_cfg(raw):
 def _normalize_overview_prefs(raw):
     p = raw if isinstance(raw, dict) else {}
     hidden_cats = [str(x).strip()[:80] for x in (p.get("hiddenCategories") if isinstance(p.get("hiddenCategories"), list) else []) if str(x).strip()][:100]
+    hidden_subs = [str(x).strip()[:120] for x in (p.get("hiddenSubcategories") if isinstance(p.get("hiddenSubcategories"), list) else []) if str(x).strip()][:300]
     hidden_secs = [str(x).strip()[:80] for x in (p.get("hiddenSections") if isinstance(p.get("hiddenSections"), list) else []) if str(x).strip()][:50]
     return {
         "hiddenCategories": list(dict.fromkeys(hidden_cats)),
+        "hiddenSubcategories": list(dict.fromkeys(hidden_subs)),
         "hiddenSections": list(dict.fromkeys(hidden_secs)),
     }
 

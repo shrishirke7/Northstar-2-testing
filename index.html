@@ -2101,7 +2101,7 @@ function ageLabel(d){if(!d)return 'Not recorded';let start=new Date(d+'T00:00:00
 function assetRow(a,cachedState){let icon={Laptop:'▱',Desktop:'▣',Server:'▤',Printer:'▧',Network:'⌁',Mobile:'▯',Tablet:'▭'}[a.type]||'▤',old=ageLabel(a.purchaseDate),oldClass=parseInt(old)>=5?' old':'',pingState=cachedState||dcStatus(a),pingClass=deviceStatusClass(pingState),checked=window.selectedAssetTags&&window.selectedAssetTags.has(a.tag)?' checked':'',rowCls=checked?' class="ns-row-selected"':'',mm=window.resolveAssetMappingMeta?window.resolveAssetMappingMeta(a):{owner:(a.owner&&a.owner!=='Unassigned'?a.owner:''),dept:a.dept||'',site:a.site||'',ipMap:null};let dispOwner=mm.owner||'Unassigned',ipBadge=mm.ipMap?'<div class="ticket-meta" style="color:#157a54;font-weight:700">⌖ IP Synced · '+esc(mm.ipMap.ip)+'</div>':(a.mappedSource==='ticketing-ip-map'?'<div class="ticket-meta" style="color:#0369a1;font-weight:700">⌖ From Ticketing</div>':'');const deptDisp=[mm.dept||a.dept,a.subdept].filter(Boolean).join(' · ');return '<tr'+rowCls+' data-site="'+esc(a.site)+'" data-type="'+esc(a.type)+'" data-dept="'+esc(mm.dept||a.dept)+'" data-subdept="'+esc(a.subdept||'')+'" data-status="'+esc(pingState)+'" data-asset-tag="'+esc(a.tag)+'"><td class="asset-check-col"><input type="checkbox" class="asset-row-check" data-asset-tag="'+esc(a.tag)+'"'+checked+' aria-label="Select '+esc(a.name||a.tag)+'"></td><td><div class="asset-cell"><span class="device-icon">'+icon+'</span><div><div class="asset-name">'+esc(a.name)+'</div><div class="asset-id">'+esc(a.tag)+' · '+esc(a.serial)+(Array.isArray(a.networkInterfaces)&&a.networkInterfaces.length?' · '+a.networkInterfaces.map(n=>[n.name,n.ipAddress?'IP '+n.ipAddress:'',n.macAddress?'MAC '+n.macAddress:''].filter(Boolean).map(v=>esc(v)).join(' ')).join(' · '):(a.ipAddress?' · IP '+esc(a.ipAddress):'')+(a.macAddress?' · MAC '+esc(a.macAddress):''))+'</div></div></div></td><td>'+esc(categoryLabel(a))+'</td><td>'+esc([a.manufacturer,a.model,a.specs,a.osVersion,a.storageCapacity?(a.storageCapacity+' '+(a.storageUnit||'GB')):''].filter(Boolean).join(' · ')||'—')+'</td><td>'+esc(dispOwner)+ipBadge+'</td><td>'+esc(deptDisp)+'</td><td>'+esc(mm.site||a.site)+'</td><td><span class="age-pill'+oldClass+'">'+old+'</span></td><td>'+esc(a.lastMaintenance||'Not recorded')+'</td><td><span class="status '+pingClass+'">'+esc(pingState)+'</span></td><td>'+esc(a.ipCheckedAt?'Ping checked '+new Date(a.ipCheckedAt).toLocaleString():(a.seen||'Not checked'))+assetOpenLink(a)+'</td></tr>'}
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function renderAssets(){const fs=document.getElementById('assetFactoryFilter');if(fs){const old=fs.value,codes=typeof factoryCodes==='function'?factoryCodes():[];fs.innerHTML='<option value="">All factories</option>'+codes.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('');if(codes.includes(old))fs.value=old}window.populateAssetUserFilter?.();let q=(document.getElementById('assetSearch')?.value||'').toLowerCase(),type=document.getElementById('typeFilter')?.value||'',dept=document.getElementById('deptFilter')?.value||'',subdeptF=(document.getElementById('assetSubdeptFilter')?.value||'').trim(),userF=(document.getElementById('assetUserFilter')?.value||'').trim(),mappedOnly=Boolean(window.__nsAssetMappedOnly),status=document.getElementById('statusFilter')?.value||'',site=document.getElementById('globalSite').value,assetSite=document.getElementById('assetFactoryFilter')?.value||'',subF=document.getElementById('networkSubtypeFilter')?.value||'';const sdSel=document.getElementById('assetSubdeptFilter');if(sdSel){const activeSite=assetSite||(site!=='All sites'?site:'');const subVals=[...new Set([...(typeof window.subdeptsForFactoryDept==='function'?window.subdeptsForFactoryDept(activeSite,dept):[]),...assets.filter(x=>(!activeSite||(x.site||'')===activeSite)&&(!dept||(x.dept||'')===dept)).map(x=>String(x.subdept||'').trim())].filter(Boolean))].sort((a,b)=>a.localeCompare(b));sdSel.innerHTML='<option value="">All sub-departments</option>'+subVals.map(s=>'<option value="'+esc(s)+'">'+esc(s)+'</option>').join('');if(subdeptF&&subVals.some(v=>v.toLowerCase()===subdeptF.toLowerCase()))sdSel.value=subVals.find(v=>v.toLowerCase()===subdeptF.toLowerCase());else subdeptF='';}let filtered=[],onlineCnt=0,offlineCnt=0,unassignedCnt=0;const rowHtml=[];for(const a of assets){const mm=window.resolveAssetMappingMeta?window.resolveAssetMappingMeta(a):{owner:(a.owner&&a.owner!=='Unassigned'?a.owner:''),dept:a.dept||'',site:a.site||'',ips:[],ipMap:null,isMapped:Boolean((a.owner&&a.owner!=='Unassigned')||String(a.dept||'').trim())};const effDept=mm.dept||a.dept||'',effSite=mm.site||a.site||'',effSubdept=String(a.subdept||'').trim();if((assetSite&&effSite!==assetSite)||(site!=='All sites'&&effSite!==site)||(type&&a.type!==type&&!(type==='Network'&&typeof resolveNetworkSubtype==='function'&&resolveNetworkSubtype(a)))||(dept&&effDept!==dept)||(subdeptF&&effSubdept.toLowerCase()!==subdeptF.toLowerCase())||(subF&&a.subtype!==subF&&!(['Switch','Router','Access point','Firewall','Other network device'].includes(subF)&&typeof resolveNetworkSubtype==='function'&&resolveNetworkSubtype(a)===subF)))continue;if(userF==='__unassigned__'&&mm.owner)continue;if(userF&&userF!=='__unassigned__'&&!(window.assetMatchesUserFilter?window.assetMatchesUserFilter(a,mm,userF):String(mm.owner||'').toLowerCase()===userF.toLowerCase()))continue;if(mappedOnly&&!mm.isMapped)continue;const st=dcStatus(a);if(status&&st!==status)continue;if(q&&!((a.name||'')+' '+(a.tag||'')+' '+(a.owner||'')+' '+(mm.owner||'')+' '+(mm.ipMap?.name||'')+' '+(mm.ipMap?.dept||'')+' '+(mm.ipMap?.site||'')+' '+(a.ipAddress||'')+' '+(mm.ips||[]).join(' ')+' '+(a.macAddress||'')+' '+(a.serial||'')+' '+(a.specs||'')+' '+(a.model||'')+' '+(a.manufacturer||'')+' '+effDept+' '+effSubdept+' '+effSite).toLowerCase().includes(q))continue;filtered.push(a);if(st==='Online')onlineCnt++;else if(st==='Offline')offlineCnt++;if(!mm.owner)unassignedCnt++;rowHtml.push(assetRow(a,st))}window.currentFilteredAssetTags=filtered.map(a=>a.tag).filter(Boolean);document.getElementById('assetTable').innerHTML=filtered.length?rowHtml.join(''):`<tr><td colspan="12" class="empty-state">No assets match those filters.</td></tr>`;document.getElementById('assetCount').textContent=filtered.length+' shown';let kp=document.querySelectorAll('#view-assets .kpis .kpi-pill b');if(kp[0])kp[0].textContent=filtered.length;if(kp[1])kp[1].textContent=onlineCnt;if(kp[2])kp[2].textContent=offlineCnt;if(kp[3])kp[3].textContent=unassignedCnt;window.syncAssetBulkSelectionUI?.();window.updateMappedAssetBadges?.();}
-function renderRecent(){document.getElementById('recentTable').innerHTML=assets.slice(0,5).map(a=>{const state=dcStatus(a);return `<tr><td><div class="asset-cell"><span class="device-icon">${({Laptop:'▱',Desktop:'▣',Server:'▤',Printer:'▧',Network:'⌁',Mobile:'▯'})[a.type]}</span><div><div class="asset-name">${esc(a.name)}</div><div class="asset-id">${esc(a.tag)}</div></div></div></td><td>${a.type}</td><td>${esc(a.owner)}</td><td>${a.site}</td><td><span class="status ${deviceStatusClass(state)}">${state}</span></td><td>${a.seen||a.lastSeen||'Not checked'}</td></tr>`}).join('')}
+function renderRecent(){document.getElementById('recentTable').innerHTML=assets.slice(0,5).map(a=>{const state=dcStatus(a);return `<tr><td><div class="asset-cell"><span class="device-icon">${({Laptop:'▱',Desktop:'▣',Server:'▤',Printer:'▧',Network:'⌁',Mobile:'▯',Computers:'▣',Surveillance:'◉'})[a.type]||'▤'}</span><div><div class="asset-name">${esc(a.name)}</div><div class="asset-id">${esc(a.tag)}</div></div></div></td><td>${a.type}</td><td>${esc(a.owner)}</td><td>${a.site}</td><td><span class="status ${deviceStatusClass(state)}">${state}</span></td><td>${a.seen||a.lastSeen||'Not checked'}</td></tr>`}).join('')}
 function renderUsers(){const uf=document.getElementById('userSiteFilter'),uc=typeof factoryCodes==='function'?factoryCodes():[];if(uf){const old=uf.value;uf.innerHTML='<option value="">All factories</option>'+uc.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('');if(uc.includes(old))uf.value=old}let q=(document.getElementById('userSearch')?.value||'').toLowerCase(),dept=document.getElementById('userDeptFilter')?.value||'',site=document.getElementById('userSiteFilter')?.value||'',employment=document.getElementById('userEmploymentFilter')?.value||'';let arr=users.filter(u=>(!q||Object.values(u).join(' ').toLowerCase().includes(q))&&(!dept||(u.dept||u.department)===dept)&&(!site||u.site===site)&&(!employment||String(u.employment||u.active||'Active')===employment));document.getElementById('userTable').innerHTML=arr.map(u=>'<tr><td><div class="user-row"><span class="user-avatar">'+initials(u.name||u.username||'?')+'</span><div><div class="user-name">'+esc(u.name||u.username||'')+'</div><div class="user-email">'+esc(u.email||'')+((u.ip_address||u.mac_address)?'<br><span>IP '+esc([u.ip_address,...(Array.isArray(u.ip_addresses)?u.ip_addresses:String(u.ip_addresses||'').split(/[\n,;]+/))].filter(Boolean).join(' · ')||'—')+' · MAC '+esc(u.mac_address||'—')+'</span>':'')+'</div></div></div></td><td>'+esc(u.id||u.username||'')+'</td><td>'+esc(u.dept||u.department||'')+'</td><td>'+esc(u.site||'')+'</td><td>'+Number(u.assets||0)+' devices</td><td>'+Number(u.software||0)+' apps</td><td>'+('<span class="employee-presence"><i style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:'+(['Inactive','Left','Exited','Terminated'].includes(String(u.employment||u.active||'Active'))?'#d85752':'#1687d9')+'"></i>'+esc(u.employment||u.active||'Active')+'</span>')+'</td><td><span class="status '+(u.role==='IT Admin'?'warning':'healthy')+'">'+esc(u.role||'Employee')+'</span></td></tr>').join('')||'<tr><td colspan="8" class="empty-state">No users match those filters.</td></tr>'}
 function renderDepts(){document.getElementById('deptGrid').innerHTML=depts.map(d=>`<div class="panel dept-card"><div class="dept-top"><span class="dept-code">${d[2]}</span><button class="link-btn" onclick="editDepartment(this)">•••</button></div><h3>${d[0]}</h3><p>${d[1]}</p><div class="dept-stats"><div><strong>${d[3]}</strong><span>People</span></div><div><strong>${d[4]}</strong><span>Assets</span></div><div><strong>${d[5]}</strong><span>Software seats</span></div></div></div>`).join('')}
 function spark(id,values,color){let el=document.getElementById(id);if(!el)return;el.innerHTML=values.map(h=>'<i style="height:'+h+'px'+(color?';background:'+color:'')+'"></i>').join('')}
@@ -2109,7 +2109,7 @@ function renderSoftware(){const q=(document.getElementById('softwareSearch')?.va
 function renderLifecycle(){let rows=assets.slice(0,6);document.getElementById('lifecycleTable').innerHTML=rows.map(a=>'<tr><td><div class="asset-name">'+esc(a.name)+'</div><div class="asset-id">'+esc(a.tag)+'</div></td><td>'+esc(categoryLabel(a))+'</td><td>'+a.site+'</td><td><span class="age-pill'+(parseInt(ageLabel(a))>=5?' old':'')+'">'+ageLabel(a)+'</span></td><td>'+esc(a.warranty||'Not recorded')+'</td><td>'+esc(a.lastMaintenance||'Not recorded')+'</td></tr>').join('')}function maintenanceCountForAsset(a){return maintenanceRecords.filter(r=>String(r.tag||r.assetTag||'').toLowerCase()===String(a.tag||'').toLowerCase()).length}function maintenanceRisk(n){return n===0?{label:'Healthy',score:0,cls:'healthy'}:n===1?{label:'Low',score:1,cls:'healthy'}:n===2?{label:'Medium',score:2,cls:'warning'}:{label:'High',score:3,cls:'open'}}function ageYears(date){if(!date)return null;let d=new Date(date+'T00:00:00');if(Number.isNaN(d.getTime())||d>new Date())return null;return Math.floor((Date.now()-d.getTime())/(365.2425*86400000))}function renderAssetAgeing(){let body=document.getElementById('assetAgeingTable');if(!body)return;let ys=[...new Set(assets.map(a=>String(a.purchaseDate||'').slice(0,4)).filter(y=>/^\d{4}$/.test(y)))].sort((a,b)=>b.localeCompare(a)),sel=document.getElementById('ageYear'),oldYear=sel.value;sel.innerHTML='<option value="">All years</option>'+ys.map(y=>'<option>'+y+'</option>').join('');if(ys.includes(oldYear))sel.value=oldYear;let counts={Healthy:0,Low:0,Medium:0,High:0};for(const a of assets)counts[maintenanceRisk(maintenanceCountForAsset(a)).label]++;for(const [k,id] of Object.entries({Healthy:'ageHealthyCount',Low:'ageLowCount',Medium:'ageMediumCount',High:'ageHighCount'}))document.getElementById(id).textContent=counts[k];let q=document.getElementById('ageSearch').value.toLowerCase(),yr=sel.value,from=document.getElementById('ageFrom').value,to=document.getElementById('ageTo').value,risk=document.getElementById('ageRisk').value,sort=document.getElementById('ageSort').value,site=document.getElementById('globalSite')?.value||'All sites';let rows=assets.map(a=>({...a,_count:maintenanceCountForAsset(a),_risk:maintenanceRisk(maintenanceCountForAsset(a))})).filter(a=>{let d=a.purchaseDate||'',hay=[a.name,a.tag,a.owner,a.site].join(' ').toLowerCase();return(!q||hay.includes(q))&&(!yr||d.startsWith(yr))&&(!from||d>=from)&&(!to||d<=to)&&(!risk||a._risk.label===risk)&&(site==='All sites'||a.site===site)});rows.sort((a,b)=>{let x=a.purchaseDate||'',y=b.purchaseDate||'';if(!x)return 1;if(!y)return -1;return sort==='newest'?y.localeCompare(x):x.localeCompare(y)});body.innerHTML=rows.map(a=>{let n=ageYears(a.purchaseDate),age=n===null?'Not recorded':n+' year'+(n===1?'':'s');return '<tr><td><b>'+esc(a.name||'Unnamed asset')+'</b><div class="asset-id">'+esc(a.tag||'')+' · '+esc(a.owner||'Unassigned')+'</div></td><td>'+esc(a.site||'—')+'</td><td>'+esc(a.purchaseDate||'Not recorded')+'</td><td><span class="age-pill'+(n!==null&&n>=5?' old':'')+'">'+age+'</span></td><td>'+a._count+'</td><td><span class="status '+a._risk.cls+'">'+a._risk.label+' · '+a._risk.score+'</span></td></tr>'}).join('')||'<tr><td colspan="6" class="empty-state">No assets match these filters.</td></tr>'}function exportAssetAgeing(){exportCsv('asset-ageing-risk',assets.map(a=>{let n=maintenanceCountForAsset(a),r=maintenanceRisk(n);return{name:a.name,tag:a.tag,site:a.site,purchaseDate:a.purchaseDate||'',ageYears:ageYears(a.purchaseDate)??'',maintenanceCount:n,risk:r.label,riskScore:r.score}}))}function resolve(r){let a=assets.find(x=>x.tag===(r.tag||r.assetTag));return{assetType:r.assetType||a?.type||"",assetName:r.assetName||a?.name||r.tag||r.assetTag||"",factory:r.factory||r.site||a?.site||"",department:r.department||r.dept||a?.dept||"",owner:r.owner||r.user||a?.owner||"Unassigned"}}function resolved(r){return resolve(r)}function renderMaintenance(){let sum=(tag)=>assets.find(x=>x.tag===tag);document.getElementById('maintenanceDue').innerHTML=assets.slice(0,7).map(x=>'<tr><td><b>'+esc(x.name)+'</b><div class="asset-id">'+esc(x.tag)+'</div></td><td>'+x.site+'</td><td><span class="age-pill'+(parseInt(ageLabel(x))>=5?' old':'')+'">'+ageLabel(x)+'</span></td><td>'+esc(x.lastMaintenance||'Not recorded')+'</td><td>'+(x.nextDue||'Not scheduled')+'</td><td><span class="status '+(parseInt(ageLabel(x))>=5?'warning':'healthy')+'">'+(parseInt(ageLabel(x))>=5?'Refresh review':'Working')+'</span></td></tr>').join('');let q=(document.getElementById('maintSearch')?.value||'').toLowerCase();let rows=maintenanceRecords.filter(r=>Object.values(r).join(' ').toLowerCase().includes(q));window.filteredMaintenanceRows=rows.map(r=>({...r,...resolved(r),totalCost:Number(r.partCost||0)+Number(r.laborCost||r.laborActual||r.laborEstimate||0)+Number(r.otherCost||0)}));document.getElementById('maintenanceTable').innerHTML=rows.map(r=>{let x=sum(r.tag);return '<tr><td>'+r.date+'</td><td><b>'+esc(x?.name||r.tag)+'</b><div class="asset-id">'+esc(r.tag)+'</div></td><td><span class="status '+(r.type==='Repair'?'warning':'healthy')+'">'+esc(r.type)+'</span></td><td>'+esc(r.work)+'</td><td>'+esc(r.parts)+'</td><td>₹'+(Number(r.partCost||0)+Number(r.laborCost||r.laborActual||r.laborEstimate||0)+Number(r.otherCost||0)).toLocaleString('en-IN')+'</td><td>'+esc(r.technician)+'</td></tr>'}).join('')}const renderMaintenanceOriginal=renderMaintenance;renderMaintenance=function(){renderMaintenanceOriginal();renderAssetAgeing()};function openMaintenance(){if(document.body.classList.contains('viewer-mode')||!canAccessMod('maintenance',true))return showToast('Read & write access on Maintenance is required');if(!assets.length){showToast('Add an asset before logging maintenance');return}let sel=document.getElementById('maintAssetSelect');sel.innerHTML=assets.map(x=>'<option value="'+esc(x.tag)+'">'+esc(x.tag+' · '+x.name)+'</option>').join('');document.getElementById('maintenanceModal').classList.add('open')}function closeMaintenance(){document.getElementById('maintenanceModal').classList.remove('open')}
 document.getElementById('maintenanceModal').addEventListener('click',e=>{if(e.target.id==='maintenanceModal')closeMaintenance()});document.getElementById('maintenanceForm').addEventListener('submit',e=>{e.preventDefault();if(document.body.classList.contains('viewer-mode')||!canAccessMod('maintenance',true))return showToast('Read & write access on Maintenance is required');let d=Object.fromEntries(new FormData(e.target)),x=assets.find(a=>a.tag===d.assetTag);maintenanceRecords.unshift({...d,partCost:Number(d.partCost||0),laborCost:Number(d.laborCost||0)});if(x){x.lastMaintenance=d.date;x.nextDue=d.nextDue||'Not scheduled'}document.getElementById('serviceTotal').textContent=Number(document.getElementById('serviceTotal').textContent)+1;renderMaintenance();renderAssets();renderLifecycle();e.target.reset();saveAdminData();closeMaintenance();showToast('Service record saved to asset history')});
 function go(key){const __sbEl=document.querySelector('.sidebar');const __sbSavedTop=__sbEl?__sbEl.scrollTop:0;let module=permissionViewMap[key];if(serverMode&&!serverAdmin&&module&&key!=='tickets'&&effectiveModuleGrant(serverProfile,module)==='none'){showToast('You do not have access to this module.');return}if(serverMode&&!serverAdmin&&!module&&!['settings','messages'].includes(key)){showToast('Administrator access is required.');return}document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));let el=document.getElementById('view-'+key);if(!el)return;el.classList.add('active');document.querySelectorAll('.sidebar .nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===key));let names={dashboard:'Overview',assets:'Asset inventory',ageing:'Asset ageing & risk',users:'Users',departments:'Departments',factories:'Factories',software:'Software & licenses',firmware:'Backups & Firmware',credentials:'Credentials Vault',monitoring:'Network monitoring',snmp:'SNMP bandwidth monitoring',notifications:'Notifications',reports:'Reports',datacenter:'Data Center',surveillance:'Surveillance',settings:'Settings',messages:'Helpdesk Messages',maintenance:'Maintenance & repairs',tickets:window.getScopedTicketsLabel?.('nav')||'IT help desk',ticketing:window.getScopedTicketsLabel?.('backendCrumb')||'Ticketing backend',backups:'Backup & restore',parts:'Parts inventory',valuation:'Valuation',billing:'Billing / Invoices'};document.getElementById('crumb').textContent=window.getModuleDisplayName?window.getModuleDisplayName(key,names[key]||key):(names[key]||key);window.syncDeskScopedLabels?.();window.applyModuleCustomLabels?.();if(key==='dashboard'){renderDashboard();if(serverMode)refreshIpStatusData()}if(key==='datacenter')renderDatacenter();if(key==='surveillance')renderSurveillance();if(key==='factories')window.renderFactoryRows?.();if(key==='departments')window.renderDepts?.();if(key==='snmp')window.loadSnmpModule?.();if(key==='settings')window.loadSoftwareUpdateStatus?.();applyReadOnlyControls();window.enhanceAllModuleTiles?.();window.scrollTo(0,0);if(__sbEl&&!__sbEl.dataset.nsUserWheel){__sbEl.scrollTop=__sbSavedTop;requestAnimationFrame(()=>{try{if(!__sbEl.dataset.nsUserWheel)__sbEl.scrollTop=__sbSavedTop;}catch(_){}});}}
-document.querySelector('.sidebar').addEventListener('click',e=>{const sb=e.currentTarget;const st=sb?sb.scrollTop:0;let b=e.target.closest('button[data-view]');if(b){go(b.dataset.view);if(sb&&!sb.dataset.nsUserWheel){sb.scrollTop=st;requestAnimationFrame(()=>{try{if(!sb.dataset.nsUserWheel)sb.scrollTop=st;}catch(_){}})}}});document.querySelector('.sidebar')?.addEventListener('wheel',e=>{e.currentTarget.dataset.nsUserWheel='1';clearTimeout(e.currentTarget._nsWt);e.currentTarget._nsWt=setTimeout(()=>{delete e.currentTarget.dataset.nsUserWheel;},250);},{passive:true});document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));document.getElementById('globalSite').addEventListener('change',e=>{document.querySelectorAll('.site-chip').forEach(c=>c.classList.toggle('selected',c.dataset.site===e.target.value));renderAssets();renderDashboard()});document.getElementById('siteChips').addEventListener('click',e=>{let c=e.target.closest('.site-chip');if(c){document.querySelectorAll('.site-chip').forEach(x=>x.classList.toggle('selected',x===c));document.getElementById('globalSite').value=c.dataset.site;renderAssets();renderDashboard()}});const renderAssetsDebounced=nsDebounce(renderAssets,110);const renderUsersDebounced=nsDebounce(renderUsers,110);document.getElementById('assetSearch')?.addEventListener('input',renderAssetsDebounced);['typeFilter','deptFilter','assetSubdeptFilter','assetUserFilter','statusFilter','networkSubtypeFilter','assetFactoryFilter'].forEach(id=>document.getElementById(id)?.addEventListener('change',renderAssets));document.getElementById('userSearch')?.addEventListener('input',renderUsersDebounced);['userDeptFilter','userSiteFilter','userEmploymentFilter'].forEach(id=>document.getElementById(id)?.addEventListener('change',renderUsers));document.getElementById('softwareSearch').addEventListener('input',nsDebounce(renderSoftware,110));document.getElementById('softwareTypeFilter').addEventListener('change',renderSoftware);document.getElementById('softwareStatusFilter').addEventListener('change',renderSoftware);document.getElementById('globalSearch').addEventListener('input',nsDebounce(e=>{let q=e.target.value.trim();if(!q)return;let foundUser=users.some(u=>Object.values(u).join(' ').toLowerCase().includes(q.toLowerCase()));if(foundUser){go('users');document.getElementById('userSearch').value=q;renderUsers()}else{go('assets');document.getElementById('assetSearch').value=q;renderAssets()}},140));document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();document.getElementById('globalSearch').focus()}if(e.key==='Escape')closeModal()});function openModal(){const typeSelect=document.querySelector('#assetForm select[name="type"]');if(typeSelect&&![...typeSelect.options].some(o=>o.value==='Surveillance'||o.textContent.trim()==='Surveillance'))typeSelect.add(new Option('Surveillance','Surveillance'));document.getElementById('assetModal').classList.add('open')}function closeModal(){document.getElementById('assetModal').classList.remove('open');try{window.getSelection?.()?.removeAllRanges?.()}catch(_){}}document.getElementById('assetModal').addEventListener('click',e=>{if(e.target.id==='assetModal')closeModal()});document.getElementById('assetForm').addEventListener('submit',async e=>{e.preventDefault();if(assetEditIndex>=0)return;const subBtn=e.target.querySelector('.modal-foot .btn.primary'),origTxt=subBtn?subBtn.textContent:'Add to inventory';if(subBtn){subBtn.disabled=true;subBtn.textContent='Saving asset…'}try{let d=Object.fromEntries(new FormData(e.target));const createdAsset={name:d.name,tag:d.tag,type:d.type,specs:d.specs||'—',owner:d.owner||'Unassigned',dept:d.dept,subdept:d.subdept||'',site:d.site,status:'Not checked',ipStatus:'Not checked',seen:'Not checked',serial:d.serial||'Not recorded',ipAddress:d.ipAddress||'',macAddress:d.macAddress||'',managementUrl:d.managementUrl||'',remoteApp:d.remoteApp||'',remoteId:d.remoteId||'',remotePassword:d.remotePassword||'',networkInterfaces:readAssetNetworkInterfaces(),subtype:d.subtype||'',manufacturer:d.manufacturer||'',model:d.model||'',osType:d.osType||'',osVersion:d.osVersion||'',storageCapacity:d.storageCapacity||'',storageUnit:d.storageUnit||'GB',assetValue:Number(d.assetValue||0),purchaseDate:d.purchaseDate||new Date().toISOString().slice(0,10),warranty:d.warranty||'',lastMaintenance:'Not recorded',photos:[],linkedInvoiceIds:[]};assets.unshift(createdAsset);window.syncFromAssetRecordToIpMappings?.(createdAsset,null);await saveAdminData();const mediaRes=await window.finalizeAssetMediaAndInvoices?.(createdAsset,false);if(mediaRes&&(mediaRes.savedMedia||mediaRes.linkedInvoices)){await saveAdminData()}renderLifecycle();document.getElementById('totalAssets').textContent=assets.length;renderAssets();window.renderCategorySettings?.();window.renderDatacenter?.();window.renderSurveillance?.();renderIpMappings();renderRecent();renderDashboard();e.target.reset();closeModal();showToast('Asset added to your inventory')}catch(err){showToast('Could not save asset: '+(err?.message||err))}finally{if(subBtn){subBtn.disabled=false;subBtn.textContent=origTxt}}});let toastTimer;function showToast(msg){let t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2700)}function filterAssetType(type,subtype='',status=''){go('assets');const tf=document.getElementById('typeFilter');if(tf){tf.value=type||'';tf.dispatchEvent(new Event('change'));}const sf=document.getElementById('networkSubtypeFilter');if(sf)sf.value=subtype||'';const stf=document.getElementById('statusFilter');if(stf)stf.value=status||'';renderAssets()}window.filterAssetType=filterAssetType;async function apiFetch(url,options={}){let headers={"X-Requested-With":"NorthstarIT",...(options.headers||{})};let res;try{res=await fetch(url,{credentials:'same-origin',...options,headers})}catch(e){throw new Error('Cannot reach the Northstar API. Open the app through the Ubuntu server URL and check that its app container is running.')}let data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||('Request failed ('+res.status+')'));return data}async function saveAdminData(onlyKeys=null){persistLocal();if(!serverMode)return;const all={assets,ip_mappings:ipMappings,software,departments:depts,maintenance:maintenanceRecords,parts_catalog:partsCatalog,parts_inventory:partsInventory,parts_stock_entries:partsStockEntries,parts_assignments:partsAssignments,vendors:window.invoiceVendors||[]};const keyOwner={assets:'assets',ip_mappings:'assets',software:'software',departments:'departments',maintenance:'maintenance',parts_catalog:'parts',parts_inventory:'parts',parts_stock_entries:'parts',parts_assignments:'parts',vendors:'billing'};let body={};for(const [k,v] of Object.entries(all)){if(Array.isArray(onlyKeys)&&!onlyKeys.includes(k))continue;if(k==='ip_mappings'){if(!serverAdmin&&!(effectiveModuleGrant(serverProfile,'assets')==='write'||effectiveModuleGrant(serverProfile,'tickets')==='write'))continue;}else if(!serverAdmin&&effectiveModuleGrant(serverProfile,keyOwner[k])!=='write')continue;body[k]=v}if(!Object.keys(body).length)return;try{await apiFetch('/api/data',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}catch(e){showToast('Could not save server data: '+e.message)}}async function refreshServerTickets(){if(window.__nsTicketsFetching)return window.__nsTicketsFetching;window.__nsTicketsFetching=(async()=>{try{let r=await apiFetch('/api/tickets');tickets=r.tickets;if(Array.isArray(tickets))tickets.forEach(t=>window.nsSoundEngine?.markTicketSeen?.(t.id));renderTickets();renderTicketingBackend()}finally{window.__nsTicketsFetching=null}})();return window.__nsTicketsFetching}async function serverSubmitTicket(form){let d=new FormData(form),kind=document.querySelector('input[name="requestKind"]:checked').value,sub=document.querySelector('input[name="ticketSub"]:checked')?.value||'Other';let body=new FormData();body.append('complaintDesk',window.getActiveComplaintDeskId?.()||'it');body.append('kind',kind);body.append('primary',kind==='Material request'?'Material request':document.querySelector('input[name="primaryCategory"]:checked').value);body.append('sub',sub);body.append('description',d.get('description'));body.append('material',d.get('material')||'');for(const file of document.getElementById('ticketFiles').files)body.append('files',file);try{let r=await apiFetch('/api/tickets',{method:'POST',body});window.nsSoundEngine?.markTicketSeen?.(r.id);await refreshServerTickets();window.broadcastLiveTicketSync?.('ticket-created',{id:r.id,kind,complaintDesk:r.complaintDesk});form.reset();document.getElementById('ticketFiles').value='';document.getElementById('ticketFileNames').textContent='';renderTicketSubcats();window.refreshUserTicketNotifications?.();showToast(r.availabilityNotice?('Ticket '+r.id+' submitted · '+r.availabilityNotice):('Ticket '+r.id+' submitted successfully'))}catch(err){showToast(err.message)}}async function hydrateServer(){try{let res=await fetch('/api/profile',{credentials:'same-origin',cache:'no-store'});if(res.status===401){clearInterval(window.northstarTicketPoll);clearInterval(window.northstarIpStatusPoll);document.body.classList.remove('ns-authenticated');document.getElementById('authGate').style.display='flex';document.getElementById('appShell').style.display='none';return}if(!res.ok)return;let profile=await res.json();serverMode=true;serverAdmin=profile.isAdmin;serverProfile=profile.profile;updateProfileUI(profile.profile,profile.isAdmin);let manageTickets=profile.isAdmin||profile.profile.role==='IT Ticketing'||effectiveModuleGrant(profile.profile,'tickets')==='write',ticketingButton=document.getElementById('ticketingBackendButton');if(ticketingButton)ticketingButton.style.display=manageTickets?'':'none';document.body.classList.add('ns-authenticated');document.getElementById('authGate').style.display='none';document.getElementById('appShell').style.display='flex';document.getElementById('localRestoreFile')?.closest('details')?.style.setProperty('display','none');setTicketProfile(profile.profile);let label=document.querySelector('.profile-name');if(label)label.textContent=profile.profile.name;let role=document.querySelector('.profile-role');if(role)role.textContent=profile.isAdmin?'IT administrator':(profile.profile.role||'Employee');applyModuleAccess(serverProfile);let data=await apiFetch('/api/data',{cache:'no-store'});if(data.settings||data.factories_config){const merged={...workspaceSettings(),...(data.factories_config||{}),...(data.settings||{})};localStorage.setItem('northstar-settings',JSON.stringify(merged));if(merged.factories)localStorage.setItem('northstar-factories',JSON.stringify(merged.factories));applyCompanyName();if(merged.loginBranding&&typeof setLoginBranding==='function')setLoginBranding(merged.loginBranding);window.initializeLoginBranding?.()}updateProfileUI(profile.profile,profile.isAdmin);assets.splice(0,assets.length,...(data.assets||[]));if(Array.isArray(data.ip_mappings)){ipMappings.splice(0,ipMappings.length,...data.ip_mappings);persistMappings();}users.splice(0,users.length,...(data.users||[]));software.splice(0,software.length,...(data.software||[]));depts.splice(0,depts.length,...(data.departments||[]));maintenanceRecords.splice(0,maintenanceRecords.length,...(data.maintenance||[]));partsCatalog.splice(0,partsCatalog.length,...(data.parts_catalog||[]));partsInventory.splice(0,partsInventory.length,...(data.parts_inventory||[]));partsStockEntries.splice(0,partsStockEntries.length,...(data.parts_stock_entries||[]));partsAssignments.splice(0,partsAssignments.length,...(data.parts_assignments||[]));window.invoiceVendors=Array.isArray(data.vendors)?data.vendors:[];await refreshServerTickets().catch(()=>{});if(manageTickets&&!canAccessMod('parts')){try{const tp=await apiFetch('/api/tickets/parts-options',{cache:'no-store'});if(Array.isArray(tp.parts_inventory))partsInventory.splice(0,partsInventory.length,...tp.parts_inventory);if(Array.isArray(tp.parts_catalog))partsCatalog.splice(0,partsCatalog.length,...tp.parts_catalog)}catch(e){}}window.initLiveBrowserAlerts?.();if(!window.northstarTicketPoll)window.northstarTicketPoll=setInterval(()=>{if(!document.hidden&&serverMode&&(document.getElementById('view-tickets').classList.contains('active')||document.getElementById('view-ticketing').classList.contains('active')))refreshServerTickets().catch(()=>{})},30000);if(serverMode&&!window.northstarIpStatusPoll)window.northstarIpStatusPoll=setInterval(()=>{if(!document.hidden&&serverMode&&['dashboard','assets','users','monitoring','datacenter','surveillance'].some(v=>document.getElementById('view-'+v)?.classList.contains('active')))refreshIpStatusData()},30000);window.reconcileAssetsAndIpMappings?.({persist:false});renderAssets();renderIpMappings();renderRecent();renderSettings();renderDashboard();renderMonitoring();renderReports();renderUsers();renderDepts();renderSoftware();renderLifecycle();renderMaintenance();renderParts();window.renderFactoryRows?.();applyModuleAccess(serverProfile);window.enhanceAllModuleTiles?.();document.getElementById('totalAssets').textContent=assets.length;document.getElementById('assetCount').textContent=assets.length+' total';if(!serverAdmin)document.querySelector('#view-tickets .head-actions .btn')?.setAttribute('style','display:none');const tMapBtn=document.getElementById('ticketsMappedAssetsBtn');if(tMapBtn)tMapBtn.style.display=(serverAdmin||manageTickets||canAccessMod('assets'))?'':'none';if(!serverAdmin)document.getElementById('hdAutoIdHelpPanel')?.setAttribute('style','display:none');if(serverAdmin)loadBackups()}catch(e){document.body.classList.remove('ns-authenticated');document.getElementById('authGate').style.display='flex';document.getElementById('appShell').style.display='none';document.getElementById('loginError').textContent=location.protocol==='file:'?'':'Inventory server is unavailable. Contact your administrator.';if(location.protocol==='file:')document.querySelector('.login-security').innerHTML='<span>ⓘ</span> Local preview only · sign in on the installed server to use accounts.'}}function lockTicketRows(){document.querySelectorAll('#ticketTable [data-ticket]').forEach(el=>{let value=el.value,cell=el.closest('td');if(cell&&!cell.dataset.locked){cell.dataset.locked='1';el.replaceWith(document.createTextNode(value||'—'))}})}function updateProfileUI(profile={},isAdmin=false){let name=profile.name||profile.username||'Account',picture=profile.profile_picture||'';let deskRole=profile.role||'User';if(!isAdmin&&typeof window.getVisibleComplaintDesks==='function'&&typeof window.getAllowedComplaintDesks==='function'){const al=window.getAllowedComplaintDesks();if(Array.isArray(al)&&al.length>0){const vd=window.getVisibleComplaintDesks();if(vd.length===1)deskRole=vd[0].name+' · '+(profile.role||'User');else if(vd.length>1&&vd.length<(window.getComplaintDesks?.()||[]).length)deskRole=vd.map(d=>d.name).join(', ')}}else if(!isAdmin&&(profile.dept||profile.department)&&deskRole==='User'){deskRole=(profile.dept||profile.department)+' · User'}let role=isAdmin?'Administrator':deskRole;for(const id of ['topProfileName','menuProfileName']){let e=document.getElementById(id);if(e)e.textContent=name}let r=document.getElementById('menuProfileRole');if(r)r.textContent=role;let avatar=document.getElementById('topAvatar');if(avatar){avatar.innerHTML=picture?'<img src="'+esc(picture)+'?v='+Date.now()+'" alt="">':esc(initials(name)||'U')}let sbAvatar=document.querySelector('.sidebar-account .avatar');if(sbAvatar){sbAvatar.innerHTML=picture?'<img src="'+esc(picture)+'?v='+Date.now()+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">':esc(initials(name)||'U')}let sbName=document.querySelector('.sidebar-account .profile-name');if(sbName)sbName.textContent=name;let sbRole=document.querySelector('.sidebar-account .profile-role');if(sbRole)sbRole.textContent=role}function toggleProfileMenu(){let menu=document.getElementById('profileMenu'),button=document.getElementById('profileMenuButton'),open=menu.hidden;menu.hidden=!open;button.setAttribute('aria-expanded',String(open))}function openPasswordSettings(){document.getElementById('profileMenu').hidden=true;if(!serverMode||serverAdmin||effectiveModuleGrant(serverProfile,'users')!=='none'){go('users');setTimeout(()=>{let form=document.getElementById('changePasswordForm');form?.scrollIntoView({behavior:'smooth',block:'center'});form?.querySelector('[name=current_password]')?.focus()},80);return}window.openSelfSecurityModal?.()}document.addEventListener('click',e=>{let wrap=document.querySelector('.profile-menu-wrap');if(wrap&&!wrap.contains(e.target)){document.getElementById('profileMenu').hidden=true;document.getElementById('profileMenuButton')?.setAttribute('aria-expanded','false')}});document.getElementById('profilePictureInput')?.addEventListener('change',async e=>{let file=e.target.files?.[0];if(!file)return;e.target.value='';if(!serverMode)return showToast('Profile pictures are saved on the installed server.');let body=new FormData();body.append('picture',file);try{let result=await apiFetch('/api/account/profile-picture',{method:'POST',body});serverProfile={...serverProfile,profile_picture:result.profile_picture};updateProfileUI(serverProfile,serverAdmin);showToast('Profile picture updated')}catch(err){showToast('Could not update profile picture: '+err.message)}});async function signOut(){clearInterval(window.northstarTicketPoll);clearInterval(window.northstarIpStatusPoll);try{await apiFetch('/api/logout',{method:'POST'})}catch(e){}serverAdmin=false;serverProfile=null;assets.length=0;users.length=0;software.length=0;depts.length=0;maintenanceRecords.length=0;partsInventory.length=0;partsAssignments.length=0;try{if(location.protocol!=='file:')localStorage.removeItem('northstar-local-data')}catch(e){}location.replace('/')}async function signOutAllDevices(){if(!serverMode)return showToast('Available on the installed Ubuntu server.');if(!confirm('Sign out your account from all open browsers and devices?'))return;try{await apiFetch('/api/account/logout-all',{method:'POST'})}catch(e){}await signOut()}window.addEventListener('pageshow',e=>{if((e.persisted||performance.getEntriesByType?.('navigation')?.[0]?.type==='back_forward')&&location.protocol!=='file:')hydrateServer()});async function loadBackups(){if(!serverMode||!serverAdmin)return;try{let r=await apiFetch('/api/backups'),tbody=document.getElementById('backupTable');tbody.innerHTML=r.backups.length?r.backups.map(b=>'<tr><td><b>'+esc(b.name)+'</b></td><td>'+new Date(b.created).toLocaleString()+'</td><td>'+(b.size/1048576).toFixed(2)+' MB</td><td>Database · ticket attachments · SHA-256 manifest</td><td><a class="link-btn" href="/api/backups/'+encodeURIComponent(b.name)+'">Download</a></td></tr>').join(''):'<tr><td colspan="5" class="empty-state">No backups yet. Scheduled backups will appear here.</td></tr>';if(r.backups[0])document.getElementById('lastBackupAt').textContent=new Date(r.backups[0].created).toLocaleDateString()}catch(e){document.getElementById('backupScheduleState').textContent=e.message}}async function createManualBackup(){if(!serverMode){let payload={format:'northstar-local-backup-v1',created:new Date().toISOString(),assets,users,software,depts,maintenanceRecords,partsCatalog,partsInventory,partsStockEntries,partsAssignments,tickets,settings:workspaceSettings(),factories:JSON.parse(localStorage.getItem('northstar-factories')||'[]'),ipMappings};let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));a.download='northstar-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);showToast('Local backup downloaded');return}let btn=document.getElementById('manualBackupBtn');btn.disabled=true;btn.textContent='Creating backup…';try{let r=await apiFetch('/api/backups',{method:'POST'});showToast('Backup created: '+r.name);await loadBackups()}catch(e){showToast('Backup failed: '+e.message)}finally{btn.disabled=false;btn.innerHTML='＋ &nbsp;Run backup now'}}function bindAuth(){if(location.protocol==='file:')document.getElementById('loginForm').addEventListener('submit',async e=>{e.preventDefault();let btn=e.currentTarget.querySelector('button');btn.disabled=true;document.getElementById('loginError').textContent='';try{let credentials=Object.fromEntries(new FormData(e.currentTarget));if(location.protocol==='file:'){if(!credentials.username.trim()||!credentials.password)throw new Error('Enter a username and password.');serverMode=false;serverAdmin=true;serverProfile={username:credentials.username.trim(),name:credentials.username.trim(),dept:'',site:'',ip:''};updateProfileUI(serverProfile,true);currentProfile=serverProfile;document.getElementById('authGate').style.display='none';document.getElementById('appShell').style.display='flex';document.querySelector('.profile-name').textContent=serverProfile.name;document.querySelector('.profile-role').textContent='Local preview administrator';setTicketProfile(serverProfile);showToast('Local preview only · live server features need Ubuntu deployment');return}await apiFetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(credentials)});await hydrateServer()}catch(err){document.getElementById('loginError').textContent=err.message}finally{btn.disabled=false}});document.querySelector('.profile-dots')?.addEventListener('click',signOut);document.getElementById('ticketForm').addEventListener('submit',e=>{if(serverMode){e.preventDefault();serverSubmitTicket(e.currentTarget)}});document.getElementById('userSearch').insertAdjacentHTML('afterend','');['ticketTable'].forEach(()=>{});hydrateServer()}
+document.querySelector('.sidebar').addEventListener('click',e=>{const sb=e.currentTarget;const st=sb?sb.scrollTop:0;let b=e.target.closest('button[data-view]');if(b){go(b.dataset.view);if(sb&&!sb.dataset.nsUserWheel){sb.scrollTop=st;requestAnimationFrame(()=>{try{if(!sb.dataset.nsUserWheel)sb.scrollTop=st;}catch(_){}})}}});document.querySelector('.sidebar')?.addEventListener('wheel',e=>{e.currentTarget.dataset.nsUserWheel='1';clearTimeout(e.currentTarget._nsWt);e.currentTarget._nsWt=setTimeout(()=>{delete e.currentTarget.dataset.nsUserWheel;},250);},{passive:true});document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));document.getElementById('globalSite').addEventListener('change',e=>{document.querySelectorAll('.site-chip').forEach(c=>c.classList.toggle('selected',c.dataset.site===e.target.value));renderAssets();renderDashboard()});document.getElementById('siteChips').addEventListener('click',e=>{let c=e.target.closest('.site-chip');if(c){document.querySelectorAll('.site-chip').forEach(x=>x.classList.toggle('selected',x===c));document.getElementById('globalSite').value=c.dataset.site;renderAssets();renderDashboard()}});const renderAssetsDebounced=nsDebounce(renderAssets,110);const renderUsersDebounced=nsDebounce(renderUsers,110);document.getElementById('assetSearch')?.addEventListener('input',renderAssetsDebounced);['typeFilter','deptFilter','assetSubdeptFilter','assetUserFilter','statusFilter','networkSubtypeFilter','assetFactoryFilter'].forEach(id=>document.getElementById(id)?.addEventListener('change',renderAssets));document.getElementById('userSearch')?.addEventListener('input',renderUsersDebounced);['userDeptFilter','userSiteFilter','userEmploymentFilter'].forEach(id=>document.getElementById(id)?.addEventListener('change',renderUsers));document.getElementById('softwareSearch').addEventListener('input',nsDebounce(renderSoftware,110));document.getElementById('softwareTypeFilter').addEventListener('change',renderSoftware);document.getElementById('softwareStatusFilter').addEventListener('change',renderSoftware);document.getElementById('globalSearch').addEventListener('input',nsDebounce(e=>{let q=e.target.value.trim();if(!q)return;let foundUser=users.some(u=>Object.values(u).join(' ').toLowerCase().includes(q.toLowerCase()));if(foundUser){go('users');document.getElementById('userSearch').value=q;renderUsers()}else{go('assets');document.getElementById('assetSearch').value=q;renderAssets()}},140));document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();document.getElementById('globalSearch').focus()}if(e.key==='Escape')closeModal()});function openModal(){const typeSelect=document.querySelector('#assetForm select[name="type"]');if(typeSelect&&![...typeSelect.options].some(o=>o.value==='Surveillance'||o.textContent.trim()==='Surveillance'))typeSelect.add(new Option('Surveillance','Surveillance'));document.getElementById('assetModal').classList.add('open')}function closeModal(){document.getElementById('assetModal').classList.remove('open');try{window.getSelection?.()?.removeAllRanges?.()}catch(_){}}document.getElementById('assetModal').addEventListener('click',e=>{if(e.target.id==='assetModal')closeModal()});document.getElementById('assetForm').addEventListener('submit',async e=>{e.preventDefault();if(assetEditIndex>=0)return;const subBtn=e.target.querySelector('.modal-foot .btn.primary'),origTxt=subBtn?subBtn.textContent:'Add to inventory';if(subBtn){subBtn.disabled=true;subBtn.textContent='Saving asset…'}try{let d=Object.fromEntries(new FormData(e.target));const createdAsset={name:d.name,tag:d.tag,type:d.type,specs:d.specs||'—',owner:d.owner||'Unassigned',dept:d.dept,subdept:d.subdept||'',site:d.site,status:'Not checked',ipStatus:'Not checked',seen:'Not checked',serial:d.serial||'Not recorded',ipAddress:d.ipAddress||'',macAddress:d.macAddress||'',managementUrl:d.managementUrl||'',remoteApp:d.remoteApp||'',remoteId:d.remoteId||'',remotePassword:d.remotePassword||'',networkInterfaces:readAssetNetworkInterfaces(),subtype:d.subtype||'',manufacturer:d.manufacturer||'',model:d.model||'',osType:d.osType||'',osVersion:d.osVersion||'',storageCapacity:d.storageCapacity||'',storageUnit:d.storageUnit||'GB',assetValue:Number(d.assetValue||0),purchaseDate:d.purchaseDate||new Date().toISOString().slice(0,10),warranty:d.warranty||'',lastMaintenance:'Not recorded',photos:[],linkedInvoiceIds:[]};assets.unshift(createdAsset);window.syncFromAssetRecordToIpMappings?.(createdAsset,null);await saveAdminData();const mediaRes=await window.finalizeAssetMediaAndInvoices?.(createdAsset,false);if(mediaRes&&(mediaRes.savedMedia||mediaRes.linkedInvoices)){await saveAdminData()}renderLifecycle();document.getElementById('totalAssets').textContent=assets.length;renderAssets();window.renderCategorySettings?.();window.renderDatacenter?.();window.renderSurveillance?.();renderIpMappings();renderRecent();renderDashboard();e.target.reset();closeModal();showToast('Asset added to your inventory')}catch(err){showToast('Could not save asset: '+(err?.message||err))}finally{if(subBtn){subBtn.disabled=false;subBtn.textContent=origTxt}}});let toastTimer;function showToast(msg){let t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2700)}function filterAssetType(type,subtype='',status=''){go('assets');const tf=document.getElementById('typeFilter');if(tf){const tMatch=type?[...tf.options].find(o=>o.value.toLowerCase()===String(type).toLowerCase()):null;tf.value=tMatch?tMatch.value:(type||'');tf.dispatchEvent(new Event('change'));}const sf=document.getElementById('networkSubtypeFilter');if(sf){const sMatch=subtype?[...sf.options].find(o=>o.value.toLowerCase()===String(subtype).toLowerCase()):null;sf.value=sMatch?sMatch.value:(subtype||'');}const stf=document.getElementById('statusFilter');if(stf)stf.value=status||'';renderAssets()}window.filterAssetType=filterAssetType;async function apiFetch(url,options={}){let headers={"X-Requested-With":"NorthstarIT",...(options.headers||{})};let res;try{res=await fetch(url,{credentials:'same-origin',...options,headers})}catch(e){throw new Error('Cannot reach the Northstar API. Open the app through the Ubuntu server URL and check that its app container is running.')}let data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||('Request failed ('+res.status+')'));return data}async function saveAdminData(onlyKeys=null){persistLocal();if(!serverMode)return;const all={assets,ip_mappings:ipMappings,software,departments:depts,maintenance:maintenanceRecords,parts_catalog:partsCatalog,parts_inventory:partsInventory,parts_stock_entries:partsStockEntries,parts_assignments:partsAssignments,vendors:window.invoiceVendors||[]};const keyOwner={assets:'assets',ip_mappings:'assets',software:'software',departments:'departments',maintenance:'maintenance',parts_catalog:'parts',parts_inventory:'parts',parts_stock_entries:'parts',parts_assignments:'parts',vendors:'billing'};let body={};for(const [k,v] of Object.entries(all)){if(Array.isArray(onlyKeys)&&!onlyKeys.includes(k))continue;if(k==='ip_mappings'){if(!serverAdmin&&!(effectiveModuleGrant(serverProfile,'assets')==='write'||effectiveModuleGrant(serverProfile,'tickets')==='write'))continue;}else if(!serverAdmin&&effectiveModuleGrant(serverProfile,keyOwner[k])!=='write')continue;body[k]=v}if(!Object.keys(body).length)return;try{await apiFetch('/api/data',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}catch(e){showToast('Could not save server data: '+e.message)}}async function refreshServerTickets(){if(window.__nsTicketsFetching)return window.__nsTicketsFetching;window.__nsTicketsFetching=(async()=>{try{let r=await apiFetch('/api/tickets');tickets=r.tickets;if(Array.isArray(tickets))tickets.forEach(t=>window.nsSoundEngine?.markTicketSeen?.(t.id));renderTickets();renderTicketingBackend()}finally{window.__nsTicketsFetching=null}})();return window.__nsTicketsFetching}async function serverSubmitTicket(form){let d=new FormData(form),kind=document.querySelector('input[name="requestKind"]:checked').value,sub=document.querySelector('input[name="ticketSub"]:checked')?.value||'Other';let body=new FormData();body.append('complaintDesk',window.getActiveComplaintDeskId?.()||'it');body.append('kind',kind);body.append('primary',kind==='Material request'?'Material request':document.querySelector('input[name="primaryCategory"]:checked').value);body.append('sub',sub);body.append('description',d.get('description'));body.append('material',d.get('material')||'');for(const file of document.getElementById('ticketFiles').files)body.append('files',file);try{let r=await apiFetch('/api/tickets',{method:'POST',body});window.nsSoundEngine?.markTicketSeen?.(r.id);await refreshServerTickets();window.broadcastLiveTicketSync?.('ticket-created',{id:r.id,kind,complaintDesk:r.complaintDesk});form.reset();document.getElementById('ticketFiles').value='';document.getElementById('ticketFileNames').textContent='';renderTicketSubcats();window.refreshUserTicketNotifications?.();showToast(r.availabilityNotice?('Ticket '+r.id+' submitted · '+r.availabilityNotice):('Ticket '+r.id+' submitted successfully'))}catch(err){showToast(err.message)}}async function hydrateServer(){try{let res=await fetch('/api/profile',{credentials:'same-origin',cache:'no-store'});if(res.status===401){clearInterval(window.northstarTicketPoll);clearInterval(window.northstarIpStatusPoll);document.body.classList.remove('ns-authenticated');document.getElementById('authGate').style.display='flex';document.getElementById('appShell').style.display='none';return}if(!res.ok)return;let profile=await res.json();serverMode=true;serverAdmin=profile.isAdmin;serverProfile=profile.profile;updateProfileUI(profile.profile,profile.isAdmin);let manageTickets=profile.isAdmin||profile.profile.role==='IT Ticketing'||effectiveModuleGrant(profile.profile,'tickets')==='write',ticketingButton=document.getElementById('ticketingBackendButton');if(ticketingButton)ticketingButton.style.display=manageTickets?'':'none';document.body.classList.add('ns-authenticated');document.getElementById('authGate').style.display='none';document.getElementById('appShell').style.display='flex';document.getElementById('localRestoreFile')?.closest('details')?.style.setProperty('display','none');setTicketProfile(profile.profile);let label=document.querySelector('.profile-name');if(label)label.textContent=profile.profile.name;let role=document.querySelector('.profile-role');if(role)role.textContent=profile.isAdmin?'IT administrator':(profile.profile.role||'Employee');applyModuleAccess(serverProfile);let data=await apiFetch('/api/data',{cache:'no-store'});if(data.settings||data.factories_config){const merged={...workspaceSettings(),...(data.factories_config||{}),...(data.settings||{})};localStorage.setItem('northstar-settings',JSON.stringify(merged));if(merged.factories)localStorage.setItem('northstar-factories',JSON.stringify(merged.factories));applyCompanyName();if(merged.loginBranding&&typeof setLoginBranding==='function')setLoginBranding(merged.loginBranding);window.initializeLoginBranding?.()}updateProfileUI(profile.profile,profile.isAdmin);assets.splice(0,assets.length,...(data.assets||[]));if(Array.isArray(data.ip_mappings)){ipMappings.splice(0,ipMappings.length,...data.ip_mappings);persistMappings();}users.splice(0,users.length,...(data.users||[]));software.splice(0,software.length,...(data.software||[]));depts.splice(0,depts.length,...(data.departments||[]));maintenanceRecords.splice(0,maintenanceRecords.length,...(data.maintenance||[]));partsCatalog.splice(0,partsCatalog.length,...(data.parts_catalog||[]));partsInventory.splice(0,partsInventory.length,...(data.parts_inventory||[]));partsStockEntries.splice(0,partsStockEntries.length,...(data.parts_stock_entries||[]));partsAssignments.splice(0,partsAssignments.length,...(data.parts_assignments||[]));window.invoiceVendors=Array.isArray(data.vendors)?data.vendors:[];await refreshServerTickets().catch(()=>{});if(manageTickets&&!canAccessMod('parts')){try{const tp=await apiFetch('/api/tickets/parts-options',{cache:'no-store'});if(Array.isArray(tp.parts_inventory))partsInventory.splice(0,partsInventory.length,...tp.parts_inventory);if(Array.isArray(tp.parts_catalog))partsCatalog.splice(0,partsCatalog.length,...tp.parts_catalog)}catch(e){}}window.initLiveBrowserAlerts?.();if(!window.northstarTicketPoll)window.northstarTicketPoll=setInterval(()=>{if(!document.hidden&&serverMode&&(document.getElementById('view-tickets').classList.contains('active')||document.getElementById('view-ticketing').classList.contains('active')))refreshServerTickets().catch(()=>{})},30000);if(serverMode&&!window.northstarIpStatusPoll)window.northstarIpStatusPoll=setInterval(()=>{if(!document.hidden&&serverMode&&['dashboard','assets','users','monitoring','datacenter','surveillance'].some(v=>document.getElementById('view-'+v)?.classList.contains('active')))refreshIpStatusData()},30000);window.reconcileAssetsAndIpMappings?.({persist:false});renderAssets();renderIpMappings();renderRecent();renderSettings();renderDashboard();renderMonitoring();renderReports();renderUsers();renderDepts();renderSoftware();renderLifecycle();renderMaintenance();renderParts();window.renderFactoryRows?.();applyModuleAccess(serverProfile);window.enhanceAllModuleTiles?.();document.getElementById('totalAssets').textContent=assets.length;document.getElementById('assetCount').textContent=assets.length+' total';if(!serverAdmin)document.querySelector('#view-tickets .head-actions .btn')?.setAttribute('style','display:none');const tMapBtn=document.getElementById('ticketsMappedAssetsBtn');if(tMapBtn)tMapBtn.style.display=(serverAdmin||manageTickets||canAccessMod('assets'))?'':'none';if(!serverAdmin)document.getElementById('hdAutoIdHelpPanel')?.setAttribute('style','display:none');if(serverAdmin)loadBackups()}catch(e){document.body.classList.remove('ns-authenticated');document.getElementById('authGate').style.display='flex';document.getElementById('appShell').style.display='none';document.getElementById('loginError').textContent=location.protocol==='file:'?'':'Inventory server is unavailable. Contact your administrator.';if(location.protocol==='file:')document.querySelector('.login-security').innerHTML='<span>ⓘ</span> Local preview only · sign in on the installed server to use accounts.'}}function lockTicketRows(){document.querySelectorAll('#ticketTable [data-ticket]').forEach(el=>{let value=el.value,cell=el.closest('td');if(cell&&!cell.dataset.locked){cell.dataset.locked='1';el.replaceWith(document.createTextNode(value||'—'))}})}function updateProfileUI(profile={},isAdmin=false){let name=profile.name||profile.username||'Account',picture=profile.profile_picture||'';let deskRole=profile.role||'User';if(!isAdmin&&typeof window.getVisibleComplaintDesks==='function'&&typeof window.getAllowedComplaintDesks==='function'){const al=window.getAllowedComplaintDesks();if(Array.isArray(al)&&al.length>0){const vd=window.getVisibleComplaintDesks();if(vd.length===1)deskRole=vd[0].name+' · '+(profile.role||'User');else if(vd.length>1&&vd.length<(window.getComplaintDesks?.()||[]).length)deskRole=vd.map(d=>d.name).join(', ')}}else if(!isAdmin&&(profile.dept||profile.department)&&deskRole==='User'){deskRole=(profile.dept||profile.department)+' · User'}let role=isAdmin?'Administrator':deskRole;for(const id of ['topProfileName','menuProfileName']){let e=document.getElementById(id);if(e)e.textContent=name}let r=document.getElementById('menuProfileRole');if(r)r.textContent=role;let avatar=document.getElementById('topAvatar');if(avatar){avatar.innerHTML=picture?'<img src="'+esc(picture)+'?v='+Date.now()+'" alt="">':esc(initials(name)||'U')}let sbAvatar=document.querySelector('.sidebar-account .avatar');if(sbAvatar){sbAvatar.innerHTML=picture?'<img src="'+esc(picture)+'?v='+Date.now()+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">':esc(initials(name)||'U')}let sbName=document.querySelector('.sidebar-account .profile-name');if(sbName)sbName.textContent=name;let sbRole=document.querySelector('.sidebar-account .profile-role');if(sbRole)sbRole.textContent=role}function toggleProfileMenu(){let menu=document.getElementById('profileMenu'),button=document.getElementById('profileMenuButton'),open=menu.hidden;menu.hidden=!open;button.setAttribute('aria-expanded',String(open))}function openPasswordSettings(){document.getElementById('profileMenu').hidden=true;if(!serverMode||serverAdmin||effectiveModuleGrant(serverProfile,'users')!=='none'){go('users');setTimeout(()=>{let form=document.getElementById('changePasswordForm');form?.scrollIntoView({behavior:'smooth',block:'center'});form?.querySelector('[name=current_password]')?.focus()},80);return}window.openSelfSecurityModal?.()}document.addEventListener('click',e=>{let wrap=document.querySelector('.profile-menu-wrap');if(wrap&&!wrap.contains(e.target)){document.getElementById('profileMenu').hidden=true;document.getElementById('profileMenuButton')?.setAttribute('aria-expanded','false')}});document.getElementById('profilePictureInput')?.addEventListener('change',async e=>{let file=e.target.files?.[0];if(!file)return;e.target.value='';if(!serverMode)return showToast('Profile pictures are saved on the installed server.');let body=new FormData();body.append('picture',file);try{let result=await apiFetch('/api/account/profile-picture',{method:'POST',body});serverProfile={...serverProfile,profile_picture:result.profile_picture};updateProfileUI(serverProfile,serverAdmin);showToast('Profile picture updated')}catch(err){showToast('Could not update profile picture: '+err.message)}});async function signOut(){clearInterval(window.northstarTicketPoll);clearInterval(window.northstarIpStatusPoll);try{await apiFetch('/api/logout',{method:'POST'})}catch(e){}serverAdmin=false;serverProfile=null;assets.length=0;users.length=0;software.length=0;depts.length=0;maintenanceRecords.length=0;partsInventory.length=0;partsAssignments.length=0;try{if(location.protocol!=='file:')localStorage.removeItem('northstar-local-data')}catch(e){}location.replace('/')}async function signOutAllDevices(){if(!serverMode)return showToast('Available on the installed Ubuntu server.');if(!confirm('Sign out your account from all open browsers and devices?'))return;try{await apiFetch('/api/account/logout-all',{method:'POST'})}catch(e){}await signOut()}window.addEventListener('pageshow',e=>{if((e.persisted||performance.getEntriesByType?.('navigation')?.[0]?.type==='back_forward')&&location.protocol!=='file:')hydrateServer()});async function loadBackups(){if(!serverMode||!serverAdmin)return;try{let r=await apiFetch('/api/backups'),tbody=document.getElementById('backupTable');tbody.innerHTML=r.backups.length?r.backups.map(b=>'<tr><td><b>'+esc(b.name)+'</b></td><td>'+new Date(b.created).toLocaleString()+'</td><td>'+(b.size/1048576).toFixed(2)+' MB</td><td>Database · ticket attachments · SHA-256 manifest</td><td><a class="link-btn" href="/api/backups/'+encodeURIComponent(b.name)+'">Download</a></td></tr>').join(''):'<tr><td colspan="5" class="empty-state">No backups yet. Scheduled backups will appear here.</td></tr>';if(r.backups[0])document.getElementById('lastBackupAt').textContent=new Date(r.backups[0].created).toLocaleDateString()}catch(e){document.getElementById('backupScheduleState').textContent=e.message}}async function createManualBackup(){if(!serverMode){let payload={format:'northstar-local-backup-v1',created:new Date().toISOString(),assets,users,software,depts,maintenanceRecords,partsCatalog,partsInventory,partsStockEntries,partsAssignments,tickets,settings:workspaceSettings(),factories:JSON.parse(localStorage.getItem('northstar-factories')||'[]'),ipMappings};let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));a.download='northstar-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);showToast('Local backup downloaded');return}let btn=document.getElementById('manualBackupBtn');btn.disabled=true;btn.textContent='Creating backup…';try{let r=await apiFetch('/api/backups',{method:'POST'});showToast('Backup created: '+r.name);await loadBackups()}catch(e){showToast('Backup failed: '+e.message)}finally{btn.disabled=false;btn.innerHTML='＋ &nbsp;Run backup now'}}function bindAuth(){if(location.protocol==='file:')document.getElementById('loginForm').addEventListener('submit',async e=>{e.preventDefault();let btn=e.currentTarget.querySelector('button');btn.disabled=true;document.getElementById('loginError').textContent='';try{let credentials=Object.fromEntries(new FormData(e.currentTarget));if(location.protocol==='file:'){if(!credentials.username.trim()||!credentials.password)throw new Error('Enter a username and password.');serverMode=false;serverAdmin=true;serverProfile={username:credentials.username.trim(),name:credentials.username.trim(),dept:'',site:'',ip:''};updateProfileUI(serverProfile,true);currentProfile=serverProfile;document.getElementById('authGate').style.display='none';document.getElementById('appShell').style.display='flex';document.querySelector('.profile-name').textContent=serverProfile.name;document.querySelector('.profile-role').textContent='Local preview administrator';setTicketProfile(serverProfile);showToast('Local preview only · live server features need Ubuntu deployment');return}await apiFetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(credentials)});await hydrateServer()}catch(err){document.getElementById('loginError').textContent=err.message}finally{btn.disabled=false}});document.querySelector('.profile-dots')?.addEventListener('click',signOut);document.getElementById('ticketForm').addEventListener('submit',e=>{if(serverMode){e.preventDefault();serverSubmitTicket(e.currentTarget)}});document.getElementById('userSearch').insertAdjacentHTML('afterend','');['ticketTable'].forEach(()=>{});hydrateServer()}
 function exportCsv(name,rows){if(!rows||!rows.length){showToast('No records to export');return}let keys=[...new Set(rows.flatMap(r=>Array.isArray(r)?[]:Object.keys(r)))];let csv=[keys.join(','),...rows.map(r=>keys.map(k=>'"'+String(r[k]??'').replaceAll('"','""')+'"').join(','))].join('\r\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));a.download=name+'.csv';a.click();URL.revokeObjectURL(a.href);showToast('CSV downloaded')}
 function persistLocal(){try{localStorage.setItem('northstar-local-data',JSON.stringify({assets,users,software,depts,maintenanceRecords,partsCatalog,partsInventory,partsStockEntries,partsAssignments,tickets,vendors:window.invoiceVendors||[]}));persistMappings();}catch(e){}renderDashboard();renderMonitoring();renderReports();window.updateMappedAssetBadges?.();}
 function addSoftware(){let name=prompt('Software / application name');if(!name)return;let vendor=prompt('Vendor','Other')||'Other';software.unshift({name,icon:name[0].toUpperCase(),vendor,cat:'Other',type:'Manual',seats:'0 / 0',expiry:'Not recorded',state:'Active'});persistLocal();saveAdminData();renderSoftware();showToast('Software added')}
@@ -4098,21 +4098,24 @@ window.deleteRepairCase=async function(caseId){if(document.body.classList.contai
  const legacySubcats={Network:['Switch','Router','Access point','Firewall','Other network device'],Surveillance:['CCTV','NVR','DVR']};
  const clean=(v)=>String(v||'').trim(), unique=(a)=>[...new Set((a||[]).map(clean).filter(Boolean))];
  function categoryData(){const x=workspaceSettings(),types=unique([...(x.assetTypes||defaultAssetTypes),'Surveillance']),map={...legacySubcats,...(x.assetSubcategories||{})};types.forEach(t=>{map[t]=unique(map[t]||[])});return {x,types,map}}
-function saveCategoryData(x){localStorage.setItem('northstar-settings',JSON.stringify(x));if(serverMode&&serverAdmin)apiFetch('/api/data',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({settings:x})}).catch(e=>showToast('Category settings not saved on server: '+e.message));syncCategoryFields();window.renderOverviewCategoryTiles?.();window.renderValuation?.();renderParts?.()}
+function saveCategoryData(x){localStorage.setItem('northstar-settings',JSON.stringify(x));if(serverMode&&serverAdmin)apiFetch('/api/data',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({settings:x})}).catch(e=>showToast('Category settings not saved on server: '+e.message));syncCategoryFields();window.renderOverviewCategoryTiles?.();window.renderOverviewPrefsEditor?.();window.populateCustomizeDropdowns?.();window.renderModuleDynamicTiles?.('overview');window.renderValuation?.();renderParts?.()}
  window.categoryData=categoryData;
  function renderOverviewCategoryTiles(dashAssetsOverride=null){
   const grid=document.querySelector('#view-dashboard .category-grid');if(!grid)return;
   const site=document.getElementById('globalSite')?.value||'All sites';
   const dashAssets=dashAssetsOverride||(site==='All sites'?assets:assets.filter(a=>a.site===site));
-  const {x,types,map}=categoryData(),userHid=(typeof window.getUserOverviewPrefs==='function'?(window.getUserOverviewPrefs()?.hiddenCategories||[]):[]),hidden=new Set([...(x.categoryTileHidden||[]),...userHid]);
+  const {x,types,map}=categoryData(),prefs=(typeof window.getUserOverviewPrefs==='function'?window.getUserOverviewPrefs():{})||{},userHid=prefs.hiddenCategories||[],hidSubs=new Set(prefs.hiddenSubcategories||[]),hidden=new Set([...(x.categoryTileHidden||[]),...userHid]);
   const visible=types.filter(t=>!hidden.has(t));
-  grid.style.gridTemplateColumns='repeat(auto-fill,minmax(175px,1fr))';
+  const escJs=v=>esc(v).replaceAll("'","\\'");
+  grid.style.gridTemplateColumns='repeat(auto-fill,minmax(190px,1fr))';
   grid.innerHTML=visible.map(cat=>{
    const rows=dashAssets.filter(a=>String(a.type||'')===cat);
-   const subs=map[cat]||[];
+   const subs=(map[cat]||[]).filter(s=>!hidSubs.has(cat+'::'+s));
    const valSum=rows.reduce((n,a)=>n+(Number(String(a?.assetValue??a?.currentValue??a?.value??a?.purchaseCost??0).replace(/[^\d.-]/g,''))||0),0);
-   const meta=subs.length?subs.map(s=>s+': '+rows.filter(a=>String(a.subtype||'')===s).length).slice(0,3).join(' · '):('₹'+valSum.toLocaleString('en-IN',{maximumFractionDigits:0})+' value');
-   return `<div class="panel category-card" onclick="filterAssetType('${esc(cat).replaceAll("'","\\'")}')"><span class="cat-icon">▤</span><div class="cat-title">${esc(cat)}</div><div class="cat-count">${rows.length}</div><div class="cat-meta">${esc(meta)}</div></div>`;
+   const catJs=escJs(cat);
+   const subChips=subs.length?`<div class="cat-sub-pills" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${subs.map(s=>{const cnt=rows.filter(a=>String(a.subtype||'').toLowerCase()===s.toLowerCase()).length;return `<span role="button" tabindex="0" onclick="event.stopPropagation();filterAssetType('${catJs}','${escJs(s)}')" title="Filter ${esc(cat)} › ${esc(s)}" style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:999px;background:#f0fdf4;border:1px solid #ccebd8;color:#157a54;cursor:pointer">${esc(s)}: ${cnt}</span>`;}).join('')}</div>`:'';
+   const meta=subs.length?`${subs.length} sub-categor${subs.length===1?'y':'ies'}`:('₹'+valSum.toLocaleString('en-IN',{maximumFractionDigits:0})+' value');
+   return `<div class="panel category-card" onclick="filterAssetType('${catJs}')"><span class="cat-icon">▤</span><div class="cat-title">${esc(cat)}</div><div class="cat-count">${rows.length}</div><div class="cat-meta">${esc(meta)}</div>${subChips}</div>`;
   }).join('')||'<div class="empty-state">Enable at least one category tile in Settings.</div>';
   window.enhanceAllModuleTiles?.();
  }
@@ -4343,14 +4346,14 @@ function saveCategoryData(x){localStorage.setItem('northstar-settings',JSON.stri
  };
  window.closeCategoryUsageModal=()=>{document.getElementById('categoryUsageModal')?.classList.remove('open');try{window.getSelection?.()?.removeAllRanges?.()}catch(_){}};
  window.toggleCategoryTile=(name,show)=>{const {x}=categoryData();const hidden=new Set(x.categoryTileHidden||[]);if(show)hidden.delete(name);else hidden.add(name);x.categoryTileHidden=[...hidden];saveCategoryData(x);showToast(show?('Overview tile enabled for '+name):('Overview tile hidden for '+name))};
- window.renameAssetCategory=i=>{const {x,types,map}=categoryData(),oldName=types[i];if(!oldName)return;const next=clean(prompt('Rename category "'+oldName+'" to:',oldName));if(!next||next===oldName)return;if(types.some((v,k)=>k!==i&&v.toLowerCase()===next.toLowerCase()))return showToast('Category already exists');types[i]=next;map[next]=map[oldName]||[];delete map[oldName];const hid=new Set(x.categoryTileHidden||[]);if(hid.has(oldName)){hid.delete(oldName);hid.add(next);x.categoryTileHidden=[...hid]}assets.forEach(a=>{if(a.type===oldName)a.type=next});partsCatalog.forEach(p=>{if(p.category===oldName)p.category=next});x.assetTypes=types;x.assetSubcategories=map;saveCategoryData(x);persistLocal();renderAssets();renderCategorySettings();showToast('Category renamed')};
+ window.renameAssetCategory=i=>{const {x,types,map}=categoryData(),oldName=types[i];if(!oldName)return;const next=clean(prompt('Rename category "'+oldName+'" to:',oldName));if(!next||next===oldName)return;if(types.some((v,k)=>k!==i&&v.toLowerCase()===next.toLowerCase()))return showToast('Category already exists');types[i]=next;map[next]=map[oldName]||[];delete map[oldName];const hid=new Set(x.categoryTileHidden||[]);if(hid.has(oldName)){hid.delete(oldName);hid.add(next);x.categoryTileHidden=[...hid]}assets.forEach(a=>{if(a.type===oldName)a.type=next});partsCatalog.forEach(p=>{if(p.category===oldName)p.category=next});x.assetTypes=types;x.assetSubcategories=map;window.syncOverviewCategoryRefs?.({renamedFrom:oldName,renamedTo:next});saveCategoryData(x);persistLocal();renderAssets();renderCategorySettings();showToast('Category renamed')};
  const baseRenderSettings=window.renderSettings;window.renderSettings=function(...args){const result=baseRenderSettings?.apply(this,args);renderCategorySettings();syncCategoryFields();return result};
  window.addAssetSubcategory=i=>{const {x,types,map}=categoryData(),name=types[i];if(!name)return;const value=clean(prompt('New sub-category for '+name));if(!value)return;if(map[name].some(v=>v.toLowerCase()===value.toLowerCase()))return showToast('Sub-category already exists');map[name].push(value);x.assetTypes=types;x.assetSubcategories=map;saveCategoryData(x);refreshAssetSubcategory(true);renderSettings()};
  window.addAssetCategory=()=>{const {x,types,map}=categoryData(),name=clean(prompt('New asset category name'));if(!name)return;if(types.some(v=>v.toLowerCase()===name.toLowerCase()))return showToast('Category already exists');types.push(name);map[name]=[];x.assetTypes=types;x.assetSubcategories=map;saveCategoryData(x);renderSettings();showToast('Category "'+name+'" added & Overview tile created')};
- window.removeAssetSubcategory=(i,j)=>{const {x,types,map}=categoryData(),name=types[i],value=map[name]?.[j];if(!value)return;const used=assets.some(a=>a.type===name&&a.subtype===value)||partsCatalog.some(p=>p.category===name&&p.subcategory===value);if(used){showToast('This sub-category is used by saved assets or products; reassign them first');window.openCategoryUsageModal?.(name,value);return;}if(!confirm('Remove '+value+' from '+name+'?'))return;map[name].splice(j,1);x.assetTypes=types;x.assetSubcategories=map;saveCategoryData(x);refreshAssetSubcategory(true);renderSettings()};
- const baseRemove=window.removeAssetCategory;window.removeAssetCategory=i=>{const {x,types,map}=categoryData(),name=types[i];if(!name)return;const used=assets.some(a=>a.type===name)||partsCatalog.some(p=>p.category===name);if(used){showToast('This category is used by saved assets or products; move them to another category first');window.openCategoryUsageModal?.(name,'');return;}if(types.length<2)return showToast('Keep at least one category');if(!confirm('Remove '+name+' and its sub-categories?'))return;x.assetTypes=types.filter((_,n)=>n!==i);delete map[name];x.assetSubcategories=map;saveCategoryData(x);renderSettings()};
+ window.removeAssetSubcategory=(i,j)=>{const {x,types,map}=categoryData(),name=types[i],value=map[name]?.[j];if(!value)return;const used=assets.some(a=>a.type===name&&a.subtype===value)||partsCatalog.some(p=>p.category===name&&p.subcategory===value);if(used){showToast('This sub-category is used by saved assets or products; reassign them first');window.openCategoryUsageModal?.(name,value);return;}if(!confirm('Remove '+value+' from '+name+'?'))return;map[name].splice(j,1);x.assetTypes=types;x.assetSubcategories=map;window.syncOverviewCategoryRefs?.({removedSub:name+'::'+value});saveCategoryData(x);refreshAssetSubcategory(true);renderSettings()};
+ const baseRemove=window.removeAssetCategory;window.removeAssetCategory=i=>{const {x,types,map}=categoryData(),name=types[i];if(!name)return;const used=assets.some(a=>a.type===name)||partsCatalog.some(p=>p.category===name);if(used){showToast('This category is used by saved assets or products; move them to another category first');window.openCategoryUsageModal?.(name,'');return;}if(types.length<2)return showToast('Keep at least one category');if(!confirm('Remove '+name+' and its sub-categories?'))return;x.assetTypes=types.filter((_,n)=>n!==i);delete map[name];x.assetSubcategories=map;window.syncOverviewCategoryRefs?.({removedCategory:name});saveCategoryData(x);renderSettings()};
  function syncSubtypeFilter(){const sel=document.getElementById('networkSubtypeFilter'),typeSel=document.getElementById('typeFilter');if(!sel)return;const {map}=categoryData(),chosenType=typeSel?.value||'',cur=sel.value,vals=chosenType?(map[chosenType]||[]):unique(Object.values(map).flat());sel.innerHTML='<option value="">All sub-categories</option>'+vals.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join('');if(vals.includes(cur))sel.value=cur}
- function syncCategoryFields(){const {types,map}=categoryData();if(typeof applyAssetTypes==='function')applyAssetTypes(types);syncSubtypeFilter();const notify=document.getElementById('notificationCategory');if(notify){const old=notify.value;notify.innerHTML=types.map(t=>'<option>'+esc(t)+'</option>').join('');if(types.includes(old))notify.value=old}syncPartCategories(types,map)}
+ function syncCategoryFields(){const {types,map}=categoryData();if(typeof applyAssetTypes==='function')applyAssetTypes(types);syncSubtypeFilter();const notify=document.getElementById('notificationCategory');if(notify){const old=notify.value;notify.innerHTML=types.map(t=>'<option>'+esc(t)+'</option>').join('');if(types.includes(old))notify.value=old}syncPartCategories(types,map);window.populateCustomizeDropdowns?.();window.renderOverviewPrefsEditor?.()}
  document.getElementById('typeFilter')?.addEventListener('change',syncSubtypeFilter);
  function syncPartCategories(types,map){const modal=document.getElementById('partProductModal'),f=document.getElementById('partProductModalForm');if(!modal||!f)return;let cat=f.elements.category;if(!cat)return;if(cat.tagName!=='SELECT'){const old=cat.value||'',holder=cat.closest('.field');cat.remove();holder.querySelector('label').textContent='Asset category *';holder.insertAdjacentHTML('beforeend','<select name="category" required></select><div class="form-note">Uses the shared Asset categories from Settings.</div>');cat=f.elements.category;const subField=document.createElement('div');subField.className='field';subField.innerHTML='<label>Sub-category</label><select name="subcategory"><option value="">No sub-category</option></select>';holder.parentElement.insertBefore(subField,holder.nextSibling);cat.dataset.legacyValue=old;cat.addEventListener('change',()=>fillProductSubcategories(map,''))}const old=cat.value||cat.dataset.legacyValue||'',choices=unique([...types,...(partsCatalog.map(p=>p.category==='Other'?'Other':null))]);cat.innerHTML='<option value="">Select asset category</option>'+choices.map(c=>'<option>'+esc(c)+'</option>').join('');if(choices.includes(old))cat.value=old;fillProductSubcategories(map,f.elements.subcategory?.value||'')}
  function fillProductSubcategories(map,selected){const f=document.getElementById('partProductModalForm');if(!f?.elements.subcategory)return;const cat=f.elements.category.value,values=map[cat]||[],legacy=f.elements.subcategory.value||selected;f.elements.subcategory.innerHTML='<option value="">No sub-category</option>'+values.map(x=>'<option>'+esc(x)+'</option>').join('');if(values.includes(legacy))f.elements.subcategory.value=legacy}
@@ -13036,6 +13039,7 @@ let lastPulseGatepassRev = '';
     const p = raw && typeof raw === 'object' ? raw : {};
     return {
       hiddenCategories: Array.isArray(p.hiddenCategories) ? [...new Set(p.hiddenCategories.map(x => String(x || '').trim()).filter(Boolean))] : [],
+      hiddenSubcategories: Array.isArray(p.hiddenSubcategories) ? [...new Set(p.hiddenSubcategories.map(x => String(x || '').trim()).filter(Boolean))] : [],
       hiddenSections: Array.isArray(p.hiddenSections) ? [...new Set(p.hiddenSections.map(x => String(x || '').trim()).filter(Boolean))] : [],
     };
   }
@@ -13151,7 +13155,7 @@ let lastPulseGatepassRev = '';
 
   let cacheState = loadAllConfigs();
   let cacheConfigs = { overview: cacheState.overview, datacenter: cacheState.datacenter, surveillance: cacheState.surveillance };
-  let cacheOverviewPrefs = cacheState.overviewPrefs || { hiddenCategories: [], hiddenSections: [] };
+  let cacheOverviewPrefs = cacheState.overviewPrefs || { hiddenCategories: [], hiddenSubcategories: [], hiddenSections: [] };
   let tileConfigsLoadedUser = '';
 
   function getModuleCfg(mod){
@@ -13162,8 +13166,53 @@ let lastPulseGatepassRev = '';
   window.getUserOverviewPrefs = function(){
     return {
       hiddenCategories: [...(cacheOverviewPrefs?.hiddenCategories || [])],
+      hiddenSubcategories: [...(cacheOverviewPrefs?.hiddenSubcategories || [])],
       hiddenSections: [...(cacheOverviewPrefs?.hiddenSections || [])]
     };
+  };
+
+  window.syncOverviewCategoryRefs = function(opts={}){
+    const { renamedFrom='', renamedTo='', removedCategory='', removedSub='' } = opts || {};
+    let prefsChanged = false;
+    const hc = [...(cacheOverviewPrefs?.hiddenCategories || [])];
+    const hs = [...(cacheOverviewPrefs?.hiddenSubcategories || [])];
+    if(renamedFrom && renamedTo){
+      const nextHc = hc.map(c => c === renamedFrom ? renamedTo : c);
+      const nextHs = hs.map(s => s.startsWith(renamedFrom + '::') ? (renamedTo + '::' + s.slice(renamedFrom.length + 2)) : s);
+      if(JSON.stringify(nextHc) !== JSON.stringify(hc) || JSON.stringify(nextHs) !== JSON.stringify(hs)){
+        cacheOverviewPrefs = normalizeOverviewPrefs({ ...cacheOverviewPrefs, hiddenCategories: nextHc, hiddenSubcategories: nextHs });
+        prefsChanged = true;
+      }
+    }
+    if(removedCategory){
+      const nextHc = hc.filter(c => c !== removedCategory);
+      const nextHs = hs.filter(s => !s.startsWith(removedCategory + '::'));
+      if(nextHc.length !== hc.length || nextHs.length !== hs.length){
+        cacheOverviewPrefs = normalizeOverviewPrefs({ ...cacheOverviewPrefs, hiddenCategories: nextHc, hiddenSubcategories: nextHs });
+        prefsChanged = true;
+      }
+    }
+    if(removedSub){
+      const nextHs = hs.filter(s => s !== removedSub);
+      if(nextHs.length !== hs.length){
+        cacheOverviewPrefs = normalizeOverviewPrefs({ ...cacheOverviewPrefs, hiddenSubcategories: nextHs });
+        prefsChanged = true;
+      }
+    }
+    if(prefsChanged){
+      persistLocalConfigs();
+      pushServerTileConfigPayload({ overviewPrefs: cacheOverviewPrefs });
+    }
+    if(renamedFrom && renamedTo){
+      const cfg = cloneJson(getModuleCfg('overview'));
+      let tilesChanged = false;
+      const walk = list => (list || []).forEach(t => {
+        if(String(t.type || '') === renamedFrom){ t.type = renamedTo; tilesChanged = true; }
+        if(Array.isArray(t.subtiles) && t.subtiles.length) walk(t.subtiles);
+      });
+      walk(cfg.tiles);
+      if(tilesChanged) saveModuleCfg('overview', cfg);
+    }
   };
 
   window.applyUserOverviewPrefs = function(){
@@ -13232,7 +13281,7 @@ let lastPulseGatepassRev = '';
     if(tileConfigsLoadedUser !== uKey){
       const fresh = loadAllConfigs();
       cacheConfigs = { overview: fresh.overview, datacenter: fresh.datacenter, surveillance: fresh.surveillance };
-      cacheOverviewPrefs = fresh.overviewPrefs || { hiddenCategories: [], hiddenSections: [] };
+      cacheOverviewPrefs = fresh.overviewPrefs || { hiddenCategories: [], hiddenSubcategories: [], hiddenSections: [] };
       tileConfigsLoadedUser = uKey;
     }
     if(typeof serverMode === 'undefined' || !serverMode){
@@ -13331,8 +13380,18 @@ let lastPulseGatepassRev = '';
       if(!(rawType.toLowerCase() === wantType.toLowerCase() || kind.toLowerCase() === wantType.toLowerCase())) return false;
     }
 
-    const aSub = String(a.subtype || '').trim().toLowerCase();
-    if(tile.subtype && !aSub.includes(tile.subtype.toLowerCase())) return false;
+    const aSub = String(a.subtype || a.subcategory || '').trim();
+    const wantSub = String(tile.subtype || '').trim();
+    if(wantSub === 'NVR_DVR'){
+      if(!(kind === 'NVR' || kind === 'DVR')) return false;
+    } else if(wantSub){
+      const wantSubLow = wantSub.toLowerCase();
+      const canonSub = (rawType.toLowerCase() === 'network' && typeof window.resolveNetworkSubtype === 'function')
+        ? String(window.resolveNetworkSubtype(a) || '').trim().toLowerCase()
+        : '';
+      const subOk = aSub.toLowerCase() === wantSubLow || (canonSub && canonSub === wantSubLow) || (rawType === 'Surveillance' && kind.toLowerCase() === wantSubLow);
+      if(!subOk) return false;
+    }
 
     if(tile.keyword){
       const kw = tile.keyword.toLowerCase();
@@ -13665,8 +13724,14 @@ let lastPulseGatepassRev = '';
                     </select>
                   </label>
                   <label class="login-field" style="margin:0">
-                    <span style="font-size:11px;font-weight:700">Category / Device Type</span>
+                    <span style="font-size:11px;font-weight:700">Primary Category</span>
                     <select id="ovNewCategory" class="filter-select" style="width:100%;height:38px"></select>
+                  </label>
+                  <label class="login-field" id="ovNewSubcatWrap" style="margin:0">
+                    <span style="font-size:11px;font-weight:700">Sub-category</span>
+                    <select id="ovNewSubcategory" class="filter-select" style="width:100%;height:38px">
+                      <option value="">All Sub-categories</option>
+                    </select>
                   </label>
                   <label class="login-field" style="margin:0">
                     <span style="font-size:11px;font-weight:700">Factory Filter</span>
@@ -13848,6 +13913,74 @@ let lastPulseGatepassRev = '';
     return { list, chain };
   }
 
+  function getCustomizeCategoryModel(){
+    try{
+      if(typeof window.categoryData === 'function'){
+        const cd = window.categoryData();
+        return {
+          types: Array.isArray(cd?.types) ? cd.types.filter(Boolean) : [],
+          map: (cd?.map && typeof cd.map === 'object') ? cd.map : {}
+        };
+      }
+    }catch(_){}
+    const wsTypes = (typeof workspaceSettings === 'function' ? workspaceSettings().assetTypes : []) || [];
+    return { types: Array.isArray(wsTypes) ? wsTypes.filter(Boolean) : [], map: {} };
+  }
+
+  function populateCustomizeSubcategories(preserve=true){
+    const mod = custState.module;
+    const catSel = document.getElementById('ovNewCategory');
+    const subSel = document.getElementById('ovNewSubcategory');
+    if(!subSel) return;
+    const cat = String(catSel?.value || '').trim();
+    const oldSub = preserve ? String(subSel.value || '').trim() : '';
+    const { map } = getCustomizeCategoryModel();
+
+    let opts = [];
+    let shouldDisable = false;
+    if(cat === '__all__'){
+      opts = [['', 'All Sub-categories (select primary category)']];
+      shouldDisable = true;
+    } else if(!cat){
+      if(mod === 'surveillance'){
+        const subs = Array.isArray(map.Surveillance) ? map.Surveillance : ['CCTV', 'NVR', 'DVR'];
+        opts = [['', 'All Surveillance Sub-categories'], ...subs.map(s => [s, s])];
+        if(subs.some(s => s.toUpperCase() === 'NVR') && subs.some(s => s.toUpperCase() === 'DVR')){
+          opts.push(['NVR_DVR', 'NVR + DVR Combined']);
+        }
+      } else if(mod === 'datacenter'){
+        const netKey = Object.keys(map).find(k => k.toLowerCase() === 'network') || 'Network';
+        const subs = Array.isArray(map[netKey]) ? map[netKey] : ['Switch', 'Router', 'Access point', 'Firewall', 'Other network device'];
+        opts = [['', 'All Data Center Sub-categories'], ...subs.map(s => [s, s])];
+      } else {
+        opts = [['', 'All Sub-categories (choose primary first)']];
+        shouldDisable = true;
+      }
+    } else {
+      const matchKey = Object.keys(map).find(k => k.toLowerCase() === cat.toLowerCase()) || cat;
+      const subs = Array.isArray(map[matchKey]) ? map[matchKey] : [];
+      if(subs.length){
+        opts = [['', `All ${cat} Sub-categories`], ...subs.map(s => [s, s])];
+        if(cat.toLowerCase() === 'surveillance' && subs.some(s => s.toUpperCase() === 'NVR') && subs.some(s => s.toUpperCase() === 'DVR')){
+          opts.push(['NVR_DVR', 'NVR + DVR Combined']);
+        }
+      } else {
+        opts = [['', `No sub-categories in ${cat}`]];
+        shouldDisable = true;
+      }
+    }
+
+    subSel.innerHTML = opts.map(([v, lbl]) => `<option value="${esc(v)}">${esc(lbl)}</option>`).join('');
+    subSel.disabled = shouldDisable && !oldSub;
+    if(oldSub){
+      const found = [...subSel.options].find(o => o.value.toLowerCase() === oldSub.toLowerCase());
+      if(found){
+        subSel.value = found.value;
+        subSel.disabled = false;
+      }
+    }
+  }
+
   function populateCustomizeDropdowns(){
     const mod = custState.module;
     const catSel = document.getElementById('ovNewCategory');
@@ -13857,16 +13990,34 @@ let lastPulseGatepassRev = '';
 
     if(catSel){
       const oldC = catSel.value;
-      const baseCats = mod === 'datacenter'
-        ? [['','All Data Center (Servers & Network)'],['Server','Servers'],['Network','All Network Gear'],['Switch','Switches'],['Router','Routers'],['Access point','Access Points'],['Firewall','Firewalls'],['__all__','Any Asset Category']]
-        : mod === 'surveillance'
-          ? [['','All Surveillance (CCTV / NVR / DVR)'],['CCTV','CCTV Cameras'],['NVR','NVR Recorders'],['DVR','DVR Recorders'],['NVR_DVR','NVR + DVR Combined'],['__all__','Any Asset Category']]
-          : [['','All Device Categories'],['Laptop','Laptops'],['Desktop','Desktops'],['Server','Servers'],['Network','Network Gear'],['Switch','Switches'],['Router','Routers'],['Access point','Access Points'],['Firewall','Firewalls'],['CCTV','CCTV Cameras'],['NVR','NVRs'],['DVR','DVRs'],['Surveillance','All Surveillance'],['Printer','Printers'],['Mobile','Smartphones'],['Tablet','Tablets']];
-      const customTypes = (typeof workspaceSettings === 'function' ? workspaceSettings().assetTypes : []) || [];
-      const seenVals = new Set(baseCats.map(x => x[0]));
-      customTypes.forEach(ct => { if(!seenVals.has(ct)){ baseCats.push([ct, ct]); seenVals.add(ct); } });
-      catSel.innerHTML = baseCats.map(([v,lbl]) => `<option value="${esc(v)}">${esc(lbl)}</option>`).join('');
-      if([...catSel.options].some(o => o.value === oldC)) catSel.value = oldC;
+      const { types, map } = getCustomizeCategoryModel();
+      let baseCats = [];
+      if(mod === 'datacenter'){
+        const dcTypes = types.filter(t => ['server', 'network'].includes(t.toLowerCase()) || t.toLowerCase().includes('server') || t.toLowerCase().includes('network'));
+        const activeDc = dcTypes.length ? dcTypes : types;
+        baseCats = [
+          ['', 'All Data Center (Servers & Network)'],
+          ...activeDc.map(t => [t, (map[t]?.length ? `${t} (${map[t].length} sub)` : t)]),
+          ['__all__', 'Any Asset Category']
+        ];
+      } else if(mod === 'surveillance'){
+        const svTypes = types.filter(t => t.toLowerCase() === 'surveillance' || t.toLowerCase().includes('surv') || t.toLowerCase().includes('cam'));
+        const activeSv = svTypes.length ? svTypes : ['Surveillance'];
+        baseCats = [
+          ['', 'All Surveillance (CCTV / NVR / DVR)'],
+          ...activeSv.map(t => [t, (map[t]?.length ? `${t} (${map[t].length} sub)` : t)]),
+          ['__all__', 'Any Asset Category']
+        ];
+      } else {
+        baseCats = [
+          ['', 'All Primary Categories'],
+          ...types.map(t => [t, (map[t]?.length ? `${t} (${map[t].length} sub)` : t)])
+        ];
+      }
+      catSel.innerHTML = baseCats.map(([v, lbl]) => `<option value="${esc(v)}">${esc(lbl)}</option>`).join('');
+      const matchOpt = [...catSel.options].find(o => !o.dataset?.tempLegacy && o.value.toLowerCase() === String(oldC || '').toLowerCase());
+      if(matchOpt) catSel.value = matchOpt.value;
+      populateCustomizeSubcategories(true);
     }
 
     if(facSel){
@@ -13892,6 +14043,7 @@ let lastPulseGatepassRev = '';
       if([...grpSel.options].some(o => o.value === oldG)) grpSel.value = oldG;
     }
   }
+  window.populateCustomizeDropdowns = populateCustomizeDropdowns;
 
   function updateCustPreview(){
     const mod = custState.module;
@@ -13900,6 +14052,7 @@ let lastPulseGatepassRev = '';
     const [col, bg] = (document.getElementById('ovNewTheme')?.value || '#157a54,#e7f6ee').split(',');
     const st = document.getElementById('ovNewStatus')?.value || 'all';
     const cat = document.getElementById('ovNewCategory')?.value || '';
+    const subcat = document.getElementById('ovNewSubcategory')?.value || '';
     const fac = document.getElementById('ovNewFactory')?.value || '';
     const dept = document.getElementById('ovNewDept')?.value || '';
     const kw = (document.getElementById('ovNewKeyword')?.value || '').trim();
@@ -13915,7 +14068,7 @@ let lastPulseGatepassRev = '';
     const all = getAssetsList();
     const cfg = getModuleCfg(mod);
     const { chain } = getCustomizeTargetListRef(cloneJson(cfg));
-    const mockTile = { status:st, type:cat, site:fac, dept, keyword:kw, subtype:'' };
+    const mockTile = { status:st, type:cat, subtype:subcat, site:fac, dept, keyword:kw };
     const stack = [...chain, mockTile];
     const matched = all.filter(a => matchAssetPath(a, stack, mod === 'overview' ? getActiveSiteScope() : '', mod));
     if(pVal) pVal.textContent = String(matched.length);
@@ -13923,7 +14076,11 @@ let lastPulseGatepassRev = '';
   }
 
   function bindCustomizeLivePreview(){
-    ['ovNewTitle','ovNewIcon','ovNewTheme','ovNewStatus','ovNewCategory','ovNewFactory','ovNewDept','ovNewKeyword'].forEach(id => {
+    document.getElementById('ovNewCategory')?.addEventListener('change', () => {
+      populateCustomizeSubcategories(false);
+      updateCustPreview();
+    });
+    ['ovNewTitle','ovNewIcon','ovNewTheme','ovNewStatus','ovNewSubcategory','ovNewFactory','ovNewDept','ovNewKeyword'].forEach(id => {
       const el = document.getElementById(id);
       el?.addEventListener('input', updateCustPreview);
       el?.addEventListener('change', updateCustPreview);
@@ -14021,8 +14178,8 @@ let lastPulseGatepassRev = '';
 
     const invBtn = document.getElementById('ovDrillInventoryBtn');
     if(invBtn){
-      const ad = drillState.adHocTile;
-      invBtn.style.display = (ad && (ad.assetFilterType || ad.assetFilterSubtype)) ? 'inline-flex' : 'none';
+      const ad = drillState.adHocTile || drillState.tileStack[drillState.tileStack.length - 1];
+      invBtn.style.display = (ad && (ad.assetFilterType || ad.assetFilterSubtype || ad.type || ad.subtype)) ? 'inline-flex' : 'none';
     }
     if(manageSubBtn){
       const canEdit = !document.body.classList.contains('viewer-mode');
@@ -14103,16 +14260,31 @@ let lastPulseGatepassRev = '';
         `;
       }
 
+      function drillGroupKey(a){
+        if(drillState.dimension === 'category'){
+          const topTile = stack[stack.length - 1];
+          const rawType = String(a.type || a.category || '').trim() || 'Other';
+          const rawSub = String(a.subtype || a.subcategory || '').trim();
+          if(topTile && topTile.type && !topTile.subtype && topTile.type !== '__all__'){
+            return rawSub || (rawType + ' (General)');
+          }
+          if(rawType === 'Network' && mod === 'datacenter') return rawSub || 'Network';
+          if(rawType === 'Surveillance' && mod === 'surveillance') return rawSub || 'CCTV';
+          return rawSub ? `${rawType} › ${rawSub}` : (assetResolvedKind(a) || rawType);
+        }
+        if(drillState.dimension === 'factory') return a.site || a.factory || 'Unassigned';
+        if(drillState.dimension === 'department') return a.dept || a.department || 'Unassigned';
+        if(drillState.dimension === 'status'){
+          const st = assetResolvedStatus(a);
+          return st === 'Online' ? '🟢 Online' : st === 'Offline' ? '🔴 Offline' : '🟡 ' + st;
+        }
+        if(drillState.dimension === 'user') return a.user || a.assignedTo || a.owner || 'Unassigned';
+        return 'Other';
+      }
+
       const groups = {};
       matching.forEach(a => {
-        let key = 'Other';
-        if(drillState.dimension === 'category') key = (a.type === 'Network' && mod === 'datacenter') ? (a.subtype || 'Network') : (assetResolvedKind(a) || 'Other');
-        else if(drillState.dimension === 'factory') key = a.site || a.factory || 'Unassigned';
-        else if(drillState.dimension === 'department') key = a.dept || a.department || 'Unassigned';
-        else if(drillState.dimension === 'status'){
-          const st = assetResolvedStatus(a);
-          key = st === 'Online' ? '🟢 Online' : st === 'Offline' ? '🔴 Offline' : '🟡 ' + st;
-        } else if(drillState.dimension === 'user') key = a.user || a.assignedTo || a.owner || 'Unassigned';
+        const key = drillGroupKey(a);
         groups[key] = (groups[key] || []);
         groups[key].push(a);
       });
@@ -14164,17 +14336,29 @@ let lastPulseGatepassRev = '';
       if(backBtnWrap) backBtnWrap.style.display = 'block';
       if(dimTabsWrap) dimTabsWrap.style.display = 'none';
 
-      let items = matching.filter(a => {
-        let key = 'Other';
-        if(drillState.dimension === 'category') key = (a.type === 'Network' && mod === 'datacenter') ? (a.subtype || 'Network') : (assetResolvedKind(a) || 'Other');
-        else if(drillState.dimension === 'factory') key = a.site || a.factory || 'Unassigned';
-        else if(drillState.dimension === 'department') key = a.dept || a.department || 'Unassigned';
-        else if(drillState.dimension === 'status'){
+      function drillItemGroupKey(a){
+        if(drillState.dimension === 'category'){
+          const topTile = stack[stack.length - 1];
+          const rawType = String(a.type || a.category || '').trim() || 'Other';
+          const rawSub = String(a.subtype || a.subcategory || '').trim();
+          if(topTile && topTile.type && !topTile.subtype && topTile.type !== '__all__'){
+            return rawSub || (rawType + ' (General)');
+          }
+          if(rawType === 'Network' && mod === 'datacenter') return rawSub || 'Network';
+          if(rawType === 'Surveillance' && mod === 'surveillance') return rawSub || 'CCTV';
+          return rawSub ? `${rawType} › ${rawSub}` : (assetResolvedKind(a) || rawType);
+        }
+        if(drillState.dimension === 'factory') return a.site || a.factory || 'Unassigned';
+        if(drillState.dimension === 'department') return a.dept || a.department || 'Unassigned';
+        if(drillState.dimension === 'status'){
           const st = assetResolvedStatus(a);
-          key = st === 'Online' ? '🟢 Online' : st === 'Offline' ? '🔴 Offline' : '🟡 ' + st;
-        } else if(drillState.dimension === 'user') key = a.user || a.assignedTo || a.owner || 'Unassigned';
-        return key === drillState.selectedGroupKey;
-      });
+          return st === 'Online' ? '🟢 Online' : st === 'Offline' ? '🔴 Offline' : '🟡 ' + st;
+        }
+        if(drillState.dimension === 'user') return a.user || a.assignedTo || a.owner || 'Unassigned';
+        return 'Other';
+      }
+
+      let items = matching.filter(a => drillItemGroupKey(a) === drillState.selectedGroupKey);
 
       const q = drillState.search.trim().toLowerCase();
       if(q){
@@ -14282,10 +14466,10 @@ let lastPulseGatepassRev = '';
   };
 
   window.openDrillInAssetInventory = function(){
-    const ad = drillState.adHocTile || drillState.tileStack[0];
+    const ad = drillState.adHocTile || drillState.tileStack[drillState.tileStack.length - 1] || drillState.tileStack[0];
     window.closeOverviewDrilldown();
     if(typeof window.filterAssetType === 'function'){
-      window.filterAssetType(ad?.assetFilterType || ad?.type || '', ad?.assetFilterSubtype || '', ad?.assetFilterStatus || '');
+      window.filterAssetType(ad?.assetFilterType || ad?.type || '', ad?.assetFilterSubtype || ad?.subtype || '', ad?.assetFilterStatus || '');
     }
   };
 
@@ -14300,11 +14484,13 @@ let lastPulseGatepassRev = '';
   function renderOverviewPrefsEditor(){
     const host = document.getElementById('ovCustPanelPrefs');
     if(!host) return;
-    const { types } = (typeof window.categoryData === 'function' ? window.categoryData() : { types: ['Laptop','Desktop','Server','Printer','Network','Mobile','Tablet','Surveillance'] });
+    const { types, map } = getCustomizeCategoryModel();
+    const allAssets = getAssetsList();
     const hidCats = new Set(cacheOverviewPrefs?.hiddenCategories || []);
+    const hidSubs = new Set(cacheOverviewPrefs?.hiddenSubcategories || []);
     const hidSecs = new Set(cacheOverviewPrefs?.hiddenSections || []);
     const sections = [
-      ['categories', '📦 Asset Categories Strip', 'Quick category count cards across factories'],
+      ['categories', '📦 Asset Categories Strip', 'Quick primary & sub-category cards across factories'],
       ['networkBreakdown', '📶 Network Device Breakdown', 'Switches, routers, APs & firewall tiles'],
       ['bandwidth', '⚡ Bandwidth Speed / Live Internet', 'Real-time speed & SNMP throughput cards'],
       ['surveillance', '📹 Surveillance Overview', 'CCTV, NVR & DVR breakdown table'],
@@ -14315,12 +14501,42 @@ let lastPulseGatepassRev = '';
     const whoLbl = (typeof serverProfile !== 'undefined' && (serverProfile?.name || serverProfile?.username)) || 'Current User';
     host.innerHTML = `
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:10px 14px;font-size:12px;color:#14532d">
-        <b>👤 Per-User Overview Settings (${esc(whoLbl)}):</b> Uncheck any Category Tile or Dashboard Section you want hidden from your personal Overview page. Other users keep their own separate layout.
+        <b>👤 Per-User Overview Settings (${esc(whoLbl)}):</b> Live-synced with Settings categories. Uncheck any Primary Category, Sub-category, or Section you want hidden from your personal Overview page.
       </div>
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:14px">
-        <div style="font-size:11.5px;font-weight:800;color:#157a54;margin-bottom:10px">1. VISIBLE ASSET CATEGORY TILES ON MY OVERVIEW</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px">
-          ${types.map(t => `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #dce6df;border-radius:10px;background:#fff;cursor:pointer;font-size:12px;font-weight:700"><input type="checkbox" data-ovp-cat="${esc(t)}" ${!hidCats.has(t)?'checked':''} style="accent-color:#157a54;width:15px;height:15px"> <span>${esc(t)}</span></label>`).join('')}
+        <div style="font-size:11.5px;font-weight:800;color:#157a54;margin-bottom:10px">1. VISIBLE PRIMARY CATEGORIES &amp; SUB-CATEGORIES ON MY OVERVIEW</div>
+        <div style="display:grid;gap:10px">
+          ${types.map(t => {
+            const subs = Array.isArray(map[t]) ? map[t] : [];
+            const catRows = allAssets.filter(a => String(a.type || '') === t);
+            const catShown = !hidCats.has(t);
+            return `
+              <div style="border:1px solid #dce6df;border-radius:12px;background:#fff;padding:10px 12px">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;font-weight:800;color:#14221a">
+                  <input type="checkbox" data-ovp-cat="${esc(t)}" ${catShown?'checked':''} style="accent-color:#157a54;width:16px;height:16px">
+                  <span>${esc(t)}</span>
+                  <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:#f0fdf4;color:#157a54;border:1px solid #ccebd8">${catRows.length} asset${catRows.length===1?'':'s'}</span>
+                  ${subs.length ? `<span style="margin-left:auto;font-size:10.5px;font-weight:700;color:#64748b">${subs.length} sub-categor${subs.length===1?'y':'ies'}</span>` : ''}
+                </label>
+                ${subs.length ? `
+                  <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0 24px">
+                    ${subs.map(s => {
+                      const subKey = `${t}::${s}`;
+                      const subCnt = catRows.filter(a => String(a.subtype || '').toLowerCase() === s.toLowerCase()).length;
+                      const subShown = catShown && !hidSubs.has(subKey);
+                      return `
+                        <label style="display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border:1px solid #e2e8f0;border-radius:999px;background:${subShown?'#f8fafc':'#f1f5f9'};font-size:11px;font-weight:700;color:${catShown?'#334155':'#94a3b8'};cursor:pointer">
+                          <input type="checkbox" data-ovp-sub="${esc(subKey)}" ${subShown?'checked':''} ${!catShown?'disabled':''} style="accent-color:#157a54;width:13px;height:13px">
+                          <span>${esc(s)}</span>
+                          <span style="color:#64748b;font-weight:600">(${subCnt})</span>
+                        </label>
+                      `;
+                    }).join('')}
+                  </div>
+                ` : '<div style="margin:5px 0 0 24px;font-size:11px;color:#94a3b8">No sub-categories defined in Settings</div>'}
+              </div>
+            `;
+          }).join('') || '<div class="empty-state" style="padding:14px">No categories configured in Settings.</div>'}
         </div>
       </div>
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:14px">
@@ -14330,13 +14546,22 @@ let lastPulseGatepassRev = '';
         </div>
       </div>
     `;
-    const saveFromChecks = () => {
+    const saveFromChecks = (ev) => {
+      const changedCat = ev?.target?.dataset?.ovpCat;
       const nextHidCats = [...host.querySelectorAll('[data-ovp-cat]')].filter(cb => !cb.checked).map(cb => cb.dataset.ovpCat);
+      const nextHidSet = new Set(nextHidCats);
+      const nextHidSubs = [...host.querySelectorAll('[data-ovp-sub]')].filter(cb => {
+        const sk = cb.dataset.ovpSub || '';
+        const parent = sk.split('::')[0];
+        return !nextHidSet.has(parent) && !cb.checked;
+      }).map(cb => cb.dataset.ovpSub);
       const nextHidSecs = [...host.querySelectorAll('[data-ovp-sec]')].filter(cb => !cb.checked).map(cb => cb.dataset.ovpSec);
-      window.saveUserOverviewPrefs({ hiddenCategories: nextHidCats, hiddenSections: nextHidSecs });
+      window.saveUserOverviewPrefs({ hiddenCategories: nextHidCats, hiddenSubcategories: nextHidSubs, hiddenSections: nextHidSecs });
+      if(changedCat) renderOverviewPrefsEditor();
     };
     host.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener('change', saveFromChecks));
   }
+  window.renderOverviewPrefsEditor = renderOverviewPrefsEditor;
 
   /* =================== UNIFIED CUSTOMIZE MODAL (GROUPS + TILES + NESTED SUB-TILES) =================== */
   function switchCustomizeTab(tab){
@@ -14411,14 +14636,20 @@ let lastPulseGatepassRev = '';
     if(cancelBtn) cancelBtn.style.display = 'none';
     if(grpWrap) grpWrap.style.display = isSub ? 'none' : '';
 
+    const catSel = document.getElementById('ovNewCategory');
+    if(catSel){
+      catSel.querySelectorAll('option[data-temp-legacy]').forEach(o => o.remove());
+      catSel.value = '';
+    }
+    populateCustomizeSubcategories(false);
     const titleIn = document.getElementById('ovNewTitle');
     if(titleIn && !titleIn.value) titleIn.value = 'My Custom Metric';
     updateCustPreview();
   }
 
   window.cancelEditTile = function(){
-    document.getElementById('ovNewTitle').value = '';
-    document.getElementById('ovNewKeyword').value = '';
+    const tIn = document.getElementById('ovNewTitle'); if(tIn) tIn.value = '';
+    const kIn = document.getElementById('ovNewKeyword'); if(kIn) kIn.value = '';
     resetTileFormToNew();
   };
 
@@ -14498,7 +14729,7 @@ let lastPulseGatepassRev = '';
             <span style="width:26px;height:26px;border-radius:6px;background:${esc(t.bg)};color:${esc(t.color)};display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">${esc(t.icon||'▦')}</span>
             <div style="flex:1;min-width:0;overflow:hidden">
               <b style="color:#1e3025;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block">${esc(t.title)}</b>
-              <span style="font-size:10.5px;color:#718096">Status: ${esc(t.status||'all')} · Type: ${esc(t.type||'module default')} · Site: ${esc(t.site||'all')}${t.dept ? ' · Dept: ' + esc(t.dept) : ''}</span>
+              <span style="font-size:10.5px;color:#718096">Status: ${esc(t.status||'all')} · Category: ${esc(t.type ? (t.subtype ? `${t.type} › ${t.subtype}` : t.type) : (t.subtype ? `Any › ${t.subtype}` : 'All Categories'))} · Site: ${esc(t.site||'all')}${t.dept ? ' · Dept: ' + esc(t.dept) : ''}</span>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
@@ -14532,6 +14763,7 @@ let lastPulseGatepassRev = '';
     const t = list[idx];
     if(!t) return;
     custState.editingId = t.id;
+    populateCustomizeDropdowns();
     document.getElementById('ovNewTitle').value = t.title || '';
     document.getElementById('ovNewIcon').value = t.icon || '▦';
     const themeVal = `${t.color || '#157a54'},${t.bg || '#e7f6ee'}`;
@@ -14539,7 +14771,51 @@ let lastPulseGatepassRev = '';
     if(themeSel && [...themeSel.options].some(o => o.value === themeVal)) themeSel.value = themeVal;
     document.getElementById('ovNewStatus').value = t.status || 'all';
     const catSel = document.getElementById('ovNewCategory');
-    if(catSel && [...catSel.options].some(o => o.value === (t.type||''))) catSel.value = t.type || '';
+    const subSel = document.getElementById('ovNewSubcategory');
+    const { map } = getCustomizeCategoryModel();
+    let desiredCat = String(t.type || '').trim();
+    let desiredSub = String(t.subtype || '').trim();
+    if(catSel){
+      const directOpt = [...catSel.options].find(o => o.value.toLowerCase() === desiredCat.toLowerCase());
+      if(directOpt){
+        catSel.value = directOpt.value;
+      } else if(desiredCat === 'NVR_DVR'){
+        const svOpt = [...catSel.options].find(o => o.value.toLowerCase() === 'surveillance');
+        if(svOpt){ catSel.value = svOpt.value; desiredSub = desiredSub || 'NVR_DVR'; }
+      } else if(desiredCat){
+        const parentEntry = Object.entries(map).find(([, arr]) => Array.isArray(arr) && arr.some(s => s.toLowerCase() === desiredCat.toLowerCase()));
+        const parentOpt = parentEntry ? [...catSel.options].find(o => o.value.toLowerCase() === parentEntry[0].toLowerCase()) : null;
+        if(parentOpt && !desiredSub){
+          catSel.value = parentOpt.value;
+          desiredSub = parentEntry[1].find(s => s.toLowerCase() === desiredCat.toLowerCase()) || desiredCat;
+        } else {
+          const opt = document.createElement('option');
+          opt.value = desiredCat;
+          opt.textContent = `${desiredCat} (legacy / removed)`;
+          opt.dataset.tempLegacy = '1';
+          catSel.appendChild(opt);
+          catSel.value = desiredCat;
+        }
+      } else {
+        catSel.value = '';
+      }
+    }
+    populateCustomizeSubcategories(false);
+    if(subSel && desiredSub){
+      const subOpt = [...subSel.options].find(o => o.value.toLowerCase() === desiredSub.toLowerCase());
+      if(subOpt){
+        subSel.value = subOpt.value;
+        subSel.disabled = false;
+      } else {
+        const opt = document.createElement('option');
+        opt.value = desiredSub;
+        opt.textContent = `${desiredSub} (legacy / removed)`;
+        opt.dataset.tempLegacy = '1';
+        subSel.appendChild(opt);
+        subSel.value = desiredSub;
+        subSel.disabled = false;
+      }
+    }
     const facSel = document.getElementById('ovNewFactory');
     if(facSel) facSel.value = t.site || '';
     const deptSel = document.getElementById('ovNewDept');
@@ -14613,6 +14889,7 @@ let lastPulseGatepassRev = '';
     const [color, bg] = (document.getElementById('ovNewTheme')?.value || '#157a54,#e7f6ee').split(',');
     const status = document.getElementById('ovNewStatus')?.value || 'all';
     const type = document.getElementById('ovNewCategory')?.value || '';
+    const subtype = document.getElementById('ovNewSubcategory')?.value || '';
     const site = document.getElementById('ovNewFactory')?.value || '';
     const dept = document.getElementById('ovNewDept')?.value || '';
     const keyword = (document.getElementById('ovNewKeyword')?.value || '').trim();
@@ -14624,7 +14901,7 @@ let lastPulseGatepassRev = '';
     if(custState.editingId){
       const target = list.find(x => x.id === custState.editingId);
       if(target){
-        Object.assign(target, { title, icon, color, bg, status, type, site, dept, keyword });
+        Object.assign(target, { title, icon, color, bg, status, type, subtype, site, dept, keyword });
         if(!chain.length) target.groupId = groupId;
         saveModuleCfg(custState.module, cfg);
         cancelEditTile();
@@ -14640,7 +14917,7 @@ let lastPulseGatepassRev = '';
     list.push({
       id: newId,
       groupId: chain.length ? 'grp-default' : (groupId || cfg.groups[0]?.id || 'grp-default'),
-      title, icon, color, bg, status, type, subtype:'', site, dept, keyword,
+      title, icon, color, bg, status, type, subtype, site, dept, keyword,
       foot: chain.length ? 'Custom sub-tile' : 'Custom configured metric',
       visible: true,
       subtiles: []
@@ -14764,7 +15041,7 @@ let lastPulseGatepassRev = '';
     cancelEditTile();
     saveModuleCfg(mod, fresh, true);
     if(mod === 'overview'){
-      cacheOverviewPrefs = { hiddenCategories: [], hiddenSections: [] };
+      cacheOverviewPrefs = { hiddenCategories: [], hiddenSubcategories: [], hiddenSections: [] };
       persistLocalConfigs();
       window.renderOverviewCategoryTiles?.();
       window.renderNetworkBreakdown?.();
