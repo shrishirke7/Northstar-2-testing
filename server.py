@@ -14831,7 +14831,7 @@ from concurrent.futures import ThreadPoolExecutor
 try:
     import ldap3 as _ldap3
     from ldap3 import Server as _LdapServer, Connection as _LdapConnection, Tls as _LdapTls
-    from ldap3 import ALL as _LDAP_ALL, SUBTREE as _LDAP_SUBTREE, BASE as _LDAP_BASE
+    from ldap3 import ALL as _LDAP_ALL, DSA as _LDAP_DSA, SUBTREE as _LDAP_SUBTREE, BASE as _LDAP_BASE
     from ldap3 import MODIFY_REPLACE as _LDAP_MOD_REPLACE, MODIFY_ADD as _LDAP_MOD_ADD, MODIFY_DELETE as _LDAP_MOD_DELETE
     from ldap3 import SIMPLE as _LDAP_SIMPLE
     _LDAP3_AVAILABLE = True
@@ -14839,6 +14839,7 @@ except Exception:
     _ldap3 = None
     _LdapServer = _LdapConnection = _LdapTls = None
     _LDAP_ALL = "ALL"
+    _LDAP_DSA = "DSA"
     _LDAP_SUBTREE = "SUBTREE"
     _LDAP_BASE = "BASE"
     _LDAP_MOD_REPLACE = "MODIFY_REPLACE"
@@ -14964,15 +14965,30 @@ def _ad_encode_unicode_pwd(password):
 
 
 def _ad_filetime_to_iso(raw_val):
+    if isinstance(raw_val, list):
+        raw_val = raw_val[0] if raw_val else ""
+    if isinstance(raw_val, bytes):
+        raw_val = raw_val.decode("utf-8", errors="ignore")
     if raw_val is None or raw_val == "":
         return ""
     if isinstance(raw_val, datetime):
         dt = raw_val if raw_val.tzinfo else raw_val.replace(tzinfo=timezone.utc)
         return dt.isoformat(timespec="seconds")
+    s = str(raw_val).strip()
+    if not s:
+        return ""
+    # Handle LDAP GeneralizedTime (e.g. 20240812091500.0Z or 20240812091500Z)
+    m_gt = re.match(r"^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(?:\.\d+)?Z$", s)
+    if m_gt:
+        try:
+            dt = datetime(*[int(x) for x in m_gt.groups()], tzinfo=timezone.utc)
+            return dt.isoformat(timespec="seconds")
+        except Exception:
+            return s[:40]
     try:
-        ticks = int(str(raw_val).strip())
+        ticks = int(s)
     except (ValueError, TypeError):
-        return str(raw_val)[:40]
+        return s[:40]
     if ticks <= 0 or ticks >= 9223372036854775807:
         return ""
     try:
@@ -15300,7 +15316,7 @@ def _ad_open_live_connection(dom_cfg, bind_password_plain):
         try:
             srv_obj = _LdapServer(
                 h, port=port, use_ssl=use_ssl, tls=tls_obj,
-                get_info=_LDAP_ALL, connect_timeout=timeout,
+                get_info=_LDAP_DSA, connect_timeout=timeout,
             )
             conn_obj = _LdapConnection(
                 srv_obj,
@@ -15309,6 +15325,7 @@ def _ad_open_live_connection(dom_cfg, bind_password_plain):
                 authentication=_LDAP_SIMPLE if bind_dn else None,
                 auto_bind=False,
                 auto_referrals=False,
+                check_names=False,
                 receive_timeout=min(20, timeout * 2),
                 raise_exceptions=False,
             )
@@ -15470,8 +15487,17 @@ def _ad_live_sync_domain(dom_cfg, bind_password_plain, existing_cache=None):
                     break
             return out
 
+        def _ci_get(attrs_dict, k):
+            if k in attrs_dict:
+                return attrs_dict.get(k)
+            kl = k.lower()
+            for ak, av in attrs_dict.items():
+                if str(ak).lower() == kl:
+                    return av
+            return None
+
         def _raw_s(attrs_dict, k):
-            v = attrs_dict.get(k)
+            v = _ci_get(attrs_dict, k)
             if v is None:
                 return ""
             if isinstance(v, list):
@@ -15481,7 +15507,7 @@ def _ad_live_sync_domain(dom_cfg, bind_password_plain, existing_cache=None):
             return str(v)
 
         def _raw_l(attrs_dict, k):
-            v = attrs_dict.get(k)
+            v = _ci_get(attrs_dict, k)
             if v is None:
                 return []
             if isinstance(v, list):
@@ -15492,9 +15518,10 @@ def _ad_live_sync_domain(dom_cfg, bind_password_plain, existing_cache=None):
         u_flt = str(dom_cfg.get("userFilter") or preset["userFilter"])
         g_flt = str(dom_cfg.get("groupFilter") or preset["groupFilter"])
         c_flt = str(dom_cfg.get("computerFilter") or preset["computerFilter"])
+        flv = str(dom_cfg.get("flavor") or "samba4").strip().lower()
 
         ous = []
-        for item in _paged(ou_flt, ["ou", "name", "description"], cap=2000):
+        for item in _paged(ou_flt, ["ou", "name", "description"] if is_ad else ["ou", "description"], cap=2000):
             dn = str(item.get("dn") or "")
             a = item.get("attributes") or {}
             ous.append({
@@ -15504,13 +15531,22 @@ def _ad_live_sync_domain(dom_cfg, bind_password_plain, existing_cache=None):
                 "description": _raw_s(a, "description"),
             })
 
-        u_attrs = [
-            "cn", "displayName", "givenName", "sn", "sAMAccountName", "uid",
-            "userPrincipalName", "mail", "department", "title", "company",
-            "physicalDeliveryOfficeName", "telephoneNumber", "mobile", "manager",
-            "description", "userAccountControl", "nsAccountLock", "lockoutTime",
-            "pwdLastSet", "lastLogonTimestamp", "whenCreated", "memberOf",
-        ]
+        if is_ad:
+            u_attrs = [
+                "cn", "displayName", "givenName", "sn", "sAMAccountName",
+                "userPrincipalName", "mail", "department", "title", "company",
+                "physicalDeliveryOfficeName", "telephoneNumber", "mobile", "manager",
+                "description", "userAccountControl", "lockoutTime",
+                "pwdLastSet", "lastLogonTimestamp", "whenCreated", "memberOf",
+            ]
+        else:
+            u_attrs = [
+                "cn", "displayName", "givenName", "sn", "uid", "mail",
+                "departmentNumber", "title", "o", "telephoneNumber", "mobile",
+                "description", "memberOf",
+            ]
+            if flv == "freeipa":
+                u_attrs.append("nsAccountLock")
         users = []
         for item in _paged(u_flt, u_attrs, cap=8000):
             dn = str(item.get("dn") or "")
@@ -15521,7 +15557,7 @@ def _ad_live_sync_domain(dom_cfg, bind_password_plain, existing_cache=None):
                 pne = uac["passwordNeverExpires"]
                 uac_raw = uac["raw"]
                 lt_raw = _raw_s(a, "lockoutTime")
-                locked = bool(lt_raw and lt_raw not in ("0", "1601-01-01 00:00:00+00:00"))
+                locked = bool(lt_raw and lt_raw not in ("0", "1601-01-01 00:00:00+00:00", "1601-01-01T00:00:00+00:00"))
                 pls_raw = _raw_s(a, "pwdLastSet")
                 must_chg = (pls_raw == "0")
             else:
@@ -15534,25 +15570,32 @@ def _ad_live_sync_domain(dom_cfg, bind_password_plain, existing_cache=None):
                 pls_raw = ""
             cn = _raw_s(a, "cn") or _ad_rdn_value(dn)
             sam = _raw_s(a, "sAMAccountName") or _raw_s(a, "uid") or cn
+            dept_val = _raw_s(a, "department") or _raw_s(a, "departmentNumber")
+            comp_val = _raw_s(a, "company") or _raw_s(a, "o")
             users.append({
                 "dn": dn, "cn": cn, "displayName": _raw_s(a, "displayName") or cn,
                 "givenName": _raw_s(a, "givenName"), "sn": _raw_s(a, "sn"),
                 "samAccountName": sam, "upn": _raw_s(a, "userPrincipalName"),
-                "mail": _raw_s(a, "mail"), "department": _raw_s(a, "department"),
-                "title": _raw_s(a, "title"), "company": _raw_s(a, "company"),
+                "mail": _raw_s(a, "mail"), "department": dept_val,
+                "title": _raw_s(a, "title"), "company": comp_val,
                 "office": _raw_s(a, "physicalDeliveryOfficeName"),
                 "phone": _raw_s(a, "telephoneNumber"), "mobile": _raw_s(a, "mobile"),
                 "managerDn": _raw_s(a, "manager"), "description": _raw_s(a, "description"),
                 "parentDn": _ad_parent_dn(dn), "enabled": enabled, "lockedOut": locked,
                 "mustChangePassword": must_chg, "passwordNeverExpires": pne, "uac": uac_raw,
-                "lastLogon": _ad_filetime_to_iso(a.get("lastLogonTimestamp")),
-                "pwdLastSet": "" if must_chg else _ad_filetime_to_iso(a.get("pwdLastSet")),
-                "whenCreated": _ad_filetime_to_iso(a.get("whenCreated")),
+                "lastLogon": _ad_filetime_to_iso(_ci_get(a, "lastLogonTimestamp")),
+                "pwdLastSet": "" if must_chg else _ad_filetime_to_iso(_ci_get(a, "pwdLastSet")),
+                "whenCreated": _ad_filetime_to_iso(_ci_get(a, "whenCreated")),
                 "memberOf": _raw_l(a, "memberOf"),
             })
 
+        g_attrs = (
+            ["cn", "sAMAccountName", "description", "mail", "groupType", "member"]
+            if is_ad else
+            ["cn", "description", "mail", "member", "memberUid"]
+        )
         groups = []
-        for item in _paged(g_flt, ["cn", "sAMAccountName", "description", "mail", "groupType", "member", "memberUid"], cap=4000):
+        for item in _paged(g_flt, g_attrs, cap=4000):
             dn = str(item.get("dn") or "")
             a = item.get("attributes") or {}
             cn = _raw_s(a, "cn") or _ad_rdn_value(dn)
@@ -15566,19 +15609,44 @@ def _ad_live_sync_domain(dom_cfg, bind_password_plain, existing_cache=None):
                 "parentDn": _ad_parent_dn(dn), "members": members,
             })
 
+        c_attrs = (
+            ["cn", "sAMAccountName", "dNSHostName", "operatingSystem", "operatingSystemVersion", "userAccountControl", "lastLogonTimestamp"]
+            if is_ad else
+            ["cn", "description"]
+        )
         computers = []
-        for item in _paged(c_flt, ["cn", "sAMAccountName", "dNSHostName", "operatingSystem", "operatingSystemVersion", "userAccountControl", "lastLogonTimestamp"], cap=4000):
-            dn = str(item.get("dn") or "")
-            a = item.get("attributes") or {}
-            uac = _ad_parse_uac(_raw_s(a, "userAccountControl")) if is_ad else {"enabled": True}
-            cn = _raw_s(a, "cn") or _ad_rdn_value(dn)
-            computers.append({
-                "dn": dn, "cn": cn, "samAccountName": _raw_s(a, "sAMAccountName") or (cn + "$"),
-                "dnsHostName": _raw_s(a, "dNSHostName"),
-                "os": _raw_s(a, "operatingSystem"), "osVersion": _raw_s(a, "operatingSystemVersion"),
-                "parentDn": _ad_parent_dn(dn), "enabled": uac["enabled"],
-                "lastLogon": _ad_filetime_to_iso(a.get("lastLogonTimestamp")),
-            })
+        try:
+            for item in _paged(c_flt, c_attrs, cap=4000):
+                dn = str(item.get("dn") or "")
+                a = item.get("attributes") or {}
+                uac = _ad_parse_uac(_raw_s(a, "userAccountControl")) if is_ad else {"enabled": True}
+                cn = _raw_s(a, "cn") or _ad_rdn_value(dn)
+                computers.append({
+                    "dn": dn, "cn": cn, "samAccountName": _raw_s(a, "sAMAccountName") or (cn + "$"),
+                    "dnsHostName": _raw_s(a, "dNSHostName"),
+                    "os": _raw_s(a, "operatingSystem"), "osVersion": _raw_s(a, "operatingSystemVersion"),
+                    "parentDn": _ad_parent_dn(dn), "enabled": uac["enabled"],
+                    "lastLogon": _ad_filetime_to_iso(_ci_get(a, "lastLogonTimestamp")),
+                })
+        except Exception:
+            computers = []
+
+        # Include built-in AD top-level containers (e.g. CN=Users, CN=Computers, CN=Builtin) in tree just like DSA.MSC!
+        ou_dns_cf = {o["dn"].casefold() for o in ous}
+        base_cf = base_dn.casefold()
+        for coll in (users, groups, computers):
+            for obj in coll:
+                pdn = str(obj.get("parentDn") or "").strip()
+                if pdn and pdn.casefold() != base_cf and pdn.casefold() not in ou_dns_cf:
+                    if pdn.casefold().endswith("," + base_cf):
+                        ou_dns_cf.add(pdn.casefold())
+                        ous.append({
+                            "dn": pdn,
+                            "name": _ad_rdn_value(pdn),
+                            "parentDn": _ad_parent_dn(pdn),
+                            "description": "Built-in AD Container",
+                            "isContainer": True,
+                        })
 
         ms = round((time.monotonic() - t0) * 1000.0, 1)
         sinfo = {

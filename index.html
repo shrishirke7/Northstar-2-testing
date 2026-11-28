@@ -33533,13 +33533,13 @@ html[data-theme="dark"] .ns-ad-test-box.err{background:rgba(220,38,38,.18);borde
         html += `
           <div class="ns-ad-ou-row ${isAct?'active':''}" style="padding-left:${8 + depth*16}px" onclick="window.nsAdModule?.selectOu?.('${escH(ou.dn).replace(/'/g,"\\'")}')">
             <button type="button" class="ns-ad-ou-toggle" onclick="event.stopPropagation();window.nsAdModule?.toggleOuExpand?.('${escH(ou.dn).replace(/'/g,"\\'")}')">${hasKids ? (expanded ? '▾' : '▸') : '•'}</button>
-            <span>${expanded && hasKids ? '📂' : '📁'}</span>
+            <span>${ou.isContainer ? '🗂️' : (expanded && hasKids ? '📂' : '📁')}</span>
             <span class="ns-ad-ou-name" title="${escH(ou.dn)}">${escH(ou.name)}</span>
             <span class="ns-ad-ou-cnt">${cnt}</span>
-            <span class="ns-ad-ou-acts ns-ad-write-only" onclick="event.stopPropagation()">
+            ${ou.isContainer ? '' : `<span class="ns-ad-ou-acts ns-ad-write-only" onclick="event.stopPropagation()">
               <button type="button" title="Rename / Edit OU" onclick="window.nsAdModule?.openOuModal?.('${escH(ou.dn).replace(/'/g,"\\'")}')">✏️</button>
               <button type="button" title="Delete empty OU" onclick="window.nsAdModule?.deleteOu?.('${escH(ou.dn).replace(/'/g,"\\'")}')">🗑</button>
-            </span>
+            </span>`}
           </div>`;
         if(hasKids && expanded) walk(ou.dn, depth + 1);
       }
