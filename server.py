@@ -119,7 +119,7 @@ LOGIN_DUMMY_HASH = generate_password_hash("not-a-real-login-password")
 # account's pre-existing access for compatibility; an explicit empty mapping
 # means that a newly configured account has no module access.
 MODULE_IDS = (
-    "overview", "assets", "data_center", "surveillance", "tickets", "tasks",
+    "overview", "assets", "data_center", "surveillance", "tickets", "tasks", "ad",
     "visitors", "gatepass",
     "maintenance", "ageing", "parts", "users", "departments", "factories",
     "software", "firmware", "credentials", "network", "snmp", "notifications", "reports", "valuation", "billing",
@@ -131,6 +131,7 @@ MODULE_DATA_KEYS = {
     "surveillance": ("assets", "camera_streams", "camera_profiles"),
     "tickets": ("departments", "ip_mappings"),
     "tasks": ("departments", "manual_users"),
+    "ad": ("departments", "manual_users"),
     "visitors": ("departments", "manual_users"),
     "gatepass": ("departments", "manual_users"),
     "maintenance": ("assets", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "departments"),
@@ -150,7 +151,7 @@ MODULE_DATA_KEYS = {
     "billing": ("invoices", "vendors", "departments", "manual_users"),
 }
 MODULE_API_PATHS = {
-    "/api/invoices": "billing", "/api/tickets": "tickets", "/api/tasks": "tasks",
+    "/api/invoices": "billing", "/api/tickets": "tickets", "/api/tasks": "tasks", "/api/ad": "ad",
     "/api/assets": "assets",
     "/api/visitors": "visitors", "/api/gate-passes": "gatepass",
     "/api/firmware-backups": "firmware", "/api/vault": "credentials",
@@ -404,6 +405,11 @@ def snmp_secret_box():
     return Fernet(key)
 
 
+def ad_secret_box():
+    key = base64.urlsafe_b64encode(hashlib.sha256((APP_SECRET + "|ad-directory-v1").encode()).digest())
+    return Fernet(key)
+
+
 def go2rtc_request(method, path, params=None):
     from urllib.parse import urlencode
     base = os.getenv("GO2RTC_API", "http://go2rtc:1984").rstrip("/")
@@ -439,7 +445,7 @@ def init_db():
         for statement in schema.split(";"):
             if statement.strip():
                 conn.execute(statement)
-        conn.execute("INSERT INTO app_state(key,value) VALUES('assets','[]'),('ip_mappings','[]'),('software','[]'),('departments','[]'),('maintenance','[]'),('parts_catalog','[]'),('parts_inventory','[]'),('parts_stock_entries','[]'),('parts_assignments','[]'),('invoices','[]'),('vendors','[]'),('manual_users','[]'),('camera_streams','[]'),('camera_profiles','[]'),('network_ranges','[]'),('network_scan','{}'),('scanner_heartbeat','{}'),('scanner_ip_status','{}'),('settings','{}'),('profile_preferences','{}'),('notifications','{\"rules\":[],\"queue\":[]}'),('workspace_tasks','{\"tasks\":[],\"rev\":0}') ON CONFLICT(key) DO NOTHING")
+        conn.execute("INSERT INTO app_state(key,value) VALUES('assets','[]'),('ip_mappings','[]'),('software','[]'),('departments','[]'),('maintenance','[]'),('parts_catalog','[]'),('parts_inventory','[]'),('parts_stock_entries','[]'),('parts_assignments','[]'),('invoices','[]'),('vendors','[]'),('manual_users','[]'),('camera_streams','[]'),('camera_profiles','[]'),('network_ranges','[]'),('network_scan','{}'),('scanner_heartbeat','{}'),('scanner_ip_status','{}'),('settings','{}'),('profile_preferences','{}'),('notifications','{\"rules\":[],\"queue\":[]}'),('workspace_tasks','{\"tasks\":[],\"rev\":0}'),('ad_domains','{\"domains\":[],\"rev\":0}'),('ad_cache','{\"byDomain\":{}}'),('ad_audit','{\"events\":[]}') ON CONFLICT(key) DO NOTHING")
 
 
 def signed_in(fn):
@@ -9331,6 +9337,10 @@ def _start_returnable_scheduler():
                         _evaluate_task_reminders(conn)
                 except Exception:
                     pass
+                try:
+                    _run_ad_auto_sync_tick()
+                except Exception:
+                    pass
                 time.sleep(60)
 
         t = threading.Thread(target=_loop, name="northstar-returnable-reminders", daemon=True)
@@ -14811,6 +14821,2073 @@ def export_workspace_tasks_excel():
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{fname}"'},
     )
+
+
+# ============================================================================
+# ACTIVE DIRECTORY (SAMBA 4 / MS AD / SYNOLOGY / FREEIPA / OPENLDAP · DSA.MSC)
+# ============================================================================
+from concurrent.futures import ThreadPoolExecutor
+
+try:
+    import ldap3 as _ldap3
+    from ldap3 import Server as _LdapServer, Connection as _LdapConnection, Tls as _LdapTls
+    from ldap3 import ALL as _LDAP_ALL, SUBTREE as _LDAP_SUBTREE, BASE as _LDAP_BASE
+    from ldap3 import MODIFY_REPLACE as _LDAP_MOD_REPLACE, MODIFY_ADD as _LDAP_MOD_ADD, MODIFY_DELETE as _LDAP_MOD_DELETE
+    from ldap3 import SIMPLE as _LDAP_SIMPLE
+    _LDAP3_AVAILABLE = True
+except Exception:
+    _ldap3 = None
+    _LdapServer = _LdapConnection = _LdapTls = None
+    _LDAP_ALL = "ALL"
+    _LDAP_SUBTREE = "SUBTREE"
+    _LDAP_BASE = "BASE"
+    _LDAP_MOD_REPLACE = "MODIFY_REPLACE"
+    _LDAP_MOD_ADD = "MODIFY_ADD"
+    _LDAP_MOD_DELETE = "MODIFY_DELETE"
+    _LDAP_SIMPLE = "SIMPLE"
+    _LDAP3_AVAILABLE = False
+
+AD_FLAVOR_PRESETS = {
+    "samba4": {
+        "id": "samba4",
+        "label": "Samba 4 AD DC (Ubuntu / Linux)",
+        "icon": "🐧",
+        "schema": "ad",
+        "defaultPort": 636,
+        "defaultSecurity": "ldaps",
+        "userFilter": "(&(objectClass=user)(objectCategory=person)(!(isCriticalSystemObject=TRUE)))",
+        "groupFilter": "(objectClass=group)",
+        "ouFilter": "(objectClass=organizationalUnit)",
+        "computerFilter": "(objectClass=computer)",
+        "bindPlaceholder": "CN=Administrator,CN=Users,DC=example,DC=local",
+        "notes": "Ubuntu Samba 4 Active Directory Domain Controller (DSA.MSC compatible). Use LDAPS (636) or StartTLS (389) for password creation & resets.",
+    },
+    "ms_ad": {
+        "id": "ms_ad",
+        "label": "Microsoft Active Directory (Windows Server)",
+        "icon": "🪟",
+        "schema": "ad",
+        "defaultPort": 636,
+        "defaultSecurity": "ldaps",
+        "userFilter": "(&(objectClass=user)(objectCategory=person)(!(isCriticalSystemObject=TRUE)))",
+        "groupFilter": "(objectClass=group)",
+        "ouFilter": "(objectClass=organizationalUnit)",
+        "computerFilter": "(objectClass=computer)",
+        "bindPlaceholder": "administrator@corp.company.local",
+        "notes": "Windows Server 2012/2016/2019/2022/2025 Active Directory (full DSA.MSC schema, unicodePwd, UAC, unlock & group types).",
+    },
+    "synology": {
+        "id": "synology",
+        "label": "Synology Directory Server (NAS AD)",
+        "icon": "💾",
+        "schema": "ad",
+        "defaultPort": 636,
+        "defaultSecurity": "ldaps",
+        "userFilter": "(&(objectClass=user)(objectCategory=person)(!(isCriticalSystemObject=TRUE)))",
+        "groupFilter": "(objectClass=group)",
+        "ouFilter": "(objectClass=organizationalUnit)",
+        "computerFilter": "(objectClass=computer)",
+        "bindPlaceholder": "Administrator@nas.local",
+        "notes": "Synology DSM Directory Server (Samba 4 AD engine under the hood). Supports full OUs, users, security groups & password policy.",
+    },
+    "freeipa": {
+        "id": "freeipa",
+        "label": "Red Hat IdM / FreeIPA / 389 DS",
+        "icon": "🎩",
+        "schema": "posix",
+        "defaultPort": 636,
+        "defaultSecurity": "ldaps",
+        "userFilter": "(objectClass=inetOrgPerson)",
+        "groupFilter": "(|(objectClass=groupOfNames)(objectClass=ipausergroup))",
+        "ouFilter": "(objectClass=organizationalUnit)",
+        "computerFilter": "(objectClass=ipahost)",
+        "bindPlaceholder": "uid=admin,cn=users,cn=accounts,dc=example,dc=local",
+        "notes": "Red Hat Identity Management / FreeIPA / 389 Directory Server.",
+    },
+    "openldap": {
+        "id": "openldap",
+        "label": "OpenLDAP / Generic RFC 4511 LDAP",
+        "icon": "📂",
+        "schema": "posix",
+        "defaultPort": 389,
+        "defaultSecurity": "starttls",
+        "userFilter": "(objectClass=inetOrgPerson)",
+        "groupFilter": "(|(objectClass=groupOfNames)(objectClass=posixGroup))",
+        "ouFilter": "(objectClass=organizationalUnit)",
+        "computerFilter": "(objectClass=device)",
+        "bindPlaceholder": "cn=admin,dc=example,dc=local",
+        "notes": "Standard OpenLDAP directory (Nextcloud / Frappe compatible filters).",
+    },
+}
+
+_AD_SYNC_LOCKS = {}
+_AD_SYNC_LOCKS_GUARD = threading.Lock()
+_AD_UAC_NORMAL = 0x0200
+_AD_UAC_DISABLED = 0x0002
+_AD_UAC_PASSWD_CANT_CHANGE = 0x0040
+_AD_UAC_DONT_EXPIRE = 0x10000
+_AD_UAC_LOCKOUT = 0x0010
+
+
+def _ad_now_iso():
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _ad_get_sync_lock(dom_id):
+    with _AD_SYNC_LOCKS_GUARD:
+        lk = _AD_SYNC_LOCKS.get(dom_id)
+        if lk is None:
+            lk = threading.Lock()
+            _AD_SYNC_LOCKS[dom_id] = lk
+        return lk
+
+
+def _ad_escape_rdn(value):
+    s = str(value or "").strip()
+    if not s:
+        return ""
+    out = []
+    for idx, ch in enumerate(s):
+        if ch in ('\\', ',', '+', '"', '<', '>', ';', '='):
+            out.append("\\" + ch)
+        elif idx == 0 and ch in (' ', '#'):
+            out.append("\\" + ch)
+        elif idx == len(s) - 1 and ch == ' ':
+            out.append("\\" + ch)
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _ad_encode_unicode_pwd(password):
+    return f'"{str(password)}"'.encode("utf-16-le")
+
+
+def _ad_filetime_to_iso(raw_val):
+    if raw_val is None or raw_val == "":
+        return ""
+    if isinstance(raw_val, datetime):
+        dt = raw_val if raw_val.tzinfo else raw_val.replace(tzinfo=timezone.utc)
+        return dt.isoformat(timespec="seconds")
+    try:
+        ticks = int(str(raw_val).strip())
+    except (ValueError, TypeError):
+        return str(raw_val)[:40]
+    if ticks <= 0 or ticks >= 9223372036854775807:
+        return ""
+    try:
+        epoch = datetime(1601, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=ticks // 10)
+        if epoch.year < 1970 or epoch.year > 2200:
+            return ""
+        return epoch.isoformat(timespec="seconds")
+    except Exception:
+        return ""
+
+
+def _ad_parse_uac(uac_val):
+    try:
+        n = int(uac_val or _AD_UAC_NORMAL)
+    except (ValueError, TypeError):
+        n = _AD_UAC_NORMAL
+    return {
+        "raw": n,
+        "enabled": not bool(n & _AD_UAC_DISABLED),
+        "passwordNeverExpires": bool(n & _AD_UAC_DONT_EXPIRE),
+        "cannotChangePassword": bool(n & _AD_UAC_PASSWD_CANT_CHANGE),
+    }
+
+
+def _ad_build_uac(enabled=True, password_never_expires=False, base_uac=_AD_UAC_NORMAL):
+    try:
+        n = int(base_uac or _AD_UAC_NORMAL)
+    except (ValueError, TypeError):
+        n = _AD_UAC_NORMAL
+    if not (n & _AD_UAC_NORMAL):
+        n |= _AD_UAC_NORMAL
+    if enabled:
+        n &= ~_AD_UAC_DISABLED
+    else:
+        n |= _AD_UAC_DISABLED
+    if password_never_expires:
+        n |= _AD_UAC_DONT_EXPIRE
+    else:
+        n &= ~_AD_UAC_DONT_EXPIRE
+    return n
+
+
+def _ad_build_group_type(scope="Global", category="Security"):
+    sc = str(scope or "Global").strip().lower()
+    cat = str(category or "Security").strip().lower()
+    base = 2
+    if "local" in sc:
+        base = 4
+    elif "univ" in sc:
+        base = 8
+    if cat == "distribution":
+        return base
+    return base - 2147483648  # Signed 32-bit AD Security bit (0x80000000)
+
+
+def _ad_parse_group_type(gt_val):
+    try:
+        n = int(gt_val)
+    except (ValueError, TypeError):
+        return "Global", "Security"
+    u = n & 0xFFFFFFFF
+    category = "Security" if (u & 0x80000000) else "Distribution"
+    if u & 0x4:
+        scope = "Domain Local"
+    elif u & 0x8:
+        scope = "Universal"
+    else:
+        scope = "Global"
+    return scope, category
+
+
+def _ad_domain_dns_from_base_dn(base_dn):
+    parts = re.findall(r"dc=([^,]+)", str(base_dn or ""), flags=re.IGNORECASE)
+    return ".".join(p.strip() for p in parts if p.strip()) or "domain.local"
+
+
+def _ad_parent_dn(dn):
+    s = str(dn or "").strip()
+    if "," not in s:
+        return ""
+    # Split on first unescaped comma
+    esc = False
+    for idx, ch in enumerate(s):
+        if esc:
+            esc = False
+            continue
+        if ch == "\\":
+            esc = True
+            continue
+        if ch == ",":
+            return s[idx + 1:].strip()
+    return ""
+
+
+def _ad_rdn_value(dn):
+    s = str(dn or "").strip()
+    first = s.split(",", 1)[0]
+    if "=" in first:
+        return first.split("=", 1)[1].replace("\\,", ",").strip()
+    return first
+
+
+def _ad_encrypt_pw(plain):
+    if not plain:
+        return ""
+    return ad_secret_box().encrypt(str(plain).encode("utf-8")).decode("utf-8")
+
+
+def _ad_decrypt_pw(token):
+    if not token:
+        return ""
+    try:
+        return ad_secret_box().decrypt(str(token).encode("utf-8")).decode("utf-8")
+    except (InvalidToken, ValueError, TypeError):
+        return ""
+
+
+def _load_ad_domains_doc(conn, for_update=False):
+    sql = "SELECT value FROM app_state WHERE key='ad_domains'" + (" FOR UPDATE" if for_update else "")
+    row = conn.execute(sql).fetchone()
+    raw = row[0] if row else {}
+    if isinstance(raw, dict):
+        return {"domains": [d for d in (raw.get("domains") or []) if isinstance(d, dict)], "rev": int(raw.get("rev") or 0)}
+    return {"domains": [], "rev": 0}
+
+
+def _save_ad_domains_doc(conn, doc):
+    doc["rev"] = int(doc.get("rev") or 0) + 1
+    conn.execute(
+        "INSERT INTO app_state(key,value) VALUES('ad_domains',%s::jsonb) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+        (json.dumps(doc),),
+    )
+    return doc
+
+
+def _load_ad_cache_doc(conn, for_update=False):
+    sql = "SELECT value FROM app_state WHERE key='ad_cache'" + (" FOR UPDATE" if for_update else "")
+    row = conn.execute(sql).fetchone()
+    raw = row[0] if row else {}
+    if isinstance(raw, dict) and isinstance(raw.get("byDomain"), dict):
+        return {"byDomain": raw["byDomain"]}
+    return {"byDomain": {}}
+
+
+def _save_ad_cache_doc(conn, doc):
+    conn.execute(
+        "INSERT INTO app_state(key,value) VALUES('ad_cache',%s::jsonb) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+        (json.dumps(doc),),
+    )
+    return doc
+
+
+def _record_ad_audit(conn, dom_id, dom_name, action, target_dn, target_name, actor, detail, status="ok"):
+    row = conn.execute("SELECT value FROM app_state WHERE key='ad_audit' FOR UPDATE").fetchone()
+    raw = row[0] if row and isinstance(row[0], dict) else {}
+    events = list(raw.get("events") or [])
+    ev = {
+        "id": "ada-" + uuid.uuid4().hex[:10],
+        "domainId": str(dom_id or ""),
+        "domainName": str(dom_name or "")[:120],
+        "action": str(action or "update")[:60],
+        "targetDn": str(target_dn or "")[:400],
+        "targetName": str(target_name or "")[:160],
+        "actor": str(actor or "Admin")[:120],
+        "detail": str(detail or "")[:400],
+        "status": str(status or "ok")[:20],
+        "at": _ad_now_iso(),
+    }
+    events.insert(0, ev)
+    conn.execute(
+        "INSERT INTO app_state(key,value) VALUES('ad_audit',%s::jsonb) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+        (json.dumps({"events": events[:300]}),),
+    )
+    return ev
+
+
+def _sanitize_ad_domain(d):
+    out = {k: v for k, v in d.items() if k not in ("encryptedBindPassword", "bindPassword")}
+    out["hasBindPassword"] = bool(d.get("encryptedBindPassword"))
+    out["dnsDomain"] = _ad_domain_dns_from_base_dn(d.get("baseDn") or "")
+    return out
+
+
+def _ad_seed_demo_cache(dom):
+    base = str(dom.get("baseDn") or "DC=swarnshilp,DC=local").strip()
+    dns = _ad_domain_dns_from_base_dn(base)
+    now_iso = _ad_now_iso()
+    ous = [
+        {"dn": f"OU=Departments,{base}", "name": "Departments", "parentDn": base, "description": "All company departments"},
+        {"dn": f"OU=IT,OU=Departments,{base}", "name": "IT", "parentDn": f"OU=Departments,{base}", "description": "IT Infrastructure & Support"},
+        {"dn": f"OU=Finance,OU=Departments,{base}", "name": "Finance", "parentDn": f"OU=Departments,{base}", "description": "Accounts & GST Finance"},
+        {"dn": f"OU=Production,OU=Departments,{base}", "name": "Production", "parentDn": f"OU=Departments,{base}", "description": "Manufacturing & Plant Operations"},
+        {"dn": f"OU=Workstations,{base}", "name": "Workstations", "parentDn": base, "description": "Domain-joined desktops & laptops"},
+        {"dn": f"OU=Security Groups,{base}", "name": "Security Groups", "parentDn": base, "description": "RBAC & File Share Access Groups"},
+    ]
+    g_it = f"CN=IT-Admins,OU=Security Groups,{base}"
+    g_fin = f"CN=Finance-ERP,OU=Security Groups,{base}"
+    g_vpn = f"CN=VPN-Allowed,OU=Security Groups,{base}"
+    g_all = f"CN=All-Employees,OU=Security Groups,{base}"
+
+    u1 = f"CN=Shree Patil,OU=IT,OU=Departments,{base}"
+    u2 = f"CN=Rahul Deshmukh,OU=IT,OU=Departments,{base}"
+    u3 = f"CN=Priya Shah,OU=Finance,OU=Departments,{base}"
+    u4 = f"CN=Amit Joshi,OU=Production,OU=Departments,{base}"
+    u5 = f"CN=Locked Account,OU=Production,OU=Departments,{base}"
+
+    users = [
+        {"dn": u1, "cn": "Shree Patil", "displayName": "Shree Patil", "givenName": "Shree", "sn": "Patil", "samAccountName": "shree.patil", "upn": f"shree.patil@{dns}", "mail": f"shree.patil@{dns}", "department": "IT", "title": "IT Head", "company": "Swarnshilp", "office": "HQ-ARG", "phone": "+91-98200-10001", "mobile": "+91-98200-10001", "managerDn": "", "description": "Domain Systems Lead", "parentDn": f"OU=IT,OU=Departments,{base}", "enabled": True, "lockedOut": False, "mustChangePassword": False, "passwordNeverExpires": True, "uac": 66048, "lastLogon": now_iso, "pwdLastSet": now_iso, "whenCreated": now_iso, "memberOf": [g_it, g_vpn, g_all]},
+        {"dn": u2, "cn": "Rahul Deshmukh", "displayName": "Rahul Deshmukh", "givenName": "Rahul", "sn": "Deshmukh", "samAccountName": "rahul.d", "upn": f"rahul.d@{dns}", "mail": f"rahul.d@{dns}", "department": "IT", "title": "System Engineer", "company": "Swarnshilp", "office": "HQ-ARG", "phone": "+91-98200-10002", "mobile": "", "managerDn": u1, "description": "Network & Samba4 Engineer", "parentDn": f"OU=IT,OU=Departments,{base}", "enabled": True, "lockedOut": False, "mustChangePassword": False, "passwordNeverExpires": False, "uac": 512, "lastLogon": now_iso, "pwdLastSet": now_iso, "whenCreated": now_iso, "memberOf": [g_it, g_all]},
+        {"dn": u3, "cn": "Priya Shah", "displayName": "Priya Shah", "givenName": "Priya", "sn": "Shah", "samAccountName": "priya.shah", "upn": f"priya.shah@{dns}", "mail": f"priya.shah@{dns}", "department": "Finance", "title": "Accounts Manager", "company": "Swarnshilp", "office": "HQ-ARG", "phone": "+91-98200-10003", "mobile": "", "managerDn": "", "description": "ERP & Tally Lead", "parentDn": f"OU=Finance,OU=Departments,{base}", "enabled": True, "lockedOut": False, "mustChangePassword": False, "passwordNeverExpires": False, "uac": 512, "lastLogon": now_iso, "pwdLastSet": now_iso, "whenCreated": now_iso, "memberOf": [g_fin, g_vpn, g_all]},
+        {"dn": u4, "cn": "Amit Joshi", "displayName": "Amit Joshi", "givenName": "Amit", "sn": "Joshi", "samAccountName": "amit.joshi", "upn": f"amit.joshi@{dns}", "mail": f"amit.joshi@{dns}", "department": "Production", "title": "Shift Supervisor", "company": "Swarnshilp", "office": "Unit-ARB", "phone": "", "mobile": "", "managerDn": "", "description": "Plant Floor Lead", "parentDn": f"OU=Production,OU=Departments,{base}", "enabled": False, "lockedOut": False, "mustChangePassword": False, "passwordNeverExpires": False, "uac": 514, "lastLogon": now_iso, "pwdLastSet": now_iso, "whenCreated": now_iso, "memberOf": [g_all]},
+        {"dn": u5, "cn": "Locked Account", "displayName": "Nikhil Pawar", "givenName": "Nikhil", "sn": "Pawar", "samAccountName": "nikhil.p", "upn": f"nikhil.p@{dns}", "mail": f"nikhil.p@{dns}", "department": "Production", "title": "QC Operator", "company": "Swarnshilp", "office": "Unit-ARB", "phone": "", "mobile": "", "managerDn": u4, "description": "Locked after failed sign-ins", "parentDn": f"OU=Production,OU=Departments,{base}", "enabled": True, "lockedOut": True, "mustChangePassword": True, "passwordNeverExpires": False, "uac": 512, "lastLogon": now_iso, "pwdLastSet": "", "whenCreated": now_iso, "memberOf": [g_all]},
+    ]
+    groups = [
+        {"dn": g_it, "cn": "IT-Admins", "samAccountName": "IT-Admins", "description": "Full IT Infrastructure Administrators", "mail": f"it-admins@{dns}", "scope": "Global", "category": "Security", "groupType": -2147483646, "parentDn": f"OU=Security Groups,{base}", "members": [u1, u2]},
+        {"dn": g_fin, "cn": "Finance-ERP", "samAccountName": "Finance-ERP", "description": "Finance ERP & Accounting Share Access", "mail": f"finance@{dns}", "scope": "Global", "category": "Security", "groupType": -2147483646, "parentDn": f"OU=Security Groups,{base}", "members": [u3]},
+        {"dn": g_vpn, "cn": "VPN-Allowed", "samAccountName": "VPN-Allowed", "description": "Sophos XGS2300 SSL VPN Authorized Users", "mail": "", "scope": "Global", "category": "Security", "groupType": -2147483646, "parentDn": f"OU=Security Groups,{base}", "members": [u1, u3]},
+        {"dn": g_all, "cn": "All-Employees", "samAccountName": "All-Employees", "description": "Company-wide Distribution List", "mail": f"all@{dns}", "scope": "Global", "category": "Distribution", "groupType": 2, "parentDn": f"OU=Security Groups,{base}", "members": [u1, u2, u3, u4, u5]},
+    ]
+    computers = [
+        {"dn": f"CN=DC01-SAMBA,OU=Domain Controllers,{base}", "cn": "DC01-SAMBA", "samAccountName": "DC01-SAMBA$", "dnsHostName": f"dc01.{dns}", "os": "Ubuntu 24.04 · Samba 4.19 AD DC", "osVersion": "4.19", "parentDn": f"OU=Domain Controllers,{base}", "enabled": True, "lastLogon": now_iso},
+        {"dn": f"CN=FIN-PC-01,OU=Workstations,{base}", "cn": "FIN-PC-01", "samAccountName": "FIN-PC-01$", "dnsHostName": f"fin-pc-01.{dns}", "os": "Windows 11 Pro", "osVersion": "10.0 (22631)", "parentDn": f"OU=Workstations,{base}", "enabled": True, "lastLogon": now_iso},
+        {"dn": f"CN=DES-WS-04,OU=Workstations,{base}", "cn": "DES-WS-04", "samAccountName": "DES-WS-04$", "dnsHostName": f"des-ws-04.{dns}", "os": "Windows 11 Pro for Workstations", "osVersion": "10.0 (26100)", "parentDn": f"OU=Workstations,{base}", "enabled": True, "lastLogon": now_iso},
+    ]
+    return {"ous": ous, "users": users, "groups": groups, "computers": computers, "syncedAt": now_iso, "rev": 1}
+
+
+def _ad_probe_services(host, backup_host="", demo_mode=False):
+    ports = [
+        (389, "LDAP", "Directory Queries & StartTLS"),
+        (636, "LDAPS", "Encrypted SSL/TLS & Password Ops"),
+        (88, "Kerberos KDC", "SSO & Domain Authentication"),
+        (53, "AD DNS", "Domain SRV & Name Resolution"),
+        (445, "SMB / SYSVOL", "GPO & Netlogon File Shares"),
+        (135, "RPC Mapper", "AD Replication & RSAT Services"),
+        (3268, "Global Catalog", "Multi-Domain Forest Search"),
+    ]
+    if demo_mode:
+        return {
+            "host": host or "dc01.swarnshilp.local",
+            "backupHost": backup_host or "",
+            "services": [
+                {"port": p, "name": n, "desc": d, "up": True, "latencyMs": 1.8 + (idx * 0.4)}
+                for idx, (p, n, d) in enumerate(ports)
+            ],
+            "checkedAt": _ad_now_iso(),
+            "ldapsReady": True,
+            "hint": "Lab / Preview AD domain is active. Switch off Demo Mode and enter your live Samba 4 / Windows AD / Synology DC IP to probe real network ports.",
+        }
+
+    def _check_one(target_host, p, name, desc):
+        t0 = time.monotonic()
+        up = False
+        err = ""
+        try:
+            with socket.create_connection((target_host, p), timeout=1.5):
+                up = True
+        except OSError as exc:
+            err = str(exc)[:80]
+        ms = round((time.monotonic() - t0) * 1000.0, 1)
+        return {"port": p, "name": name, "desc": desc, "up": up, "latencyMs": ms if up else None, "error": err if not up else ""}
+
+    results = []
+    target = str(host or "").strip()
+    if target:
+        with ThreadPoolExecutor(max_workers=7) as ex:
+            futs = [ex.submit(_check_one, target, p, n, d) for p, n, d in ports]
+            results = [f.result() for f in futs]
+    ldaps_up = any(r["port"] == 636 and r["up"] for r in results)
+    ldap_up = any(r["port"] == 389 and r["up"] for r in results)
+    hint = ""
+    if not ldaps_up and ldap_up:
+        hint = "Port 389 (LDAP) is UP, but Port 636 (LDAPS) is closed. Use StartTLS on port 389 or enable TLS on Samba 4/Windows AD for password creation & resets."
+    elif not ldaps_up and not ldap_up:
+        hint = f"Cannot reach {target} on ports 389/636. Verify firewall rules, VLAN routing from Docker host, and that samba-ad-dc / NTDS service is running."
+    else:
+        hint = "Core Active Directory & LDAPS ports are reachable and healthy."
+    return {
+        "host": target,
+        "backupHost": backup_host or "",
+        "services": results,
+        "checkedAt": _ad_now_iso(),
+        "ldapsReady": ldaps_up,
+        "hint": hint,
+    }
+
+
+def _ad_open_live_connection(dom_cfg, bind_password_plain):
+    """Opens a strictly time-bounded ldap3 connection (auto_referrals=False so it NEVER hangs!)."""
+    if not _LDAP3_AVAILABLE:
+        raise RuntimeError("Python 'ldap3' driver is not installed on this runtime. Rebuild Docker with requirements.txt (ldap3==2.9.1) or enable Lab/Preview mode.")
+    host = str(dom_cfg.get("host") or "").strip()
+    backup_host = str(dom_cfg.get("backupHost") or "").strip()
+    if not host:
+        raise ValueError("AD Server Host / IP is required.")
+    port = max(1, min(65535, int(dom_cfg.get("port") or 636)))
+    sec = str(dom_cfg.get("security") or "ldaps").strip().lower()
+    use_ssl = (sec == "ldaps")
+    use_starttls = (sec == "starttls")
+    verify_tls = bool(dom_cfg.get("verifyTls"))
+    timeout = max(3, min(15, int(dom_cfg.get("timeoutSec") or 6)))
+    ca_pem = str(dom_cfg.get("caCertPem") or "").strip()
+    bind_dn = str(dom_cfg.get("bindDn") or "").strip()
+
+    ca_tmp_path = None
+    tls_obj = None
+    if use_ssl or use_starttls:
+        if verify_tls and ca_pem:
+            tf = tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False, encoding="utf-8")
+            tf.write(ca_pem)
+            tf.close()
+            ca_tmp_path = tf.name
+        tls_obj = _LdapTls(
+            validate=ssl.CERT_REQUIRED if verify_tls else ssl.CERT_NONE,
+            ca_certs_file=ca_tmp_path,
+            version=ssl.PROTOCOL_TLS_CLIENT,
+        )
+
+    hosts_to_try = [h for h in (host, backup_host) if h]
+    last_err = None
+    for h in hosts_to_try:
+        try:
+            srv_obj = _LdapServer(
+                h, port=port, use_ssl=use_ssl, tls=tls_obj,
+                get_info=_LDAP_ALL, connect_timeout=timeout,
+            )
+            conn_obj = _LdapConnection(
+                srv_obj,
+                user=bind_dn or None,
+                password=bind_password_plain or None,
+                authentication=_LDAP_SIMPLE if bind_dn else None,
+                auto_bind=False,
+                auto_referrals=False,
+                receive_timeout=min(20, timeout * 2),
+                raise_exceptions=False,
+            )
+            conn_obj.open()
+            if use_starttls:
+                if not conn_obj.start_tls():
+                    raise RuntimeError(f"StartTLS handshake failed on {h}:{port}: {conn_obj.result}")
+            if not conn_obj.bind():
+                desc = (conn_obj.result or {}).get("description") or "bind_failed"
+                msg = (conn_obj.result or {}).get("message") or ""
+                conn_obj.unbind()
+                raise RuntimeError(f"LDAP Bind failed ({desc}): {msg}".strip())
+            return conn_obj, srv_obj, ca_tmp_path
+        except Exception as exc:
+            last_err = exc
+    if ca_tmp_path:
+        try:
+            os.unlink(ca_tmp_path)
+        except OSError:
+            pass
+    raise RuntimeError(f"Could not connect to AD server ({', '.join(hosts_to_try)}:{port}): {last_err}")
+
+
+def _ad_close_live_connection(conn_obj, ca_tmp_path=None):
+    try:
+        if conn_obj is not None:
+            conn_obj.unbind()
+    except Exception:
+        pass
+    if ca_tmp_path:
+        try:
+            os.unlink(ca_tmp_path)
+        except OSError:
+            pass
+
+
+def _ad_attr_str(entry, name):
+    try:
+        v = entry[name].value
+        if v is None:
+            return ""
+        if isinstance(v, list):
+            return str(v[0] if v else "")
+        if isinstance(v, bytes):
+            return v.decode("utf-8", errors="ignore")
+        return str(v)
+    except Exception:
+        return ""
+
+
+def _ad_attr_list(entry, name):
+    try:
+        v = entry[name].values
+        return [str(x) for x in (v or []) if str(x).strip()]
+    except Exception:
+        return []
+
+
+def _ad_live_test_connection(dom_cfg, bind_password_plain):
+    t0 = time.monotonic()
+    if dom_cfg.get("demoMode"):
+        base = str(dom_cfg.get("baseDn") or "DC=swarnshilp,DC=local").strip()
+        dns = _ad_domain_dns_from_base_dn(base)
+        return {
+            "ok": True,
+            "latencyMs": 4.2,
+            "detectedBaseDn": base,
+            "namingContexts": [base],
+            "serverInfo": {
+                "dnsHostName": f"dc01.{dns}",
+                "flavor": dom_cfg.get("flavor", "samba4"),
+                "domainFunctionality": "Windows 2016 / Samba 4.19 AD",
+                "tlsEncrypted": True,
+                "vendor": "Samba 4 AD DC (Lab Preview)",
+            },
+            "previewCounts": {"ous": 6, "users": 5, "groups": 4, "computers": 3},
+        }
+    conn_obj, srv_obj, ca_tmp = _ad_open_live_connection(dom_cfg, bind_password_plain)
+    try:
+        ms = round((time.monotonic() - t0) * 1000.0, 1)
+        info = getattr(srv_obj, "info", None)
+        other = getattr(info, "other", {}) or {}
+        naming = [str(x) for x in (getattr(info, "naming_contexts", None) or []) if str(x).strip()]
+        def_ctx = ""
+        if "defaultNamingContext" in other and other["defaultNamingContext"]:
+            def_ctx = str(other["defaultNamingContext"][0])
+        elif naming:
+            def_ctx = naming[0]
+        base_dn = str(dom_cfg.get("baseDn") or def_ctx).strip()
+        dns_host = str((other.get("dnsHostName") or [dom_cfg.get("host", "")])[0])
+        dom_func = str((other.get("domainFunctionality") or [""])[0])
+        vendor = str(getattr(info, "vendor_name", "") or (other.get("vendorName") or [""])[0] or dom_cfg.get("flavor", ""))
+        return {
+            "ok": True,
+            "latencyMs": ms,
+            "detectedBaseDn": def_ctx or base_dn,
+            "namingContexts": naming[:10],
+            "serverInfo": {
+                "dnsHostName": dns_host,
+                "flavor": dom_cfg.get("flavor", "samba4"),
+                "domainFunctionality": dom_func or "LDAPv3",
+                "tlsEncrypted": str(dom_cfg.get("security") or "").lower() in ("ldaps", "starttls"),
+                "vendor": vendor[:120],
+            },
+        }
+    finally:
+        _ad_close_live_connection(conn_obj, ca_tmp)
+
+
+def _ad_live_sync_domain(dom_cfg, bind_password_plain, existing_cache=None):
+    if dom_cfg.get("demoMode"):
+        if existing_cache and existing_cache.get("ous"):
+            return {**existing_cache, "syncedAt": _ad_now_iso()}, 3.5, {
+                "dnsHostName": f"dc01.{_ad_domain_dns_from_base_dn(dom_cfg.get('baseDn'))}",
+                "flavor": dom_cfg.get("flavor", "samba4"),
+                "domainFunctionality": "Samba 4.19 AD DC (Lab Preview)",
+                "tlsEncrypted": True,
+            }
+        seeded = _ad_seed_demo_cache(dom_cfg)
+        return seeded, 4.1, {
+            "dnsHostName": f"dc01.{_ad_domain_dns_from_base_dn(dom_cfg.get('baseDn'))}",
+            "flavor": dom_cfg.get("flavor", "samba4"),
+            "domainFunctionality": "Samba 4.19 AD DC (Lab Preview)",
+            "tlsEncrypted": True,
+        }
+
+    t0 = time.monotonic()
+    preset = AD_FLAVOR_PRESETS.get(dom_cfg.get("flavor") or "samba4", AD_FLAVOR_PRESETS["samba4"])
+    is_ad = (preset["schema"] == "ad")
+    base_dn = str(dom_cfg.get("baseDn") or "").strip()
+    page_sz = max(50, min(1000, int(dom_cfg.get("pageSize") or 500)))
+    conn_obj, srv_obj, ca_tmp = _ad_open_live_connection(dom_cfg, bind_password_plain)
+    try:
+        info = getattr(srv_obj, "info", None)
+        other = getattr(info, "other", {}) or {}
+        if not base_dn:
+            if "defaultNamingContext" in other and other["defaultNamingContext"]:
+                base_dn = str(other["defaultNamingContext"][0])
+            elif getattr(info, "naming_contexts", None):
+                base_dn = str(info.naming_contexts[0])
+        if not base_dn:
+            raise RuntimeError("Base DN could not be detected. Enter Base DN (e.g. DC=company,DC=local).")
+
+        def _paged(flt, attrs, cap=8000):
+            out = []
+            gen = conn_obj.extend.standard.paged_search(
+                search_base=base_dn,
+                search_filter=flt,
+                search_scope=_LDAP_SUBTREE,
+                attributes=attrs,
+                paged_size=page_sz,
+                generator=True,
+            )
+            for item in gen:
+                if item.get("type") != "searchResEntry":
+                    continue
+                out.append(item)
+                if len(out) >= cap:
+                    break
+            return out
+
+        def _raw_s(attrs_dict, k):
+            v = attrs_dict.get(k)
+            if v is None:
+                return ""
+            if isinstance(v, list):
+                v = v[0] if v else ""
+            if isinstance(v, bytes):
+                return v.decode("utf-8", errors="ignore")
+            return str(v)
+
+        def _raw_l(attrs_dict, k):
+            v = attrs_dict.get(k)
+            if v is None:
+                return []
+            if isinstance(v, list):
+                return [x.decode("utf-8", errors="ignore") if isinstance(x, bytes) else str(x) for x in v if x is not None]
+            return [v.decode("utf-8", errors="ignore") if isinstance(v, bytes) else str(v)]
+
+        ou_flt = str(dom_cfg.get("ouFilter") or preset["ouFilter"])
+        u_flt = str(dom_cfg.get("userFilter") or preset["userFilter"])
+        g_flt = str(dom_cfg.get("groupFilter") or preset["groupFilter"])
+        c_flt = str(dom_cfg.get("computerFilter") or preset["computerFilter"])
+
+        ous = []
+        for item in _paged(ou_flt, ["ou", "name", "description"], cap=2000):
+            dn = str(item.get("dn") or "")
+            a = item.get("attributes") or {}
+            ous.append({
+                "dn": dn,
+                "name": _raw_s(a, "ou") or _raw_s(a, "name") or _ad_rdn_value(dn),
+                "parentDn": _ad_parent_dn(dn),
+                "description": _raw_s(a, "description"),
+            })
+
+        u_attrs = [
+            "cn", "displayName", "givenName", "sn", "sAMAccountName", "uid",
+            "userPrincipalName", "mail", "department", "title", "company",
+            "physicalDeliveryOfficeName", "telephoneNumber", "mobile", "manager",
+            "description", "userAccountControl", "nsAccountLock", "lockoutTime",
+            "pwdLastSet", "lastLogonTimestamp", "whenCreated", "memberOf",
+        ]
+        users = []
+        for item in _paged(u_flt, u_attrs, cap=8000):
+            dn = str(item.get("dn") or "")
+            a = item.get("attributes") or {}
+            if is_ad:
+                uac = _ad_parse_uac(_raw_s(a, "userAccountControl"))
+                enabled = uac["enabled"]
+                pne = uac["passwordNeverExpires"]
+                uac_raw = uac["raw"]
+                lt_raw = _raw_s(a, "lockoutTime")
+                locked = bool(lt_raw and lt_raw not in ("0", "1601-01-01 00:00:00+00:00"))
+                pls_raw = _raw_s(a, "pwdLastSet")
+                must_chg = (pls_raw == "0")
+            else:
+                ns_lock = _raw_s(a, "nsAccountLock").lower()
+                enabled = ns_lock != "true"
+                pne = False
+                uac_raw = _AD_UAC_NORMAL if enabled else (_AD_UAC_NORMAL | _AD_UAC_DISABLED)
+                locked = False
+                must_chg = False
+                pls_raw = ""
+            cn = _raw_s(a, "cn") or _ad_rdn_value(dn)
+            sam = _raw_s(a, "sAMAccountName") or _raw_s(a, "uid") or cn
+            users.append({
+                "dn": dn, "cn": cn, "displayName": _raw_s(a, "displayName") or cn,
+                "givenName": _raw_s(a, "givenName"), "sn": _raw_s(a, "sn"),
+                "samAccountName": sam, "upn": _raw_s(a, "userPrincipalName"),
+                "mail": _raw_s(a, "mail"), "department": _raw_s(a, "department"),
+                "title": _raw_s(a, "title"), "company": _raw_s(a, "company"),
+                "office": _raw_s(a, "physicalDeliveryOfficeName"),
+                "phone": _raw_s(a, "telephoneNumber"), "mobile": _raw_s(a, "mobile"),
+                "managerDn": _raw_s(a, "manager"), "description": _raw_s(a, "description"),
+                "parentDn": _ad_parent_dn(dn), "enabled": enabled, "lockedOut": locked,
+                "mustChangePassword": must_chg, "passwordNeverExpires": pne, "uac": uac_raw,
+                "lastLogon": _ad_filetime_to_iso(a.get("lastLogonTimestamp")),
+                "pwdLastSet": "" if must_chg else _ad_filetime_to_iso(a.get("pwdLastSet")),
+                "whenCreated": _ad_filetime_to_iso(a.get("whenCreated")),
+                "memberOf": _raw_l(a, "memberOf"),
+            })
+
+        groups = []
+        for item in _paged(g_flt, ["cn", "sAMAccountName", "description", "mail", "groupType", "member", "memberUid"], cap=4000):
+            dn = str(item.get("dn") or "")
+            a = item.get("attributes") or {}
+            cn = _raw_s(a, "cn") or _ad_rdn_value(dn)
+            scope, cat = _ad_parse_group_type(_raw_s(a, "groupType")) if is_ad else ("Global", "Security")
+            gt_int = _ad_build_group_type(scope, cat)
+            members = _raw_l(a, "member") or _raw_l(a, "memberUid")
+            groups.append({
+                "dn": dn, "cn": cn, "samAccountName": _raw_s(a, "sAMAccountName") or cn,
+                "description": _raw_s(a, "description"), "mail": _raw_s(a, "mail"),
+                "scope": scope, "category": cat, "groupType": gt_int,
+                "parentDn": _ad_parent_dn(dn), "members": members,
+            })
+
+        computers = []
+        for item in _paged(c_flt, ["cn", "sAMAccountName", "dNSHostName", "operatingSystem", "operatingSystemVersion", "userAccountControl", "lastLogonTimestamp"], cap=4000):
+            dn = str(item.get("dn") or "")
+            a = item.get("attributes") or {}
+            uac = _ad_parse_uac(_raw_s(a, "userAccountControl")) if is_ad else {"enabled": True}
+            cn = _raw_s(a, "cn") or _ad_rdn_value(dn)
+            computers.append({
+                "dn": dn, "cn": cn, "samAccountName": _raw_s(a, "sAMAccountName") or (cn + "$"),
+                "dnsHostName": _raw_s(a, "dNSHostName"),
+                "os": _raw_s(a, "operatingSystem"), "osVersion": _raw_s(a, "operatingSystemVersion"),
+                "parentDn": _ad_parent_dn(dn), "enabled": uac["enabled"],
+                "lastLogon": _ad_filetime_to_iso(a.get("lastLogonTimestamp")),
+            })
+
+        ms = round((time.monotonic() - t0) * 1000.0, 1)
+        sinfo = {
+            "dnsHostName": str((other.get("dnsHostName") or [dom_cfg.get("host", "")])[0]),
+            "flavor": dom_cfg.get("flavor", "samba4"),
+            "domainFunctionality": str((other.get("domainFunctionality") or ["LDAPv3"])[0]),
+            "tlsEncrypted": str(dom_cfg.get("security") or "").lower() in ("ldaps", "starttls"),
+        }
+        return {"ous": ous, "users": users, "groups": groups, "computers": computers, "syncedAt": _ad_now_iso(), "rev": int((existing_cache or {}).get("rev") or 0) + 1}, ms, sinfo
+    finally:
+        _ad_close_live_connection(conn_obj, ca_tmp)
+
+
+def _ad_live_execute(dom_cfg, bind_password_plain, op_fn):
+    if dom_cfg.get("demoMode"):
+        return None
+    conn_obj, srv_obj, ca_tmp = _ad_open_live_connection(dom_cfg, bind_password_plain)
+    try:
+        return op_fn(conn_obj, srv_obj)
+    finally:
+        _ad_close_live_connection(conn_obj, ca_tmp)
+
+
+def _ad_assert_ldap_ok(conn_obj, action_label):
+    res = conn_obj.result or {}
+    if int(res.get("result", 1)) != 0:
+        raise RuntimeError(f"AD {action_label} failed ({res.get('description', 'error')}): {res.get('message', '')}".strip())
+
+
+def _run_ad_auto_sync_tick():
+    try:
+        with db() as conn:
+            doc = _load_ad_domains_doc(conn)
+            due = []
+            now_dt = datetime.now(timezone.utc)
+            for d in doc["domains"]:
+                if not d.get("enabled", True) or not d.get("autoSync", True):
+                    continue
+                interval = max(1, min(1440, int(d.get("syncIntervalMins") or 15)))
+                last_dt = _task_parse_dt(d.get("lastSyncAt"))
+                if not last_dt or (now_dt - last_dt).total_seconds() >= interval * 60:
+                    due.append(d)
+        for d in due[:3]:
+            lk = _ad_get_sync_lock(d["id"])
+            if not lk.acquire(blocking=False):
+                continue
+            try:
+                pw = _ad_decrypt_pw(d.get("encryptedBindPassword"))
+                with db() as conn:
+                    cache_doc = _load_ad_cache_doc(conn)
+                    prev_c = cache_doc["byDomain"].get(d["id"])
+                snap, ms, sinfo = _ad_live_sync_domain(d, pw, existing_cache=prev_c)
+                with db() as conn:
+                    d_doc = _load_ad_domains_doc(conn, for_update=True)
+                    c_doc = _load_ad_cache_doc(conn, for_update=True)
+                    c_doc["byDomain"][d["id"]] = snap
+                    _save_ad_cache_doc(conn, c_doc)
+                    for item in d_doc["domains"]:
+                        if item["id"] == d["id"]:
+                            item["status"] = "Connected"
+                            item["lastSyncAt"] = snap["syncedAt"]
+                            item["lastLatencyMs"] = ms
+                            item["lastError"] = ""
+                            item["serverInfo"] = sinfo
+                            item["counts"] = {k: len(snap.get(k) or []) for k in ("ous", "users", "groups", "computers")}
+                    _save_ad_domains_doc(conn, d_doc)
+                    _pg_emit_notify(conn, "ad_directory", {"domainId": d["id"], "action": "auto_sync"})
+            except Exception as exc:
+                try:
+                    with db() as conn:
+                        d_doc = _load_ad_domains_doc(conn, for_update=True)
+                        for item in d_doc["domains"]:
+                            if item["id"] == d["id"]:
+                                item["status"] = "Error"
+                                item["lastError"] = str(exc)[:300]
+                        _save_ad_domains_doc(conn, d_doc)
+                except Exception:
+                    pass
+            finally:
+                lk.release()
+    except Exception:
+        pass
+
+
+def _ad_get_domain_and_cache(conn, dom_id, for_update=False):
+    d_doc = _load_ad_domains_doc(conn, for_update=for_update)
+    dom = next((x for x in d_doc["domains"] if str(x.get("id")) == str(dom_id)), None)
+    if not dom:
+        return None, None, None, None
+    c_doc = _load_ad_cache_doc(conn, for_update=for_update)
+    cache = c_doc["byDomain"].get(dom_id)
+    if not isinstance(cache, dict):
+        cache = {"ous": [], "users": [], "groups": [], "computers": [], "syncedAt": "", "rev": 0}
+        c_doc["byDomain"][dom_id] = cache
+    return d_doc, dom, c_doc, cache
+
+
+def _ad_update_domain_counts(dom, cache):
+    dom["counts"] = {
+        "ous": len(cache.get("ous") or []),
+        "users": len(cache.get("users") or []),
+        "groups": len(cache.get("groups") or []),
+        "computers": len(cache.get("computers") or []),
+    }
+    dom["updatedAt"] = _ad_now_iso()
+
+
+@app.get("/api/ad/domains")
+@signed_in
+def list_ad_domains():
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    with db() as conn:
+        d_doc = _load_ad_domains_doc(conn)
+        a_row = conn.execute("SELECT value FROM app_state WHERE key='ad_audit'").fetchone()
+    audit_events = (a_row[0].get("events") if a_row and isinstance(a_row[0], dict) else [])[:60]
+    return jsonify(
+        domains=[_sanitize_ad_domain(d) for d in d_doc["domains"]],
+        presets=AD_FLAVOR_PRESETS,
+        ldap3Available=_LDAP3_AVAILABLE,
+        canWrite=is_adm or module_access(profile, "ad", write=True),
+        audit=audit_events,
+        serverNow=_ad_now_iso(),
+    )
+
+
+@app.post("/api/ad/domains/test")
+@signed_in
+def test_ad_domain_unsaved():
+    body = request.get_json(silent=True) or {}
+    dom_id = str(body.get("id") or "").strip()
+    pw = str(body.get("bindPassword") or "")
+    if not pw and dom_id:
+        with db() as conn:
+            d_doc = _load_ad_domains_doc(conn)
+            existing = next((x for x in d_doc["domains"] if x.get("id") == dom_id), None)
+            if existing:
+                pw = _ad_decrypt_pw(existing.get("encryptedBindPassword"))
+    try:
+        res = _ad_live_test_connection(body, pw)
+        return jsonify(**res)
+    except Exception as exc:
+        return jsonify(ok=False, error=str(exc)[:400]), 400
+
+
+@app.post("/api/ad/domains")
+@signed_in
+def create_ad_domain():
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    name = str(body.get("name") or "").strip()[:120]
+    flavor = str(body.get("flavor") or "samba4").strip().lower()
+    if flavor not in AD_FLAVOR_PRESETS:
+        flavor = "samba4"
+    preset = AD_FLAVOR_PRESETS[flavor]
+    demo_mode = bool(body.get("demoMode"))
+    host = str(body.get("host") or ("dc01.swarnshilp.local" if demo_mode else "")).strip()[:200]
+    if not name:
+        return jsonify(error="Domain display name is required."), 400
+    if not host and not demo_mode:
+        return jsonify(error="Active Directory Server Host / IP is required."), 400
+    base_dn = str(body.get("baseDn") or ("DC=swarnshilp,DC=local" if demo_mode else "")).strip()[:300]
+    bind_dn = str(body.get("bindDn") or "").strip()[:300]
+    bind_pw = str(body.get("bindPassword") or "")
+    port = max(1, min(65535, int(body.get("port") or preset["defaultPort"])))
+    security = str(body.get("security") or preset["defaultSecurity"]).strip().lower()
+    if security not in ("ldaps", "starttls", "ldap"):
+        security = preset["defaultSecurity"]
+
+    now_iso = _ad_now_iso()
+    dom_id = "ad-" + uuid.uuid4().hex[:8]
+    dom = {
+        "id": dom_id,
+        "name": name,
+        "flavor": flavor,
+        "host": host,
+        "backupHost": str(body.get("backupHost") or "").strip()[:200],
+        "port": port,
+        "security": security,
+        "verifyTls": bool(body.get("verifyTls")),
+        "caCertPem": str(body.get("caCertPem") or "").strip()[:16000],
+        "baseDn": base_dn,
+        "bindDn": bind_dn,
+        "encryptedBindPassword": _ad_encrypt_pw(bind_pw) if bind_pw else "",
+        "userFilter": str(body.get("userFilter") or preset["userFilter"]).strip()[:500],
+        "groupFilter": str(body.get("groupFilter") or preset["groupFilter"]).strip()[:500],
+        "ouFilter": str(body.get("ouFilter") or preset["ouFilter"]).strip()[:500],
+        "computerFilter": str(body.get("computerFilter") or preset["computerFilter"]).strip()[:500],
+        "pageSize": max(50, min(1000, int(body.get("pageSize") or 500))),
+        "timeoutSec": max(3, min(15, int(body.get("timeoutSec") or 6))),
+        "syncIntervalMins": max(1, min(1440, int(body.get("syncIntervalMins") or 15))),
+        "autoSync": bool(body.get("autoSync", True)),
+        "enabled": bool(body.get("enabled", True)),
+        "demoMode": demo_mode,
+        "status": "Configured",
+        "lastSyncAt": "",
+        "lastLatencyMs": None,
+        "lastError": "",
+        "serverInfo": {},
+        "counts": {"ous": 0, "users": 0, "groups": 0, "computers": 0},
+        "createdAt": now_iso,
+        "updatedAt": now_iso,
+    }
+
+    sync_now = bool(body.get("syncNow", True))
+    snap = None
+    if sync_now:
+        try:
+            snap, ms, sinfo = _ad_live_sync_domain(dom, bind_pw)
+            dom["status"] = "Connected"
+            dom["lastSyncAt"] = snap["syncedAt"]
+            dom["lastLatencyMs"] = ms
+            dom["serverInfo"] = sinfo
+            _ad_update_domain_counts(dom, snap)
+        except Exception as exc:
+            dom["status"] = "Error"
+            dom["lastError"] = str(exc)[:300]
+
+    with db() as conn:
+        d_doc = _load_ad_domains_doc(conn, for_update=True)
+        d_doc["domains"].append(dom)
+        _save_ad_domains_doc(conn, d_doc)
+        if snap is not None:
+            c_doc = _load_ad_cache_doc(conn, for_update=True)
+            c_doc["byDomain"][dom_id] = snap
+            _save_ad_cache_doc(conn, c_doc)
+        _record_ad_audit(conn, dom_id, name, "domain_add", base_dn, name, actor, f"Configured {preset['label']} ({host}:{port})")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "domain_add"})
+
+    return jsonify(ok=True, domain=_sanitize_ad_domain(dom), synced=bool(snap is not None)), 201
+
+
+@app.put("/api/ad/domains/<dom_id>")
+@signed_in
+def update_ad_domain(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    with db() as conn:
+        d_doc = _load_ad_domains_doc(conn, for_update=True)
+        dom = next((x for x in d_doc["domains"] if x.get("id") == dom_id), None)
+        if not dom:
+            return jsonify(error="AD domain connector not found."), 404
+        for field, max_len in (
+            ("name", 120), ("host", 200), ("backupHost", 200), ("baseDn", 300),
+            ("bindDn", 300), ("caCertPem", 16000), ("userFilter", 500),
+            ("groupFilter", 500), ("ouFilter", 500), ("computerFilter", 500),
+        ):
+            if field in body:
+                dom[field] = str(body.get(field) or "").strip()[:max_len]
+        if "flavor" in body and str(body["flavor"]).lower() in AD_FLAVOR_PRESETS:
+            dom["flavor"] = str(body["flavor"]).lower()
+        if "security" in body and str(body["security"]).lower() in ("ldaps", "starttls", "ldap"):
+            dom["security"] = str(body["security"]).lower()
+        if "port" in body:
+            dom["port"] = max(1, min(65535, int(body.get("port") or 636)))
+        if "pageSize" in body:
+            dom["pageSize"] = max(50, min(1000, int(body.get("pageSize") or 500)))
+        if "timeoutSec" in body:
+            dom["timeoutSec"] = max(3, min(15, int(body.get("timeoutSec") or 6)))
+        if "syncIntervalMins" in body:
+            dom["syncIntervalMins"] = max(1, min(1440, int(body.get("syncIntervalMins") or 15)))
+        for bf in ("verifyTls", "autoSync", "enabled", "demoMode"):
+            if bf in body:
+                dom[bf] = bool(body[bf])
+        if body.get("bindPassword"):
+            dom["encryptedBindPassword"] = _ad_encrypt_pw(body["bindPassword"])
+        dom["updatedAt"] = _ad_now_iso()
+        _save_ad_domains_doc(conn, d_doc)
+        _record_ad_audit(conn, dom_id, dom["name"], "domain_edit", dom["baseDn"], dom["name"], actor, f"Updated connector settings ({dom['host']}:{dom['port']})")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "domain_edit"})
+    return jsonify(ok=True, domain=_sanitize_ad_domain(dom))
+
+
+@app.delete("/api/ad/domains/<dom_id>")
+@signed_in
+def delete_ad_domain(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    with db() as conn:
+        d_doc = _load_ad_domains_doc(conn, for_update=True)
+        idx = next((i for i, x in enumerate(d_doc["domains"]) if x.get("id") == dom_id), -1)
+        if idx < 0:
+            return jsonify(error="AD domain connector not found."), 404
+        removed = d_doc["domains"].pop(idx)
+        _save_ad_domains_doc(conn, d_doc)
+        c_doc = _load_ad_cache_doc(conn, for_update=True)
+        c_doc["byDomain"].pop(dom_id, None)
+        _save_ad_cache_doc(conn, c_doc)
+        _record_ad_audit(conn, dom_id, removed.get("name", ""), "domain_delete", removed.get("baseDn", ""), removed.get("name", ""), actor, "Removed domain connector")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "domain_delete"})
+    return jsonify(ok=True, deletedId=dom_id)
+
+
+@app.post("/api/ad/domains/<dom_id>/sync")
+@signed_in
+def sync_ad_domain(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    lk = _ad_get_sync_lock(dom_id)
+    if not lk.acquire(blocking=False):
+        return jsonify(error="A sync for this domain is already running. Please wait a few seconds."), 409
+    try:
+        with db() as conn:
+            d_doc, dom, c_doc, prev_c = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+            if not dom:
+                return jsonify(error="AD domain not found."), 404
+            dom_copy = dict(dom)
+            prev_copy = dict(prev_c)
+        pw = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+        snap, ms, sinfo = _ad_live_sync_domain(dom_copy, pw, existing_cache=prev_copy)
+        with db() as conn:
+            d_doc, dom, c_doc, _ = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+            if not dom:
+                return jsonify(error="AD domain not found."), 404
+            c_doc["byDomain"][dom_id] = snap
+            _save_ad_cache_doc(conn, c_doc)
+            dom["status"] = "Connected"
+            dom["lastSyncAt"] = snap["syncedAt"]
+            dom["lastLatencyMs"] = ms
+            dom["lastError"] = ""
+            dom["serverInfo"] = sinfo
+            _ad_update_domain_counts(dom, snap)
+            _save_ad_domains_doc(conn, d_doc)
+            _record_ad_audit(conn, dom_id, dom["name"], "sync", dom["baseDn"], dom["name"], actor, f"Synced {dom['counts']['users']} users, {dom['counts']['groups']} groups, {dom['counts']['ous']} OUs ({ms} ms)")
+            _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "sync"})
+        return jsonify(ok=True, domain=_sanitize_ad_domain(dom), counts=dom["counts"], latencyMs=ms, syncedAt=snap["syncedAt"])
+    except Exception as exc:
+        with db() as conn:
+            d_doc = _load_ad_domains_doc(conn, for_update=True)
+            for item in d_doc["domains"]:
+                if item.get("id") == dom_id:
+                    item["status"] = "Error"
+                    item["lastError"] = str(exc)[:300]
+            _save_ad_domains_doc(conn, d_doc)
+        return jsonify(ok=False, error=str(exc)[:400]), 400
+    finally:
+        lk.release()
+
+
+@app.get("/api/ad/domains/<dom_id>/services")
+@signed_in
+def check_ad_domain_services(dom_id):
+    with db() as conn:
+        d_doc = _load_ad_domains_doc(conn)
+        dom = next((x for x in d_doc["domains"] if x.get("id") == dom_id), None)
+    if not dom:
+        return jsonify(error="AD domain not found."), 404
+    diag = _ad_probe_services(dom.get("host"), dom.get("backupHost"), demo_mode=bool(dom.get("demoMode")))
+    return jsonify(ok=True, domainId=dom_id, **diag)
+
+
+@app.get("/api/ad/domains/<dom_id>/directory")
+@signed_in
+def get_ad_domain_directory(dom_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        a_row = conn.execute("SELECT value FROM app_state WHERE key='ad_audit'").fetchone()
+    if not dom:
+        return jsonify(error="AD domain not found."), 404
+
+    ous = list(cache.get("ous") or [])
+    users = list(cache.get("users") or [])
+    groups = list(cache.get("groups") or [])
+    computers = list(cache.get("computers") or [])
+
+    # Build department summary across all AD users
+    dept_map = {}
+    for u in users:
+        dn_dept = str(u.get("department") or "").strip() or "Unassigned"
+        rec = dept_map.setdefault(dn_dept, {"name": dn_dept, "total": 0, "enabled": 0, "disabled": 0, "locked": 0})
+        rec["total"] += 1
+        if u.get("enabled", True):
+            rec["enabled"] += 1
+        else:
+            rec["disabled"] += 1
+        if u.get("lockedOut"):
+            rec["locked"] += 1
+    departments = sorted(dept_map.values(), key=lambda x: (-x["total"], x["name"].casefold()))
+
+    summary = {
+        "ous": len(ous),
+        "users": len(users),
+        "enabledUsers": sum(1 for u in users if u.get("enabled", True)),
+        "disabledUsers": sum(1 for u in users if not u.get("enabled", True)),
+        "lockedUsers": sum(1 for u in users if u.get("lockedOut")),
+        "mustChangePwd": sum(1 for u in users if u.get("mustChangePassword")),
+        "groups": len(groups),
+        "securityGroups": sum(1 for g in groups if g.get("category") != "Distribution"),
+        "distGroups": sum(1 for g in groups if g.get("category") == "Distribution"),
+        "computers": len(computers),
+        "departments": len([d for d in departments if d["name"] != "Unassigned"]),
+    }
+    all_audit = (a_row[0].get("events") if a_row and isinstance(a_row[0], dict) else [])
+    dom_audit = [e for e in all_audit if e.get("domainId") == dom_id][:60]
+
+    return jsonify(
+        ok=True,
+        domain=_sanitize_ad_domain(dom),
+        ous=ous,
+        users=users,
+        groups=groups,
+        computers=computers,
+        departments=departments,
+        summary=summary,
+        audit=dom_audit,
+        canWrite=is_adm or module_access(profile, "ad", write=True),
+        syncedAt=cache.get("syncedAt") or "",
+    )
+
+
+@app.post("/api/ad/domains/<dom_id>/users")
+@signed_in
+def create_ad_user(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    sam = str(body.get("samAccountName") or "").strip()[:64]
+    first = str(body.get("givenName") or "").strip()[:80]
+    last = str(body.get("sn") or "").strip()[:80]
+    display = str(body.get("displayName") or f"{first} {last}".strip() or sam).strip()[:120]
+    cn = str(body.get("cn") or display or sam).strip()[:120]
+    password = str(body.get("password") or "")
+    if not sam or not cn:
+        return jsonify(error="Logon username (sAMAccountName) and Display Name are required."), 400
+    if len(password) < 6:
+        return jsonify(error="Initial password must be at least 6 characters."), 400
+
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        dom_copy = dict(dom)
+        base_dn = dom_copy["baseDn"]
+        dns = _ad_domain_dns_from_base_dn(base_dn)
+        parent_dn = str(body.get("parentDn") or f"CN=Users,{base_dn}").strip()
+        upn = str(body.get("upn") or f"{sam}@{dns}").strip()
+        new_dn = f"CN={_ad_escape_rdn(cn)},{parent_dn}"
+        enabled = bool(body.get("enabled", True))
+        pne = bool(body.get("passwordNeverExpires"))
+        must_chg = bool(body.get("mustChangePassword"))
+        init_groups = [str(g).strip() for g in (body.get("memberOf") or []) if str(g).strip()]
+
+        if any(u.get("samAccountName", "").casefold() == sam.casefold() for u in (cache.get("users") or [])):
+            return jsonify(error=f"User '{sam}' already exists in this domain."), 409
+
+    pw_bind = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+    preset = AD_FLAVOR_PRESETS.get(dom_copy.get("flavor") or "samba4", AD_FLAVOR_PRESETS["samba4"])
+    is_ad = (preset["schema"] == "ad")
+
+    if not dom_copy.get("demoMode"):
+        def _do_create(conn_obj, _srv):
+            if is_ad:
+                attrs = {
+                    "cn": cn, "displayName": display, "sAMAccountName": sam,
+                    "userPrincipalName": upn,
+                    "userAccountControl": _AD_UAC_NORMAL | _AD_UAC_DISABLED,
+                }
+                for k_in, k_ad in (
+                    ("givenName", "givenName"), ("sn", "sn"), ("mail", "mail"),
+                    ("department", "department"), ("title", "title"), ("company", "company"),
+                    ("office", "physicalDeliveryOfficeName"), ("phone", "telephoneNumber"),
+                    ("mobile", "mobile"), ("managerDn", "manager"), ("description", "description"),
+                ):
+                    v = str(body.get(k_in) or "").strip()
+                    if v:
+                        attrs[k_ad] = v
+                conn_obj.add(new_dn, ["top", "person", "organizationalPerson", "user"], attrs)
+                _ad_assert_ldap_ok(conn_obj, "create user")
+                # Set password via unicodePwd over TLS/LDAPS, then set final UAC & pwdLastSet
+                conn_obj.modify(new_dn, {"unicodePwd": [(_LDAP_MOD_REPLACE, [_ad_encode_unicode_pwd(password)])]})
+                _ad_assert_ldap_ok(conn_obj, "set initial password (requires LDAPS/StartTLS)")
+                final_uac = _ad_build_uac(enabled=enabled, password_never_expires=pne)
+                mods = {"userAccountControl": [(_LDAP_MOD_REPLACE, [final_uac])]}
+                if must_chg:
+                    mods["pwdLastSet"] = [(_LDAP_MOD_REPLACE, [0])]
+                conn_obj.modify(new_dn, mods)
+                _ad_assert_ldap_ok(conn_obj, "activate user account")
+            else:
+                attrs = {"cn": cn, "sn": last or cn, "uid": sam, "displayName": display, "userPassword": password}
+                for k_in, k_ad in (("givenName", "givenName"), ("mail", "mail"), ("department", "departmentNumber"), ("title", "title"), ("phone", "telephoneNumber"), ("description", "description")):
+                    v = str(body.get(k_in) or "").strip()
+                    if v:
+                        attrs[k_ad] = v
+                conn_obj.add(new_dn, ["top", "person", "organizationalPerson", "inetOrgPerson"], attrs)
+                _ad_assert_ldap_ok(conn_obj, "create LDAP user")
+            for gdn in init_groups:
+                conn_obj.modify(gdn, {"member": [(_LDAP_MOD_ADD, [new_dn])]})
+
+        try:
+            _ad_live_execute(dom_copy, pw_bind, _do_create)
+        except Exception as exc:
+            return jsonify(error=str(exc)[:400]), 400
+
+    now_iso = _ad_now_iso()
+    user_rec = {
+        "dn": new_dn, "cn": cn, "displayName": display, "givenName": first, "sn": last,
+        "samAccountName": sam, "upn": upn, "mail": str(body.get("mail") or "").strip(),
+        "department": str(body.get("department") or "").strip(), "title": str(body.get("title") or "").strip(),
+        "company": str(body.get("company") or "").strip(), "office": str(body.get("office") or "").strip(),
+        "phone": str(body.get("phone") or "").strip(), "mobile": str(body.get("mobile") or "").strip(),
+        "managerDn": str(body.get("managerDn") or "").strip(), "description": str(body.get("description") or "").strip(),
+        "parentDn": parent_dn, "enabled": enabled, "lockedOut": False,
+        "mustChangePassword": must_chg, "passwordNeverExpires": pne,
+        "uac": _ad_build_uac(enabled=enabled, password_never_expires=pne),
+        "lastLogon": "", "pwdLastSet": "" if must_chg else now_iso, "whenCreated": now_iso,
+        "memberOf": init_groups,
+    }
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+        cache.setdefault("users", []).insert(0, user_rec)
+        for g in (cache.get("groups") or []):
+            if g["dn"] in init_groups and new_dn not in (g.get("members") or []):
+                g.setdefault("members", []).append(new_dn)
+        cache["rev"] = int(cache.get("rev") or 0) + 1
+        _save_ad_cache_doc(conn, c_doc)
+        _ad_update_domain_counts(dom, cache)
+        _save_ad_domains_doc(conn, d_doc)
+        _record_ad_audit(conn, dom_id, dom["name"], "user_create", new_dn, display, actor, f"Created user {sam} in {_ad_rdn_value(parent_dn)}")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "user_create", "dn": new_dn})
+    return jsonify(ok=True, user=user_rec), 201
+
+
+@app.patch("/api/ad/domains/<dom_id>/users")
+@signed_in
+def update_ad_user(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    dn = str(body.get("dn") or "").strip()
+    if not dn:
+        return jsonify(error="User DN is required."), 400
+
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        cur = next((u for u in (cache.get("users") or []) if u.get("dn") == dn), None)
+        if not cur:
+            return jsonify(error="AD user not found in synced directory."), 404
+        dom_copy = dict(dom)
+        cur_copy = dict(cur)
+
+    pw_bind = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+    preset = AD_FLAVOR_PRESETS.get(dom_copy.get("flavor") or "samba4", AD_FLAVOR_PRESETS["samba4"])
+    is_ad = (preset["schema"] == "ad")
+    target_ou = str(body.get("targetOuDn") or "").strip()
+    new_dn = dn
+
+    if not dom_copy.get("demoMode"):
+        def _do_mod(conn_obj, _srv):
+            nonlocal new_dn
+            mods = {}
+            field_map = (
+                [("displayName", "displayName"), ("givenName", "givenName"), ("sn", "sn"), ("mail", "mail"),
+                 ("department", "department"), ("title", "title"), ("company", "company"),
+                 ("office", "physicalDeliveryOfficeName"), ("phone", "telephoneNumber"),
+                 ("mobile", "mobile"), ("managerDn", "manager"), ("description", "description"), ("upn", "userPrincipalName")]
+                if is_ad else
+                [("displayName", "displayName"), ("givenName", "givenName"), ("sn", "sn"), ("mail", "mail"),
+                 ("department", "departmentNumber"), ("title", "title"), ("phone", "telephoneNumber"), ("description", "description")]
+            )
+            for fk, ak in field_map:
+                if fk in body:
+                    v = str(body.get(fk) or "").strip()
+                    mods[ak] = [(_LDAP_MOD_REPLACE, [v] if v else [])]
+            if is_ad and ("enabled" in body or "passwordNeverExpires" in body):
+                en = bool(body.get("enabled", cur_copy.get("enabled", True)))
+                pne = bool(body.get("passwordNeverExpires", cur_copy.get("passwordNeverExpires", False)))
+                mods["userAccountControl"] = [(_LDAP_MOD_REPLACE, [_ad_build_uac(en, pne, cur_copy.get("uac", _AD_UAC_NORMAL))])]
+            if is_ad and "mustChangePassword" in body and body["mustChangePassword"]:
+                mods["pwdLastSet"] = [(_LDAP_MOD_REPLACE, [0])]
+            if mods:
+                conn_obj.modify(dn, mods)
+                _ad_assert_ldap_ok(conn_obj, "modify user")
+            if target_ou and target_ou.casefold() != _ad_parent_dn(dn).casefold():
+                rdn = dn.split(",", 1)[0]
+                conn_obj.modify_dn(dn, rdn, new_superior=target_ou)
+                _ad_assert_ldap_ok(conn_obj, "move user to OU")
+                new_dn = f"{rdn},{target_ou}"
+
+        try:
+            _ad_live_execute(dom_copy, pw_bind, _do_mod)
+        except Exception as exc:
+            return jsonify(error=str(exc)[:400]), 400
+    elif target_ou and target_ou.casefold() != _ad_parent_dn(dn).casefold():
+        rdn = dn.split(",", 1)[0]
+        new_dn = f"{rdn},{target_ou}"
+
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+        u = next((x for x in (cache.get("users") or []) if x.get("dn") == dn), None)
+        if not u:
+            return jsonify(error="AD user not found."), 404
+        for fk in ("displayName", "givenName", "sn", "mail", "department", "title", "company", "office", "phone", "mobile", "managerDn", "description", "upn"):
+            if fk in body:
+                u[fk] = str(body.get(fk) or "").strip()
+        if "enabled" in body:
+            u["enabled"] = bool(body["enabled"])
+        if "passwordNeverExpires" in body:
+            u["passwordNeverExpires"] = bool(body["passwordNeverExpires"])
+        if "mustChangePassword" in body:
+            u["mustChangePassword"] = bool(body["mustChangePassword"])
+        u["uac"] = _ad_build_uac(u.get("enabled", True), u.get("passwordNeverExpires", False), u.get("uac", _AD_UAC_NORMAL))
+        if new_dn != dn:
+            u["dn"] = new_dn
+            u["parentDn"] = target_ou
+            for g in (cache.get("groups") or []):
+                g["members"] = [new_dn if m == dn else m for m in (g.get("members") or [])]
+        cache["rev"] = int(cache.get("rev") or 0) + 1
+        _save_ad_cache_doc(conn, c_doc)
+        _record_ad_audit(conn, dom_id, dom["name"], "user_edit", new_dn, u.get("displayName", ""), actor, f"Modified user {u.get('samAccountName')}")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "user_edit", "dn": new_dn})
+    return jsonify(ok=True, user=u)
+
+
+@app.delete("/api/ad/domains/<dom_id>/users")
+@signed_in
+def delete_ad_user(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    dn = str(body.get("dn") or "").strip()
+    if not dn:
+        return jsonify(error="User DN is required."), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        dom_copy = dict(dom)
+    if not dom_copy.get("demoMode"):
+        pw_bind = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+        try:
+            _ad_live_execute(dom_copy, pw_bind, lambda c, _s: (c.delete(dn), _ad_assert_ldap_ok(c, "delete user")))
+        except Exception as exc:
+            return jsonify(error=str(exc)[:400]), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+        users = cache.get("users") or []
+        removed = next((x for x in users if x.get("dn") == dn), None)
+        cache["users"] = [x for x in users if x.get("dn") != dn]
+        for g in (cache.get("groups") or []):
+            g["members"] = [m for m in (g.get("members") or []) if m != dn]
+        cache["rev"] = int(cache.get("rev") or 0) + 1
+        _save_ad_cache_doc(conn, c_doc)
+        _ad_update_domain_counts(dom, cache)
+        _save_ad_domains_doc(conn, d_doc)
+        _record_ad_audit(conn, dom_id, dom["name"], "user_delete", dn, (removed or {}).get("displayName", _ad_rdn_value(dn)), actor, f"Deleted AD user {_ad_rdn_value(dn)}")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "user_delete", "dn": dn})
+    return jsonify(ok=True, deletedDn=dn)
+
+
+@app.post("/api/ad/domains/<dom_id>/users/reset-password")
+@signed_in
+def reset_ad_user_password(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    dn = str(body.get("dn") or "").strip()
+    new_pw = str(body.get("newPassword") or "")
+    must_chg = bool(body.get("mustChangePassword"))
+    unlock = bool(body.get("unlockAccount"))
+    if not dn or len(new_pw) < 6:
+        return jsonify(error="User DN and new password (6+ chars) are required."), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        dom_copy = dict(dom)
+    preset = AD_FLAVOR_PRESETS.get(dom_copy.get("flavor") or "samba4", AD_FLAVOR_PRESETS["samba4"])
+    is_ad = (preset["schema"] == "ad")
+    if not dom_copy.get("demoMode"):
+        pw_bind = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+        def _do_rst(conn_obj, _s):
+            if is_ad:
+                mods = {"unicodePwd": [(_LDAP_MOD_REPLACE, [_ad_encode_unicode_pwd(new_pw)])]}
+                if must_chg:
+                    mods["pwdLastSet"] = [(_LDAP_MOD_REPLACE, [0])]
+                if unlock:
+                    mods["lockoutTime"] = [(_LDAP_MOD_REPLACE, [0])]
+                conn_obj.modify(dn, mods)
+                _ad_assert_ldap_ok(conn_obj, "reset password (requires LDAPS or StartTLS)")
+            else:
+                conn_obj.modify(dn, {"userPassword": [(_LDAP_MOD_REPLACE, [new_pw])]})
+                _ad_assert_ldap_ok(conn_obj, "reset LDAP password")
+        try:
+            _ad_live_execute(dom_copy, pw_bind, _do_rst)
+        except Exception as exc:
+            return jsonify(error=str(exc)[:400]), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+        u = next((x for x in (cache.get("users") or []) if x.get("dn") == dn), None)
+        if u:
+            u["mustChangePassword"] = must_chg
+            u["pwdLastSet"] = "" if must_chg else _ad_now_iso()
+            if unlock:
+                u["lockedOut"] = False
+            cache["rev"] = int(cache.get("rev") or 0) + 1
+            _save_ad_cache_doc(conn, c_doc)
+        _record_ad_audit(conn, dom_id, dom["name"], "password_reset", dn, (u or {}).get("displayName", _ad_rdn_value(dn)), actor, f"Reset password (mustChange={must_chg}, unlock={unlock})")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "password_reset", "dn": dn})
+    return jsonify(ok=True, user=u)
+
+
+@app.post("/api/ad/domains/<dom_id>/users/toggle-status")
+@signed_in
+def toggle_ad_user_status(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    dn = str(body.get("dn") or "").strip()
+    enabled = bool(body.get("enabled"))
+    if not dn:
+        return jsonify(error="User DN is required."), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        cur = next((x for x in (cache.get("users") or []) if x.get("dn") == dn), None)
+        if not cur:
+            return jsonify(error="AD user not found."), 404
+        dom_copy, cur_copy = dict(dom), dict(cur)
+    preset = AD_FLAVOR_PRESETS.get(dom_copy.get("flavor") or "samba4", AD_FLAVOR_PRESETS["samba4"])
+    is_ad = (preset["schema"] == "ad")
+    new_uac = _ad_build_uac(enabled=enabled, password_never_expires=cur_copy.get("passwordNeverExpires", False), base_uac=cur_copy.get("uac", _AD_UAC_NORMAL))
+    if not dom_copy.get("demoMode"):
+        pw_bind = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+        def _do_tog(c, _s):
+            if is_ad:
+                c.modify(dn, {"userAccountControl": [(_LDAP_MOD_REPLACE, [new_uac])]})
+            else:
+                c.modify(dn, {"nsAccountLock": [(_LDAP_MOD_REPLACE, ["false" if enabled else "true"])]})
+            _ad_assert_ldap_ok(c, "enable/disable account")
+        try:
+            _ad_live_execute(dom_copy, pw_bind, _do_tog)
+        except Exception as exc:
+            return jsonify(error=str(exc)[:400]), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+        u = next((x for x in (cache.get("users") or []) if x.get("dn") == dn), None)
+        if u:
+            u["enabled"] = enabled
+            u["uac"] = new_uac
+            cache["rev"] = int(cache.get("rev") or 0) + 1
+            _save_ad_cache_doc(conn, c_doc)
+        _record_ad_audit(conn, dom_id, dom["name"], "user_enable" if enabled else "user_disable", dn, (u or {}).get("displayName", _ad_rdn_value(dn)), actor, "Enabled account" if enabled else "Disabled account")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "toggle_status", "dn": dn})
+    return jsonify(ok=True, user=u)
+
+
+@app.post("/api/ad/domains/<dom_id>/users/unlock")
+@signed_in
+def unlock_ad_user(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    dn = str(body.get("dn") or "").strip()
+    if not dn:
+        return jsonify(error="User DN is required."), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        dom_copy = dict(dom)
+    if not dom_copy.get("demoMode"):
+        pw_bind = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+        try:
+            _ad_live_execute(dom_copy, pw_bind, lambda c, _s: (c.modify(dn, {"lockoutTime": [(_LDAP_MOD_REPLACE, [0])]}), _ad_assert_ldap_ok(c, "unlock account")))
+        except Exception as exc:
+            return jsonify(error=str(exc)[:400]), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+        u = next((x for x in (cache.get("users") or []) if x.get("dn") == dn), None)
+        if u:
+            u["lockedOut"] = False
+            cache["rev"] = int(cache.get("rev") or 0) + 1
+            _save_ad_cache_doc(conn, c_doc)
+        _record_ad_audit(conn, dom_id, dom["name"], "user_unlock", dn, (u or {}).get("displayName", _ad_rdn_value(dn)), actor, "Cleared account lockout (lockoutTime=0)")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "user_unlock", "dn": dn})
+    return jsonify(ok=True, user=u)
+
+
+@app.post("/api/ad/domains/<dom_id>/users/move")
+@signed_in
+def move_ad_user_ou(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    dn = str(body.get("dn") or "").strip()
+    target_ou = str(body.get("targetOuDn") or "").strip()
+    if not dn or not target_ou:
+        return jsonify(error="User DN and Target OU DN are required."), 400
+    rdn = dn.split(",", 1)[0]
+    new_dn = f"{rdn},{target_ou}"
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        dom_copy = dict(dom)
+    if not dom_copy.get("demoMode"):
+        pw_bind = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+        try:
+            _ad_live_execute(dom_copy, pw_bind, lambda c, _s: (c.modify_dn(dn, rdn, new_superior=target_ou), _ad_assert_ldap_ok(c, "move user to OU")))
+        except Exception as exc:
+            return jsonify(error=str(exc)[:400]), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+        u = next((x for x in (cache.get("users") or []) if x.get("dn") == dn), None)
+        if u:
+            u["dn"] = new_dn
+            u["parentDn"] = target_ou
+            for g in (cache.get("groups") or []):
+                g["members"] = [new_dn if m == dn else m for m in (g.get("members") or [])]
+            cache["rev"] = int(cache.get("rev") or 0) + 1
+            _save_ad_cache_doc(conn, c_doc)
+        _record_ad_audit(conn, dom_id, dom["name"], "user_move", new_dn, (u or {}).get("displayName", _ad_rdn_value(dn)), actor, f"Moved to {_ad_rdn_value(target_ou)}")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "user_move", "dn": new_dn})
+    return jsonify(ok=True, user=u, newDn=new_dn)
+
+
+@app.post("/api/ad/domains/<dom_id>/users/groups")
+@signed_in
+def update_ad_user_groups(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    dn = str(body.get("dn") or "").strip()
+    add_g = [str(x).strip() for x in (body.get("addGroupDns") or []) if str(x).strip()]
+    rem_g = [str(x).strip() for x in (body.get("removeGroupDns") or []) if str(x).strip()]
+    if not dn:
+        return jsonify(error="User DN is required."), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        dom_copy = dict(dom)
+    if not dom_copy.get("demoMode"):
+        pw_bind = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+        def _do_grp(c, _s):
+            for gdn in add_g:
+                c.modify(gdn, {"member": [(_LDAP_MOD_ADD, [dn])]})
+                _ad_assert_ldap_ok(c, f"add to group {_ad_rdn_value(gdn)}")
+            for gdn in rem_g:
+                c.modify(gdn, {"member": [(_LDAP_MOD_DELETE, [dn])]})
+                _ad_assert_ldap_ok(c, f"remove from group {_ad_rdn_value(gdn)}")
+        try:
+            _ad_live_execute(dom_copy, pw_bind, _do_grp)
+        except Exception as exc:
+            return jsonify(error=str(exc)[:400]), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+        u = next((x for x in (cache.get("users") or []) if x.get("dn") == dn), None)
+        if u:
+            cur_m = list(u.get("memberOf") or [])
+            for gdn in add_g:
+                if gdn not in cur_m:
+                    cur_m.append(gdn)
+            cur_m = [x for x in cur_m if x not in rem_g]
+            u["memberOf"] = cur_m
+        for g in (cache.get("groups") or []):
+            mems = list(g.get("members") or [])
+            if g["dn"] in add_g and dn not in mems:
+                mems.append(dn)
+            if g["dn"] in rem_g:
+                mems = [m for m in mems if m != dn]
+            g["members"] = mems
+        cache["rev"] = int(cache.get("rev") or 0) + 1
+        _save_ad_cache_doc(conn, c_doc)
+        _record_ad_audit(conn, dom_id, dom["name"], "user_groups", dn, (u or {}).get("displayName", _ad_rdn_value(dn)), actor, f"+{len(add_g)} / -{len(rem_g)} group memberships")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "user_groups", "dn": dn})
+    return jsonify(ok=True, user=u)
+
+
+@app.post("/api/ad/domains/<dom_id>/groups")
+@signed_in
+def create_ad_group(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    cn = str(body.get("cn") or "").strip()[:120]
+    sam = str(body.get("samAccountName") or cn).strip()[:64]
+    scope = str(body.get("scope") or "Global").strip()
+    category = str(body.get("category") or "Security").strip()
+    desc = str(body.get("description") or "").strip()[:300]
+    mail = str(body.get("mail") or "").strip()[:160]
+    members = [str(m).strip() for m in (body.get("members") or []) if str(m).strip()]
+    if not cn:
+        return jsonify(error="Group name is required."), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        dom_copy = dict(dom)
+        parent_dn = str(body.get("parentDn") or f"CN=Users,{dom_copy['baseDn']}").strip()
+        new_dn = f"CN={_ad_escape_rdn(cn)},{parent_dn}"
+        if any(g.get("dn", "").casefold() == new_dn.casefold() for g in (cache.get("groups") or [])):
+            return jsonify(error=f"Group '{cn}' already exists in this container."), 409
+    gt_val = _ad_build_group_type(scope, category)
+    preset = AD_FLAVOR_PRESETS.get(dom_copy.get("flavor") or "samba4", AD_FLAVOR_PRESETS["samba4"])
+    is_ad = (preset["schema"] == "ad")
+    if not dom_copy.get("demoMode"):
+        pw_bind = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+        def _do_cg(c, _s):
+            if is_ad:
+                attrs = {"cn": cn, "sAMAccountName": sam, "groupType": gt_val}
+                if desc:
+                    attrs["description"] = desc
+                if mail:
+                    attrs["mail"] = mail
+                if members:
+                    attrs["member"] = members
+                c.add(new_dn, ["top", "group"], attrs)
+            else:
+                attrs = {"cn": cn}
+                if desc:
+                    attrs["description"] = desc
+                if members:
+                    attrs["member"] = members
+                c.add(new_dn, ["top", "groupOfNames"], attrs)
+            _ad_assert_ldap_ok(c, "create group")
+        try:
+            _ad_live_execute(dom_copy, pw_bind, _do_cg)
+        except Exception as exc:
+            return jsonify(error=str(exc)[:400]), 400
+    grp = {
+        "dn": new_dn, "cn": cn, "samAccountName": sam, "description": desc, "mail": mail,
+        "scope": scope, "category": category, "groupType": gt_val,
+        "parentDn": parent_dn, "members": members,
+    }
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+        cache.setdefault("groups", []).insert(0, grp)
+        for u in (cache.get("users") or []):
+            if u["dn"] in members and new_dn not in (u.get("memberOf") or []):
+                u.setdefault("memberOf", []).append(new_dn)
+        cache["rev"] = int(cache.get("rev") or 0) + 1
+        _save_ad_cache_doc(conn, c_doc)
+        _ad_update_domain_counts(dom, cache)
+        _save_ad_domains_doc(conn, d_doc)
+        _record_ad_audit(conn, dom_id, dom["name"], "group_create", new_dn, cn, actor, f"Created {scope} {category} group ({len(members)} members)")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "group_create", "dn": new_dn})
+    return jsonify(ok=True, group=grp), 201
+
+
+@app.patch("/api/ad/domains/<dom_id>/groups")
+@signed_in
+def update_ad_group(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    dn = str(body.get("dn") or "").strip()
+    if not dn:
+        return jsonify(error="Group DN is required."), 400
+    add_m = [str(x).strip() for x in (body.get("addMemberDns") or []) if str(x).strip()]
+    rem_m = [str(x).strip() for x in (body.get("removeMemberDns") or []) if str(x).strip()]
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        dom_copy = dict(dom)
+    if not dom_copy.get("demoMode"):
+        pw_bind = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+        def _do_ug(c, _s):
+            mods = {}
+            if "description" in body:
+                v = str(body.get("description") or "").strip()
+                mods["description"] = [(_LDAP_MOD_REPLACE, [v] if v else [])]
+            if "mail" in body:
+                v = str(body.get("mail") or "").strip()
+                mods["mail"] = [(_LDAP_MOD_REPLACE, [v] if v else [])]
+            if mods:
+                c.modify(dn, mods)
+                _ad_assert_ldap_ok(c, "update group")
+            if add_m:
+                c.modify(dn, {"member": [(_LDAP_MOD_ADD, add_m)]})
+                _ad_assert_ldap_ok(c, "add group members")
+            if rem_m:
+                c.modify(dn, {"member": [(_LDAP_MOD_DELETE, rem_m)]})
+                _ad_assert_ldap_ok(c, "remove group members")
+        try:
+            _ad_live_execute(dom_copy, pw_bind, _do_ug)
+        except Exception as exc:
+            return jsonify(error=str(exc)[:400]), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+        g = next((x for x in (cache.get("groups") or []) if x.get("dn") == dn), None)
+        if not g:
+            return jsonify(error="AD group not found."), 404
+        if "description" in body:
+            g["description"] = str(body.get("description") or "").strip()
+        if "mail" in body:
+            g["mail"] = str(body.get("mail") or "").strip()
+        mems = list(g.get("members") or [])
+        for m in add_m:
+            if m not in mems:
+                mems.append(m)
+        mems = [m for m in mems if m not in rem_m]
+        g["members"] = mems
+        for u in (cache.get("users") or []):
+            mo = list(u.get("memberOf") or [])
+            if u["dn"] in add_m and dn not in mo:
+                mo.append(dn)
+            if u["dn"] in rem_m:
+                mo = [x for x in mo if x != dn]
+            u["memberOf"] = mo
+        cache["rev"] = int(cache.get("rev") or 0) + 1
+        _save_ad_cache_doc(conn, c_doc)
+        _record_ad_audit(conn, dom_id, dom["name"], "group_edit", dn, g.get("cn", ""), actor, f"Updated group (+{len(add_m)} / -{len(rem_m)} members)")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "group_edit", "dn": dn})
+    return jsonify(ok=True, group=g)
+
+
+@app.delete("/api/ad/domains/<dom_id>/groups")
+@signed_in
+def delete_ad_group(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    dn = str(body.get("dn") or "").strip()
+    if not dn:
+        return jsonify(error="Group DN is required."), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        dom_copy = dict(dom)
+    if not dom_copy.get("demoMode"):
+        pw_bind = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+        try:
+            _ad_live_execute(dom_copy, pw_bind, lambda c, _s: (c.delete(dn), _ad_assert_ldap_ok(c, "delete group")))
+        except Exception as exc:
+            return jsonify(error=str(exc)[:400]), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+        cache["groups"] = [g for g in (cache.get("groups") or []) if g.get("dn") != dn]
+        for u in (cache.get("users") or []):
+            u["memberOf"] = [m for m in (u.get("memberOf") or []) if m != dn]
+        cache["rev"] = int(cache.get("rev") or 0) + 1
+        _save_ad_cache_doc(conn, c_doc)
+        _ad_update_domain_counts(dom, cache)
+        _save_ad_domains_doc(conn, d_doc)
+        _record_ad_audit(conn, dom_id, dom["name"], "group_delete", dn, _ad_rdn_value(dn), actor, f"Deleted AD group {_ad_rdn_value(dn)}")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "group_delete", "dn": dn})
+    return jsonify(ok=True, deletedDn=dn)
+
+
+@app.post("/api/ad/domains/<dom_id>/ous")
+@signed_in
+def create_ad_ou(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    name = str(body.get("name") or "").strip()[:100]
+    desc = str(body.get("description") or "").strip()[:300]
+    if not name:
+        return jsonify(error="OU name is required."), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        dom_copy = dict(dom)
+        parent_dn = str(body.get("parentDn") or dom_copy["baseDn"]).strip()
+        new_dn = f"OU={_ad_escape_rdn(name)},{parent_dn}"
+        if any(o.get("dn", "").casefold() == new_dn.casefold() for o in (cache.get("ous") or [])):
+            return jsonify(error=f"OU '{name}' already exists under this parent."), 409
+    if not dom_copy.get("demoMode"):
+        pw_bind = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+        attrs = {"ou": name}
+        if desc:
+            attrs["description"] = desc
+        try:
+            _ad_live_execute(dom_copy, pw_bind, lambda c, _s: (c.add(new_dn, ["top", "organizationalUnit"], attrs), _ad_assert_ldap_ok(c, "create OU")))
+        except Exception as exc:
+            return jsonify(error=str(exc)[:400]), 400
+    ou_rec = {"dn": new_dn, "name": name, "parentDn": parent_dn, "description": desc}
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+        cache.setdefault("ous", []).append(ou_rec)
+        cache["rev"] = int(cache.get("rev") or 0) + 1
+        _save_ad_cache_doc(conn, c_doc)
+        _ad_update_domain_counts(dom, cache)
+        _save_ad_domains_doc(conn, d_doc)
+        _record_ad_audit(conn, dom_id, dom["name"], "ou_create", new_dn, name, actor, f"Created OU '{name}'")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "ou_create", "dn": new_dn})
+    return jsonify(ok=True, ou=ou_rec), 201
+
+
+@app.patch("/api/ad/domains/<dom_id>/ous")
+@signed_in
+def update_ad_ou(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    dn = str(body.get("dn") or "").strip()
+    new_name = str(body.get("name") or "").strip()[:100]
+    desc = body.get("description")
+    if not dn:
+        return jsonify(error="OU DN is required."), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        dom_copy = dict(dom)
+    old_name = _ad_rdn_value(dn)
+    parent = _ad_parent_dn(dn)
+    new_dn = f"OU={_ad_escape_rdn(new_name)},{parent}" if (new_name and new_name != old_name) else dn
+    if not dom_copy.get("demoMode"):
+        pw_bind = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+        def _do_ou_mod(c, _s):
+            if desc is not None:
+                v = str(desc or "").strip()
+                c.modify(dn, {"description": [(_LDAP_MOD_REPLACE, [v] if v else [])]})
+                _ad_assert_ldap_ok(c, "update OU description")
+            if new_dn != dn:
+                c.modify_dn(dn, f"OU={_ad_escape_rdn(new_name)}")
+                _ad_assert_ldap_ok(c, "rename OU")
+        try:
+            _ad_live_execute(dom_copy, pw_bind, _do_ou_mod)
+        except Exception as exc:
+            return jsonify(error=str(exc)[:400]), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+        ou = next((x for x in (cache.get("ous") or []) if x.get("dn") == dn), None)
+        if not ou:
+            return jsonify(error="OU not found."), 404
+        if desc is not None:
+            ou["description"] = str(desc or "").strip()
+        if new_dn != dn:
+            ou["dn"] = new_dn
+            ou["name"] = new_name
+            # Re-point child paths cleanly in cache
+            suffix = "," + dn
+            new_suffix = "," + new_dn
+            for coll_key in ("ous", "users", "groups", "computers"):
+                for obj in (cache.get(coll_key) or []):
+                    if obj.get("dn", "").endswith(suffix):
+                        obj["dn"] = obj["dn"][:-len(suffix)] + new_suffix
+                    if obj.get("parentDn") == dn:
+                        obj["parentDn"] = new_dn
+                    elif obj.get("parentDn", "").endswith(suffix):
+                        obj["parentDn"] = obj["parentDn"][:-len(suffix)] + new_suffix
+        cache["rev"] = int(cache.get("rev") or 0) + 1
+        _save_ad_cache_doc(conn, c_doc)
+        _record_ad_audit(conn, dom_id, dom["name"], "ou_edit", new_dn, ou["name"], actor, f"Updated OU '{ou['name']}'")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "ou_edit", "dn": new_dn})
+    return jsonify(ok=True, ou=ou)
+
+
+@app.delete("/api/ad/domains/<dom_id>/ous")
+@signed_in
+def delete_ad_ou(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    dn = str(body.get("dn") or "").strip()
+    if not dn:
+        return jsonify(error="OU DN is required."), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        # Refuse safely if non-empty (matches DSA.MSC safety!)
+        dn_cf = dn.casefold()
+        has_children = any(
+            str(obj.get("parentDn") or "").casefold() == dn_cf
+            for k in ("ous", "users", "groups", "computers")
+            for obj in (cache.get(k) or [])
+        )
+        if has_children:
+            return jsonify(error="Cannot delete this OU because it still contains child OUs, users, groups, or computers. Move or delete child objects first."), 400
+        dom_copy = dict(dom)
+    if not dom_copy.get("demoMode"):
+        pw_bind = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+        try:
+            _ad_live_execute(dom_copy, pw_bind, lambda c, _s: (c.delete(dn), _ad_assert_ldap_ok(c, "delete OU")))
+        except Exception as exc:
+            return jsonify(error=str(exc)[:400]), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+        cache["ous"] = [o for o in (cache.get("ous") or []) if o.get("dn") != dn]
+        cache["rev"] = int(cache.get("rev") or 0) + 1
+        _save_ad_cache_doc(conn, c_doc)
+        _ad_update_domain_counts(dom, cache)
+        _save_ad_domains_doc(conn, d_doc)
+        _record_ad_audit(conn, dom_id, dom["name"], "ou_delete", dn, _ad_rdn_value(dn), actor, f"Deleted OU '{_ad_rdn_value(dn)}'")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "ou_delete", "dn": dn})
+    return jsonify(ok=True, deletedDn=dn)
+
+
+@app.post("/api/ad/domains/<dom_id>/computers/action")
+@signed_in
+def ad_computer_action(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    dn = str(body.get("dn") or "").strip()
+    action = str(body.get("action") or "").strip().lower()
+    target_ou = str(body.get("targetOuDn") or "").strip()
+    if not dn or action not in ("enable", "disable", "move", "delete"):
+        return jsonify(error="Computer DN and valid action (enable/disable/move/delete) are required."), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        dom_copy = dict(dom)
+    rdn = dn.split(",", 1)[0]
+    new_dn = f"{rdn},{target_ou}" if (action == "move" and target_ou) else dn
+    if not dom_copy.get("demoMode"):
+        pw_bind = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+        def _do_comp(c, _s):
+            if action == "delete":
+                c.delete(dn)
+            elif action == "move":
+                c.modify_dn(dn, rdn, new_superior=target_ou)
+            else:
+                uac = 4096 if action == "enable" else 4098  # WORKSTATION_TRUST_ACCOUNT (+/- DISABLE)
+                c.modify(dn, {"userAccountControl": [(_LDAP_MOD_REPLACE, [uac])]})
+            _ad_assert_ldap_ok(c, f"computer {action}")
+        try:
+            _ad_live_execute(dom_copy, pw_bind, _do_comp)
+        except Exception as exc:
+            return jsonify(error=str(exc)[:400]), 400
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+        comps = cache.get("computers") or []
+        if action == "delete":
+            cache["computers"] = [x for x in comps if x.get("dn") != dn]
+        else:
+            for c_obj in comps:
+                if c_obj.get("dn") == dn:
+                    if action == "enable":
+                        c_obj["enabled"] = True
+                    elif action == "disable":
+                        c_obj["enabled"] = False
+                    elif action == "move" and target_ou:
+                        c_obj["dn"] = new_dn
+                        c_obj["parentDn"] = target_ou
+        cache["rev"] = int(cache.get("rev") or 0) + 1
+        _save_ad_cache_doc(conn, c_doc)
+        _ad_update_domain_counts(dom, cache)
+        _save_ad_domains_doc(conn, d_doc)
+        _record_ad_audit(conn, dom_id, dom["name"], f"computer_{action}", new_dn, _ad_rdn_value(dn), actor, f"Computer {action}: {_ad_rdn_value(dn)}")
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": f"computer_{action}"})
+    return jsonify(ok=True, action=action, dn=new_dn)
+
+
+@app.post("/api/ad/domains/<dom_id>/import-to-northstar")
+@signed_in
+def import_ad_users_to_northstar(dom_id):
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    only_dns = set(str(x).strip() for x in (body.get("dns") or []) if str(x).strip())
+    default_site = str(body.get("site") or profile.get("site") or "ARG").strip()[:40]
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        ad_users = [u for u in (cache.get("users") or []) if (not only_dns or u.get("dn") in only_dns)]
+        u_row = conn.execute("SELECT value FROM app_state WHERE key='manual_users' FOR UPDATE").fetchone()
+        existing = list(u_row[0] if u_row and isinstance(u_row[0], list) else [])
+        by_u = {str(x.get("username") or "").strip().casefold(): x for x in existing if isinstance(x, dict)}
+        created, updated = 0, 0
+        for au in ad_users:
+            sam = re.sub(r"[^A-Za-z0-9._@-]+", ".", str(au.get("samAccountName") or "").strip()).strip(".")[:80]
+            if len(sam) < 3:
+                continue
+            key = sam.casefold()
+            if key in by_u:
+                rec = by_u[key]
+                # Never overwrite local password_hash, role, or permissions!
+                rec["name"] = au.get("displayName") or rec.get("name") or sam
+                if au.get("mail"):
+                    rec["email"] = au["mail"]
+                if au.get("department"):
+                    rec["dept"] = au["department"]
+                    rec["department"] = au["department"]
+                if au.get("title"):
+                    rec["title"] = au["title"]
+                if au.get("phone") or au.get("mobile"):
+                    rec["phone"] = au.get("phone") or au.get("mobile")
+                rec["adDomainId"] = dom_id
+                rec["adDn"] = au.get("dn", "")
+                updated += 1
+            else:
+                new_rec = {
+                    "username": sam, "id": sam, "name": au.get("displayName") or sam,
+                    "email": au.get("mail") or "", "phone": au.get("phone") or au.get("mobile") or "",
+                    "dept": au.get("department") or "", "department": au.get("department") or "",
+                    "title": au.get("title") or "", "site": au.get("office") or default_site,
+                    "role": "User", "enabled": bool(au.get("enabled", True)),
+                    "employment": "Active" if au.get("enabled", True) else "Inactive",
+                    "active": "Active" if au.get("enabled", True) else "Inactive",
+                    "source": "ad_sync", "adDomainId": dom_id, "adDn": au.get("dn", ""),
+                    "module_permissions": {"tickets": "read", "tasks": "write"},
+                }
+                existing.append(new_rec)
+                by_u[key] = new_rec
+                created += 1
+        conn.execute(
+            "INSERT INTO app_state(key,value) VALUES('manual_users',%s::jsonb) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+            (json.dumps(existing),),
+        )
+        _record_ad_audit(conn, dom_id, dom["name"], "import_northstar", dom["baseDn"], dom["name"], actor, f"Synced AD users to Northstar directory (+{created} added, {updated} updated)")
+    return jsonify(ok=True, created=created, updated=updated, totalProcessed=created + updated)
 
 
 init_db()
