@@ -300,6 +300,34 @@ def user_allowed_gate_depts(profile):
     return out
 
 
+def task_scope_for(profile):
+    if not isinstance(profile, dict):
+        return "self"
+    if profile.get("role") == "Administrator":
+        return "executive"
+    sc = str(profile.get("task_scope") or "self").strip().lower()
+    if sc in ("self", "manager", "executive"):
+        return sc
+    return "self"
+
+
+def user_allowed_task_depts(profile):
+    out = set()
+    if not isinstance(profile, dict):
+        return out
+    for val in (profile.get("dept"), profile.get("department")):
+        s = str(val or "").strip().casefold()
+        if s:
+            out.add(s)
+    t_depts = profile.get("task_departments")
+    if isinstance(t_depts, list):
+        for item in t_depts:
+            s = str(item or "").strip().casefold()
+            if s:
+                out.add(s)
+    return out
+
+
 def _dept_matches(allowed_set, target_dept):
     td = str(target_dept or "").strip().casefold()
     if not td or not allowed_set:
@@ -467,6 +495,10 @@ def signed_in(fn):
         session["profile"]["gate_scope"] = g_scope if g_scope in ("dept", "management", "security") else "dept"
         g_depts = account.get("gate_departments")
         session["profile"]["gate_departments"] = [str(x).strip() for x in g_depts if str(x).strip()] if isinstance(g_depts, list) else []
+        t_scope = str(account.get("task_scope") or "self").strip().lower()
+        session["profile"]["task_scope"] = t_scope if t_scope in ("self", "manager", "executive") else "self"
+        t_depts = account.get("task_departments")
+        session["profile"]["task_departments"] = [str(x).strip() for x in t_depts if str(x).strip()] if isinstance(t_depts, list) else []
         session["profile"]["role"] = account.get("role", "User")
         session["is_admin"] = session["profile"]["role"] == "Administrator"
         if hasattr(session, "modified"):
@@ -3079,6 +3111,10 @@ def login():
             profile["gate_scope"] = g_sc if g_sc in ("dept", "management", "security") else "dept"
             g_dp = local_user.get("gate_departments")
             profile["gate_departments"] = [str(x).strip() for x in g_dp if str(x).strip()] if isinstance(g_dp, list) else []
+            t_sc = str(local_user.get("task_scope") or "self").strip().lower()
+            profile["task_scope"] = t_sc if t_sc in ("self", "manager", "executive") else "self"
+            t_dp = local_user.get("task_departments")
+            profile["task_departments"] = [str(x).strip() for x in t_dp if str(x).strip()] if isinstance(t_dp, list) else []
             sid = secrets.token_urlsafe(32)
             auth_ver = int(local_user.get("auth_version", 0) or 0)
             with db() as conn:
@@ -4750,7 +4786,7 @@ def get_data():
             manuals = out.pop("manual_users", [])
             if "manual_users" in allowed:
                 out["users"] = [
-                    {k: v for k, v in u.items() if k not in ("password_hash", "recovery_answer_hashes", "module_permissions", "allowed_complaint_desks", "gate_scope", "gate_departments")}
+                    {k: v for k, v in u.items() if k not in ("password_hash", "recovery_answer_hashes", "module_permissions", "allowed_complaint_desks", "gate_scope", "gate_departments", "task_scope", "task_departments")}
                     | {"source": "manual", "hasRecoveryQuestions": bool(u.get("recovery_answer_hashes"))}
                     for u in manuals
                 ]
@@ -4914,6 +4950,14 @@ def save_data():
                                 user["gate_departments"] = prior["gate_departments"]
                             else:
                                 user.pop("gate_departments", None)
+                            if "task_scope" in prior:
+                                user["task_scope"] = prior["task_scope"]
+                            else:
+                                user.pop("task_scope", None)
+                            if "task_departments" in prior:
+                                user["task_departments"] = prior["task_departments"]
+                            else:
+                                user.pop("task_departments", None)
                             user["role"] = prior.get("role", "User") if prior else "User"
                             user["enabled"] = prior.get("enabled", True) if prior else True
                         else:
@@ -4924,6 +4968,13 @@ def save_data():
                                 user["gate_departments"] = [str(x).strip()[:120] for x in raw_gdepts[:60] if str(x).strip()]
                             else:
                                 user["gate_departments"] = []
+                            raw_tscope = str(user.get("task_scope") or "self").strip().lower()
+                            user["task_scope"] = raw_tscope if raw_tscope in ("self", "manager", "executive") else "self"
+                            raw_tdepts = user.get("task_departments")
+                            if isinstance(raw_tdepts, list):
+                                user["task_departments"] = [str(x).strip()[:120] for x in raw_tdepts[:60] if str(x).strip()]
+                            else:
+                                user["task_departments"] = []
                             if "allowed_complaint_desks" in user:
                                 raw_desks = user.get("allowed_complaint_desks")
                                 if isinstance(raw_desks, list):
@@ -12724,8 +12775,8 @@ def _task_user_dept_set(profile):
     return out
 
 
-def _task_visible_to(task, profile, is_adm=False):
-    if is_adm:
+def _task_visible_to(task, profile, is_adm=False, people_by_u=None):
+    if is_adm or task_scope_for(profile) == "executive":
         return True
     if not isinstance(task, dict) or not isinstance(profile, dict):
         return False
@@ -12743,7 +12794,58 @@ def _task_visible_to(task, profile, is_adm=False):
         for d in [task.get("targetDepartment"), task.get("sourceDepartment"), *(task.get("sharedDepartments") or [])]:
             if d and _dept_matches(u_depts, d):
                 return True
+    if task_scope_for(profile) == "manager":
+        mgr_depts = user_allowed_task_depts(profile)
+        if mgr_depts:
+            task_depts = [
+                task.get("creatorDept"), task.get("assigneeDept"),
+                task.get("targetDepartment"), task.get("sourceDepartment"),
+                *(task.get("sharedDepartments") or []),
+            ]
+            if isinstance(people_by_u, dict):
+                for uk in (task.get("creatorUsername"), task.get("assigneeUsername")):
+                    p = people_by_u.get(str(uk or "").strip().casefold())
+                    if p and p.get("dept"):
+                        task_depts.append(p["dept"])
+            for td in task_depts:
+                if td and _dept_matches(mgr_depts, td):
+                    return True
     return False
+
+
+def _task_recent_contacts_for(tasks_list, uname_cf, people):
+    if not uname_cf:
+        return []
+    by_u = {p["username"].casefold(): p for p in people}
+    stats = {}
+
+    def _bump(target_u, at_iso, weight=1):
+        tcf = str(target_u or "").strip().casefold()
+        if not tcf or tcf == uname_cf or tcf not in by_u:
+            return
+        rec = stats.get(tcf)
+        if not rec:
+            p = by_u[tcf]
+            rec = {"username": p["username"], "name": p["name"], "dept": p["dept"], "count": 0, "lastAt": ""}
+            stats[tcf] = rec
+        rec["count"] += weight
+        if str(at_iso or "") > rec["lastAt"]:
+            rec["lastAt"] = str(at_iso or "")
+
+    for t in tasks_list:
+        cr = str(t.get("creatorUsername") or "").strip().casefold()
+        at = str(t.get("updatedAt") or t.get("createdAt") or "")
+        if cr == uname_cf:
+            _bump(t.get("assigneeUsername"), at, weight=2)
+            for w in (t.get("watchers") or []):
+                wu = w.get("username") if isinstance(w, dict) else w
+                _bump(wu, at, weight=1)
+        for step in (t.get("delegationChain") or []):
+            if isinstance(step, dict) and str(step.get("fromUsername") or "").strip().casefold() == uname_cf:
+                _bump(step.get("toUsername"), step.get("at") or at, weight=2)
+
+    ranked = sorted(stats.values(), key=lambda x: (x["count"], x["lastAt"]), reverse=True)
+    return ranked[:10]
 
 
 def _task_is_overdue(task, now_dt=None):
@@ -12973,16 +13075,24 @@ def list_workspace_tasks():
         except Exception:
             recent_tickets = []
 
-    visible = [t for t in doc["tasks"] if _task_visible_to(t, profile, is_adm)]
+    people_by_u = {p["username"].casefold(): p for p in people}
+    visible = [t for t in doc["tasks"] if _task_visible_to(t, profile, is_adm, people_by_u=people_by_u)]
     visible.sort(key=lambda x: str(x.get("updatedAt") or x.get("createdAt") or ""), reverse=True)
     summary = _task_summary_for(visible, profile)
     can_write = is_adm or module_access(profile, "tasks", write=True)
+    t_scope = "executive" if is_adm else task_scope_for(profile)
+    allowed_task_depts = depts if t_scope == "executive" else [d for d in depts if _dept_matches(user_allowed_task_depts(profile), d)]
+    uname_cf = str(profile.get("username") or "").strip().casefold()
+    recent_contacts = _task_recent_contacts_for(doc["tasks"], uname_cf, people)
     return jsonify(
         tasks=visible,
         summary=summary,
         people=people,
         departments=depts,
         tickets=recent_tickets,
+        recentContacts=recent_contacts,
+        taskScope=t_scope,
+        allowedTaskDepts=allowed_task_depts,
         canWrite=can_write,
         me={
             "username": str(profile.get("username") or ""),
@@ -12990,6 +13100,7 @@ def list_workspace_tasks():
             "dept": str(profile.get("dept") or profile.get("department") or ""),
             "site": str(profile.get("site") or ""),
             "isAdmin": is_adm,
+            "taskScope": t_scope,
         },
         serverNow=_task_now_iso(),
     )
@@ -13202,10 +13313,11 @@ def get_workspace_task(task_id):
     is_adm = bool(session.get("is_admin"))
     with db() as conn:
         doc = _load_tasks_doc(conn)
+        people, _ = _task_people_and_depts(conn)
     task = next((t for t in doc["tasks"] if str(t.get("id")) == str(task_id)), None)
     if not task:
         return jsonify(error="Task not found."), 404
-    if not _task_visible_to(task, profile, is_adm):
+    if not _task_visible_to(task, profile, is_adm, people_by_u={p["username"].casefold(): p for p in people}):
         return jsonify(error="Access denied to this task."), 403
     return jsonify(ok=True, task=task)
 
@@ -13793,10 +13905,11 @@ def serve_workspace_task_attachment(task_id, att_id):
     is_adm = bool(session.get("is_admin"))
     with db() as conn:
         doc = _load_tasks_doc(conn)
+        people, _ = _task_people_and_depts(conn)
     task = next((t for t in doc["tasks"] if str(t.get("id")) == str(task_id)), None)
     if not task:
         abort(404)
-    if not _task_visible_to(task, profile, is_adm):
+    if not _task_visible_to(task, profile, is_adm, people_by_u={p["username"].casefold(): p for p in people}):
         abort(403)
     att = next((a for a in (task.get("attachments") or []) if str(a.get("id")) == str(att_id)), None)
     if not att:
@@ -13854,6 +13967,850 @@ def check_workspace_task_reminders():
     with db() as conn:
         mine, total = _evaluate_task_reminders(conn, caller_username_cf=uname_cf, force_task_id=force_id or None)
     return jsonify(ok=True, reminders=mine, firedCount=len(total), serverNow=_task_now_iso())
+
+
+def _task_primary_dept(task, people_by_u):
+    for cand in (task.get("targetDepartment"), task.get("assigneeDept"), task.get("creatorDept"), task.get("sourceDepartment")):
+        s = str(cand or "").strip()
+        if s:
+            return s
+    for uk in (task.get("assigneeUsername"), task.get("creatorUsername")):
+        p = people_by_u.get(str(uk or "").strip().casefold())
+        if p and p.get("dept"):
+            return p["dept"]
+    return "General"
+
+
+def _task_turnaround_hours(task):
+    if str(task.get("status") or "") != "Completed":
+        return None
+    s_dt = _task_parse_dt(task.get("createdAt"))
+    e_dt = _task_parse_dt(task.get("completedAt")) or _task_parse_dt(task.get("updatedAt"))
+    if not s_dt or not e_dt or e_dt < s_dt:
+        return None
+    return round((e_dt - s_dt).total_seconds() / 3600.0, 2)
+
+
+def _task_completed_on_time(task):
+    if str(task.get("status") or "") != "Completed":
+        return None
+    due = _task_parse_dt(task.get("committedDueAt") or task.get("dueAt"))
+    done = _task_parse_dt(task.get("completedAt") or task.get("updatedAt"))
+    if not due or not done:
+        return True
+    return done <= due
+
+
+def _compute_task_oversight_payload(all_tasks, people, depts, profile, is_adm, args):
+    scope = "executive" if is_adm else task_scope_for(profile)
+    if scope not in ("manager", "executive"):
+        return None, ("Manager or Executive Pulse oversight access is required to view team analytics & reports.", 403)
+
+    people_by_u = {p["username"].casefold(): p for p in people}
+    allowed_set = user_allowed_task_depts(profile)
+    if scope == "executive":
+        allowed_depts = list(depts)
+        scoped_people = list(people)
+        scoped_tasks = list(all_tasks)
+    else:
+        allowed_depts = [d for d in depts if _dept_matches(allowed_set, d)]
+        for raw_d in sorted(allowed_set):
+            if raw_d and not any(_dept_matches({raw_d}, ad) for ad in allowed_depts):
+                allowed_depts.append(raw_d.upper() if len(raw_d) <= 4 else raw_d.title())
+        scoped_people = [p for p in people if p.get("dept") and _dept_matches(allowed_set, p["dept"])]
+        scoped_tasks = [t for t in all_tasks if _task_visible_to(t, profile, False, people_by_u=people_by_u)]
+
+    # Apply query filters safely inside authorized scope
+    dept_f = str(args.get("dept") or "").strip()
+    user_f = str(args.get("user") or "").strip().casefold()
+    cadence_f = str(args.get("cadence") or "").strip().lower()
+    status_f = str(args.get("status") or "").strip()
+    days_raw = str(args.get("days") or "all").strip().lower()
+    from_raw = str(args.get("from") or "").strip()
+    to_raw = str(args.get("to") or "").strip()
+
+    if dept_f and scope != "executive" and not _dept_matches(allowed_set, dept_f):
+        return None, (f"You do not have oversight access to the '{dept_f}' department.", 403)
+
+    now_dt = datetime.now(timezone.utc)
+    cutoff_dt = None
+    if days_raw.isdigit() and int(days_raw) > 0:
+        cutoff_dt = now_dt - timedelta(days=int(days_raw))
+    from_dt = _task_parse_dt(from_raw)
+    to_dt = _task_parse_dt(to_raw)
+    if to_dt and len(to_raw) <= 10:
+        to_dt = to_dt + timedelta(days=1)
+
+    filtered = []
+    for t in scoped_tasks:
+        p_dept = _task_primary_dept(t, people_by_u)
+        if dept_f:
+            t_depts = [p_dept, t.get("targetDepartment"), t.get("sourceDepartment"), t.get("creatorDept"), t.get("assigneeDept")]
+            if not any(d and _dept_matches({dept_f.casefold()}, d) for d in t_depts):
+                continue
+        if cadence_f in _TASK_CADENCES and str(t.get("cadence") or "daily").lower() != cadence_f:
+            continue
+        if status_f:
+            if status_f.lower() == "overdue":
+                if not _task_is_overdue(t, now_dt=now_dt):
+                    continue
+            elif str(t.get("status") or "").lower() != status_f.lower():
+                continue
+        c_dt = _task_parse_dt(t.get("createdAt"))
+        if cutoff_dt and c_dt and c_dt < cutoff_dt:
+            continue
+        if from_dt and c_dt and c_dt < from_dt:
+            continue
+        if to_dt and c_dt and c_dt > to_dt:
+            continue
+        filtered.append(t)
+
+    # Filter leaderboard people by dept_f if chosen
+    lb_people = [p for p in scoped_people if (not dept_f or _dept_matches({dept_f.casefold()}, p.get("dept")))]
+
+    # If a specific employee filter is applied to KPI/pivot, compute biography against scoped filtered tasks first
+    tasks_for_agg = filtered
+    if user_f:
+        tasks_for_agg = [
+            t for t in filtered
+            if user_f in (
+                str(t.get("assigneeUsername") or "").casefold(),
+                str(t.get("creatorUsername") or "").casefold(),
+            ) or user_f in [str(u).casefold() for u in (t.get("involvedUsers") or [])]
+        ]
+
+    # 1. KPIs & Status Breakdown
+    total = len(tasks_for_agg)
+    st_counts = {"Completed": 0, "In progress": 0, "Awaiting Acceptance": 0, "Pending": 0, "Declined": 0}
+    overdue_cnt = 0
+    turnaround_vals = []
+    ontime_yes, ontime_tot = 0, 0
+    active_emp_set = set()
+    for t in tasks_for_agg:
+        st = str(t.get("status") or "Pending")
+        st_counts[st if st in st_counts else "Pending"] += 1
+        if _task_is_overdue(t, now_dt=now_dt):
+            overdue_cnt += 1
+        hrs = _task_turnaround_hours(t)
+        if hrs is not None:
+            turnaround_vals.append(hrs)
+        ot = _task_completed_on_time(t)
+        if ot is not None:
+            ontime_tot += 1
+            if ot:
+                ontime_yes += 1
+        for uk in (t.get("assigneeUsername"), t.get("creatorUsername")):
+            u = str(uk or "").strip().casefold()
+            if u:
+                active_emp_set.add(u)
+
+    pending_active = st_counts["Pending"] + st_counts["In progress"] + st_counts["Awaiting Acceptance"]
+    comp_rate = round((st_counts["Completed"] / total) * 100.0, 1) if total else 0.0
+    ontime_rate = round((ontime_yes / ontime_tot) * 100.0, 1) if ontime_tot else 100.0
+    avg_hrs = round(sum(turnaround_vals) / len(turnaround_vals), 2) if turnaround_vals else 0.0
+
+    st_colors = {
+        "Completed": "#10b981",
+        "In progress": "#3b82f6",
+        "Awaiting Acceptance": "#8b5cf6",
+        "Pending": "#f59e0b",
+        "Declined": "#f43f5e",
+    }
+    status_breakdown = [
+        {"status": k, "count": v, "pct": round((v / total) * 100.0, 1) if total else 0.0, "color": st_colors[k]}
+        for k, v in st_counts.items()
+    ]
+
+    # 2. Cadence & Priority Breakdown
+    cadence_breakdown = []
+    for c in _TASK_CADENCES:
+        sub = [t for t in tasks_for_agg if str(t.get("cadence") or "daily").lower() == c]
+        done = sum(1 for t in sub if t.get("status") == "Completed")
+        od = sum(1 for t in sub if _task_is_overdue(t, now_dt=now_dt))
+        pend = sum(1 for t in sub if t.get("status") not in ("Completed", "Declined"))
+        cadence_breakdown.append({
+            "cadence": c, "label": c.capitalize(), "total": len(sub), "completed": done,
+            "pending": pend, "overdue": od, "rate": round((done / len(sub)) * 100.0, 1) if sub else 0.0,
+        })
+
+    priority_breakdown = []
+    for pr in _TASK_PRIORITIES:
+        sub = [t for t in tasks_for_agg if str(t.get("priority") or "Normal") == pr]
+        done = sum(1 for t in sub if t.get("status") == "Completed")
+        pend = sum(1 for t in sub if t.get("status") not in ("Completed", "Declined"))
+        priority_breakdown.append({"priority": pr, "total": len(sub), "completed": done, "pending": pend})
+
+    # 3. Department Pivot Table
+    dept_map = {}
+    for d in ([dept_f] if dept_f else allowed_depts):
+        if d:
+            dept_map[d.casefold()] = {
+                "department": d, "total": 0, "daily": 0, "weekly": 0, "monthly": 0,
+                "pending": 0, "awaiting": 0, "inProgress": 0, "overdue": 0, "completed": 0, "declined": 0,
+                "_hrs": [],
+            }
+    for t in tasks_for_agg:
+        dn = _task_primary_dept(t, people_by_u)
+        dk = dn.casefold()
+        if dk not in dept_map:
+            dept_map[dk] = {
+                "department": dn, "total": 0, "daily": 0, "weekly": 0, "monthly": 0,
+                "pending": 0, "awaiting": 0, "inProgress": 0, "overdue": 0, "completed": 0, "declined": 0,
+                "_hrs": [],
+            }
+        row = dept_map[dk]
+        row["total"] += 1
+        cad = str(t.get("cadence") or "daily").lower()
+        if cad in ("daily", "weekly", "monthly"):
+            row[cad] += 1
+        st = str(t.get("status") or "Pending")
+        if st == "Completed":
+            row["completed"] += 1
+        elif st == "Awaiting Acceptance":
+            row["awaiting"] += 1
+        elif st == "In progress":
+            row["inProgress"] += 1
+        elif st == "Declined":
+            row["declined"] += 1
+        else:
+            row["pending"] += 1
+        if _task_is_overdue(t, now_dt=now_dt):
+            row["overdue"] += 1
+        h = _task_turnaround_hours(t)
+        if h is not None:
+            row["_hrs"].append(h)
+
+    department_pivot = []
+    for row in sorted(dept_map.values(), key=lambda x: (-x["total"], x["department"].casefold())):
+        hrs_list = row.pop("_hrs")
+        row["completionRate"] = round((row["completed"] / row["total"]) * 100.0, 1) if row["total"] else 0.0
+        row["avgHours"] = round(sum(hrs_list) / len(hrs_list), 2) if hrs_list else 0.0
+        department_pivot.append(row)
+
+    # 4. Employee Leaderboard (History / Geography / Biography summary for every person in scope)
+    emp_rows = {}
+    for p in lb_people:
+        uk = p["username"].casefold()
+        emp_rows[uk] = {
+            "username": p["username"], "name": p["name"], "dept": p["dept"] or "General",
+            "site": p["site"] or "-", "role": p["role"] or "User",
+            "total": 0, "pending": 0, "awaiting": 0, "inProgress": 0, "overdue": 0,
+            "completed": 0, "declined": 0, "delegatedBy": 0, "forwardedOut": 0,
+            "currentTasks": [], "lastActivityAt": "", "_hrs": [], "_otYes": 0, "_otTot": 0,
+        }
+    for t in filtered:
+        asg_u = str(t.get("assigneeUsername") or "").strip().casefold()
+        cr_u = str(t.get("creatorUsername") or "").strip().casefold()
+        owner_u = asg_u or cr_u
+        if owner_u and owner_u not in emp_rows and (scope == "executive" or _dept_matches(allowed_set, _task_primary_dept(t, people_by_u))):
+            if not dept_f or _dept_matches({dept_f.casefold()}, _task_primary_dept(t, people_by_u)):
+                p = people_by_u.get(owner_u)
+                emp_rows[owner_u] = {
+                    "username": p["username"] if p else owner_u,
+                    "name": p["name"] if p else (t.get("assigneeName") or t.get("creatorName") or owner_u),
+                    "dept": (p["dept"] if p else "") or _task_primary_dept(t, people_by_u),
+                    "site": (p["site"] if p else "") or t.get("creatorSite") or "-",
+                    "role": p["role"] if p else "User",
+                    "total": 0, "pending": 0, "awaiting": 0, "inProgress": 0, "overdue": 0,
+                    "completed": 0, "declined": 0, "delegatedBy": 0, "forwardedOut": 0,
+                    "currentTasks": [], "lastActivityAt": "", "_hrs": [], "_otYes": 0, "_otTot": 0,
+                }
+        if owner_u in emp_rows:
+            er = emp_rows[owner_u]
+            er["total"] += 1
+            st = str(t.get("status") or "Pending")
+            if st == "Completed":
+                er["completed"] += 1
+            elif st == "Awaiting Acceptance":
+                er["awaiting"] += 1
+            elif st == "In progress":
+                er["inProgress"] += 1
+            elif st == "Declined":
+                er["declined"] += 1
+            else:
+                er["pending"] += 1
+            if _task_is_overdue(t, now_dt=now_dt):
+                er["overdue"] += 1
+            if st not in ("Completed", "Declined"):
+                er["currentTasks"].append({
+                    "id": t.get("id"), "title": t.get("title"), "status": st,
+                    "cadence": t.get("cadence"), "priority": t.get("priority"),
+                    "dueAt": t.get("committedDueAt") or t.get("dueAt") or "",
+                    "overdue": _task_is_overdue(t, now_dt=now_dt),
+                })
+            h = _task_turnaround_hours(t)
+            if h is not None:
+                er["_hrs"].append(h)
+            ot = _task_completed_on_time(t)
+            if ot is not None:
+                er["_otTot"] += 1
+                if ot:
+                    er["_otYes"] += 1
+            uat = str(t.get("updatedAt") or t.get("createdAt") or "")
+            if uat > er["lastActivityAt"]:
+                er["lastActivityAt"] = uat
+        if cr_u in emp_rows and asg_u and cr_u != asg_u:
+            emp_rows[cr_u]["delegatedBy"] += 1
+            uat = str(t.get("updatedAt") or t.get("createdAt") or "")
+            if uat > emp_rows[cr_u]["lastActivityAt"]:
+                emp_rows[cr_u]["lastActivityAt"] = uat
+        for step in (t.get("delegationChain") or [])[1:]:
+            fu = str(step.get("fromUsername") or "").strip().casefold()
+            if fu in emp_rows:
+                emp_rows[fu]["forwardedOut"] += 1
+
+    leaderboard = []
+    for er in emp_rows.values():
+        hrs = er.pop("_hrs")
+        ot_y, ot_t = er.pop("_otYes"), er.pop("_otTot")
+        er["activePending"] = er["pending"] + er["awaiting"] + er["inProgress"]
+        er["completionRate"] = round((er["completed"] / er["total"]) * 100.0, 1) if er["total"] else 0.0
+        er["onTimeRate"] = round((ot_y / ot_t) * 100.0, 1) if ot_t else 100.0
+        er["avgHours"] = round(sum(hrs) / len(hrs), 2) if hrs else 0.0
+        er["currentTasks"] = er["currentTasks"][:8]
+        leaderboard.append(er)
+    leaderboard.sort(key=lambda x: (-x["activePending"], -x["total"], x["name"].casefold()))
+
+    # 5. Deep Employee Biography Drill-Down if ?user= is passed
+    biography = None
+    if user_f:
+        bio_summary = next((x for x in leaderboard if x["username"].casefold() == user_f), None)
+        p_obj = people_by_u.get(user_f)
+        if bio_summary or p_obj:
+            currently_pending = []
+            completed_history = []
+            delegated_handoffs = []
+            for t in filtered:
+                asg_u = str(t.get("assigneeUsername") or "").casefold()
+                cr_u = str(t.get("creatorUsername") or "").casefold()
+                st = str(t.get("status") or "Pending")
+                compact = {
+                    "id": t.get("id"), "title": t.get("title"), "cadence": t.get("cadence"),
+                    "workMode": t.get("workMode"), "priority": t.get("priority"), "status": st,
+                    "acceptanceStatus": t.get("acceptanceStatus"),
+                    "creatorName": t.get("creatorName"), "assigneeName": t.get("assigneeName") or t.get("targetDepartment"),
+                    "department": _task_primary_dept(t, people_by_u),
+                    "dueAt": t.get("dueAt"), "committedDueAt": t.get("committedDueAt"),
+                    "acceptancePlan": t.get("acceptancePlan"), "linkedTicketId": t.get("linkedTicketId"),
+                    "attachmentsCount": len(t.get("attachments") or []),
+                    "overdue": _task_is_overdue(t, now_dt=now_dt),
+                    "createdAt": t.get("createdAt"), "completedAt": t.get("completedAt"),
+                    "turnaroundHours": _task_turnaround_hours(t),
+                    "delegationChain": t.get("delegationChain") or [],
+                }
+                is_owner = (asg_u == user_f) or (not asg_u and cr_u == user_f)
+                if is_owner:
+                    if st == "Completed":
+                        completed_history.append(compact)
+                    else:
+                        currently_pending.append(compact)
+                elif cr_u == user_f or user_f in [str(u).casefold() for u in (t.get("involvedUsers") or [])]:
+                    delegated_handoffs.append(compact)
+            biography = {
+                "profile": bio_summary or {
+                    "username": p_obj["username"], "name": p_obj["name"], "dept": p_obj["dept"],
+                    "site": p_obj["site"], "role": p_obj["role"],
+                    "total": 0, "activePending": 0, "completed": 0, "overdue": 0,
+                    "completionRate": 0.0, "onTimeRate": 100.0, "avgHours": 0.0,
+                },
+                "currentlyPending": currently_pending,
+                "completedHistory": completed_history,
+                "delegatedAndHandoff": delegated_handoffs,
+            }
+
+    payload = {
+        "ok": True,
+        "scope": scope,
+        "scopeLabel": "Executive Pulse · All Departments (A–Z)" if scope == "executive" else "Department Manager Oversight",
+        "allowedDepartments": allowed_depts,
+        "filters": {"dept": dept_f, "user": user_f, "cadence": cadence_f, "status": status_f, "days": days_raw},
+        "kpis": {
+            "total": total, "completed": st_counts["Completed"], "pending": pending_active,
+            "inProgress": st_counts["In progress"], "awaitingAcceptance": st_counts["Awaiting Acceptance"],
+            "declined": st_counts["Declined"], "overdue": overdue_cnt,
+            "completionRate": comp_rate, "onTimeRate": ontime_rate,
+            "avgCompletionHours": avg_hrs, "activeEmployees": len(active_emp_set),
+        },
+        "statusBreakdown": status_breakdown,
+        "cadenceBreakdown": cadence_breakdown,
+        "priorityBreakdown": priority_breakdown,
+        "departmentPivot": department_pivot,
+        "employeeLeaderboard": leaderboard,
+        "employeeBiography": biography,
+        "tasks": tasks_for_agg,
+        "peopleByU": people_by_u,
+        "generatedAt": _task_now_iso(),
+    }
+    return payload, None
+
+
+def _xlsx_col(n):
+    out = ""
+    while n > 0:
+        n, rem = divmod(n - 1, 26)
+        out = chr(65 + rem) + out
+    return out
+
+
+def _xlsx_xml_esc(v):
+    return html.escape(str(v if v is not None else ""), quote=True)
+
+
+def _xlsx_cell(col_idx, row_idx, val, style=0, formula=None):
+    ref = f"{_xlsx_col(col_idx)}{row_idx}"
+    if formula is not None:
+        cached = f"<v>{val}</v>" if val is not None else ""
+        return f'<c r="{ref}" s="{style}"><f>{_xlsx_xml_esc(formula)}</f>{cached}</c>'
+    if isinstance(val, (int, float)) and not isinstance(val, bool):
+        return f'<c r="{ref}" s="{style}"><v>{val}</v></c>'
+    return f'<c r="{ref}" t="inlineStr" s="{style}"><is><t>{_xlsx_xml_esc(val)}</t></is></c>'
+
+
+def _xlsx_sheet_xml(rows_xml, col_widths, freeze_row=0, auto_filter=None, drawing_rid=None):
+    cols = "".join(
+        f'<col min="{i}" max="{i}" width="{w}" customWidth="1"/>'
+        for i, w in enumerate(col_widths, 1)
+    )
+    views = (
+        f'<sheetViews><sheetView workbookViewId="0">'
+        + (f'<pane ySplit="{freeze_row}" topLeftCell="A{freeze_row+1}" activePane="bottomLeft" state="frozen"/>' if freeze_row else "")
+        + '</sheetView></sheetViews>'
+    )
+    af = f'<autoFilter ref="{auto_filter}"/>' if auto_filter else ""
+    dr = f'<drawing r:id="{drawing_rid}"/>' if drawing_rid else ""
+    return (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        f'{views}<cols>{cols}</cols><sheetData>{"".join(rows_xml)}</sheetData>{af}{dr}</worksheet>'
+    )
+
+
+def _build_tasks_oversight_xlsx(payload, company_name="Swarnshilp"):
+    kpis = payload["kpis"]
+    st_bd = payload["statusBreakdown"]
+    dept_pv = payload["departmentPivot"]
+    emp_lb = payload["employeeLeaderboard"]
+    tasks = payload["tasks"]
+    people_by_u = payload.get("peopleByU") or {}
+    now_dt = datetime.now(timezone.utc)
+
+    # ---------- Sheet 4: All Tasks Register (built first so row count is known for live COUNTIFS formulas!) ----------
+    reg_headers = [
+        "Task ID", "Title", "Cadence", "Work Mode", "Priority", "Status", "Acceptance",
+        "Creator", "Assignee", "Department", "Source Dept", "Target Dept",
+        "Due Date", "Committed ETA", "Execution Plan", "Checklist %",
+        "Attachments", "Linked Ticket", "Delegation Chain", "Created At", "Completed At", "Turnaround (Hrs)",
+    ]
+    reg_rows = ['<row r="1" ht="24" customHeight="1">' + "".join(_xlsx_cell(c, 1, h, style=2) for c, h in enumerate(reg_headers, 1)) + '</row>']
+    for idx, t in enumerate(tasks, 2):
+        chk = t.get("checklist") or []
+        chk_pct = round((sum(1 for x in chk if x.get("done")) / len(chk)), 3) if chk else 0.0
+        chain = " -> ".join(
+            [str(t.get("creatorName") or "")] +
+            [str(s.get("toName") or s.get("toDepartment") or "") for s in (t.get("delegationChain") or [])]
+        ).strip(" ->")
+        hrs = _task_turnaround_hours(t)
+        vals = [
+            t.get("id", ""), t.get("title", ""), str(t.get("cadence", "daily")).capitalize(),
+            t.get("workMode", "personal"), t.get("priority", "Normal"), t.get("status", "Pending"),
+            t.get("acceptanceStatus", ""), t.get("creatorName", ""),
+            t.get("assigneeName") or (f"{t.get('targetDepartment')} Dept" if t.get("targetDepartment") else ""),
+            _task_primary_dept(t, people_by_u), t.get("sourceDepartment", ""), t.get("targetDepartment", ""),
+            t.get("dueAt", ""), t.get("committedDueAt", ""), (t.get("acceptancePlan") or "")[:300],
+            chk_pct, len(t.get("attachments") or []), t.get("linkedTicketId", ""), chain,
+            t.get("createdAt", ""), t.get("completedAt", ""), hrs if hrs is not None else "",
+        ]
+        st_row = 3 if idx % 2 == 0 else 4
+        cells = []
+        for c, v in enumerate(vals, 1):
+            c_style = 6 if c == 16 else (7 if c == 22 and isinstance(v, (int, float)) else st_row)
+            cells.append(_xlsx_cell(c, idx, v, style=c_style))
+        reg_rows.append(f'<row r="{idx}">' + "".join(cells) + '</row>')
+    last_reg_row = max(2, len(tasks) + 1)
+    sheet4_xml = _xlsx_sheet_xml(
+        reg_rows,
+        [14, 34, 11, 14, 10, 20, 14, 18, 20, 16, 15, 15, 18, 18, 36, 12, 12, 16, 28, 20, 20, 16],
+        freeze_row=1,
+        auto_filter=f"A1:V{last_reg_row}",
+    )
+
+    # ---------- Sheet 1: Executive Dashboard (KPIs + Status Table for Pie Chart + Dept Table for Bar Chart) ----------
+    s1 = []
+    banner_title = f"{company_name} · Task's Executive Oversight & Analytics Report"
+    banner_sub = f"Scope: {payload['scopeLabel']}  |  Generated: {payload['generatedAt']}"
+    s1.append(f'<row r="1" ht="30" customHeight="1">{_xlsx_cell(1, 1, banner_title, style=1)}</row>')
+    s1.append(f'<row r="2" ht="20" customHeight="1">{_xlsx_cell(1, 2, banner_sub, style=5)}</row>')
+    s1.append('<row r="4" ht="22" customHeight="1">' + "".join(_xlsx_cell(c, 4, h, style=2) for c, h in enumerate(["Executive Metric", "Value", "Detail"], 1)) + '</row>')
+    kpi_rows_data = [
+        ("Total Tasks in Scope", kpis["total"], "All visible tasks matching filters", 3),
+        ("Completed Tasks", kpis["completed"], f"{kpis['completionRate']}% completion rate", 3),
+        ("Active Pending Tasks", kpis["pending"], f"{kpis['inProgress']} in progress · {kpis['awaitingAcceptance']} awaiting accept", 3),
+        ("Overdue Tasks", kpis["overdue"], "Past committed ETA / due date", 3),
+        ("Completion Rate", round(kpis["completionRate"] / 100.0, 4), "Completed / Total", 6),
+        ("On-Time Delivery SLA", round(kpis["onTimeRate"] / 100.0, 4), "Completed within ETA", 6),
+        ("Avg Turnaround (Hours)", kpis["avgCompletionHours"], "Average time from create to complete", 7),
+        ("Active Employees", kpis["activeEmployees"], "Distinct staff with activity", 3),
+    ]
+    for offset, (lbl, val, desc, vst) in enumerate(kpi_rows_data, 5):
+        s1.append(f'<row r="{offset}">{_xlsx_cell(1, offset, lbl, style=4)}{_xlsx_cell(2, offset, val, style=vst)}{_xlsx_cell(3, offset, desc, style=4)}</row>')
+
+    # Status Breakdown table at rows 15..20 (Chart 1: Native Pie Chart source = A16:B20)
+    s1.append('<row r="15" ht="22" customHeight="1">' + "".join(_xlsx_cell(c, 15, h, style=2) for c, h in enumerate(["Task Status", "Task Count", "Share %"], 1)) + '</row>')
+    for i, item in enumerate(st_bd, 16):
+        s1.append(
+            f'<row r="{i}">'
+            f'{_xlsx_cell(1, i, item["status"], style=4)}'
+            f'{_xlsx_cell(2, i, item["count"], style=3)}'
+            f'{_xlsx_cell(3, i, round(item["pct"] / 100.0, 4), style=6)}'
+            '</row>'
+        )
+    st_end_row = 15 + len(st_bd)
+
+    # Department Workload Summary at rows 23.. (Chart 2: Native Clustered Bar Chart source = A24:D{dept_end})
+    dept_start_hdr = 23
+    s1.append(f'<row r="{dept_start_hdr}" ht="22" customHeight="1">' + "".join(_xlsx_cell(c, dept_start_hdr, h, style=2) for c, h in enumerate(["Department", "Completed", "Pending", "Overdue"], 1)) + '</row>')
+    chart_depts = dept_pv[:12] if dept_pv else [{"department": "General", "completed": 0, "pending": 0, "inProgress": 0, "awaiting": 0, "overdue": 0}]
+    for i, d in enumerate(chart_depts, dept_start_hdr + 1):
+        pend_tot = int(d["pending"]) + int(d["inProgress"]) + int(d["awaiting"])
+        s1.append(
+            f'<row r="{i}">'
+            f'{_xlsx_cell(1, i, d["department"], style=4)}'
+            f'{_xlsx_cell(2, i, d["completed"], style=3)}'
+            f'{_xlsx_cell(3, i, pend_tot, style=3)}'
+            f'{_xlsx_cell(4, i, d["overdue"], style=3)}'
+            '</row>'
+        )
+    dept_end_row = dept_start_hdr + len(chart_depts)
+    sheet1_xml = _xlsx_sheet_xml(s1, [28, 16, 38, 14, 14, 14, 14, 14, 14, 14], freeze_row=0, drawing_rid="rId1")
+
+    # ---------- Sheet 2: Department Pivot (Dynamic Excel COUNTIFS & SUM formulas!) ----------
+    pv_headers = [
+        "Department", "Total Tasks", "Daily", "Weekly", "Monthly",
+        "Pending", "Awaiting Accept", "In Progress", "Overdue", "Completed", "Declined", "Completion %", "Avg Hrs",
+    ]
+    s2 = [
+        f'<row r="1" ht="26" customHeight="1">{_xlsx_cell(1, 1, "Department-Wise Task Pivot Table (Live Excel COUNTIFS Formulas)", style=1)}</row>',
+        '<row r="3" ht="24" customHeight="1">' + "".join(_xlsx_cell(c, 3, h, style=2) for c, h in enumerate(pv_headers, 1)) + '</row>',
+    ]
+    reg_ref = "'All Tasks Register'"
+    for idx, d in enumerate(dept_pv, 4):
+        dn = d["department"]
+        r = idx
+        f_tot = f'COUNTIF({reg_ref}!$J$2:$J${last_reg_row},A{r})'
+        f_daily = f'COUNTIFS({reg_ref}!$J$2:$J${last_reg_row},A{r},{reg_ref}!$C$2:$C${last_reg_row},"Daily")'
+        f_weekly = f'COUNTIFS({reg_ref}!$J$2:$J${last_reg_row},A{r},{reg_ref}!$C$2:$C${last_reg_row},"Weekly")'
+        f_monthly = f'COUNTIFS({reg_ref}!$J$2:$J${last_reg_row},A{r},{reg_ref}!$C$2:$C${last_reg_row},"Monthly")'
+        f_pend = f'COUNTIFS({reg_ref}!$J$2:$J${last_reg_row},A{r},{reg_ref}!$F$2:$F${last_reg_row},"Pending")'
+        f_await = f'COUNTIFS({reg_ref}!$J$2:$J${last_reg_row},A{r},{reg_ref}!$F$2:$F${last_reg_row},"Awaiting Acceptance")'
+        f_prog = f'COUNTIFS({reg_ref}!$J$2:$J${last_reg_row},A{r},{reg_ref}!$F$2:$F${last_reg_row},"In progress")'
+        f_done = f'COUNTIFS({reg_ref}!$J$2:$J${last_reg_row},A{r},{reg_ref}!$F$2:$F${last_reg_row},"Completed")'
+        f_dec = f'COUNTIFS({reg_ref}!$J$2:$J${last_reg_row},A{r},{reg_ref}!$F$2:$F${last_reg_row},"Declined")'
+        f_pct = f'IF(B{r}>0,J{r}/B{r},0)'
+        st_r = 3 if r % 2 == 0 else 4
+        s2.append(
+            f'<row r="{r}">'
+            f'{_xlsx_cell(1, r, dn, style=st_r)}'
+            f'{_xlsx_cell(2, r, d["total"], style=st_r, formula=f_tot)}'
+            f'{_xlsx_cell(3, r, d["daily"], style=st_r, formula=f_daily)}'
+            f'{_xlsx_cell(4, r, d["weekly"], style=st_r, formula=f_weekly)}'
+            f'{_xlsx_cell(5, r, d["monthly"], style=st_r, formula=f_monthly)}'
+            f'{_xlsx_cell(6, r, d["pending"], style=st_r, formula=f_pend)}'
+            f'{_xlsx_cell(7, r, d["awaiting"], style=st_r, formula=f_await)}'
+            f'{_xlsx_cell(8, r, d["inProgress"], style=st_r, formula=f_prog)}'
+            f'{_xlsx_cell(9, r, d["overdue"], style=st_r)}'
+            f'{_xlsx_cell(10, r, d["completed"], style=st_r, formula=f_done)}'
+            f'{_xlsx_cell(11, r, d["declined"], style=st_r, formula=f_dec)}'
+            f'{_xlsx_cell(12, r, round(d["completionRate"] / 100.0, 4), style=6, formula=f_pct)}'
+            f'{_xlsx_cell(13, r, d["avgHours"], style=7)}'
+            '</row>'
+        )
+    gt_r = max(4, 4 + len(dept_pv))
+    last_pv_r = max(4, gt_r - 1)
+    if dept_pv:
+        s2.append(
+            f'<row r="{gt_r}" ht="22" customHeight="1">'
+            f'{_xlsx_cell(1, gt_r, "Grand Total", style=8)}'
+            + "".join(
+                _xlsx_cell(c, gt_r, sum(x[k] for x in dept_pv), style=8, formula=f"SUM({_xlsx_col(c)}4:{_xlsx_col(c)}{last_pv_r})")
+                for c, k in enumerate(["total", "daily", "weekly", "monthly", "pending", "awaiting", "inProgress", "overdue", "completed", "declined"], 2)
+            )
+            + f'{_xlsx_cell(12, gt_r, round(kpis["completionRate"] / 100.0, 4), style=9, formula=f"IF(B{gt_r}>0,J{gt_r}/B{gt_r},0)")}'
+            + f'{_xlsx_cell(13, gt_r, kpis["avgCompletionHours"], style=8)}'
+            + '</row>'
+        )
+    sheet2_xml = _xlsx_sheet_xml(s2, [22, 13, 10, 10, 11, 11, 16, 13, 11, 12, 11, 14, 11], freeze_row=3, auto_filter=f"A3:M{last_pv_r}")
+
+    # ---------- Sheet 3: Employee Biography & Workload Leaderboard ----------
+    emp_headers = [
+        "Employee Name", "Username", "Department", "Factory", "Total Tasks",
+        "Active Pending", "Awaiting Accept", "In Progress", "Overdue", "Completed",
+        "Completion %", "On-Time SLA %", "Avg Turnaround (Hrs)", "Delegated to Others",
+        "Currently Working On (Top Pending)", "Last Activity",
+    ]
+    s3 = [
+        f'<row r="1" ht="26" customHeight="1">{_xlsx_cell(1, 1, "Employee Performance, Workload & Task Biography", style=1)}</row>',
+        '<row r="3" ht="24" customHeight="1">' + "".join(_xlsx_cell(c, 3, h, style=2) for c, h in enumerate(emp_headers, 1)) + '</row>',
+    ]
+    for idx, e in enumerate(emp_lb, 4):
+        cur_txt = " | ".join(f"[{ct['id']}] {ct['title']}" for ct in (e.get("currentTasks") or [])[:3]) or "Clear"
+        vals = [
+            e["name"], e["username"], e["dept"], e["site"], e["total"],
+            e["activePending"], e["awaiting"], e["inProgress"], e["overdue"], e["completed"],
+            round(e["completionRate"] / 100.0, 4), round(e["onTimeRate"] / 100.0, 4),
+            e["avgHours"], e["delegatedBy"], cur_txt, e["lastActivityAt"] or "-",
+        ]
+        st_r = 3 if idx % 2 == 0 else 4
+        cells = []
+        for c, v in enumerate(vals, 1):
+            cs = 6 if c in (11, 12) else (7 if c == 13 else st_r)
+            cells.append(_xlsx_cell(c, idx, v, style=cs))
+        s3.append(f'<row r="{idx}">' + "".join(cells) + '</row>')
+    last_emp_r = max(4, 3 + len(emp_lb))
+    sheet3_xml = _xlsx_sheet_xml(s3, [22, 16, 16, 12, 12, 14, 15, 13, 10, 12, 14, 14, 18, 17, 44, 20], freeze_row=3, auto_filter=f"A3:P{last_emp_r}")
+
+    # ---------- Native Excel Chart 1: Pie Chart (Task Status Breakdown) ----------
+    slice_colors = ["10B981", "3B82F6", "8B5CF6", "F59E0B", "F43F5E"]
+    dpt_xml = "".join(
+        f'<c:dPt><c:idx val="{i}"/><c:spPr><a:solidFill><a:srgbClr val="{col}"/></a:solidFill></c:spPr></c:dPt>'
+        for i, col in enumerate(slice_colors[:len(st_bd)])
+    )
+    chart1_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" '
+        'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        '<c:roundedCorners val="1"/>'
+        '<c:chart>'
+        '<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US" sz="1200" b="1"/><a:t>Task Status Distribution</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title>'
+        '<c:plotArea><c:layout/><c:pieChart><c:varyColors val="1"/><c:ser><c:idx val="0"/><c:order val="0"/>'
+        '<c:tx><c:strRef><c:f>\'Executive Dashboard\'!$B$15</c:f></c:strRef></c:tx>'
+        f'{dpt_xml}'
+        f'<c:cat><c:strRef><c:f>\'Executive Dashboard\'!$A$16:$A${st_end_row}</c:f></c:strRef></c:cat>'
+        f'<c:val><c:numRef><c:f>\'Executive Dashboard\'!$B$16:$B${st_end_row}</c:f></c:numRef></c:val>'
+        '<c:dLbls><c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="1"/><c:showSerName val="0"/><c:showPercent val="1"/></c:dLbls>'
+        '</c:ser></c:pieChart></c:plotArea>'
+        '<c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend>'
+        '<c:plotVisOnly val="1"/>'
+        '</c:chart></c:chartSpace>'
+    )
+
+    # ---------- Native Excel Chart 2: Clustered Bar/Column Chart (Department Workload) ----------
+    bar_series = [
+        (0, "B", "10B981"),  # Completed
+        (1, "C", "F59E0B"),  # Pending
+        (2, "D", "F43F5E"),  # Overdue
+    ]
+    bar_ser_xml = "".join(
+        f'<c:ser><c:idx val="{i}"/><c:order val="{i}"/>'
+        f'<c:tx><c:strRef><c:f>\'Executive Dashboard\'!${col}${dept_start_hdr}</c:f></c:strRef></c:tx>'
+        f'<c:spPr><a:solidFill><a:srgbClr val="{clr}"/></a:solidFill></c:spPr>'
+        f'<c:cat><c:strRef><c:f>\'Executive Dashboard\'!$A${dept_start_hdr+1}:$A${dept_end_row}</c:f></c:strRef></c:cat>'
+        f'<c:val><c:numRef><c:f>\'Executive Dashboard\'!${col}${dept_start_hdr+1}:${col}${dept_end_row}</c:f></c:numRef></c:val>'
+        '</c:ser>'
+        for i, col, clr in bar_series
+    )
+    chart2_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" '
+        'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        '<c:roundedCorners val="1"/>'
+        '<c:chart>'
+        '<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US" sz="1200" b="1"/><a:t>Department Workload (Completed vs Pending vs Overdue)</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title>'
+        '<c:plotArea><c:layout/><c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:varyColors val="0"/>'
+        f'{bar_ser_xml}'
+        '<c:axId val="101"/><c:axId val="102"/></c:barChart>'
+        '<c:catAx><c:axId val="101"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:tickLblPos val="nextTo"/><c:crossAx val="102"/><c:crosses val="autoZero"/></c:catAx>'
+        '<c:valAx><c:axId val="102"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorGridlines/><c:tickLblPos val="nextTo"/><c:crossAx val="101"/><c:crosses val="autoZero"/></c:valAx>'
+        '</c:plotArea>'
+        '<c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend>'
+        '<c:plotVisOnly val="1"/>'
+        '</c:chart></c:chartSpace>'
+    )
+
+    drawing1_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" '
+        'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        '<xdr:twoCellAnchor><xdr:from><xdr:col>4</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>3</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>'
+        '<xdr:to><xdr:col>10</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>19</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>'
+        '<xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="2" name="Task Status Pie Chart"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>'
+        '<xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm>'
+        '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">'
+        '<c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" r:id="rId1"/>'
+        '</a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>'
+        '<xdr:twoCellAnchor><xdr:from><xdr:col>4</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>20</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>'
+        '<xdr:to><xdr:col>11</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>37</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>'
+        '<xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="3" name="Department Workload Bar Chart"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>'
+        '<xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm>'
+        '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">'
+        '<c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" r:id="rId2"/>'
+        '</a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>'
+        '</xdr:wsDr>'
+    )
+
+    styles_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        '<numFmts count="2"><numFmt numFmtId="164" formatCode="0.0%"/><numFmt numFmtId="165" formatCode="0.00"/></numFmts>'
+        '<fonts count="5">'
+        '<font><sz val="10"/><name val="Calibri"/><color rgb="FF0F172A"/></font>'
+        '<font><b/><sz val="14"/><name val="Calibri"/><color rgb="FF1E1B4B"/></font>'
+        '<font><b/><sz val="10"/><name val="Calibri"/><color rgb="FFFFFFFF"/></font>'
+        '<font><sz val="10"/><name val="Calibri"/><color rgb="FF475569"/></font>'
+        '<font><b/><sz val="10"/><name val="Calibri"/><color rgb="FF065F46"/></font>'
+        '</fonts>'
+        '<fills count="6">'
+        '<fill><patternFill patternType="none"/></fill>'
+        '<fill><patternFill patternType="gray125"/></fill>'
+        '<fill><patternFill patternType="solid"><fgColor rgb="FF1E3A5F"/></patternFill></fill>'
+        '<fill><patternFill patternType="solid"><fgColor rgb="FFF8FAFC"/></patternFill></fill>'
+        '<fill><patternFill patternType="solid"><fgColor rgb="FFECFDF5"/></patternFill></fill>'
+        '<fill><patternFill patternType="solid"><fgColor rgb="FFEEF2FF"/></patternFill></fill>'
+        '</fills>'
+        '<borders count="2">'
+        '<border><left/><right/><top/><bottom/><diagonal/></border>'
+        '<border><left style="thin"><color rgb="FFE2E8F0"/></left><right style="thin"><color rgb="FFE2E8F0"/></right><top style="thin"><color rgb="FFE2E8F0"/></top><bottom style="thin"><color rgb="FFE2E8F0"/></bottom><diagonal/></border>'
+        '</borders>'
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+        '<cellXfs count="10">'
+        '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+        '<xf numFmtId="0" fontId="1" fillId="5" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'
+        '<xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>'
+        '<xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1"/>'
+        '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>'
+        '<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
+        '<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>'
+        '<xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>'
+        '<xf numFmtId="0" fontId="4" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>'
+        '<xf numFmtId="164" fontId="4" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>'
+        '</cellXfs>'
+        '</styleSheet>'
+    )
+
+    content_types_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        '<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        '<Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        '<Override PartName="/xl/worksheets/sheet4.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        '<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>'
+        '<Override PartName="/xl/charts/chart1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>'
+        '<Override PartName="/xl/charts/chart2.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>'
+        '</Types>'
+    )
+
+    root_rels_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+        '</Relationships>'
+    )
+
+    workbook_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        '<sheets>'
+        '<sheet name="Executive Dashboard" sheetId="1" r:id="rId1"/>'
+        '<sheet name="Department Pivot" sheetId="2" r:id="rId2"/>'
+        '<sheet name="Employee Biography" sheetId="3" r:id="rId3"/>'
+        '<sheet name="All Tasks Register" sheetId="4" r:id="rId4"/>'
+        '</sheets>'
+        '<calcPr calcId="191029" fullCalcOnLoad="1"/>'
+        '</workbook>'
+    )
+
+    wb_rels_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>'
+        '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/>'
+        '<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet4.xml"/>'
+        '<Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+        '</Relationships>'
+    )
+
+    sheet1_rels_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/>'
+        '</Relationships>'
+    )
+
+    drawing1_rels_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart1.xml"/>'
+        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart2.xml"/>'
+        '</Relationships>'
+    )
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", content_types_xml)
+        zf.writestr("_rels/.rels", root_rels_xml)
+        zf.writestr("xl/workbook.xml", workbook_xml)
+        zf.writestr("xl/_rels/workbook.xml.rels", wb_rels_xml)
+        zf.writestr("xl/styles.xml", styles_xml)
+        zf.writestr("xl/worksheets/sheet1.xml", sheet1_xml)
+        zf.writestr("xl/worksheets/sheet2.xml", sheet2_xml)
+        zf.writestr("xl/worksheets/sheet3.xml", sheet3_xml)
+        zf.writestr("xl/worksheets/sheet4.xml", sheet4_xml)
+        zf.writestr("xl/worksheets/_rels/sheet1.xml.rels", sheet1_rels_xml)
+        zf.writestr("xl/drawings/drawing1.xml", drawing1_xml)
+        zf.writestr("xl/drawings/_rels/drawing1.xml.rels", drawing1_rels_xml)
+        zf.writestr("xl/charts/chart1.xml", chart1_xml)
+        zf.writestr("xl/charts/chart2.xml", chart2_xml)
+    return buf.getvalue()
+
+
+@app.get("/api/tasks/oversight")
+@signed_in
+def get_workspace_task_oversight():
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    with db() as conn:
+        doc = _load_tasks_doc(conn)
+        people, depts = _task_people_and_depts(conn)
+    payload, err = _compute_task_oversight_payload(doc["tasks"], people, depts, profile, is_adm, request.args)
+    if err:
+        return jsonify(error=err[0]), err[1]
+    out = {k: v for k, v in payload.items() if k not in ("tasks", "peopleByU")}
+    return jsonify(**out)
+
+
+@app.get("/api/tasks/export/excel")
+@signed_in
+def export_workspace_tasks_excel():
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    with db() as conn:
+        doc = _load_tasks_doc(conn)
+        people, depts = _task_people_and_depts(conn)
+        s_row = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
+    company = "Swarnshilp"
+    if s_row and isinstance(s_row[0], dict) and str(s_row[0].get("companyName") or "").strip():
+        company = str(s_row[0]["companyName"]).strip()[:80]
+    payload, err = _compute_task_oversight_payload(doc["tasks"], people, depts, profile, is_adm, request.args)
+    if err:
+        return jsonify(error=err[0]), err[1]
+    xlsx_bytes = _build_tasks_oversight_xlsx(payload, company_name=company)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
+    fname = f"{secure_filename(company) or 'Swarnshilp'}-Tasks-Oversight-Report-{stamp}.xlsx"
+    return Response(
+        xlsx_bytes,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
 
 
 init_db()

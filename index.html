@@ -1991,6 +1991,7 @@ body.ns-vault-shielded #vaultSecurityModal{visibility:hidden!important;opacity:0
     </div>
     <div class="head-actions">
       <span class="ns-tasks-ro-pill" id="nsTasksReadOnlyPill" style="display:none">👁 Read-only access</span>
+      <button type="button" class="btn ns-tasks-read-allow ns-task-oversight-btn" id="nsTasksOversightBtn" style="display:none" onclick="window.nsTasksModule?.openOversightModal?.()">📊 &nbsp;Oversight &amp; Reports</button>
       <button type="button" class="btn ns-tasks-read-allow" id="nsTasksCheckRemBtn" onclick="window.nsTasksModule?.checkRemindersNow?.()">⏰ &nbsp;Check Reminders</button>
       <button type="button" class="btn ns-tasks-read-allow" id="nsTasksRefreshBtn" onclick="window.nsTasksModule?.load?.({toast:true})">↻ &nbsp;Refresh</button>
       <button type="button" class="btn primary ns-task-new-hero-btn" id="nsTasksNewBtn" onclick="window.nsTasksModule?.openCreateModal?.()">＋ &nbsp;New Task</button>
@@ -2120,16 +2121,16 @@ body.ns-vault-shielded #vaultSecurityModal{visibility:hidden!important;opacity:0
 <div class="modal-backdrop" id="nsTaskModal" onclick="if(event.target===this)window.nsTasksModule?.closeCreateModal?.()">
   <div class="modal ns-task-modal-box">
     <div class="modal-head ns-task-modal-head">
-      <div style="display:flex;align-items:center;gap:12px">
+      <div style="display:flex;align-items:center;gap:11px;min-width:0">
         <span class="ns-tk-head-ico">☑</span>
-        <div>
+        <div style="min-width:0">
           <h2 id="nsTaskModalTitle" style="margin:0">Create New Task</h2>
           <div class="ns-tk-head-sub">Daily / Weekly / Monthly · Personal, Delegated or Dept Team Work · Ctrl+V paste attachments</div>
         </div>
       </div>
       <button class="close" type="button" onclick="window.nsTasksModule?.closeCreateModal?.()">×</button>
     </div>
-    <form id="nsTaskForm" autocomplete="off">
+    <form id="nsTaskForm" autocomplete="off" style="display:flex;flex-direction:column;min-height:0;flex:1">
       <input type="hidden" id="nsTaskEditId" value="">
       <div class="ns-tk-form-body">
         <div class="ns-tk-mode-strip" id="nsTaskWorkModeStrip">
@@ -2163,17 +2164,26 @@ body.ns-vault-shielded #vaultSecurityModal{visibility:hidden!important;opacity:0
             </select>
           </div>
 
-          <div class="field" id="nsTaskAssigneeField" style="display:none">
-            <label id="nsTaskAssigneeLabel">Assign To User *</label>
-            <select id="nsTaskAssigneeInput"><option value="">— Select colleague —</option></select>
-          </div>
           <div class="field" id="nsTaskSourceDeptField" style="display:none">
             <label>From Department (Source)</label>
             <select id="nsTaskSourceDeptInput"><option value="">— My department —</option></select>
           </div>
           <div class="field" id="nsTaskTargetDeptField" style="display:none">
             <label id="nsTaskTargetDeptLabel">Target Department *</label>
-            <select id="nsTaskTargetDeptInput"><option value="">— Select department —</option></select>
+            <select id="nsTaskTargetDeptInput" onchange="window.nsTasksModule?.onTargetDeptChange?.()"><option value="">— Select department —</option></select>
+          </div>
+          <div class="field full" id="nsTaskAssigneeField" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+              <label id="nsTaskAssigneeLabel" style="margin:0">Assign To Colleague *</label>
+              <label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;cursor:pointer;color:#64748b"><input type="checkbox" id="nsTaskAssigneeAllDepts" onchange="window.nsTasksModule?.renderAssigneePicker?.()"> Show all departments</label>
+            </div>
+            <input type="hidden" id="nsTaskAssigneeInput" value="">
+            <div id="nsTaskAssigneeRecentWrap" class="ns-tk-recent-strip" style="display:none"></div>
+            <div class="ns-tk-smart-wrap">
+              <input type="text" id="nsTaskAssigneeSearch" class="filter-input" style="width:100%" placeholder="⌕ Type a letter (e.g. S, R) — Recent top 5 &amp; dept teammates appear first..." oninput="window.nsTasksModule?.renderAssigneeSuggestions?.(true)" onfocus="window.nsTasksModule?.renderAssigneeSuggestions?.(true)">
+              <div id="nsTaskAssigneeSelectedPill" class="ns-tk-selected-pill" style="display:none"></div>
+              <div id="nsTaskAssigneeSuggest" class="ns-tk-suggest-menu" style="display:none"></div>
+            </div>
           </div>
 
           <div class="field">
@@ -2210,7 +2220,11 @@ body.ns-vault-shielded #vaultSecurityModal{visibility:hidden!important;opacity:0
           </div>
 
           <div class="field full">
-            <label>Watchers / Keep Notified (Optional — all involved people receive live updates)</label>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:5px">
+              <label style="margin:0">Watchers / Keep Notified <span id="nsTaskWatcherDeptBadge" class="ns-tk-dept-scope-pill"></span></label>
+              <label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;cursor:pointer;color:#64748b"><input type="checkbox" id="nsTaskWatcherAllDepts" onchange="window.nsTasksModule?.renderWatchersPicker?.()"> Show all departments</label>
+            </div>
+            <input type="text" id="nsTaskWatcherSearch" class="filter-input" style="width:100%;margin-bottom:6px" placeholder="⌕ Quick-filter teammates (Recent top 5 shown first)..." oninput="window.nsTasksModule?.renderWatchersPicker?.()">
             <div class="ns-tk-watchers-box" id="nsTaskWatchersBox"></div>
           </div>
 
@@ -2238,7 +2252,7 @@ body.ns-vault-shielded #vaultSecurityModal{visibility:hidden!important;opacity:0
           </div>
         </div>
       </div>
-      <div class="modal-foot">
+      <div class="modal-foot ns-task-modal-foot">
         <button type="button" class="btn" onclick="window.nsTasksModule?.closeCreateModal?.()">Cancel</button>
         <button type="submit" class="btn primary" id="nsTaskSaveBtn">✨ Save Task</button>
       </div>
@@ -2248,15 +2262,15 @@ body.ns-vault-shielded #vaultSecurityModal{visibility:hidden!important;opacity:0
 
 <!-- ACCEPT & COMMIT MODAL (Enforces ETA + Action Plan) -->
 <div class="modal-backdrop" id="nsTaskAcceptModal" onclick="if(event.target===this)window.nsTasksModule?.closeAcceptModal?.()">
-  <div class="modal" style="max-width:540px;width:calc(100% - 24px)">
-    <div class="modal-head" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border-radius:14px 14px 0 0">
+  <div class="modal ns-task-clean-modal" style="max-width:540px;width:calc(100% - 24px)">
+    <div class="modal-head ns-task-modal-head">
       <div>
-        <h2 style="margin:0;color:#fff">✅ Accept Task &amp; Commit Plan</h2>
-        <div style="font-size:11.5px;opacity:.92" id="nsTaskAcceptSub">Specify when and how you will complete this task. All involved users will be notified.</div>
+        <h2 style="margin:0">✅ Accept Task &amp; Commit Plan</h2>
+        <div class="ns-tk-head-sub" id="nsTaskAcceptSub">Specify when and how you will complete this task. All involved users will be notified.</div>
       </div>
-      <button class="close" type="button" style="color:#fff" onclick="window.nsTasksModule?.closeAcceptModal?.()">×</button>
+      <button class="close" type="button" onclick="window.nsTasksModule?.closeAcceptModal?.()">×</button>
     </div>
-    <form id="nsTaskAcceptForm" style="padding:16px 18px">
+    <form id="nsTaskAcceptForm" style="padding:16px 20px">
       <input type="hidden" id="nsTaskAcceptId">
       <div class="form-grid" style="grid-template-columns:1fr;gap:12px">
         <div class="field">
@@ -2273,6 +2287,60 @@ body.ns-vault-shielded #vaultSecurityModal{visibility:hidden!important;opacity:0
         <button type="submit" class="btn primary" id="nsTaskAcceptSubmitBtn" style="background:linear-gradient(135deg,#059669,#10b981);border:none">✅ Confirm Acceptance</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- MANAGER & EXECUTIVE PULSE OVERSIGHT, BIOGRAPHY & EXCEL REPORTS MODAL -->
+<div class="modal-backdrop" id="nsTaskOversightModal" onclick="if(event.target===this)window.nsTasksModule?.closeOversightModal?.()">
+  <div class="modal ns-task-oversight-box">
+    <div class="modal-head ns-task-modal-head">
+      <div style="min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="ns-tk-scope-badge" id="nsOvScopeBadge">🏛️ Executive Pulse</span>
+          <span class="ticket-meta" id="nsOvAllowedDeptsNote"></span>
+        </div>
+        <h2 style="margin:4px 0 0">Team Task Oversight, Employee Biography &amp; Reports</h2>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn primary ns-ov-excel-btn" id="nsOvExportExcelBtn" onclick="window.nsTasksModule?.exportOversightExcel?.()">📥 Export Excel (.xlsx · Charts &amp; Pivot)</button>
+        <button class="close" type="button" onclick="window.nsTasksModule?.closeOversightModal?.()">×</button>
+      </div>
+    </div>
+    <div class="ns-ov-filter-bar">
+      <select class="filter-select" id="nsOvDeptFilter" onchange="window.nsTasksModule?.loadOversight?.()"><option value="">All permitted departments</option></select>
+      <select class="filter-select" id="nsOvUserFilter" onchange="window.nsTasksModule?.loadOversight?.()"><option value="">All team members</option></select>
+      <select class="filter-select" id="nsOvCadenceFilter" onchange="window.nsTasksModule?.loadOversight?.()">
+        <option value="">All schedules</option>
+        <option value="daily">☀️ Daily</option>
+        <option value="weekly">📅 Weekly</option>
+        <option value="monthly">🗓️ Monthly</option>
+      </select>
+      <select class="filter-select" id="nsOvStatusFilter" onchange="window.nsTasksModule?.loadOversight?.()">
+        <option value="">All statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Awaiting Acceptance">Awaiting Acceptance</option>
+        <option value="In progress">In progress</option>
+        <option value="Overdue">🔥 Overdue</option>
+        <option value="Completed">✅ Completed</option>
+        <option value="Declined">❌ Declined</option>
+      </select>
+      <select class="filter-select" id="nsOvDaysFilter" onchange="window.nsTasksModule?.loadOversight?.()">
+        <option value="all">All time</option>
+        <option value="1">Today (24h)</option>
+        <option value="7">Last 7 days</option>
+        <option value="30">Last 30 days</option>
+        <option value="90">Last 90 days</option>
+      </select>
+      <button type="button" class="btn" onclick="window.nsTasksModule?.loadOversight?.({reset:true})">↺ Reset</button>
+    </div>
+    <div class="ns-ov-tabs" id="nsOvTabs">
+      <button type="button" class="active" data-ov-tab="overview" onclick="window.nsTasksModule?.setOversightTab?.('overview')">📊 Overview &amp; Charts</button>
+      <button type="button" data-ov-tab="pivot" onclick="window.nsTasksModule?.setOversightTab?.('pivot')">🗂️ Department Pivot</button>
+      <button type="button" data-ov-tab="biography" onclick="window.nsTasksModule?.setOversightTab?.('biography')">🧑‍💼 Employee Biography &amp; History</button>
+    </div>
+    <div class="ns-ov-body" id="nsOvBody">
+      <div class="empty-state" style="padding:32px">Loading team oversight analytics…</div>
+    </div>
   </div>
 </div>
 
@@ -2356,13 +2424,25 @@ function gateAccessPermissionFields(user={},isNew=false){
   '</div></div>';
 }
 function gateDeptsFromForm(formEl){return formEl?[...formEl.querySelectorAll('input[name="gate_dept_perm"]:checked')].map(x=>x.value).filter(Boolean):[]}
+function taskOversightPermissionFields(user={},isNew=false){
+ const tScope=String(user?.task_scope||'self').toLowerCase();
+ const selDepts=new Set((Array.isArray(user?.task_departments)?user.task_departments:[]).map(x=>String(x||'').trim()));
+ const deptNames=[...new Set((typeof depts!=='undefined'&&Array.isArray(depts)?depts:[]).map(d=>String(Array.isArray(d)?d[0]:d?.name||'').trim()).filter(Boolean))].sort();
+ return '<div class="form-section full" style="margin-top:6px">Task\'s Oversight &amp; Reporting Scope</div>'+
+  '<div class="field full form-note">Control who can inspect team workload, full employee task biography, GUI reports &amp; Excel charts. Department Managers see only their own + selected related departments; Executive Pulse sees all departments A–Z.</div>'+
+  '<div class="field"><label>Task\'s Oversight Level</label><select name="task_scope"><option value="self"'+(tScope==='self'?' selected':'')+'>👤 Member (Own &amp; Assigned Tasks Only)</option><option value="manager"'+(tScope==='manager'?' selected':'')+'>👔 Department Manager (Own + Selected Related Teams)</option><option value="executive"'+(tScope==='executive'?' selected':'')+'>🏛️ Executive Pulse (All Departments · A–Z Oversight)</option></select></div>'+
+  '<div class="field full"><label>Extra Related Departments for Manager Oversight (Optional — own department is always included)</label><div style="display:flex;flex-wrap:wrap;gap:8px;padding:9px;border:1px solid #d5e2da;border-radius:10px;background:#f8fbf9">'+
+  (deptNames.length?deptNames.map(dn=>'<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:8px;background:#fff;border:1px solid #d5e2da;cursor:pointer"><input type="checkbox" name="task_dept_perm" value="'+esc(dn)+'" '+(selDepts.has(dn)?'checked':'')+'> '+esc(dn)+'</label>').join(''):'<span class="ticket-meta">No departments configured yet.</span>')+
+  '</div></div>';
+}
+function taskDeptsFromForm(formEl){return formEl?[...formEl.querySelectorAll('input[name="task_dept_perm"]:checked')].map(x=>x.value).filter(Boolean):[]}
 function effectiveModuleGrant(user,module,isNew=false){if(user?.role==='Administrator')return 'write';let p=user?.module_permissions;if(p&&typeof p==='object')return ['none','read','write'].includes(p[module])?p[module]:'none';if(user?.role==='Viewer')return 'read';if(user?.role==='IT Ticketing')return module==='tickets'?'write':'none';return isNew?'none':'write'}
 function setAllModulePerms(level){document.querySelectorAll('#recordForm select[name^="module_perm_"]').forEach(s=>{s.value=level})}
 function applyTicketDeskOnlyPreset(){document.querySelectorAll('#recordForm select[name^="module_perm_"]').forEach(s=>{s.value=(s.name==='module_perm_tickets'?'write':'none')});const allCb=document.querySelector('#recordForm [name="complaint_desks_all"]');if(allCb){allCb.checked=false;syncDeskPermCheckboxes()}showToast('Set Tickets to Read & write and hid all other modules. Now select allowed complaint department(s).')}
 function syncDeskPermCheckboxes(){const allCb=document.querySelector('#recordForm [name="complaint_desks_all"]');const boxes=[...document.querySelectorAll('#recordForm input[name="complaint_desk_perm"]')];if(!allCb)return;if(allCb.checked){boxes.forEach(b=>{b.checked=true})}boxes.forEach(b=>{b.onchange=()=>{if(!b.checked&&allCb.checked)allCb.checked=false;else if(boxes.length&&boxes.every(x=>x.checked))allCb.checked=true}})}
 function complaintDeskPermissionFields(user={},isNew=false){const desks=(typeof window.getComplaintDesks==='function')?window.getComplaintDesks():[{id:'it',name:'IT Department',icon:'💻'},{id:'plumber',name:'Plumber',icon:'🔧'},{id:'electrician',name:'Electrician',icon:'⚡'},{id:'admin',name:'Admin Dept',icon:'🏢'}];const raw=Array.isArray(user?.allowed_complaint_desks)?user.allowed_complaint_desks:null;const isAll=!raw||raw.includes('*')||raw.includes('all');return '<div class="form-section full" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:6px"><span>Complaint selector permissions (Department isolation)</span><button type="button" class="btn" style="padding:3px 9px;font-size:11px;border-color:#86efac;background:#f0fdf4;color:#157a54" onclick="applyTicketDeskOnlyPreset()">🎫 Desk-only access preset</button></div><div class="field full form-note">Restrict this account to specific complaint departments (e.g. only Plumber or only Admin Dept). Leave "All Complaint Desks" checked for full ticketing access.</div><div class="field full" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px;border:1px solid #d5e2da;border-radius:10px;background:#f8fbf9"><label style="display:inline-flex;align-items:center;gap:6px;font-weight:700;padding:5px 10px;border-radius:8px;background:#fff;border:1px solid #cbd5e1;cursor:pointer"><input type="checkbox" name="complaint_desks_all" '+(isAll?'checked':'')+' onchange="if(this.checked){document.querySelectorAll(\'#recordForm input[name=complaint_desk_perm]\').forEach(x=>x.checked=true)}else{document.querySelectorAll(\'#recordForm input[name=complaint_desk_perm]\').forEach(x=>x.checked=false)}"> 🌐 All Complaint Desks</label>'+desks.map(d=>{const chk=isAll||raw.includes(d.id);return '<label style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;background:#fff;border:1px solid #d5e2da;cursor:pointer"><input type="checkbox" name="complaint_desk_perm" value="'+esc(d.id)+'" '+(chk?'checked':'')+'> '+esc((d.icon||'🎫')+' '+d.name)+'</label>'}).join('')+'</div>'}
 function complaintDesksFromForm(formEl){if(!formEl)return ['*'];const allCb=formEl.querySelector('[name="complaint_desks_all"]');if(allCb?.checked)return ['*'];return [...formEl.querySelectorAll('input[name="complaint_desk_perm"]:checked')].map(x=>x.value).filter(Boolean)}
-function modulePermissionFields(user={},isNew=false){return '<div class="form-section full" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><span>Module permissions</span><span style="display:inline-flex;gap:6px"><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'none\')">All No access</button><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'read\')">All Read only</button><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'write\')">All Read &amp; write</button></span></div><div class="field full form-note">Choose what this account can see and change in each module. No access hides the module; Read only blocks changes; Read &amp; write allows changes. Administrator accounts always have full access.</div><div class="module-permission-grid field full">'+permissionModules.map(([id,label])=>'<label class="module-permission-item"><span>'+esc(label)+'</span><select name="module_perm_'+id+'"><option value="none"'+(effectiveModuleGrant(user,id,isNew)==='none'?' selected':'')+'>No access</option><option value="read"'+(effectiveModuleGrant(user,id,isNew)==='read'?' selected':'')+'>Read only</option><option value="write"'+(effectiveModuleGrant(user,id,isNew)==='write'?' selected':'')+'>Read &amp; write</option></select></label>').join('')+'</div>'+complaintDeskPermissionFields(user,isNew)+gateAccessPermissionFields(user,isNew)}
+function modulePermissionFields(user={},isNew=false){return '<div class="form-section full" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><span>Module permissions</span><span style="display:inline-flex;gap:6px"><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'none\')">All No access</button><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'read\')">All Read only</button><button type="button" class="btn" style="padding:3px 9px;font-size:11px" onclick="setAllModulePerms(\'write\')">All Read &amp; write</button></span></div><div class="field full form-note">Choose what this account can see and change in each module. No access hides the module; Read only blocks changes; Read &amp; write allows changes. Administrator accounts always have full access.</div><div class="module-permission-grid field full">'+permissionModules.map(([id,label])=>'<label class="module-permission-item"><span>'+esc(label)+'</span><select name="module_perm_'+id+'"><option value="none"'+(effectiveModuleGrant(user,id,isNew)==='none'?' selected':'')+'>No access</option><option value="read"'+(effectiveModuleGrant(user,id,isNew)==='read'?' selected':'')+'>Read only</option><option value="write"'+(effectiveModuleGrant(user,id,isNew)==='write'?' selected':'')+'>Read &amp; write</option></select></label>').join('')+'</div>'+complaintDeskPermissionFields(user,isNew)+gateAccessPermissionFields(user,isNew)+taskOversightPermissionFields(user,isNew)}
 function permissionsFromForm(values){return Object.fromEntries(permissionModules.map(([id])=>[id,['none','read','write'].includes(values['module_perm_'+id])?values['module_perm_'+id]:'none']))}
 function currentModuleGrant(viewKey){if(!serverMode||serverAdmin)return 'write';let module=permissionViewMap[viewKey];return module?effectiveModuleGrant(serverProfile,module):'none'}
 function canAccessMod(mod,write=false){if(!serverMode||serverAdmin)return true;const g=effectiveModuleGrant(serverProfile,mod);return write?g==='write':(g==='read'||g==='write')}
@@ -2709,7 +2789,7 @@ async function saveRecord(e){
     allowedDesks=['*'];
    }
   }
-  let u={...old,...x,username,id:x.id?.trim()||username,name:String(x.name||'').trim(),role:access,enabled:x.enabled!=='false',module_permissions:modPerms,allowed_complaint_desks:allowedDesks,gate_scope:['dept','management','security'].includes(x.gate_scope)?x.gate_scope:'dept',gate_departments:gateDeptsFromForm(recordForm),department:x.dept||'',active:x.employment==='Active'?'Active':(x.employment||'Active'),assets:assets.filter(a=>a.owner===old.name||a.owner===x.name).length,software:old.software||0,source:'manual'};
+  let u={...old,...x,username,id:x.id?.trim()||username,name:String(x.name||'').trim(),role:access,enabled:x.enabled!=='false',module_permissions:modPerms,allowed_complaint_desks:allowedDesks,gate_scope:['dept','management','security'].includes(x.gate_scope)?x.gate_scope:'dept',gate_departments:gateDeptsFromForm(recordForm),task_scope:['self','manager','executive'].includes(x.task_scope)?x.task_scope:'self',task_departments:taskDeptsFromForm(recordForm),department:x.dept||'',active:x.employment==='Active'?'Active':(x.employment||'Active'),assets:assets.filter(a=>a.owner===old.name||a.owner===x.name).length,software:old.software||0,source:'manual'};
   if(hasAnyRec)u.hasRecoveryQuestions=true;
   delete u.password;delete u.password_confirm;delete u.recovery_animal;delete u.recovery_colour;delete u.recovery_food;
   let next=users.map(r=>({...r}));
@@ -30420,13 +30500,118 @@ let lastPulseGatepassRev = '';
 .ns-tk-act-done{background:#ecfdf5;color:#047857;border-color:#a7f3d0}
 .ns-tk-act-done:hover{background:#d1fae5;color:#065f46}
 
-/* Modals & Form Controls */
-.ns-task-modal-box{max-width:780px;width:calc(100% - 24px);max-height:92vh;display:flex;flex-direction:column}
-.ns-task-modal-head{background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 55%,#0ea5e9 100%);color:#fff;border-radius:14px 14px 0 0}
-.ns-task-modal-head h2,.ns-task-modal-head .close{color:#fff}
-.ns-tk-head-ico{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.2);display:inline-flex;align-items:center;justify-content:center;font-size:20px}
-.ns-tk-head-sub{font-size:11.5px;opacity:.92;margin-top:2px}
-.ns-tk-form-body{padding:14px 18px;overflow-y:auto;max-height:calc(92vh - 140px)}
+/* Modals & Form Controls — Clean Native Header (No Blue Rectangular Bar / No Double Scrollbar) */
+.ns-task-modal-box,.ns-task-clean-modal,.ns-task-detail-box,.ns-task-oversight-box{
+  padding:0!important;overflow:hidden!important;display:flex;flex-direction:column;
+}
+.ns-task-modal-box{max-width:780px;width:calc(100% - 24px);max-height:92vh}
+.ns-task-modal-head{
+  padding:16px 20px!important;background:#ffffff;color:#0f172a;
+  border-bottom:1px solid #e2e8f0;margin:0!important;flex-shrink:0;
+}
+.ns-task-modal-head h2{color:#0f172a;font-size:18px;font-weight:800}
+.ns-task-modal-head .close{color:#475569;background:#f1f5f9;border-radius:10px}
+.ns-task-modal-head .close:hover{background:#e2e8f0;color:#0f172a}
+.ns-tk-head-ico{
+  width:38px;height:38px;border-radius:11px;background:#eef2ff;color:#4f46e5;border:1px solid #c7d2fe;
+  display:inline-flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;
+}
+.ns-tk-head-sub{font-size:11.5px;color:#64748b;margin-top:2px}
+.ns-tk-form-body{padding:16px 20px;overflow-y:auto;flex:1;min-height:0}
+.ns-task-modal-foot{padding:12px 20px!important;border-top:1px solid #e2e8f0;margin:0!important;background:#f8fafc;flex-shrink:0}
+
+/* Smart Google-Style Recent Top-5 + Autocomplete */
+.ns-tk-recent-strip{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:7px}
+.ns-tk-recent-lbl{font-size:10.5px;font-weight:800;color:#6366f1;text-transform:uppercase;letter-spacing:.4px}
+.ns-tk-recent-chip{
+  display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;cursor:pointer;
+  background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;font-size:11.5px;font-weight:700;transition:all .15s ease;
+}
+.ns-tk-recent-chip:hover,.ns-tk-recent-chip.active{background:#4f46e5;color:#fff;border-color:#4f46e5}
+.ns-tk-recent-chip small{opacity:.8;font-size:10px}
+.ns-tk-smart-wrap{position:relative}
+.ns-tk-selected-pill{
+  display:inline-flex;align-items:center;gap:8px;margin-top:6px;padding:5px 11px;border-radius:99px;
+  background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;font-size:12px;font-weight:700;
+}
+.ns-tk-selected-pill button{border:none;background:none;color:#dc2626;font-weight:800;cursor:pointer;padding:0 2px}
+.ns-tk-suggest-menu{
+  position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:60;max-height:230px;overflow-y:auto;
+  background:#fff;border:1px solid #cbd5e1;border-radius:12px;box-shadow:0 14px 32px rgba(15,23,42,.16);padding:5px;
+}
+.ns-tk-sug-group{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#64748b;padding:5px 9px 3px}
+.ns-tk-sug-item{
+  width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;
+  border:none;background:transparent;border-radius:8px;cursor:pointer;text-align:left;font-size:12.5px;color:#0f172a;
+}
+.ns-tk-sug-item:hover{background:#eef2ff;color:#3730a3}
+.ns-tk-sug-tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;background:#f1f5f9;color:#475569}
+.ns-tk-sug-tag.recent{background:#fef3c7;color:#b45309}
+.ns-tk-dept-scope-pill{
+  display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;
+  background:#e0f2fe;color:#0369a1;font-size:10.5px;font-weight:700;margin-left:5px;
+}
+.ns-tk-watch-chip.is-recent{border-color:#a5b4fc;background:#eef2ff}
+
+/* Oversight & Reports Modal (Manager / Executive Pulse) */
+.ns-task-oversight-btn{
+  background:linear-gradient(135deg,#0f766e,#0891b2)!important;color:#fff!important;border:none!important;
+  font-weight:700!important;box-shadow:0 5px 15px rgba(8,145,178,.24);
+}
+.ns-task-oversight-btn:hover{filter:brightness(1.06)}
+.ns-task-oversight-box{max-width:1160px;width:calc(100% - 24px);max-height:93vh}
+.ns-tk-scope-badge{
+  display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:800;
+  background:linear-gradient(135deg,#ede9fe,#cffafe);color:#3730a3;border:1px solid #c7d2fe;
+}
+.ns-ov-excel-btn{background:linear-gradient(135deg,#059669,#10b981)!important;border:none!important;color:#fff!important;font-weight:700!important}
+.ns-ov-filter-bar{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 20px;
+  background:#f8fafc;border-bottom:1px solid #e2e8f0;flex-shrink:0;
+}
+.ns-ov-tabs{
+  display:flex;align-items:center;gap:6px;padding:10px 20px 0;border-bottom:1px solid #e2e8f0;background:#fff;flex-shrink:0;
+}
+.ns-ov-tabs button{
+  border:none;background:transparent;padding:9px 14px;font-size:12.5px;font-weight:700;color:#64748b;
+  border-bottom:2.5px solid transparent;cursor:pointer;transition:all .15s ease;
+}
+.ns-ov-tabs button.active{color:#4f46e5;border-bottom-color:#4f46e5}
+.ns-ov-body{padding:16px 20px 22px;overflow-y:auto;flex:1;min-height:0;display:flex;flex-direction:column;gap:14px}
+.ns-ov-kpi-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.ns-ov-kpi{
+  padding:12px 13px;border-radius:13px;background:#fff;border:1px solid #e2e8f0;border-top:3px solid #6366f1;
+}
+.ns-ov-kpi span{font-size:11px;font-weight:700;color:#64748b;display:block}
+.ns-ov-kpi b{font:800 22px/1.2 Manrope,system-ui,sans-serif;color:#0f172a;display:block;margin-top:4px}
+.ns-ov-kpi small{font-size:10.5px;color:#64748b}
+.ns-ov-charts-grid{display:grid;grid-template-columns:1fr 1.25fr;gap:14px}
+.ns-ov-chart-card{border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;background:#fff}
+.ns-ov-chart-card h4{margin:0 0 10px;font:800 13px Manrope,system-ui,sans-serif;color:#0f172a}
+.ns-ov-donut-wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.ns-ov-legend{display:flex;flex-direction:column;gap:7px;flex:1;min-width:150px}
+.ns-ov-leg-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-weight:600;color:#334155}
+.ns-ov-leg-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px}
+.ns-ov-bar-list{display:flex;flex-direction:column;gap:10px}
+.ns-ov-bar-row{display:flex;flex-direction:column;gap:4px}
+.ns-ov-bar-head{display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:#1e293b}
+.ns-ov-bar-track{height:10px;border-radius:99px;background:#f1f5f9;overflow:hidden;display:flex}
+.ns-ov-bio-banner{
+  padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,#eef2ff,#ecfdf5);
+  border:1px solid #c7d2fe;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+}
+.ns-ov-bio-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.ns-ov-bio-col{border:1px solid #e2e8f0;border-radius:13px;padding:12px 14px;background:#fff;display:flex;flex-direction:column;gap:8px}
+.ns-ov-bio-col h4{margin:0;font:800 12.5px Manrope,system-ui,sans-serif;color:#0f172a}
+.ns-ov-mini-task{
+  padding:8px 10px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;cursor:pointer;
+  transition:border-color .15s ease;
+}
+.ns-ov-mini-task:hover{border-color:#6366f1}
+@media (max-width:960px){
+  .ns-ov-kpi-row{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .ns-ov-charts-grid,.ns-ov-bio-grid{grid-template-columns:1fr}
+}
 .ns-tk-mode-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .ns-tk-mode-btn{
   display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 11px;border-radius:12px;
@@ -30578,7 +30763,26 @@ html[data-theme="dark"] .ns-tk-watch-chip,html[data-theme="dark"] .ns-tk-chk-ite
 html[data-theme="dark"] .ns-tk-dropzone{background:rgba(99,102,241,.12);border-color:#6366f1}
 html[data-theme="dark"] .ns-tk-dz-info b{color:#c7d2fe}
 html[data-theme="dark"] .ns-tk-dz-info small{color:#94a3b8}
-html[data-theme="dark"] .ns-task-detail-head{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%);border-bottom-color:#24324f}
+html[data-theme="dark"] .ns-task-detail-head{background:#0f172a;border-bottom-color:#24324f}
+html[data-theme="dark"] .ns-task-modal-head{background:#0f172a;border-bottom-color:#24324f;color:#f8fafc}
+html[data-theme="dark"] .ns-task-modal-head h2{color:#f8fafc}
+html[data-theme="dark"] .ns-task-modal-head .close{background:#1e293b;color:#cbd5e1}
+html[data-theme="dark"] .ns-tk-head-ico{background:rgba(99,102,241,.2);color:#a5b4fc;border-color:rgba(129,140,248,.4)}
+html[data-theme="dark"] .ns-tk-head-sub{color:#94a3b8}
+html[data-theme="dark"] .ns-task-modal-foot{background:#0b1324;border-top-color:#1e293b}
+html[data-theme="dark"] .ns-tk-recent-chip{background:#1e1b4b;border-color:#4338ca;color:#c7d2fe}
+html[data-theme="dark"] .ns-tk-suggest-menu{background:#0f172a;border-color:#334155}
+html[data-theme="dark"] .ns-tk-sug-item{color:#e2e8f0}
+html[data-theme="dark"] .ns-tk-sug-item:hover{background:#1e293b;color:#fff}
+html[data-theme="dark"] .ns-tk-sug-tag{background:#1e293b;color:#cbd5e1}
+html[data-theme="dark"] .ns-tk-watch-chip.is-recent{background:#1e1b4b;border-color:#6366f1}
+html[data-theme="dark"] .ns-ov-filter-bar,html[data-theme="dark"] .ns-ov-tabs{background:#0b1324;border-bottom-color:#1e293b}
+html[data-theme="dark"] .ns-ov-kpi,html[data-theme="dark"] .ns-ov-chart-card,html[data-theme="dark"] .ns-ov-bio-col{background:#111a2e;border-color:#24324f}
+html[data-theme="dark"] .ns-ov-kpi b,html[data-theme="dark"] .ns-ov-chart-card h4,html[data-theme="dark"] .ns-ov-bar-head,html[data-theme="dark"] .ns-ov-bio-col h4{color:#f8fafc}
+html[data-theme="dark"] .ns-ov-leg-row{color:#cbd5e1}
+html[data-theme="dark"] .ns-ov-bar-track{background:#1e293b}
+html[data-theme="dark"] .ns-ov-bio-banner{background:linear-gradient(135deg,#131b35,#0c231f);border-color:#2c3a5e}
+html[data-theme="dark"] .ns-ov-mini-task{background:#0b1324;border-color:#24324f}
 html[data-theme="dark"] .ns-tk-det-sec h4,html[data-theme="dark"] .ns-tk-cmt-head b{color:#f1f5f9}
 html[data-theme="dark"] .ns-tk-tl-row{color:#cbd5e1;border-bottom-color:#1e293b}
 html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.35);color:#6ee7b7}
@@ -30608,8 +30812,14 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
     people: [],
     departments: [],
     tickets: [],
+    recentContacts: [],
+    taskScope: 'self',
+    allowedTaskDepts: [],
+    oversightData: null,
+    oversightTab: 'overview',
+    selectedWatchers: new Set(),
     canWrite: true,
-    me: { username:'', name:'', dept:'', site:'', isAdmin:false },
+    me: { username:'', name:'', dept:'', site:'', isAdmin:false, taskScope:'self' },
     section: 'daily',
     stateFilter: 'pending',
     viewMode: 'cards',
@@ -30691,9 +30901,17 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
     const roPill = document.getElementById('nsTasksReadOnlyPill');
     const newBtn = document.getElementById('nsTasksNewBtn');
     const qaForm = document.getElementById('nsTasksQuickAddForm');
+    const ovBtn = document.getElementById('nsTasksOversightBtn');
+    const hasOversight = state.me.isAdmin || state.taskScope === 'manager' || state.taskScope === 'executive';
     if(roPill) roPill.style.display = writable ? 'none' : 'inline-flex';
     if(newBtn) newBtn.style.display = writable ? '' : 'none';
     if(qaForm) qaForm.style.display = writable ? '' : 'none';
+    if(ovBtn){
+      ovBtn.style.display = hasOversight ? '' : 'none';
+      ovBtn.innerHTML = state.taskScope === 'executive' || state.me.isAdmin
+        ? '🏛️ &nbsp;Executive Pulse &amp; Reports'
+        : '📊 &nbsp;Team Oversight &amp; Reports';
+    }
   }
 
   function syncSidebarBadge(){
@@ -31003,6 +31221,9 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
         state.people = Array.isArray(data.people) ? data.people : [];
         state.departments = Array.isArray(data.departments) ? data.departments : [];
         state.tickets = Array.isArray(data.tickets) ? data.tickets : [];
+        state.recentContacts = Array.isArray(data.recentContacts) ? data.recentContacts : [];
+        state.taskScope = String(data.taskScope || data.me?.taskScope || (data.me?.isAdmin ? 'executive' : 'self')).toLowerCase();
+        state.allowedTaskDepts = Array.isArray(data.allowedTaskDepts) ? data.allowedTaskDepts : [];
         state.canWrite = data.canWrite !== false;
         state.me = data.me || state.me;
       }
@@ -31026,17 +31247,187 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
     };
   })();
 
+  function recentContactsStorageKey(){
+    const u = String(state.me.username || 'anon').toLowerCase();
+    return 'ns-task-recent-contacts-v1:' + u;
+  }
+
+  function recordLocalRecentContacts(usernames){
+    const arr = (Array.isArray(usernames) ? usernames : [usernames]).map(x => String(x || '').trim().toLowerCase()).filter(Boolean);
+    if(!arr.length) return;
+    try{
+      const map = JSON.parse(localStorage.getItem(recentContactsStorageKey()) || '{}');
+      const nowIso = new Date().toISOString();
+      arr.forEach(u => {
+        if(u === String(state.me.username || '').toLowerCase()) return;
+        const prev = map[u] || { count: 0, lastAt: '' };
+        map[u] = { count: Number(prev.count || 0) + 1, lastAt: nowIso };
+      });
+      localStorage.setItem(recentContactsStorageKey(), JSON.stringify(map));
+    }catch(_){}
+  }
+
+  function getMergedRecentContacts(){
+    const myU = String(state.me.username || '').toLowerCase();
+    const byU = new Map(state.people.map(p => [p.username.toLowerCase(), p]));
+    const scores = new Map();
+    const mergeOne = (u, count, lastAt) => {
+      const k = String(u || '').toLowerCase();
+      if(!k || k === myU || !byU.has(k)) return;
+      const p = byU.get(k);
+      const prev = scores.get(k) || { username: p.username, name: p.name, dept: p.dept, count: 0, lastAt: '' };
+      prev.count += Number(count || 1);
+      if(String(lastAt || '') > prev.lastAt) prev.lastAt = String(lastAt || '');
+      scores.set(k, prev);
+    };
+    (state.recentContacts || []).forEach(c => mergeOne(c.username, c.count || 1, c.lastAt));
+    try{
+      const loc = JSON.parse(localStorage.getItem(recentContactsStorageKey()) || '{}');
+      Object.entries(loc).forEach(([u, info]) => mergeOne(u, info?.count || 1, info?.lastAt || ''));
+    }catch(_){}
+    return Array.from(scores.values()).sort((a, b) => (b.count - a.count) || b.lastAt.localeCompare(a.lastAt));
+  }
+
+  function getActiveDeptForPicker(){
+    const wm = document.getElementById('nsTaskWorkMode')?.value || 'personal';
+    const td = document.getElementById('nsTaskTargetDeptInput')?.value || '';
+    if((wm === 'department' || wm === 'dept_to_dept') && td) return td;
+    return String(state.me.dept || '').trim();
+  }
+
+  function selectAssignee(username){
+    const inp = document.getElementById('nsTaskAssigneeInput');
+    const srch = document.getElementById('nsTaskAssigneeSearch');
+    const sug = document.getElementById('nsTaskAssigneeSuggest');
+    if(inp) inp.value = username || '';
+    if(srch) srch.value = '';
+    if(sug) sug.style.display = 'none';
+    renderAssigneePicker();
+  }
+
+  function renderAssigneePicker(){
+    const val = String(document.getElementById('nsTaskAssigneeInput')?.value || '').trim();
+    const pill = document.getElementById('nsTaskAssigneeSelectedPill');
+    const recentWrap = document.getElementById('nsTaskAssigneeRecentWrap');
+    const top5 = getMergedRecentContacts().slice(0, 5);
+
+    if(recentWrap){
+      if(top5.length){
+        recentWrap.style.display = 'flex';
+        recentWrap.innerHTML = '<span class="ns-tk-recent-lbl">⚡ Recent Top 5:</span>' +
+          top5.map(c => {
+            const active = val.toLowerCase() === c.username.toLowerCase();
+            return `<button type="button" class="ns-tk-recent-chip${active ? ' active' : ''}" onclick="window.nsTasksModule.selectAssignee('${esc(c.username).replaceAll("'","\\'")}')">👤 ${esc(c.name)} <small>(${esc(c.dept || 'Team')} · ${c.count}×)</small></button>`;
+          }).join('');
+      } else {
+        recentWrap.style.display = 'none';
+      }
+    }
+
+    if(pill){
+      const found = state.people.find(p => p.username.toLowerCase() === val.toLowerCase());
+      if(found){
+        pill.style.display = 'inline-flex';
+        pill.innerHTML = `<span>✅ Selected: <b>${esc(found.name)}</b>${found.dept ? ' · ' + esc(found.dept) : ''} (@${esc(found.username)})</span><button type="button" title="Clear selection" onclick="window.nsTasksModule.selectAssignee('')">✕</button>`;
+      } else if(val){
+        pill.style.display = 'inline-flex';
+        pill.innerHTML = `<span>✅ Selected: <b>${esc(val)}</b></span><button type="button" onclick="window.nsTasksModule.selectAssignee('')">✕</button>`;
+      } else {
+        pill.style.display = 'none';
+      }
+    }
+  }
+
+  function renderAssigneeSuggestions(openMenu=false){
+    const menu = document.getElementById('nsTaskAssigneeSuggest');
+    const srch = document.getElementById('nsTaskAssigneeSearch');
+    if(!menu) return;
+    if(!openMenu){ menu.style.display = 'none'; return; }
+    const q = String(srch?.value || '').trim().toLowerCase();
+    const showAll = !!document.getElementById('nsTaskAssigneeAllDepts')?.checked;
+    const activeDept = getActiveDeptForPicker();
+    const recent = getMergedRecentContacts();
+    const recentTop5Map = new Map(recent.slice(0, 5).map((r, i) => [r.username.toLowerCase(), { ...r, rank: i }]));
+
+    const matchP = (p) => !q || (`${p.name} ${p.username} ${p.dept || ''}`).toLowerCase().includes(q);
+    const recentMatches = recent.slice(0, 5).filter(matchP);
+    const recentKeys = new Set(recentMatches.map(x => x.username.toLowerCase()));
+    const deptMatches = state.people.filter(p => !recentKeys.has(p.username.toLowerCase()) && activeDept && deptMatchesLocal(p.dept, activeDept) && matchP(p));
+    const deptKeys = new Set([...recentKeys, ...deptMatches.map(x => x.username.toLowerCase())]);
+    const otherMatches = (showAll || q || !activeDept)
+      ? state.people.filter(p => !deptKeys.has(p.username.toLowerCase()) && matchP(p))
+      : [];
+
+    let html = '';
+    if(recentMatches.length){
+      html += `<div class="ns-tk-sug-group">⚡ Recent &amp; Frequent History (Top 5)</div>` +
+        recentMatches.map(p => `<button type="button" class="ns-tk-sug-item" onmousedown="event.preventDefault();window.nsTasksModule.selectAssignee('${esc(p.username).replaceAll("'","\\'")}')"><span><b>${esc(p.name)}</b> <small style="opacity:.7">@${esc(p.username)}</small></span><span class="ns-tk-sug-tag recent">⚡ ${p.count}× · ${esc(p.dept || 'Team')}</span></button>`).join('');
+    }
+    if(deptMatches.length){
+      html += `<div class="ns-tk-sug-group">🏢 ${esc(activeDept)} Department</div>` +
+        deptMatches.map(p => `<button type="button" class="ns-tk-sug-item" onmousedown="event.preventDefault();window.nsTasksModule.selectAssignee('${esc(p.username).replaceAll("'","\\'")}')"><span><b>${esc(p.name)}</b> <small style="opacity:.7">@${esc(p.username)}</small></span><span class="ns-tk-sug-tag">${esc(p.dept)}</span></button>`).join('');
+    }
+    if(otherMatches.length){
+      html += `<div class="ns-tk-sug-group">🌐 Other Departments</div>` +
+        otherMatches.slice(0, 18).map(p => `<button type="button" class="ns-tk-sug-item" onmousedown="event.preventDefault();window.nsTasksModule.selectAssignee('${esc(p.username).replaceAll("'","\\'")}')"><span><b>${esc(p.name)}</b> <small style="opacity:.7">@${esc(p.username)}</small></span><span class="ns-tk-sug-tag">${esc(p.dept || 'Workspace')}</span></button>`).join('');
+    }
+    if(!html){
+      html = `<div class="empty-state" style="padding:12px;font-size:12px">No matching colleague found${!showAll && activeDept ? ' in ' + esc(activeDept) + '. Enable "Show all departments" or type a name.' : '.'}</div>`;
+    }
+    menu.innerHTML = html;
+    menu.style.display = 'block';
+  }
+
+  function renderWatchersPicker(){
+    const box = document.getElementById('nsTaskWatchersBox');
+    const badge = document.getElementById('nsTaskWatcherDeptBadge');
+    if(!box) return;
+    const q = String(document.getElementById('nsTaskWatcherSearch')?.value || '').trim().toLowerCase();
+    const showAll = !!document.getElementById('nsTaskWatcherAllDepts')?.checked;
+    const activeDept = getActiveDeptForPicker();
+    if(badge){
+      badge.textContent = showAll ? '🌐 All Departments' : (activeDept ? `🏢 ${activeDept} Dept` : '🌐 Workspace');
+    }
+
+    const recentTop5 = getMergedRecentContacts().slice(0, 5);
+    const recentSet = new Set(recentTop5.map(r => r.username.toLowerCase()));
+    const recentOrder = new Map(recentTop5.map((r, i) => [r.username.toLowerCase(), i]));
+
+    let list = state.people.filter(p => {
+      const k = p.username.toLowerCase();
+      if(q) return (`${p.name} ${p.username} ${p.dept || ''}`).toLowerCase().includes(q);
+      if(showAll || !activeDept) return true;
+      return deptMatchesLocal(p.dept, activeDept) || state.selectedWatchers.has(k) || recentSet.has(k);
+    });
+
+    list.sort((a, b) => {
+      const ak = a.username.toLowerCase(), bk = b.username.toLowerCase();
+      const ar = recentOrder.has(ak) ? recentOrder.get(ak) : 999;
+      const br = recentOrder.has(bk) ? recentOrder.get(bk) : 999;
+      if(ar !== br) return ar - br;
+      const ad = activeDept && deptMatchesLocal(a.dept, activeDept) ? 0 : 1;
+      const bd = activeDept && deptMatchesLocal(b.dept, activeDept) ? 0 : 1;
+      if(ad !== bd) return ad - bd;
+      return a.name.localeCompare(b.name);
+    });
+
+    if(!list.length){
+      box.innerHTML = `<span class="ticket-meta">No teammates match${!showAll && activeDept ? ' in ' + esc(activeDept) : ''}. Check "Show all departments" to include other teams.</span>`;
+      return;
+    }
+    box.innerHTML = list.map(p => {
+      const k = p.username.toLowerCase();
+      const chk = state.selectedWatchers.has(k);
+      const isRec = recentSet.has(k);
+      return `<label class="ns-tk-watch-chip${isRec ? ' is-recent' : ''}"><input type="checkbox" name="nsTaskWatcher" value="${esc(p.username)}" ${chk ? 'checked' : ''} onchange="window.nsTasksModule.toggleWatcherSelection('${esc(p.username).replaceAll("'","\\'")}',this.checked)"> ${isRec ? '⚡ ' : ''}${esc(p.name)}${p.dept ? ' (' + esc(p.dept) + ')' : ''}</label>`;
+    }).join('');
+  }
+
   function populateFormSelects(editTask=null){
-    const asgSel = document.getElementById('nsTaskAssigneeInput');
     const srcSel = document.getElementById('nsTaskSourceDeptInput');
     const tgtSel = document.getElementById('nsTaskTargetDeptInput');
     const tktSel = document.getElementById('nsTaskLinkedTicketInput');
-    const watchBox = document.getElementById('nsTaskWatchersBox');
 
-    if(asgSel){
-      asgSel.innerHTML = '<option value="">— Select colleague —</option>' +
-        state.people.map(p => `<option value="${esc(p.username)}">${esc(p.name)}${p.dept ? ' · ' + esc(p.dept) : ''} (@${esc(p.username)})</option>`).join('');
-    }
     const deptOpts = '<option value="">— Select department —</option>' +
       state.departments.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join('');
     if(srcSel){
@@ -31051,12 +31442,17 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
         tks.map(t => `<option value="${esc(t.id)}">🎫 ${esc(t.id)} · ${esc(t.status || '')} · ${esc((t.summary || t.description || t.primary || '').slice(0, 60))}</option>`).join('');
     }
 
-    if(watchBox){
-      const existingW = new Set((editTask?.watchers || []).map(w => String(w.username || '').toLowerCase()));
-      watchBox.innerHTML = state.people.length
-        ? state.people.map(p => `<label class="ns-tk-watch-chip"><input type="checkbox" name="nsTaskWatcher" value="${esc(p.username)}" ${existingW.has(p.username.toLowerCase()) ? 'checked' : ''}> ${esc(p.name)}${p.dept ? ' (' + esc(p.dept) + ')' : ''}</label>`).join('')
-        : '<span class="ticket-meta">No users available.</span>';
-    }
+    state.selectedWatchers = new Set((editTask?.watchers || []).map(w => String(w.username || '').toLowerCase()).filter(Boolean));
+    const wSrch = document.getElementById('nsTaskWatcherSearch');
+    const wAll = document.getElementById('nsTaskWatcherAllDepts');
+    const aSrch = document.getElementById('nsTaskAssigneeSearch');
+    const aAll = document.getElementById('nsTaskAssigneeAllDepts');
+    if(wSrch) wSrch.value = '';
+    if(wAll) wAll.checked = false;
+    if(aSrch) aSrch.value = '';
+    if(aAll) aAll.checked = false;
+    renderAssigneePicker();
+    renderWatchersPicker();
   }
 
   function setFormWorkMode(wm){
@@ -31076,6 +31472,8 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
     if(srcF) srcF.style.display = mode === 'dept_to_dept' ? '' : 'none';
     if(tgtF) tgtF.style.display = (mode === 'department' || mode === 'dept_to_dept') ? '' : 'none';
     if(tgtLbl) tgtLbl.textContent = mode === 'dept_to_dept' ? 'Target Department (Receiving Dept) *' : 'Department (Team Work) *';
+    renderAssigneePicker();
+    renderWatchersPicker();
   }
 
   function renderModalChecklist(){
@@ -31134,8 +31532,9 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
     }
 
     const defaultWm = prefill.workMode || (state.section === 'teamwork' ? 'department' : (state.section === 'delegated' ? 'delegated' : 'personal'));
-    setFormWorkMode(defaultWm);
     if(prefill.targetDepartment) document.getElementById('nsTaskTargetDeptInput').value = prefill.targetDepartment;
+    document.getElementById('nsTaskAssigneeInput').value = prefill.assigneeUsername || '';
+    setFormWorkMode(defaultWm);
 
     state.modalChecklist = [];
     state.pendingFiles = [];
@@ -31161,10 +31560,10 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
     document.getElementById('nsTaskDueInput').value = (t.dueAt || '').slice(0, 16);
     document.getElementById('nsTaskReminderInput').value = String(t.reminderIntervalMins ?? 60);
     document.getElementById('nsTaskRecurringInput').checked = !!t.recurring;
-    setFormWorkMode(t.workMode || 'personal');
-    if(t.assigneeUsername) document.getElementById('nsTaskAssigneeInput').value = t.assigneeUsername;
     if(t.sourceDepartment) document.getElementById('nsTaskSourceDeptInput').value = t.sourceDepartment;
     if(t.targetDepartment) document.getElementById('nsTaskTargetDeptInput').value = t.targetDepartment;
+    document.getElementById('nsTaskAssigneeInput').value = t.assigneeUsername || '';
+    setFormWorkMode(t.workMode || 'personal');
     if(t.linkedTicketId){
       const tSel = document.getElementById('nsTaskLinkedTicketInput');
       if(tSel && ![...tSel.options].some(o => o.value === t.linkedTicketId)) tSel.add(new Option('🎫 ' + t.linkedTicketId, t.linkedTicketId));
@@ -31206,7 +31605,7 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
       reminderIntervalMins: Number(document.getElementById('nsTaskReminderInput').value || 0),
       recurring: document.getElementById('nsTaskRecurringInput').checked,
       linkedTicketId: document.getElementById('nsTaskLinkedTicketInput').value,
-      watcherUsernames: [...document.querySelectorAll('#nsTaskWatchersBox input[name="nsTaskWatcher"]:checked')].map(x => x.value),
+      watcherUsernames: [...new Set([...Array.from(state.selectedWatchers), ...[...document.querySelectorAll('#nsTaskWatchersBox input[name="nsTaskWatcher"]:checked')].map(x => x.value)])],
       checklist: state.modalChecklist,
     };
     if(!payload.title) return toast('Please enter a task title.');
@@ -31220,6 +31619,7 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
         const r = await api('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         savedTask = r.task;
       }
+      recordLocalRecentContacts([payload.assigneeUsername, ...(payload.watcherUsernames || [])]);
       if(savedTask && state.pendingFiles.length){
         await uploadFilesToTask(savedTask.id, state.pendingFiles);
       }
@@ -31772,9 +32172,310 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
     };
   }
 
+  // Close Google-style suggestion menu when clicking outside
+  document.addEventListener('click', (e) => {
+    const wrap = document.querySelector('.ns-tk-smart-wrap');
+    if(wrap && !wrap.contains(e.target)){
+      const m = document.getElementById('nsTaskAssigneeSuggest');
+      if(m) m.style.display = 'none';
+    }
+  });
+
+  // ==================== MANAGER & EXECUTIVE PULSE OVERSIGHT GUI ====================
+  function buildOversightQuery(){
+    const p = new URLSearchParams();
+    const dept = document.getElementById('nsOvDeptFilter')?.value || '';
+    const user = document.getElementById('nsOvUserFilter')?.value || '';
+    const cadence = document.getElementById('nsOvCadenceFilter')?.value || '';
+    const status = document.getElementById('nsOvStatusFilter')?.value || '';
+    const days = document.getElementById('nsOvDaysFilter')?.value || 'all';
+    if(dept) p.set('dept', dept);
+    if(user) p.set('user', user);
+    if(cadence) p.set('cadence', cadence);
+    if(status) p.set('status', status);
+    if(days && days !== 'all') p.set('days', days);
+    return p.toString();
+  }
+
+  function renderDonutSvg(statusBreakdown, total){
+    const r = 60, circ = 2 * Math.PI * r;
+    let offset = 0;
+    const segs = (statusBreakdown || []).filter(s => s.count > 0).map(s => {
+      const len = total > 0 ? (s.count / total) * circ : 0;
+      const html = `<circle cx="76" cy="76" r="${r}" fill="none" stroke="${esc(s.color)}" stroke-width="20" stroke-dasharray="${len.toFixed(2)} ${(circ - len).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 76 76)"/>`;
+      offset += len;
+      return html;
+    }).join('');
+    return `<div style="position:relative;width:152px;height:152px;flex-shrink:0">
+      <svg viewBox="0 0 152 152" width="152" height="152">
+        <circle cx="76" cy="76" r="${r}" fill="none" stroke="rgba(148,163,184,.2)" stroke-width="20"/>
+        ${segs}
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+        <b style="font:800 22px/1 Manrope,system-ui,sans-serif">${total}</b>
+        <span style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;margin-top:3px">Tasks</span>
+      </div>
+    </div>`;
+  }
+
+  function renderOversightBody(){
+    const body = document.getElementById('nsOvBody');
+    const d = state.oversightData;
+    if(!body) return;
+    if(!d){
+      body.innerHTML = '<div class="empty-state" style="padding:32px">Loading team oversight analytics…</div>';
+      return;
+    }
+    const k = d.kpis || {};
+    if(state.oversightTab === 'overview'){
+      const depts = (d.departmentPivot || []).slice(0, 10);
+      const maxDeptTot = Math.max(1, ...depts.map(x => Number(x.total || 0)));
+      body.innerHTML = `
+        <div class="ns-ov-kpi-row">
+          <div class="ns-ov-kpi" style="border-top-color:#6366f1"><span>Total Tasks</span><b>${k.total ?? 0}</b><small>${k.activeEmployees ?? 0} active staff</small></div>
+          <div class="ns-ov-kpi" style="border-top-color:#10b981"><span>Completion Rate</span><b style="color:#059669">${k.completionRate ?? 0}%</b><small>${k.completed ?? 0} completed</small></div>
+          <div class="ns-ov-kpi" style="border-top-color:#f59e0b"><span>Active Pending</span><b style="color:#d97706">${k.pending ?? 0}</b><small>${k.inProgress ?? 0} in progress</small></div>
+          <div class="ns-ov-kpi" style="border-top-color:#8b5cf6"><span>Awaiting Accept</span><b style="color:#7c3aed">${k.awaitingAcceptance ?? 0}</b><small>Pending ETA commit</small></div>
+          <div class="ns-ov-kpi" style="border-top-color:#f43f5e"><span>Overdue</span><b style="color:#e11d48">${k.overdue ?? 0}</b><small>Needs escalation</small></div>
+          <div class="ns-ov-kpi" style="border-top-color:#06b6d4"><span>Avg Speed &amp; SLA</span><b>${k.avgCompletionHours ?? 0}h</b><small>${k.onTimeRate ?? 100}% on-time SLA</small></div>
+        </div>
+        <div class="ns-ov-charts-grid">
+          <div class="ns-ov-chart-card">
+            <h4>🥧 Task Status Distribution (Pie Breakdown)</h4>
+            <div class="ns-ov-donut-wrap">
+              ${renderDonutSvg(d.statusBreakdown, k.total || 0)}
+              <div class="ns-ov-legend">
+                ${(d.statusBreakdown || []).map(s => `<div class="ns-ov-leg-row"><span><i class="ns-ov-leg-dot" style="background:${esc(s.color)}"></i>${esc(s.status)}</span><b>${s.count} (${s.pct}%)</b></div>`).join('')}
+              </div>
+            </div>
+          </div>
+          <div class="ns-ov-chart-card">
+            <h4>📊 Department Workload (Completed vs Pending vs Overdue)</h4>
+            <div class="ns-ov-bar-list">
+              ${depts.length ? depts.map(dp => {
+                const pend = Number(dp.pending || 0) + Number(dp.inProgress || 0) + Number(dp.awaiting || 0);
+                const compW = Math.round((Number(dp.completed || 0) / maxDeptTot) * 100);
+                const pendW = Math.round((pend / maxDeptTot) * 100);
+                const odW = Math.round((Number(dp.overdue || 0) / maxDeptTot) * 100);
+                return `<div class="ns-ov-bar-row" style="cursor:pointer" onclick="window.nsTasksModule.filterOversightByDept('${esc(dp.department).replaceAll("'","\\'")}')">
+                  <div class="ns-ov-bar-head"><span>🏢 ${esc(dp.department)}</span><span>✅ ${dp.completed} · ⏳ ${pend} · 🔥 ${dp.overdue} (${dp.completionRate}%)</span></div>
+                  <div class="ns-ov-bar-track">
+                    <div style="width:${compW}%;background:#10b981" title="Completed: ${dp.completed}"></div>
+                    <div style="width:${pendW}%;background:#f59e0b" title="Pending: ${pend}"></div>
+                    <div style="width:${odW}%;background:#f43f5e" title="Overdue: ${dp.overdue}"></div>
+                  </div>
+                </div>`;
+              }).join('') : '<div class="empty-state">No department data in selected range.</div>'}
+            </div>
+          </div>
+        </div>
+        <div class="ns-ov-chart-card">
+          <h4>📅 Schedule Cadence Completion (Daily / Weekly / Monthly)</h4>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+            ${(d.cadenceBreakdown || []).map(c => `<div style="padding:11px 13px;border-radius:11px;border:1px solid #e2e8f0">
+              <div style="display:flex;justify-content:space-between;font-weight:800;font-size:12.5px"><span>${c.cadence==='daily'?'☀️':c.cadence==='weekly'?'📅':'🗓️'} ${esc(c.label)}</span><span>${c.rate}%</span></div>
+              <div class="ns-tk-prog-track" style="margin:7px 0"><div class="ns-tk-prog-fill" style="width:${c.rate}%"></div></div>
+              <div class="ticket-meta">Total ${c.total} · ✅ ${c.completed} · ⏳ ${c.pending} · 🔥 ${c.overdue}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    if(state.oversightTab === 'pivot'){
+      const rows = d.departmentPivot || [];
+      body.innerHTML = `<div class="ns-ov-chart-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <h4 style="margin:0">🗂️ Department × Status &amp; Cadence Pivot Table</h4>
+          <span class="ticket-meta">Click any department row to drill into its employees · Export Excel for live COUNTIFS Pivot</span>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>DEPARTMENT</th><th>TOTAL</th><th>DAILY</th><th>WEEKLY</th><th>MONTHLY</th><th>PENDING</th><th>AWAITING</th><th>IN PROG</th><th>OVERDUE</th><th>COMPLETED</th><th>DONE %</th><th>AVG HRS</th></tr></thead>
+          <tbody>
+            ${rows.length ? rows.map(r => `<tr style="cursor:pointer" onclick="window.nsTasksModule.filterOversightByDept('${esc(r.department).replaceAll("'","\\'")}')">
+              <td><b>🏢 ${esc(r.department)}</b></td><td><b>${r.total}</b></td>
+              <td>${r.daily}</td><td>${r.weekly}</td><td>${r.monthly}</td>
+              <td>${r.pending}</td><td>${r.awaiting}</td><td>${r.inProgress}</td>
+              <td style="color:${r.overdue>0?'#dc2626':'inherit'};font-weight:${r.overdue>0?'800':'600'}">${r.overdue}</td>
+              <td style="color:#059669;font-weight:800">${r.completed}</td>
+              <td><span class="ns-tk-pill ns-tk-pill-st-done">${r.completionRate}%</span></td>
+              <td>${r.avgHours}h</td>
+            </tr>`).join('') : '<tr><td colspan="12" class="empty-state">No department records match these filters.</td></tr>'}
+          </tbody>
+        </table></div>
+      </div>`;
+      return;
+    }
+
+    // Biography / Employee Leaderboard Tab
+    if(d.employeeBiography){
+      const bio = d.employeeBiography;
+      const p = bio.profile || {};
+      const miniCard = (t) => `<div class="ns-ov-mini-task" onclick="window.nsTasksModule.openTaskFromOversight('${esc(t.id).replaceAll("'","\\'")}')">
+        <div style="display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;font-size:10.5px;margin-bottom:3px">
+          <b>${esc(t.id)} · ${esc(String(t.cadence || 'daily').toUpperCase())}</b>
+          <span style="font-weight:800;color:${t.overdue?'#dc2626':(t.status==='Completed'?'#059669':'#4f46e5')}">${t.overdue?'🔥 Overdue':esc(t.status)}</span>
+        </div>
+        <div style="font-weight:700;font-size:12.5px">${esc(t.title)}</div>
+        <div class="ticket-meta" style="margin-top:3px">
+          ${t.committedDueAt ? 'ETA: ' + esc(fmtDt(t.committedDueAt)) : (t.dueAt ? 'Due: ' + esc(fmtDt(t.dueAt)) : '')}
+          ${t.turnaroundHours != null ? ' · ⏱ ' + t.turnaroundHours + 'h' : ''}
+          ${t.linkedTicketId ? ' · 🎫 ' + esc(t.linkedTicketId) : ''}
+        </div>
+        ${t.acceptancePlan ? `<div class="ticket-meta" style="margin-top:3px;color:#059669">Plan: ${esc(t.acceptancePlan.slice(0, 90))}</div>` : ''}
+      </div>`;
+
+      body.innerHTML = `
+        <div class="ns-ov-bio-banner">
+          <div>
+            <div style="font-size:11px;font-weight:800;color:#4f46e5;text-transform:uppercase">📖 COMPLETE EMPLOYEE TASK BIOGRAPHY &amp; HISTORY</div>
+            <h3 style="margin:3px 0 2px;font:800 19px Manrope,system-ui,sans-serif">${esc(p.name)} <small style="font-weight:600;opacity:.75">(@${esc(p.username)} · ${esc(p.dept || 'General')} · ${esc(p.site || '-')})</small></h3>
+            <div class="ticket-meta">Total ${p.total ?? 0} · Active Pending ${p.activePending ?? 0} · Completed ${p.completed ?? 0} (${p.completionRate ?? 0}%) · Overdue ${p.overdue ?? 0} · On-Time SLA ${p.onTimeRate ?? 100}% · Avg Finish ${p.avgHours ?? 0}h</div>
+          </div>
+          <button type="button" class="btn" onclick="window.nsTasksModule.clearBiographyUser()">← Back to Team Leaderboard</button>
+        </div>
+        <div class="ns-ov-bio-grid">
+          <div class="ns-ov-bio-col">
+            <h4>⏳ Currently Pending / On Desk (${(bio.currentlyPending || []).length})</h4>
+            ${(bio.currentlyPending || []).length ? bio.currentlyPending.map(miniCard).join('') : '<div class="ticket-meta">No pending tasks right now — desk is clear!</div>'}
+          </div>
+          <div class="ns-ov-bio-col">
+            <h4>🏆 Completed History (${(bio.completedHistory || []).length})</h4>
+            ${(bio.completedHistory || []).length ? bio.completedHistory.map(miniCard).join('') : '<div class="ticket-meta">No completed tasks in selected period.</div>'}
+          </div>
+          <div class="ns-ov-bio-col">
+            <h4>🔗 Delegated &amp; Collaboration History (${(bio.delegatedAndHandoff || []).length})</h4>
+            ${(bio.delegatedAndHandoff || []).length ? bio.delegatedAndHandoff.map(miniCard).join('') : '<div class="ticket-meta">No delegated or forwarded tasks in selected period.</div>'}
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    const lb = d.employeeLeaderboard || [];
+    body.innerHTML = `<div class="ns-ov-chart-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <h4 style="margin:0">🧑‍💼 Team Workload &amp; Performance Leaderboard (${lb.length} employees in your authorized scope)</h4>
+        <span class="ticket-meta">Click "📖 Biography" on any person to inspect their full pending work, completed history &amp; delegations</span>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>EMPLOYEE · DEPT</th><th>TOTAL</th><th>PENDING NOW</th><th>AWAITING</th><th>OVERDUE</th><th>COMPLETED</th><th>DONE %</th><th>AVG HRS</th><th>CURRENTLY WORKING ON</th><th>ACTION</th></tr></thead>
+        <tbody>
+          ${lb.length ? lb.map(e => {
+            const cur = (e.currentTasks || []).slice(0, 2).map(ct => `<div style="font-size:11px;white-space:normal">${ct.overdue ? '🔥 ' : '• '}<b>${esc(ct.id)}</b> ${esc((ct.title || '').slice(0, 38))}</div>`).join('') || '<span class="ticket-meta">All clear</span>';
+            return `<tr>
+              <td><b>${esc(e.name)}</b><div class="ticket-meta">${esc(e.dept)} · ${esc(e.site)}</div></td>
+              <td><b>${e.total}</b></td>
+              <td style="font-weight:800;color:${e.activePending>0?'#d97706':'#64748b'}">${e.activePending}</td>
+              <td>${e.awaiting}</td>
+              <td style="font-weight:800;color:${e.overdue>0?'#dc2626':'#64748b'}">${e.overdue}</td>
+              <td style="font-weight:800;color:#059669">${e.completed}</td>
+              <td><span class="ns-tk-pill ns-tk-pill-st-done">${e.completionRate}%</span></td>
+              <td>${e.avgHours}h</td>
+              <td style="min-width:190px;max-width:260px">${cur}</td>
+              <td><button type="button" class="btn" style="padding:4px 10px;font-size:11.5px" onclick="window.nsTasksModule.openEmployeeBiography('${esc(e.username).replaceAll("'","\\'")}')">📖 Biography →</button></td>
+            </tr>`;
+          }).join('') : '<tr><td colspan="10" class="empty-state">No employees in selected department filter.</td></tr>'}
+        </tbody>
+      </table></div>
+    </div>`;
+  }
+
+  async function loadOversight(opts={}){
+    if(opts.reset){
+      ['nsOvDeptFilter','nsOvUserFilter','nsOvCadenceFilter','nsOvStatusFilter'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+      const dEl = document.getElementById('nsOvDaysFilter'); if(dEl) dEl.value = 'all';
+    }
+    try{
+      const qs = buildOversightQuery();
+      const data = await api('/api/tasks/oversight' + (qs ? '?' + qs : ''));
+      state.oversightData = data;
+      const sb = document.getElementById('nsOvScopeBadge');
+      const dn = document.getElementById('nsOvAllowedDeptsNote');
+      if(sb) sb.textContent = (data.scope === 'executive' ? '🏛️ ' : '👔 ') + (data.scopeLabel || 'Team Oversight');
+      if(dn) dn.textContent = data.scope === 'executive' ? 'All departments A–Z' : ('Authorized: ' + (data.allowedDepartments || []).join(', '));
+
+      const deptSel = document.getElementById('nsOvDeptFilter');
+      if(deptSel){
+        const cur = deptSel.value;
+        const ad = data.allowedDepartments || [];
+        deptSel.innerHTML = '<option value="">All permitted departments</option>' + ad.map(x => `<option value="${esc(x)}">🏢 ${esc(x)}</option>`).join('');
+        if(ad.includes(cur)) deptSel.value = cur;
+      }
+      const userSel = document.getElementById('nsOvUserFilter');
+      if(userSel){
+        const curU = userSel.value;
+        const emps = data.employeeLeaderboard || [];
+        userSel.innerHTML = '<option value="">All team members</option>' + emps.map(e => `<option value="${esc(e.username)}">${esc(e.name)} (${esc(e.dept)})</option>`).join('');
+        if(emps.some(e => e.username.toLowerCase() === curU.toLowerCase())) userSel.value = curU;
+      }
+      renderOversightBody();
+    }catch(err){
+      toast(err.message || 'Oversight access denied');
+    }
+  }
+
+  function openOversightModal(){
+    if(!(state.me.isAdmin || state.taskScope === 'manager' || state.taskScope === 'executive')){
+      return toast('Manager or Executive Pulse oversight access is required.');
+    }
+    state.oversightTab = 'overview';
+    document.querySelectorAll('#nsOvTabs button').forEach(b => b.classList.toggle('active', b.dataset.ovTab === 'overview'));
+    document.getElementById('nsTaskOversightModal')?.classList.add('open');
+    loadOversight();
+  }
+  function closeOversightModal(){ document.getElementById('nsTaskOversightModal')?.classList.remove('open'); }
+  function setOversightTab(tab){
+    state.oversightTab = tab;
+    document.querySelectorAll('#nsOvTabs button').forEach(b => b.classList.toggle('active', b.dataset.ovTab === tab));
+    renderOversightBody();
+  }
+  function filterOversightByDept(deptName){
+    const ds = document.getElementById('nsOvDeptFilter');
+    if(ds){ ds.value = deptName; }
+    setOversightTab('biography');
+    loadOversight();
+  }
+  function openEmployeeBiography(username){
+    const us = document.getElementById('nsOvUserFilter');
+    if(us){ us.value = username; }
+    setOversightTab('biography');
+    loadOversight();
+  }
+  function clearBiographyUser(){
+    const us = document.getElementById('nsOvUserFilter');
+    if(us){ us.value = ''; }
+    loadOversight();
+  }
+  function openTaskFromOversight(taskId){
+    closeOversightModal();
+    openTaskDetail(taskId);
+  }
+  function exportOversightExcel(){
+    const qs = buildOversightQuery();
+    const url = '/api/tasks/export/excel' + (qs ? '?' + qs : '');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Northstar-Tasks-Oversight-Report.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast('📥 Downloading Excel report with Pie Chart, Bar Chart & Department Pivot...');
+  }
+
   window.nsTasksModule = {
     load, refreshSilent, render, setSection, setStateFilter, setViewMode, applyKpiFilter,
     openCreateModal, openEditModal, closeCreateModal, setFormWorkMode,
+    selectAssignee, renderAssigneePicker, renderAssigneeSuggestions, renderWatchersPicker,
+    onTargetDeptChange(){ renderAssigneePicker(); renderWatchersPicker(); },
+    toggleWatcherSelection(username, checked){
+      const k = String(username || '').toLowerCase();
+      if(!k) return;
+      if(checked) state.selectedWatchers.add(k); else state.selectedWatchers.delete(k);
+    },
+    openOversightModal, closeOversightModal, loadOversight, setOversightTab,
+    filterOversightByDept, openEmployeeBiography, clearBiographyUser, openTaskFromOversight, exportOversightExcel,
     addModalChecklistItem(){
       const inp = document.getElementById('nsTaskChkNewInput');
       const txt = String(inp?.value || '').trim();
