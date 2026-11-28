@@ -3101,51 +3101,88 @@ def login():
             return jsonify(error="Too many attempts. Wait 15 minutes and try again."), 429
         local_state = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
     local_users = local_state[0] if local_state else []
-    local_user = next((u for u in local_users if str(u.get("username", "")).casefold() == username.casefold()), None)
+    raw_u = username.strip()
+    short_u = raw_u.split("\\", 1)[1].strip() if "\\" in raw_u else raw_u
+    cands_cf = {raw_u.casefold(), short_u.casefold()}
+    local_user = next(
+        (
+            u for u in local_users
+            if isinstance(u, dict) and (
+                str(u.get("username", "")).casefold() in cands_cf
+                or str(u.get("adSamAccountName", "")).casefold() in cands_cf
+                or (u.get("adUpn") and str(u.get("adUpn", "")).casefold() in cands_cf)
+            )
+        ),
+        None,
+    )
     password_hash = local_user.get("password_hash") if local_user and local_user.get("enabled", True) else LOGIN_DUMMY_HASH
+    authed_user = None
+    auth_source = "local"
+    ad_dom_name = ""
     if local_user and local_user.get("enabled", True) and local_user.get("password_hash"):
         try:
             valid_local = check_password_hash(local_user["password_hash"], password)
         except (ValueError, TypeError):
             valid_local = False
         if valid_local:
-            profile = {"username": str(local_user["username"]).lower(), "name": local_user.get("name") or local_user["username"], "email": local_user.get("email", ""), "dept": local_user.get("dept", ""), "site": local_user.get("site", ""), "role": local_user.get("role", "User"), "profile_picture": local_user.get("profile_picture", ""), "groups": []}
-            profile["module_permissions"] = local_user.get("module_permissions") if isinstance(local_user.get("module_permissions"), dict) else module_permissions_for(profile)
-            if isinstance(local_user.get("allowed_complaint_desks"), list):
-                profile["allowed_complaint_desks"] = local_user["allowed_complaint_desks"]
-            g_sc = str(local_user.get("gate_scope") or "dept").strip().lower()
-            profile["gate_scope"] = g_sc if g_sc in ("dept", "management", "security") else "dept"
-            g_dp = local_user.get("gate_departments")
-            profile["gate_departments"] = [str(x).strip() for x in g_dp if str(x).strip()] if isinstance(g_dp, list) else []
-            t_sc = str(local_user.get("task_scope") or "self").strip().lower()
-            profile["task_scope"] = t_sc if t_sc in ("self", "manager", "executive") else "self"
-            t_dp = local_user.get("task_departments")
-            profile["task_departments"] = [str(x).strip() for x in t_dp if str(x).strip()] if isinstance(t_dp, list) else []
-            sid = secrets.token_urlsafe(32)
-            auth_ver = int(local_user.get("auth_version", 0) or 0)
-            with db() as conn:
-                conn.execute("DELETE FROM login_attempts WHERE client_ip=%s", (remote_ip,))
-                conn.execute(
-                    "DELETE FROM user_sessions WHERE last_seen_at < now() - make_interval(mins => %s) "
-                    "OR created_at < now() - make_interval(hours => %s)",
-                    (SESSION_IDLE_MINUTES, SESSION_MAX_HOURS),
-                )
-                conn.execute(
-                    "INSERT INTO user_sessions(sid, username, auth_version, client_ip) VALUES(%s, %s, %s, %s)",
-                    (sid, profile["username"], auth_ver, remote_ip),
-                )
-            session.clear()
-            session.permanent = False
-            session["sid"] = sid
-            session["auth_version"] = auth_ver
-            session["is_admin"] = profile["role"] == "Administrator"
-            session["profile"] = {key: value for key, value in profile.items() if key != "groups"}
-            return jsonify(profile=session["profile"], isAdmin=session["is_admin"])
+            authed_user = local_user
     else:
         try:
             check_password_hash(password_hash, password)
         except (ValueError, TypeError):
             pass
+
+    if authed_user is None:
+        ad_u, ad_dom = _ad_authenticate_login_user(raw_u, password, local_user)
+        if ad_u is not None:
+            authed_user = ad_u
+            auth_source = "ad"
+            ad_dom_name = str((ad_dom or {}).get("name") or ad_u.get("adDomainName") or "")
+
+    if authed_user is not None:
+        profile = {
+            "username": str(authed_user["username"]).lower(),
+            "name": authed_user.get("name") or authed_user["username"],
+            "email": authed_user.get("email", ""),
+            "dept": authed_user.get("dept") or authed_user.get("department") or "",
+            "site": authed_user.get("site", ""),
+            "role": authed_user.get("role", "User"),
+            "profile_picture": authed_user.get("profile_picture", ""),
+            "authSource": auth_source,
+            "adDomainName": ad_dom_name,
+            "groups": [],
+        }
+        profile["module_permissions"] = authed_user.get("module_permissions") if isinstance(authed_user.get("module_permissions"), dict) else module_permissions_for(profile)
+        if isinstance(authed_user.get("allowed_complaint_desks"), list):
+            profile["allowed_complaint_desks"] = authed_user["allowed_complaint_desks"]
+        g_sc = str(authed_user.get("gate_scope") or "dept").strip().lower()
+        profile["gate_scope"] = g_sc if g_sc in ("dept", "management", "security") else "dept"
+        g_dp = authed_user.get("gate_departments")
+        profile["gate_departments"] = [str(x).strip() for x in g_dp if str(x).strip()] if isinstance(g_dp, list) else []
+        t_sc = str(authed_user.get("task_scope") or "self").strip().lower()
+        profile["task_scope"] = t_sc if t_sc in ("self", "manager", "executive") else "self"
+        t_dp = authed_user.get("task_departments")
+        profile["task_departments"] = [str(x).strip() for x in t_dp if str(x).strip()] if isinstance(t_dp, list) else []
+        sid = secrets.token_urlsafe(32)
+        auth_ver = int(authed_user.get("auth_version", 0) or 0)
+        with db() as conn:
+            conn.execute("DELETE FROM login_attempts WHERE client_ip=%s", (remote_ip,))
+            conn.execute(
+                "DELETE FROM user_sessions WHERE last_seen_at < now() - make_interval(mins => %s) "
+                "OR created_at < now() - make_interval(hours => %s)",
+                (SESSION_IDLE_MINUTES, SESSION_MAX_HOURS),
+            )
+            conn.execute(
+                "INSERT INTO user_sessions(sid, username, auth_version, client_ip) VALUES(%s, %s, %s, %s)",
+                (sid, profile["username"], auth_ver, remote_ip),
+            )
+        session.clear()
+        session.permanent = False
+        session["sid"] = sid
+        session["auth_version"] = auth_ver
+        session["is_admin"] = profile["role"] == "Administrator"
+        session["profile"] = {key: value for key, value in profile.items() if key != "groups"}
+        return jsonify(profile=session["profile"], isAdmin=session["is_admin"])
     with db() as conn:
         conn.execute("INSERT INTO login_attempts(client_ip,failures,blocked_until) VALUES(%s,1,NULL) ON CONFLICT(client_ip) DO UPDATE SET failures=login_attempts.failures+1, blocked_until=CASE WHEN login_attempts.failures+1>=5 THEN now()+interval '15 minutes' ELSE NULL END", (remote_ip,))
     return jsonify(error="Sign-in failed. Check your username and password."), 401
@@ -3283,10 +3320,10 @@ def get_profile_preferences():
 def save_profile_preferences():
     payload = request.get_json(silent=True) or {}
     valid_views = {
-        "dashboard", "assets", "datacenter", "tickets", "ticketing", "visitors", "gatepass",
-        "maintenance", "ageing", "users", "departments", "factories", "valuation", "billing",
-        "software", "firmware", "credentials", "monitoring", "networkmap", "snmp",
-        "notifications", "surveillance", "parts", "reports", "backups", "settings"
+        "dashboard", "assets", "datacenter", "tickets", "ticketing", "messages", "tasks", "ad",
+        "visitors", "gatepass", "maintenance", "ageing", "users", "departments", "factories",
+        "valuation", "billing", "software", "firmware", "credentials", "monitoring", "networkmap",
+        "snmp", "notifications", "surveillance", "parts", "reports", "backups", "settings"
     }
     order = payload.get("order")
     hidden = payload.get("hidden", [])
@@ -4779,7 +4816,7 @@ def get_data():
                 out["settings"] = dict(ticketing_cfg)
             out["users"] = [
                 {k: v for k, v in u.items() if k not in ("password_hash", "recovery_answer_hashes")}
-                | {"source": "manual", "hasRecoveryQuestions": bool(u.get("recovery_answer_hashes"))}
+                | {"source": (u.get("source") or "manual"), "hasRecoveryQuestions": bool(u.get("recovery_answer_hashes"))}
                 for u in out.pop("manual_users", [])
             ]
             out["factories_config"] = safe_factories
@@ -4793,11 +4830,11 @@ def get_data():
             if "manual_users" in allowed:
                 out["users"] = [
                     {k: v for k, v in u.items() if k not in ("password_hash", "recovery_answer_hashes", "module_permissions", "allowed_complaint_desks", "gate_scope", "gate_departments", "task_scope", "task_departments")}
-                    | {"source": "manual", "hasRecoveryQuestions": bool(u.get("recovery_answer_hashes"))}
+                    | {"source": (u.get("source") or "manual"), "hasRecoveryQuestions": bool(u.get("recovery_answer_hashes"))}
                     for u in manuals
                 ]
             elif any(k in allowed for k in ("assets", "departments", "maintenance", "parts_inventory", "invoices", "software")) or module_access(who, "tickets") or module_access(who, "visitors") or module_access(who, "gatepass") or module_access(who, "notifications"):
-                out["users"] = [{k: v for k, v in u.items() if k in ("username", "name", "email", "dept", "department", "subdept", "site", "role", "enabled", "active", "employment", "gender")} | {"source": "manual"} for u in manuals]
+                out["users"] = [{k: v for k, v in u.items() if k in ("username", "name", "email", "dept", "department", "subdept", "site", "role", "enabled", "active", "employment", "gender", "source", "adDomainId", "adDomainName", "adSamAccountName", "adUpn")} | {"source": (u.get("source") or "manual")} for u in manuals]
             else:
                 out["users"] = [{k: v for k, v in who.items() if k in ("username", "name", "email", "dept", "department", "site", "role", "gender")}]
             out.pop("settings", None)
@@ -5029,6 +5066,13 @@ def save_data():
                         if "password_hash" not in user:
                             user["password_hash"] = ""
                         user["username"] = username
+                        if prior and (prior.get("source") == "ad_sync" or prior.get("adDomainId")):
+                            user["source"] = "ad_sync"
+                            for ad_k in ("authType", "adDomainId", "adDomainName", "adDn", "adSamAccountName", "adUpn", "adEnabled", "adLockedOut"):
+                                if ad_k in prior and not user.get(ad_k):
+                                    user[ad_k] = prior[ad_k]
+                        elif user.get("source") != "ad_sync":
+                            user["source"] = "manual"
                         user["role"] = user.get("role") if user.get("role") in ("Administrator", "IT Ticketing", "Viewer") else "User"
                         user["enabled"] = user.get("enabled", True)
                         user["gender"] = _clean_gender(user.get("gender") if "gender" in user else prior.get("gender"))
@@ -15713,6 +15757,7 @@ def _run_ad_auto_sync_tick():
                             item["serverInfo"] = sinfo
                             item["counts"] = {k: len(snap.get(k) or []) for k in ("ous", "users", "groups", "computers")}
                     _save_ad_domains_doc(conn, d_doc)
+                    _sync_ad_users_into_manual_users(conn, d, snap.get("users") or [])
                     _pg_emit_notify(conn, "ad_directory", {"domainId": d["id"], "action": "auto_sync"})
             except Exception as exc:
                 try:
@@ -15874,6 +15919,7 @@ def create_ad_domain():
             c_doc = _load_ad_cache_doc(conn, for_update=True)
             c_doc["byDomain"][dom_id] = snap
             _save_ad_cache_doc(conn, c_doc)
+            _sync_ad_users_into_manual_users(conn, dom, snap.get("users") or [])
         _record_ad_audit(conn, dom_id, name, "domain_add", base_dn, name, actor, f"Configured {preset['label']} ({host}:{port})")
         _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "domain_add"})
 
@@ -15972,6 +16018,7 @@ def sync_ad_domain(dom_id):
             dom["serverInfo"] = sinfo
             _ad_update_domain_counts(dom, snap)
             _save_ad_domains_doc(conn, d_doc)
+            _sync_ad_users_into_manual_users(conn, dom, snap.get("users") or [])
             _record_ad_audit(conn, dom_id, dom["name"], "sync", dom["baseDn"], dom["name"], actor, f"Synced {dom['counts']['users']} users, {dom['counts']['groups']} groups, {dom['counts']['ous']} OUs ({ms} ms)")
             _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "sync"})
         return jsonify(ok=True, domain=_sanitize_ad_domain(dom), counts=dom["counts"], latencyMs=ms, syncedAt=snap["syncedAt"])
@@ -16168,6 +16215,7 @@ def create_ad_user(dom_id):
         _save_ad_cache_doc(conn, c_doc)
         _ad_update_domain_counts(dom, cache)
         _save_ad_domains_doc(conn, d_doc)
+        _sync_ad_users_into_manual_users(conn, dom, [user_rec], partial=True)
         _record_ad_audit(conn, dom_id, dom["name"], "user_create", new_dn, display, actor, f"Created user {sam} in {_ad_rdn_value(parent_dn)}")
         _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "user_create", "dn": new_dn})
     return jsonify(ok=True, user=user_rec), 201
@@ -16261,6 +16309,7 @@ def update_ad_user(dom_id):
                 g["members"] = [new_dn if m == dn else m for m in (g.get("members") or [])]
         cache["rev"] = int(cache.get("rev") or 0) + 1
         _save_ad_cache_doc(conn, c_doc)
+        _sync_ad_users_into_manual_users(conn, dom, [u], partial=True)
         _record_ad_audit(conn, dom_id, dom["name"], "user_edit", new_dn, u.get("displayName", ""), actor, f"Modified user {u.get('samAccountName')}")
         _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "user_edit", "dn": new_dn})
     return jsonify(ok=True, user=u)
@@ -16297,6 +16346,7 @@ def delete_ad_user(dom_id):
         _save_ad_cache_doc(conn, c_doc)
         _ad_update_domain_counts(dom, cache)
         _save_ad_domains_doc(conn, d_doc)
+        _sync_ad_users_into_manual_users(conn, dom, cache.get("users") or [], partial=False)
         _record_ad_audit(conn, dom_id, dom["name"], "user_delete", dn, (removed or {}).get("displayName", _ad_rdn_value(dn)), actor, f"Deleted AD user {_ad_rdn_value(dn)}")
         _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "user_delete", "dn": dn})
     return jsonify(ok=True, deletedDn=dn)
@@ -16395,6 +16445,7 @@ def toggle_ad_user_status(dom_id):
             u["uac"] = new_uac
             cache["rev"] = int(cache.get("rev") or 0) + 1
             _save_ad_cache_doc(conn, c_doc)
+            _sync_ad_users_into_manual_users(conn, dom, [u], partial=True)
         _record_ad_audit(conn, dom_id, dom["name"], "user_enable" if enabled else "user_disable", dn, (u or {}).get("displayName", _ad_rdn_value(dn)), actor, "Enabled account" if enabled else "Disabled account")
         _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "toggle_status", "dn": dn})
     return jsonify(ok=True, user=u)
@@ -16896,6 +16947,346 @@ def ad_computer_action(dom_id):
     return jsonify(ok=True, action=action, dn=new_dn)
 
 
+def _ad_escape_filter(val):
+    s = str(val or "")
+    for ch, rep in (("\\", r"\5c"), ("*", r"\2a"), ("(", r"\28"), (")", r"\29"), ("\x00", r"\00")):
+        s = s.replace(ch, rep)
+    return s
+
+
+def _ad_dept_row_info(d):
+    if isinstance(d, list):
+        return {
+            "name": str(d[0] if len(d) > 0 else "").strip(),
+            "factory": str((d[6] if len(d) > 6 and d[6] else (d[1] if len(d) > 1 else "ARG")) or "ARG").strip(),
+            "code": str(d[2] if len(d) > 2 else "").strip(),
+            "parent": str(d[7] if len(d) > 7 else "").strip(),
+            "kind": str(d[8] if len(d) > 8 and d[8] else "department").strip(),
+        }
+    if isinstance(d, dict):
+        return {
+            "name": str(d.get("name") or "").strip(),
+            "factory": str(d.get("factory") or d.get("site") or "ARG").strip(),
+            "code": str(d.get("code") or "").strip(),
+            "parent": str(d.get("parent") or "").strip(),
+            "kind": str(d.get("kind") or "department").strip(),
+        }
+    return {"name": "", "factory": "ARG", "code": "", "parent": "", "kind": "department"}
+
+
+def _sync_ad_users_into_manual_users(conn, dom, ad_users, default_site="", partial=False):
+    """Auto-provisions & updates AD users inside manual_users WITHOUT ever overwriting
+    local passwords, roles, module_permissions, IPs/MACs, or custom scopes!"""
+    dom_id = str(dom.get("id") or "")
+    dom_name = str(dom.get("name") or dom.get("dnsDomain") or "Active Directory")[:120]
+    u_row = conn.execute("SELECT value FROM app_state WHERE key='manual_users' FOR UPDATE").fetchone()
+    existing = list(u_row[0] if u_row and isinstance(u_row[0], list) else [])
+    d_row = conn.execute("SELECT value FROM app_state WHERE key='departments'").fetchone()
+    raw_depts = list(d_row[0] if d_row and isinstance(d_row[0], list) else [])
+    s_row = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
+    settings_val = s_row[0] if s_row and isinstance(s_row[0], dict) else {}
+
+    known_factories = []
+    for f in (settings_val.get("factories") or []):
+        code = str(f.get("code") if isinstance(f, dict) else f or "").strip()
+        if code and code not in known_factories:
+            known_factories.append(code)
+    for fallback_f in ("SS-ALL", "ARG", "ARB", "ARC", "ARF"):
+        if fallback_f not in known_factories:
+            known_factories.append(fallback_f)
+    dept_factory_map = {}
+    for d in raw_depts:
+        info = _ad_dept_row_info(d)
+        if info["name"] and info["name"].casefold() not in dept_factory_map:
+            dept_factory_map[info["name"].casefold()] = info["factory"]
+    fallback_site = str(default_site or (known_factories[0] if known_factories else "ARG")).strip()[:40]
+
+    by_u = {}
+    by_dn = {}
+    for x in existing:
+        if not isinstance(x, dict):
+            continue
+        uk = str(x.get("username") or "").strip().casefold()
+        if uk:
+            by_u[uk] = x
+        adn = str(x.get("adDn") or "").strip().casefold()
+        if adn and str(x.get("adDomainId") or "") == dom_id:
+            by_dn[adn] = x
+
+    created, updated = 0, 0
+    seen_dns = set()
+    for au in (ad_users or []):
+        raw_sam = str(au.get("samAccountName") or "").strip()
+        if not raw_sam or raw_sam.endswith("$") or raw_sam.casefold() in ("krbtgt", "guest"):
+            continue
+        sam = re.sub(r"[^A-Za-z0-9._@-]+", ".", raw_sam).strip(".")[:80]
+        if len(sam) < 3:
+            continue
+        dn = str(au.get("dn") or "").strip()
+        seen_dns.add(dn.casefold())
+        key = sam.casefold()
+        rec = by_dn.get(dn.casefold()) or by_u.get(key)
+        au_dept = str(au.get("department") or "").strip()
+        au_office = str(au.get("office") or "").strip()
+        matched_site = dept_factory_map.get(au_dept.casefold(), "")
+        if not matched_site and au_office and any(f.casefold() == au_office.casefold() for f in known_factories):
+            matched_site = next(f for f in known_factories if f.casefold() == au_office.casefold())
+        au_enabled = bool(au.get("enabled", True))
+
+        if rec is not None:
+            # NEVER overwrite password_hash, role, module_permissions, IPs/MACs, or custom scopes!
+            if au.get("displayName"):
+                rec["name"] = au["displayName"]
+            if au.get("mail"):
+                rec["email"] = au["mail"]
+            if au_dept and (rec.get("source") == "ad_sync" or not rec.get("dept")):
+                rec["dept"] = au_dept
+                rec["department"] = au_dept
+            if au.get("title"):
+                rec["title"] = au["title"]
+            if au.get("phone") or au.get("mobile"):
+                rec["phone"] = au.get("phone") or au.get("mobile")
+            if not rec.get("site"):
+                rec["site"] = matched_site or fallback_site
+            rec["adDomainId"] = dom_id
+            rec["adDomainName"] = dom_name
+            rec["adDn"] = dn
+            rec["adSamAccountName"] = raw_sam
+            rec["adUpn"] = str(au.get("upn") or "")
+            rec["adEnabled"] = au_enabled
+            rec["adLockedOut"] = bool(au.get("lockedOut"))
+            rec.pop("adRemoved", None)
+            if rec.get("source") == "ad_sync":
+                rec["authType"] = "ad"
+                rec["enabled"] = au_enabled if rec.get("enabled") is not False else False
+                if not au_enabled:
+                    rec["employment"] = "Inactive"
+                    rec["active"] = "Inactive"
+            updated += 1
+        else:
+            new_rec = {
+                "username": sam,
+                "id": sam,
+                "name": au.get("displayName") or sam,
+                "email": au.get("mail") or "",
+                "phone": au.get("phone") or au.get("mobile") or "",
+                "dept": au_dept,
+                "department": au_dept,
+                "subdept": "",
+                "title": au.get("title") or "",
+                "site": matched_site or fallback_site,
+                "role": "User",
+                "enabled": au_enabled,
+                "employment": "Active" if au_enabled else "Inactive",
+                "active": "Active" if au_enabled else "Inactive",
+                "gender": "Unspecified",
+                "source": "ad_sync",
+                "authType": "ad",
+                "adDomainId": dom_id,
+                "adDomainName": dom_name,
+                "adDn": dn,
+                "adSamAccountName": raw_sam,
+                "adUpn": str(au.get("upn") or ""),
+                "adEnabled": au_enabled,
+                "adLockedOut": bool(au.get("lockedOut")),
+                "password_hash": "",
+                "module_permissions": {"tickets": "read", "tasks": "write"},
+                "allowed_complaint_desks": ["*"],
+                "gate_scope": "dept",
+                "gate_departments": [],
+                "task_scope": "self",
+                "task_departments": [],
+            }
+            existing.append(new_rec)
+            by_u[key] = new_rec
+            if dn:
+                by_dn[dn.casefold()] = new_rec
+            created += 1
+
+    # On full sync, mark users deleted from AD as adRemoved/adEnabled=False WITHOUT deleting local history!
+    if not partial and seen_dns:
+        for rec in existing:
+            if (
+                isinstance(rec, dict)
+                and rec.get("source") == "ad_sync"
+                and str(rec.get("adDomainId") or "") == dom_id
+                and rec.get("adDn")
+                and str(rec["adDn"]).casefold() not in seen_dns
+            ):
+                rec["adEnabled"] = False
+                rec["adRemoved"] = True
+
+    conn.execute(
+        "INSERT INTO app_state(key,value) VALUES('manual_users',%s::jsonb) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+        (json.dumps(existing),),
+    )
+    _pg_emit_notify(conn, "pulse", {"source": "manual_users", "domainId": dom_id, "created": created, "updated": updated})
+    return created, updated
+
+
+def _ad_live_bind_as_user(dom_cfg, bind_identities, user_password):
+    """Performs a fast, strictly time-bounded LDAP Bind as the end-user to authenticate against AD."""
+    if not user_password:
+        return False
+    if dom_cfg.get("demoMode"):
+        expected = str(dom_cfg.get("demoLoginPassword") or "DemoAD@2026")
+        return secrets.compare_digest(user_password, expected)
+    if not _LDAP3_AVAILABLE:
+        return False
+    host = str(dom_cfg.get("host") or "").strip()
+    backup_host = str(dom_cfg.get("backupHost") or "").strip()
+    if not host:
+        return False
+    port = max(1, min(65535, int(dom_cfg.get("port") or 636)))
+    sec = str(dom_cfg.get("security") or "ldaps").strip().lower()
+    use_ssl = (sec == "ldaps")
+    use_starttls = (sec == "starttls")
+    verify_tls = bool(dom_cfg.get("verifyTls"))
+    timeout = max(3, min(12, int(dom_cfg.get("timeoutSec") or 6)))
+    ca_pem = str(dom_cfg.get("caCertPem") or "").strip()
+
+    ca_tmp_path = None
+    tls_obj = None
+    try:
+        if use_ssl or use_starttls:
+            if verify_tls and ca_pem:
+                tf = tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False, encoding="utf-8")
+                tf.write(ca_pem)
+                tf.close()
+                ca_tmp_path = tf.name
+            tls_obj = _LdapTls(
+                validate=ssl.CERT_REQUIRED if verify_tls else ssl.CERT_NONE,
+                ca_certs_file=ca_tmp_path,
+                version=ssl.PROTOCOL_TLS_CLIENT,
+            )
+        hosts = [h for h in (host, backup_host) if h]
+        ids = [str(x).strip() for x in bind_identities if str(x).strip()]
+        for h in hosts:
+            for bind_id in ids:
+                conn_obj = None
+                try:
+                    srv_obj = _LdapServer(h, port=port, use_ssl=use_ssl, tls=tls_obj, get_info=None, connect_timeout=timeout)
+                    conn_obj = _LdapConnection(
+                        srv_obj, user=bind_id, password=user_password,
+                        authentication=_LDAP_SIMPLE, auto_bind=False,
+                        auto_referrals=False, check_names=False,
+                        receive_timeout=min(15, timeout * 2), raise_exceptions=False,
+                    )
+                    conn_obj.open()
+                    if use_starttls and not conn_obj.start_tls():
+                        continue
+                    if conn_obj.bind():
+                        return True
+                except Exception:
+                    continue
+                finally:
+                    try:
+                        if conn_obj is not None:
+                            conn_obj.unbind()
+                    except Exception:
+                        pass
+        return False
+    finally:
+        if ca_tmp_path:
+            try:
+                os.unlink(ca_tmp_path)
+            except OSError:
+                pass
+
+
+def _ad_authenticate_login_user(raw_username, password, existing_user=None):
+    """Nextcloud-style live AD login: authenticates synced AD users (or JIT discovers new AD users)
+    against connected Samba 4 / Windows AD / Synology / FreeIPA / OpenLDAP servers."""
+    with db() as conn:
+        d_doc = _load_ad_domains_doc(conn)
+    domains = [d for d in (d_doc.get("domains") or []) if d.get("enabled", True)]
+    if not domains:
+        return None, None
+
+    # 1. Existing AD-linked user in manual_users
+    if existing_user is not None:
+        if existing_user.get("enabled") is False or existing_user.get("adEnabled") is False or existing_user.get("adRemoved"):
+            return None, None
+        dom_id = str(existing_user.get("adDomainId") or "").strip()
+        if not dom_id and existing_user.get("source") != "ad_sync":
+            return None, None
+        dom = next((d for d in domains if str(d.get("id")) == dom_id), None)
+        if not dom:
+            return None, None
+        dns = _ad_domain_dns_from_base_dn(dom.get("baseDn") or "")
+        sam = str(existing_user.get("adSamAccountName") or existing_user.get("username") or "").strip()
+        upn = str(existing_user.get("adUpn") or (f"{sam}@{dns}" if sam and dns else "")).strip()
+        bind_ids = [existing_user.get("adDn"), upn]
+        if _ad_live_bind_as_user(dom, bind_ids, password):
+            return existing_user, dom
+        return None, None
+
+    # 2. Just-In-Time (JIT) live AD login for users not yet synced into manual_users
+    short_u = raw_username.split("\\", 1)[1].strip() if "\\" in raw_username else raw_username.strip()
+    esc_u = _ad_escape_filter(short_u)
+    esc_raw = _ad_escape_filter(raw_username.strip())
+    for dom in domains:
+        if dom.get("demoMode"):
+            continue
+        if not _LDAP3_AVAILABLE:
+            continue
+        preset = AD_FLAVOR_PRESETS.get(dom.get("flavor") or "samba4", AD_FLAVOR_PRESETS["samba4"])
+        is_ad = (preset["schema"] == "ad")
+        base_dn = str(dom.get("baseDn") or "").strip()
+        if not base_dn:
+            continue
+        pw_bind = _ad_decrypt_pw(dom.get("encryptedBindPassword"))
+        conn_obj = None
+        ca_tmp = None
+        try:
+            conn_obj, _srv, ca_tmp = _ad_open_live_connection(dom, pw_bind)
+            flt = (
+                f"(&(objectClass=user)(objectCategory=person)(|(sAMAccountName={esc_u})(userPrincipalName={esc_raw})))"
+                if is_ad else
+                f"(&(objectClass=inetOrgPerson)(|(uid={esc_u})(mail={esc_raw})))"
+            )
+            attrs = ["cn", "displayName", "sAMAccountName", "userPrincipalName", "mail", "department", "title", "physicalDeliveryOfficeName", "telephoneNumber", "userAccountControl"] if is_ad else ["cn", "displayName", "uid", "mail", "departmentNumber", "title", "telephoneNumber"]
+            conn_obj.search(base_dn, flt, search_scope=_LDAP_SUBTREE, attributes=attrs, size_limit=2)
+            if not conn_obj.entries:
+                continue
+            entry = conn_obj.entries[0]
+            user_dn = str(entry.entry_dn)
+            if is_ad:
+                uac = _ad_parse_uac(_ad_attr_str(entry, "userAccountControl"))
+                if not uac["enabled"]:
+                    continue
+            upn = _ad_attr_str(entry, "userPrincipalName")
+            sam = _ad_attr_str(entry, "sAMAccountName") or _ad_attr_str(entry, "uid") or short_u
+            au = {
+                "dn": user_dn,
+                "displayName": _ad_attr_str(entry, "displayName") or _ad_attr_str(entry, "cn") or sam,
+                "samAccountName": sam,
+                "upn": upn,
+                "mail": _ad_attr_str(entry, "mail"),
+                "department": _ad_attr_str(entry, "department") or _ad_attr_str(entry, "departmentNumber"),
+                "title": _ad_attr_str(entry, "title"),
+                "office": _ad_attr_str(entry, "physicalDeliveryOfficeName"),
+                "phone": _ad_attr_str(entry, "telephoneNumber"),
+                "enabled": True,
+                "lockedOut": False,
+            }
+        except Exception:
+            continue
+        finally:
+            _ad_close_live_connection(conn_obj, ca_tmp)
+
+        if _ad_live_bind_as_user(dom, [user_dn, upn], password):
+            with db() as conn:
+                _sync_ad_users_into_manual_users(conn, dom, [au], partial=True)
+                u_row = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
+                all_u = u_row[0] if u_row and isinstance(u_row[0], list) else []
+                provisioned = next((u for u in all_u if str(u.get("adDn") or "").casefold() == user_dn.casefold() or str(u.get("username") or "").casefold() == sam.casefold()), None)
+            if provisioned and provisioned.get("enabled", True):
+                return provisioned, dom
+    return None, None
+
+
 @app.post("/api/ad/domains/<dom_id>/import-to-northstar")
 @signed_in
 def import_ad_users_to_northstar(dom_id):
@@ -16903,59 +17294,295 @@ def import_ad_users_to_northstar(dom_id):
     actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
     body = request.get_json(silent=True) or {}
     only_dns = set(str(x).strip() for x in (body.get("dns") or []) if str(x).strip())
-    default_site = str(body.get("site") or profile.get("site") or "ARG").strip()[:40]
+    default_site = str(body.get("site") or profile.get("site") or "").strip()[:40]
     with db() as conn:
         d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
         if not dom:
             return jsonify(error="AD domain not found."), 404
         ad_users = [u for u in (cache.get("users") or []) if (not only_dns or u.get("dn") in only_dns)]
-        u_row = conn.execute("SELECT value FROM app_state WHERE key='manual_users' FOR UPDATE").fetchone()
-        existing = list(u_row[0] if u_row and isinstance(u_row[0], list) else [])
-        by_u = {str(x.get("username") or "").strip().casefold(): x for x in existing if isinstance(x, dict)}
-        created, updated = 0, 0
-        for au in ad_users:
-            sam = re.sub(r"[^A-Za-z0-9._@-]+", ".", str(au.get("samAccountName") or "").strip()).strip(".")[:80]
-            if len(sam) < 3:
-                continue
-            key = sam.casefold()
-            if key in by_u:
-                rec = by_u[key]
-                # Never overwrite local password_hash, role, or permissions!
-                rec["name"] = au.get("displayName") or rec.get("name") or sam
-                if au.get("mail"):
-                    rec["email"] = au["mail"]
-                if au.get("department"):
-                    rec["dept"] = au["department"]
-                    rec["department"] = au["department"]
-                if au.get("title"):
-                    rec["title"] = au["title"]
-                if au.get("phone") or au.get("mobile"):
-                    rec["phone"] = au.get("phone") or au.get("mobile")
-                rec["adDomainId"] = dom_id
-                rec["adDn"] = au.get("dn", "")
-                updated += 1
-            else:
-                new_rec = {
-                    "username": sam, "id": sam, "name": au.get("displayName") or sam,
-                    "email": au.get("mail") or "", "phone": au.get("phone") or au.get("mobile") or "",
-                    "dept": au.get("department") or "", "department": au.get("department") or "",
-                    "title": au.get("title") or "", "site": au.get("office") or default_site,
-                    "role": "User", "enabled": bool(au.get("enabled", True)),
-                    "employment": "Active" if au.get("enabled", True) else "Inactive",
-                    "active": "Active" if au.get("enabled", True) else "Inactive",
-                    "source": "ad_sync", "adDomainId": dom_id, "adDn": au.get("dn", ""),
-                    "module_permissions": {"tickets": "read", "tasks": "write"},
-                }
-                existing.append(new_rec)
-                by_u[key] = new_rec
-                created += 1
-        conn.execute(
-            "INSERT INTO app_state(key,value) VALUES('manual_users',%s::jsonb) "
-            "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
-            (json.dumps(existing),),
-        )
+        created, updated = _sync_ad_users_into_manual_users(conn, dom, ad_users, default_site=default_site, partial=bool(only_dns))
         _record_ad_audit(conn, dom_id, dom["name"], "import_northstar", dom["baseDn"], dom["name"], actor, f"Synced AD users to Northstar directory (+{created} added, {updated} updated)")
     return jsonify(ok=True, created=created, updated=updated, totalProcessed=created + updated)
+
+
+@app.get("/api/ad/domains/<dom_id>/departments/preview")
+@signed_in
+def preview_ad_departments_sync(dom_id):
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        dep_row = conn.execute("SELECT value FROM app_state WHERE key='departments'").fetchone()
+        raw_depts = list(dep_row[0] if dep_row and isinstance(dep_row[0], list) else [])
+        u_row = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
+        all_users = list(u_row[0] if u_row and isinstance(u_row[0], list) else [])
+        a_row = conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone()
+        all_assets = list(a_row[0] if a_row and isinstance(a_row[0], list) else [])
+
+    base_dn = str(dom.get("baseDn") or "").strip()
+    ous = list(cache.get("ous") or [])
+    ad_users = list(cache.get("users") or [])
+
+    ou_by_name = {}
+    default_parent = f"OU=Departments,{base_dn}" if base_dn else ""
+    for o in ous:
+        nm = str(o.get("name") or "").strip()
+        if nm and not o.get("isContainer"):
+            ou_by_name.setdefault(nm.casefold(), o)
+        if nm.casefold() == "departments" and o.get("dn"):
+            default_parent = o["dn"]
+
+    local_items = []
+    local_names_cf = set()
+    for d in raw_depts:
+        info = _ad_dept_row_info(d)
+        if not info["name"]:
+            continue
+        cf = info["name"].casefold()
+        local_names_cf.add(cf)
+        matched_ou = ou_by_name.get(cf)
+        local_items.append({
+            **info,
+            "existsInAd": bool(matched_ou),
+            "matchedAdOuDn": matched_ou["dn"] if matched_ou else "",
+            "userCount": sum(1 for u in all_users if isinstance(u, dict) and str(u.get("dept") or u.get("department") or "").strip().casefold() == cf),
+            "assetCount": sum(1 for a in all_assets if isinstance(a, dict) and str(a.get("dept") or "").strip().casefold() == cf),
+        })
+
+    # Discover AD departments / OUs not yet in local Northstar (strictly additive candidates)
+    ad_candidates = {}
+    system_ou_skip = {"departments", "domain controllers", "workstations", "security groups", "users", "computers", "builtin", "managed service accounts", "foreignsecurityprincipals"}
+    for u in ad_users:
+        dn_d = str(u.get("department") or "").strip()
+        if dn_d and dn_d.casefold() not in local_names_cf:
+            ad_candidates.setdefault(dn_d.casefold(), {"name": dn_d, "source": "AD User Department", "adUserCount": 0, "ouDn": ""})["adUserCount"] += 1
+    for o in ous:
+        nm = str(o.get("name") or "").strip()
+        if nm and not o.get("isContainer") and nm.casefold() not in system_ou_skip and nm.casefold() not in local_names_cf:
+            entry = ad_candidates.setdefault(nm.casefold(), {"name": nm, "source": "AD Organizational Unit", "adUserCount": 0, "ouDn": o.get("dn", "")})
+            if not entry["ouDn"]:
+                entry["ouDn"] = o.get("dn", "")
+
+    missing_in_ad = [x for x in local_items if not x["existsInAd"]]
+    already_synced = [x for x in local_items if x["existsInAd"]]
+    return jsonify(
+        ok=True,
+        domain=_sanitize_ad_domain(dom),
+        defaultParentOuDn=default_parent,
+        northstarDepartments=local_items,
+        missingInAd=missing_in_ad,
+        alreadySyncedCount=len(already_synced),
+        missingInNorthstar=sorted(ad_candidates.values(), key=lambda x: x["name"].casefold()),
+        localProtectionNote="Local Northstar departments are NEVER deleted or modified when AD changes — all existing Overview, Asset, Ticket, Task, Repair & Parts links remain 100% safe.",
+    )
+
+
+@app.post("/api/ad/domains/<dom_id>/departments/push")
+@signed_in
+def push_departments_to_ad(dom_id):
+    """Safely pushes local Northstar Departments & Sub-departments to AD as OUs (+ optional Security Groups).
+    NEVER modifies or deletes any local Northstar department or breaks existing workflows!"""
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    include_subs = bool(body.get("includeSubdepts", True))
+    create_groups = bool(body.get("createGroups", False))
+    selected_names = {str(x).strip().casefold() for x in (body.get("departmentNames") or []) if str(x).strip()}
+
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        dep_row = conn.execute("SELECT value FROM app_state WHERE key='departments'").fetchone()
+        raw_depts = list(dep_row[0] if dep_row and isinstance(dep_row[0], list) else [])
+        dom_copy = dict(dom)
+        existing_ous = list(cache.get("ous") or [])
+        existing_groups = list(cache.get("groups") or [])
+
+    base_dn = str(dom_copy.get("baseDn") or "").strip()
+    parent_ou_dn = str(body.get("parentOuDn") or f"OU=Departments,{base_dn}").strip()
+    all_depts = [_ad_dept_row_info(d) for d in raw_depts]
+    all_depts = [d for d in all_depts if d["name"]]
+
+    # Deduplicate by name (keeping main departments first, then sub-departments)
+    mains, subs = [], []
+    seen_main, seen_sub = set(), set()
+    for d in all_depts:
+        cf = d["name"].casefold()
+        if selected_names and cf not in selected_names:
+            continue
+        if d["kind"] == "subdepartment":
+            if include_subs and (cf, d["parent"].casefold()) not in seen_sub:
+                seen_sub.add((cf, d["parent"].casefold()))
+                subs.append(d)
+        else:
+            if cf not in seen_main:
+                seen_main.add(cf)
+                mains.append(d)
+
+    ou_dns_cf = {str(o.get("dn") or "").casefold(): o for o in existing_ous}
+    ou_by_name = {str(o.get("name") or "").strip().casefold(): o for o in existing_ous if not o.get("isContainer")}
+    grp_dns_cf = {str(g.get("dn") or "").casefold() for g in existing_groups}
+
+    new_ous_added = []
+    new_grps_added = []
+    skipped = []
+    errors = []
+    preset = AD_FLAVOR_PRESETS.get(dom_copy.get("flavor") or "samba4", AD_FLAVOR_PRESETS["samba4"])
+    is_ad = (preset["schema"] == "ad")
+
+    def _run_push(conn_obj=None):
+        # 1. Ensure parent container OU exists if it's an OU under baseDn
+        if parent_ou_dn.casefold() != base_dn.casefold() and parent_ou_dn.casefold() not in ou_dns_cf and parent_ou_dn.upper().startswith("OU="):
+            p_name = _ad_rdn_value(parent_ou_dn)
+            p_parent = _ad_parent_dn(parent_ou_dn)
+            if conn_obj is not None:
+                conn_obj.add(parent_ou_dn, ["top", "organizationalUnit"], {"ou": p_name, "description": "Northstar Synced Departments"})
+                res_code = int((conn_obj.result or {}).get("result", 1))
+                if res_code not in (0, 68):  # 68 = entryAlreadyExists
+                    raise RuntimeError(f"Could not create parent OU '{p_name}': {(conn_obj.result or {}).get('description')}")
+            rec_p = {"dn": parent_ou_dn, "name": p_name, "parentDn": p_parent, "description": "Northstar Synced Departments"}
+            ou_dns_cf[parent_ou_dn.casefold()] = rec_p
+            ou_by_name[p_name.casefold()] = rec_p
+            new_ous_added.append(rec_p)
+
+        def _ensure_ou(name, p_dn, desc):
+            if name.casefold() in ou_by_name:
+                skipped.append(name)
+                return ou_by_name[name.casefold()]["dn"], False
+            dn = f"OU={_ad_escape_rdn(name)},{p_dn}"
+            if dn.casefold() in ou_dns_cf:
+                skipped.append(name)
+                return dn, False
+            if conn_obj is not None:
+                attrs = {"ou": name}
+                if desc:
+                    attrs["description"] = desc
+                conn_obj.add(dn, ["top", "organizationalUnit"], attrs)
+                rc = int((conn_obj.result or {}).get("result", 1))
+                if rc == 68:
+                    skipped.append(name)
+                    rec = {"dn": dn, "name": name, "parentDn": p_dn, "description": desc}
+                    ou_dns_cf[dn.casefold()] = rec
+                    ou_by_name[name.casefold()] = rec
+                    return dn, False
+                if rc != 0:
+                    errors.append(f"{name}: {(conn_obj.result or {}).get('description', 'error')}")
+                    return "", False
+            rec = {"dn": dn, "name": name, "parentDn": p_dn, "description": desc}
+            ou_dns_cf[dn.casefold()] = rec
+            ou_by_name[name.casefold()] = rec
+            new_ous_added.append(rec)
+            return dn, True
+
+        def _ensure_group(dept_name, ou_dn):
+            g_cn = f"Dept-{dept_name}"[:64]
+            g_dn = f"CN={_ad_escape_rdn(g_cn)},{ou_dn}"
+            if g_dn.casefold() in grp_dns_cf:
+                return
+            gt_val = _ad_build_group_type("Global", "Security")
+            if conn_obj is not None:
+                if is_ad:
+                    conn_obj.add(g_dn, ["top", "group"], {"cn": g_cn, "sAMAccountName": re.sub(r"[^A-Za-z0-9._-]+", "-", g_cn)[:64], "groupType": gt_val, "description": f"Department security group for {dept_name}"})
+                else:
+                    conn_obj.add(g_dn, ["top", "groupOfNames"], {"cn": g_cn, "description": f"Department group for {dept_name}"})
+                rc = int((conn_obj.result or {}).get("result", 1))
+                if rc not in (0, 68):
+                    return
+            grp_dns_cf.add(g_dn.casefold())
+            new_grps_added.append({
+                "dn": g_dn, "cn": g_cn, "samAccountName": g_cn,
+                "description": f"Department security group for {dept_name}", "mail": "",
+                "scope": "Global", "category": "Security", "groupType": gt_val,
+                "parentDn": ou_dn, "members": [],
+            })
+
+        for d in mains:
+            desc = f"Northstar Department ({d['factory']})" + (f" · {d['code']}" if d["code"] else "")
+            ou_dn, _ = _ensure_ou(d["name"], parent_ou_dn, desc)
+            if ou_dn and create_groups:
+                _ensure_group(d["name"], ou_dn)
+
+        for sd in subs:
+            parent_rec = ou_by_name.get(sd["parent"].casefold())
+            target_p = parent_rec["dn"] if parent_rec else parent_ou_dn
+            desc = f"Northstar Sub-Department of {sd['parent']} ({sd['factory']})"
+            ou_dn, _ = _ensure_ou(sd["name"], target_p, desc)
+            if ou_dn and create_groups:
+                _ensure_group(sd["name"], ou_dn)
+
+    if dom_copy.get("demoMode"):
+        _run_push(None)
+    else:
+        pw_bind = _ad_decrypt_pw(dom_copy.get("encryptedBindPassword"))
+        try:
+            _ad_live_execute(dom_copy, pw_bind, lambda c, _s: _run_push(c))
+        except Exception as exc:
+            return jsonify(error=str(exc)[:400]), 400
+
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=True)
+        if new_ous_added:
+            cache.setdefault("ous", []).extend(new_ous_added)
+        if new_grps_added:
+            cache.setdefault("groups", []).extend(new_grps_added)
+        cache["rev"] = int(cache.get("rev") or 0) + 1
+        _save_ad_cache_doc(conn, c_doc)
+        _ad_update_domain_counts(dom, cache)
+        _save_ad_domains_doc(conn, d_doc)
+        _record_ad_audit(
+            conn, dom_id, dom["name"], "dept_push", parent_ou_dn, dom["name"], actor,
+            f"Pushed Northstar departments to AD (+{len(new_ous_added)} OUs created, {len(new_grps_added)} groups, {len(skipped)} already existed)",
+        )
+        _pg_emit_notify(conn, "ad_directory", {"domainId": dom_id, "action": "dept_push"})
+    return jsonify(ok=True, createdOus=len(new_ous_added), createdGroups=len(new_grps_added), skipped=len(skipped), errors=errors)
+
+
+@app.post("/api/ad/domains/<dom_id>/departments/pull")
+@signed_in
+def pull_departments_from_ad(dom_id):
+    """Additive-only safe pull from AD departments/OUs into local Northstar departments.
+    NEVER deletes, removes, or overwrites any existing local department!"""
+    profile = session.get("profile") or {}
+    actor = str(profile.get("name") or profile.get("username") or "Admin")[:120]
+    body = request.get_json(silent=True) or {}
+    default_factory = str(body.get("defaultFactory") or profile.get("site") or "SS-ALL").strip()[:40]
+    chosen_names = [str(x).strip() for x in (body.get("names") or []) if str(x).strip()]
+
+    with db() as conn:
+        d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
+        if not dom:
+            return jsonify(error="AD domain not found."), 404
+        dep_row = conn.execute("SELECT value FROM app_state WHERE key='departments' FOR UPDATE").fetchone()
+        depts_list = list(dep_row[0] if dep_row and isinstance(dep_row[0], list) else [])
+        existing_cf = {_ad_dept_row_info(d)["name"].casefold() for d in depts_list if _ad_dept_row_info(d)["name"]}
+
+        if not chosen_names:
+            for u in (cache.get("users") or []):
+                dn_d = str(u.get("department") or "").strip()
+                if dn_d and dn_d not in chosen_names:
+                    chosen_names.append(dn_d)
+
+        added = []
+        for nm in chosen_names:
+            clean_nm = nm.strip()[:80]
+            if not clean_nm or clean_nm.casefold() in existing_cf:
+                continue
+            code = re.sub(r"[^A-Z0-9]", "", clean_nm.upper())[:4] or "DEPT"
+            row = [clean_nm, default_factory, code, 0, 0, 0, default_factory, "", "department", f"dept-ad-{uuid.uuid4().hex[:8]}"]
+            depts_list.append(row)
+            existing_cf.add(clean_nm.casefold())
+            added.append(clean_nm)
+
+        if added:
+            conn.execute(
+                "INSERT INTO app_state(key,value) VALUES('departments',%s::jsonb) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+                (json.dumps(depts_list),),
+            )
+            _record_ad_audit(conn, dom_id, dom["name"], "dept_pull", dom["baseDn"], dom["name"], actor, f"Safely added {len(added)} AD department(s) to Northstar: {', '.join(added[:8])}")
+            _pg_emit_notify(conn, "pulse", {"source": "departments", "added": len(added)})
+    return jsonify(ok=True, addedCount=len(added), added=added, departments=depts_list)
 
 
 init_db()
