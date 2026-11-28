@@ -57,6 +57,8 @@ VAULT_DOCS_DIR = UPLOAD_DIR / "vault_docs"
 VAULT_DOCS_DIR.mkdir(parents=True, exist_ok=True)
 MSG_UPLOAD_DIR = UPLOAD_DIR / "messages"
 MSG_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+TASK_UPLOAD_DIR = UPLOAD_DIR / "tasks"
+TASK_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 BACKUP_DIR = Path(os.getenv("BACKUP_DIR", "/backups"))
 RESTORE_LOCK_PATH = Path("/tmp/northstar-restore-in-progress")
 DEFAULT_CAMERA_PROFILES = [
@@ -117,7 +119,7 @@ LOGIN_DUMMY_HASH = generate_password_hash("not-a-real-login-password")
 # account's pre-existing access for compatibility; an explicit empty mapping
 # means that a newly configured account has no module access.
 MODULE_IDS = (
-    "overview", "assets", "data_center", "surveillance", "tickets",
+    "overview", "assets", "data_center", "surveillance", "tickets", "tasks",
     "visitors", "gatepass",
     "maintenance", "ageing", "parts", "users", "departments", "factories",
     "software", "firmware", "credentials", "network", "snmp", "notifications", "reports", "valuation", "billing",
@@ -128,6 +130,7 @@ MODULE_DATA_KEYS = {
     "data_center": ("assets", "camera_streams", "camera_profiles"),
     "surveillance": ("assets", "camera_streams", "camera_profiles"),
     "tickets": ("departments", "ip_mappings"),
+    "tasks": ("departments", "manual_users"),
     "visitors": ("departments", "manual_users"),
     "gatepass": ("departments", "manual_users"),
     "maintenance": ("assets", "maintenance", "parts_catalog", "parts_inventory", "parts_stock_entries", "parts_assignments", "departments"),
@@ -147,7 +150,7 @@ MODULE_DATA_KEYS = {
     "billing": ("invoices", "vendors", "departments", "manual_users"),
 }
 MODULE_API_PATHS = {
-    "/api/invoices": "billing", "/api/tickets": "tickets",
+    "/api/invoices": "billing", "/api/tickets": "tickets", "/api/tasks": "tasks",
     "/api/assets": "assets",
     "/api/visitors": "visitors", "/api/gate-passes": "gatepass",
     "/api/firmware-backups": "firmware", "/api/vault": "credentials",
@@ -408,7 +411,7 @@ def init_db():
         for statement in schema.split(";"):
             if statement.strip():
                 conn.execute(statement)
-        conn.execute("INSERT INTO app_state(key,value) VALUES('assets','[]'),('ip_mappings','[]'),('software','[]'),('departments','[]'),('maintenance','[]'),('parts_catalog','[]'),('parts_inventory','[]'),('parts_stock_entries','[]'),('parts_assignments','[]'),('invoices','[]'),('vendors','[]'),('manual_users','[]'),('camera_streams','[]'),('camera_profiles','[]'),('network_ranges','[]'),('network_scan','{}'),('scanner_heartbeat','{}'),('scanner_ip_status','{}'),('settings','{}'),('profile_preferences','{}'),('notifications','{\"rules\":[],\"queue\":[]}') ON CONFLICT(key) DO NOTHING")
+        conn.execute("INSERT INTO app_state(key,value) VALUES('assets','[]'),('ip_mappings','[]'),('software','[]'),('departments','[]'),('maintenance','[]'),('parts_catalog','[]'),('parts_inventory','[]'),('parts_stock_entries','[]'),('parts_assignments','[]'),('invoices','[]'),('vendors','[]'),('manual_users','[]'),('camera_streams','[]'),('camera_profiles','[]'),('network_ranges','[]'),('network_scan','{}'),('scanner_heartbeat','{}'),('scanner_ip_status','{}'),('settings','{}'),('profile_preferences','{}'),('notifications','{\"rules\":[],\"queue\":[]}'),('workspace_tasks','{\"tasks\":[],\"rev\":0}') ON CONFLICT(key) DO NOTHING")
 
 
 def signed_in(fn):
@@ -560,6 +563,10 @@ def enforce_module_access():
         or (request.method == "PUT" and (path.startswith("/api/vault/credentials/") or path.startswith("/api/vault/documents/")))
     ):
         if not module_access(profile, "credentials", write=False):
+            return jsonify(error="You do not have access to this module."), 403
+        return None
+    if path == "/api/tasks/reminders/check" and method in ("GET", "POST"):
+        if not module_access(profile, "tasks", write=False):
             return jsonify(error="You do not have access to this module."), 403
         return None
     if module:
@@ -2185,6 +2192,8 @@ def _record_notification_event(conn, item):
         "targetRole": str(item.get("targetRole") or "")[:24],
         "targetAssignee": str(item.get("targetAssignee") or "")[:120],
         "targetTicketId": str(item.get("targetTicketId") or "")[:120],
+        "targetUsers": [str(u).strip().casefold() for u in (item.get("targetUsers") or []) if str(u).strip()][:60],
+        "targetDepartments": [str(d).strip()[:120] for d in (item.get("targetDepartments") or []) if str(d).strip()][:30],
         "createdAt": str(item.get("createdAt") or now_iso)[:40],
     }
     doc["events"] = [ev] + doc["events"]
@@ -2337,6 +2346,8 @@ def get_notification_history():
     uname_cf = str(who.get("username") or "").strip().casefold()
     dname_cf = str(who.get("name") or "").strip().casefold()
     can_tickets = is_adm or who.get("role") == "IT Ticketing" or module_access(who, "tickets", write=True) or (module_access(who, "tickets") and isinstance(who.get("allowed_complaint_desks"), list) and len(who.get("allowed_complaint_desks")) > 0)
+    can_tasks = is_adm or module_access(who, "tasks")
+    user_depts_set = {str(x or "").strip().casefold() for x in (who.get("dept"), who.get("department")) if str(x or "").strip()}
     can_visitors = is_adm or module_access(who, "visitors")
     can_gatepass = is_adm or module_access(who, "gatepass")
     can_devices = is_adm or module_access(who, "notifications")
@@ -2344,7 +2355,22 @@ def get_notification_history():
     unread_count = 0
     for ev in doc["events"]:
         ev_kind = str(ev.get("kind") or "")
-        if ev_kind == "helpdesk_message":
+        if ev_kind in ("task", "task_reminder"):
+            if not can_tasks:
+                continue
+            t_users = {str(u or "").strip().casefold() for u in (ev.get("targetUsers") or []) if str(u).strip()}
+            for single_u in (ev.get("targetUsername"), ev.get("targetAssignee")):
+                su = str(single_u or "").strip().casefold()
+                if su:
+                    t_users.add(su)
+            t_depts = [str(d or "").strip() for d in (ev.get("targetDepartments") or []) if str(d).strip()]
+            if ev.get("targetDepartment"):
+                t_depts.append(str(ev.get("targetDepartment")).strip())
+            in_users = bool(uname_cf and uname_cf in t_users)
+            in_depts = any(_dept_matches(user_depts_set, td) for td in t_depts) if user_depts_set and t_depts else False
+            if not in_users and not in_depts:
+                continue
+        elif ev_kind == "helpdesk_message":
             ev_user = str(ev.get("targetUsername") or "").strip().casefold()
             ev_req = str(ev.get("requesterName") or "").strip().casefold()
             ev_exp = str(ev.get("targetAssignee") or "").strip().casefold()
@@ -9249,6 +9275,11 @@ def _start_returnable_scheduler():
                         process_returnable_gatepass_reminders(conn)
                 except Exception:
                     pass
+                try:
+                    with db() as conn:
+                        _evaluate_task_reminders(conn)
+                except Exception:
+                    pass
                 time.sleep(60)
 
         t = threading.Thread(target=_loop, name="northstar-returnable-reminders", daemon=True)
@@ -12533,6 +12564,1296 @@ def serve_helpdesk_attachment(filename):
     if not target.is_relative_to(MSG_UPLOAD_DIR.resolve()) or not target.is_file():
         abort(404)
     return send_from_directory(str(MSG_UPLOAD_DIR), clean_name, as_attachment=False)
+
+
+# ============================================================================
+# WORKSPACE TASK'S MODULE — DAILY / WEEKLY / MONTHLY / TEAMWORK / DELEGATION
+# ============================================================================
+_TASK_CADENCES = ("daily", "weekly", "monthly")
+_TASK_WORK_MODES = ("personal", "delegated", "department", "dept_to_dept")
+_TASK_PRIORITIES = ("Urgent", "High", "Normal", "Low")
+_TASK_ALLOWED_EXTS = {
+    ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg",
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+    ".csv", ".txt", ".json", ".log", ".zip", ".7z", ".mp4", ".mov",
+    ".odt", ".ods", ".odp", ".rtf",
+}
+_TASK_MAX_FILE_BYTES = 15 * 1024 * 1024
+_TASK_MAX_ATTACHMENTS = 25
+
+
+def _task_now_iso():
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _task_parse_dt(val):
+    s = str(val or "").strip()
+    if not s:
+        return None
+    try:
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        return None
+
+
+def _normalize_tasks_doc(raw):
+    if isinstance(raw, dict):
+        items = raw.get("tasks") if isinstance(raw.get("tasks"), list) else []
+        rev = int(raw.get("rev") or 0)
+        return {"tasks": [x for x in items if isinstance(x, dict)], "rev": rev}
+    if isinstance(raw, list):
+        return {"tasks": [x for x in raw if isinstance(x, dict)], "rev": 0}
+    return {"tasks": [], "rev": 0}
+
+
+def _load_tasks_doc(conn, for_update=False):
+    sql = "SELECT value FROM app_state WHERE key='workspace_tasks'" + (" FOR UPDATE" if for_update else "")
+    row = conn.execute(sql).fetchone()
+    return _normalize_tasks_doc(row[0] if row else {})
+
+
+def _save_tasks_doc(conn, doc):
+    doc["rev"] = int(doc.get("rev") or 0) + 1
+    conn.execute(
+        "INSERT INTO app_state(key,value) VALUES('workspace_tasks',%s::jsonb) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now()",
+        (json.dumps(doc),),
+    )
+    return doc
+
+
+def _task_people_and_depts(conn):
+    u_row = conn.execute("SELECT value FROM app_state WHERE key='manual_users'").fetchone()
+    d_row = conn.execute("SELECT value FROM app_state WHERE key='departments'").fetchone()
+    raw_users = u_row[0] if u_row and isinstance(u_row[0], list) else []
+    raw_depts = d_row[0] if d_row and isinstance(d_row[0], list) else []
+    people = []
+    seen_u = set()
+    for u in raw_users:
+        if not isinstance(u, dict) or not u.get("enabled", True):
+            continue
+        uname = str(u.get("username") or "").strip()
+        if not uname:
+            continue
+        ucf = uname.casefold()
+        if ucf in seen_u:
+            continue
+        seen_u.add(ucf)
+        people.append({
+            "username": uname,
+            "name": str(u.get("name") or uname).strip()[:120],
+            "dept": str(u.get("dept") or u.get("department") or "").strip()[:120],
+            "site": str(u.get("site") or "").strip()[:60],
+            "role": str(u.get("role") or "User").strip()[:60],
+        })
+    people.sort(key=lambda x: (x["name"].casefold(), x["username"].casefold()))
+    depts = []
+    seen_d = set()
+    for d in raw_depts:
+        dn = ""
+        if isinstance(d, list) and d:
+            dn = str(d[0] or "").strip()
+        elif isinstance(d, dict):
+            dn = str(d.get("name") or d.get("dept") or "").strip()
+        elif isinstance(d, str):
+            dn = d.strip()
+        if dn and dn.casefold() not in seen_d:
+            seen_d.add(dn.casefold())
+            depts.append(dn[:120])
+    for p in people:
+        dn = p["dept"]
+        if dn and dn.casefold() not in seen_d:
+            seen_d.add(dn.casefold())
+            depts.append(dn[:120])
+    depts.sort(key=lambda x: x.casefold())
+    return people, depts
+
+
+def _task_resolve_person(people, raw_val):
+    q = str(raw_val or "").strip().casefold()
+    if not q:
+        return None
+    for p in people:
+        if p["username"].casefold() == q:
+            return p
+    for p in people:
+        if p["name"].casefold() == q:
+            return p
+    return None
+
+
+def _task_rebuild_involved(task):
+    inv = []
+    seen = set()
+
+    def _add(u):
+        s = str(u or "").strip().casefold()
+        if s and s not in seen:
+            seen.add(s)
+            inv.append(s)
+
+    for k in ("creatorUsername", "assigneeUsername", "acceptedByUsername", "declinedByUsername", "completedByUsername"):
+        _add(task.get(k))
+    for step in (task.get("delegationChain") or []):
+        if isinstance(step, dict):
+            _add(step.get("fromUsername"))
+            _add(step.get("toUsername"))
+    for w in (task.get("watchers") or []):
+        if isinstance(w, dict):
+            _add(w.get("username"))
+        elif isinstance(w, str):
+            _add(w)
+    for u in (task.get("involvedUsers") or []):
+        _add(u)
+    task["involvedUsers"] = inv
+    return inv
+
+
+def _task_user_dept_set(profile):
+    out = set()
+    if isinstance(profile, dict):
+        for k in ("dept", "department"):
+            v = str(profile.get(k) or "").strip().casefold()
+            if v:
+                out.add(v)
+    return out
+
+
+def _task_visible_to(task, profile, is_adm=False):
+    if is_adm:
+        return True
+    if not isinstance(task, dict) or not isinstance(profile, dict):
+        return False
+    uname_cf = str(profile.get("username") or "").strip().casefold()
+    if uname_cf:
+        if uname_cf == str(task.get("creatorUsername") or "").strip().casefold():
+            return True
+        if uname_cf == str(task.get("assigneeUsername") or "").strip().casefold():
+            return True
+        inv = {str(u or "").strip().casefold() for u in (task.get("involvedUsers") or [])}
+        if uname_cf in inv:
+            return True
+    u_depts = _task_user_dept_set(profile)
+    if u_depts:
+        for d in [task.get("targetDepartment"), task.get("sourceDepartment"), *(task.get("sharedDepartments") or [])]:
+            if d and _dept_matches(u_depts, d):
+                return True
+    return False
+
+
+def _task_is_overdue(task, now_dt=None):
+    if not isinstance(task, dict):
+        return False
+    if str(task.get("status") or "") in ("Completed", "Declined"):
+        return False
+    ref_due = task.get("committedDueAt") or task.get("dueAt")
+    dt = _task_parse_dt(ref_due)
+    if not dt:
+        return False
+    now_dt = now_dt or datetime.now(timezone.utc)
+    return dt < now_dt
+
+
+def _task_add_timeline(task, action, actor_username, actor_name, detail):
+    tl = list(task.get("timeline") or [])
+    tl.append({
+        "id": "tl-" + uuid.uuid4().hex[:10],
+        "action": str(action or "update")[:40],
+        "actorUsername": str(actor_username or "")[:80],
+        "actorName": str(actor_name or actor_username or "System")[:120],
+        "detail": str(detail or "")[:400],
+        "at": _task_now_iso(),
+    })
+    task["timeline"] = tl[-80:]
+
+
+def _task_notify(conn, task, title, body, event_key, level="info", kind="task", exclude_username="", extra_users=None, extra_depts=None):
+    _task_rebuild_involved(task)
+    ex_cf = str(exclude_username or "").strip().casefold()
+    users_set = []
+    seen_u = set()
+    for u in list(task.get("involvedUsers") or []) + list(extra_users or []):
+        ucf = str(u or "").strip().casefold()
+        if ucf and ucf != ex_cf and ucf not in seen_u:
+            seen_u.add(ucf)
+            users_set.append(ucf)
+    depts_set = []
+    seen_d = set()
+    for d in [task.get("targetDepartment"), task.get("sourceDepartment"), *(task.get("sharedDepartments") or []), *(extra_depts or [])]:
+        ds = str(d or "").strip()
+        if ds and ds.casefold() not in seen_d:
+            seen_d.add(ds.casefold())
+            depts_set.append(ds)
+    ev = None
+    if users_set or depts_set:
+        ev = _record_notification_event(conn, {
+            "eventKey": str(event_key or f"tsk:{task.get('id')}:{uuid.uuid4().hex[:8]}")[:160],
+            "kind": kind,
+            "level": level,
+            "title": str(title or "Task Update")[:180],
+            "body": str(body or "")[:400],
+            "factory": str(task.get("creatorSite") or "")[:60],
+            "targetView": "tasks",
+            "targetTab": str(task.get("cadence") or "daily")[:40],
+            "targetId": str(task.get("id") or "")[:120],
+            "targetUsername": users_set[0] if len(users_set) == 1 else "",
+            "targetAssignee": str(task.get("assigneeUsername") or "").strip().casefold(),
+            "targetDepartment": str(task.get("targetDepartment") or "")[:120],
+            "targetUsers": users_set,
+            "targetDepartments": depts_set,
+            "targetTicketId": str(task.get("linkedTicketId") or "")[:120],
+        })
+    _pg_emit_notify(conn, "task", {
+        "taskId": str(task.get("id") or ""),
+        "kind": kind,
+        "status": str(task.get("status") or ""),
+    })
+    return ev
+
+
+def _task_next_due_iso(due_val, cadence):
+    dt = _task_parse_dt(due_val) or datetime.now(timezone.utc)
+    if cadence == "daily":
+        nxt = dt + timedelta(days=1)
+    elif cadence == "weekly":
+        nxt = dt + timedelta(days=7)
+    else:
+        nxt = dt + timedelta(days=30)
+    return nxt.isoformat(timespec="minutes")
+
+
+def _task_clean_checklist(raw_list):
+    out = []
+    if not isinstance(raw_list, list):
+        return out
+    for item in raw_list[:40]:
+        if isinstance(item, str):
+            txt = item.strip()[:240]
+            if txt:
+                out.append({"id": "chk-" + uuid.uuid4().hex[:8], "text": txt, "done": False})
+        elif isinstance(item, dict):
+            txt = str(item.get("text") or "").strip()[:240]
+            if txt:
+                cid = str(item.get("id") or ("chk-" + uuid.uuid4().hex[:8]))[:40]
+                out.append({"id": cid, "text": txt, "done": bool(item.get("done"))})
+    return out
+
+
+def _evaluate_task_reminders(conn, caller_username_cf=None, force_task_id=None):
+    doc = _load_tasks_doc(conn, for_update=True)
+    now_dt = datetime.now(timezone.utc)
+    now_iso = now_dt.isoformat(timespec="seconds")
+    caller_cf = str(caller_username_cf or "").strip().casefold()
+    fired_all = []
+    fired_caller = []
+    dirty = False
+
+    for task in doc["tasks"]:
+        st = str(task.get("status") or "Pending")
+        if st in ("Completed", "Declined"):
+            continue
+        try:
+            interval = int(task.get("reminderIntervalMins") or 0)
+        except (TypeError, ValueError):
+            interval = 0
+        if interval <= 0 and force_task_id != task.get("id"):
+            continue
+        ref_dt = _task_parse_dt(task.get("lastRemindedAt")) or _task_parse_dt(task.get("createdAt"))
+        elapsed_mins = ((now_dt - ref_dt).total_seconds() / 60.0) if ref_dt else float(interval + 1)
+        if force_task_id != task.get("id") and elapsed_mins < max(1, interval):
+            continue
+
+        overdue = _task_is_overdue(task, now_dt=now_dt)
+        awaiting = str(task.get("acceptanceStatus") or "") == "pending"
+        cadence_lbl = str(task.get("cadence") or "daily").capitalize()
+        if overdue:
+            title = f"⏰ Overdue {cadence_lbl} Task: {task.get('title', '')}"[:180]
+            body = f"[{task.get('id')}] Pending completion (Due: {task.get('committedDueAt') or task.get('dueAt') or 'Now'}). Please update status."
+            lvl = "warn"
+        elif awaiting:
+            title = f"📩 Action Required — Accept Task: {task.get('title', '')}"[:180]
+            body = f"[{task.get('id')}] Assigned by {task.get('creatorName') or 'colleague'}. Please Accept (with ETA & plan), Decline, or Reassign."
+            lvl = "warn"
+        else:
+            title = f"🔔 Pending {cadence_lbl} Task Reminder: {task.get('title', '')}"[:180]
+            body = f"[{task.get('id')}] Status: {st} · Priority: {task.get('priority', 'Normal')}. Still pending — please update progress."
+            lvl = "info"
+
+        task["lastRemindedAt"] = now_iso
+        dirty = True
+        ev_key = f"task-rem:{task.get('id')}:{int(now_dt.timestamp() // 60)}"
+        ev = _task_notify(conn, task, title, body, event_key=ev_key, level=lvl, kind="task_reminder", exclude_username="")
+        if ev:
+            fired_all.append(ev)
+            if caller_cf and caller_cf in [str(u).casefold() for u in (ev.get("targetUsers") or [])]:
+                fired_caller.append(ev)
+
+    if dirty:
+        _save_tasks_doc(conn, doc)
+    return fired_caller, fired_all
+
+
+def _task_summary_for(tasks_list, profile):
+    uname_cf = str((profile or {}).get("username") or "").strip().casefold()
+    u_depts = _task_user_dept_set(profile)
+    now_dt = datetime.now(timezone.utc)
+    s = {
+        "total": len(tasks_list),
+        "dailyPending": 0, "dailyCompleted": 0,
+        "weeklyPending": 0, "weeklyCompleted": 0,
+        "monthlyPending": 0, "monthlyCompleted": 0,
+        "teamworkPending": 0, "teamworkCompleted": 0,
+        "awaitingMyAccept": 0, "assignedToMePending": 0,
+        "assignedByMePending": 0, "overdue": 0,
+        "completed": 0, "pending": 0,
+    }
+    for t in tasks_list:
+        st = str(t.get("status") or "Pending")
+        is_done = (st == "Completed")
+        cad = str(t.get("cadence") or "daily").lower()
+        wm = str(t.get("workMode") or "personal").lower()
+        if is_done:
+            s["completed"] += 1
+        elif st != "Declined":
+            s["pending"] += 1
+        if cad == "daily":
+            s["dailyCompleted" if is_done else "dailyPending"] += 1
+        elif cad == "weekly":
+            s["weeklyCompleted" if is_done else "weeklyPending"] += 1
+        elif cad == "monthly":
+            s["monthlyCompleted" if is_done else "monthlyPending"] += 1
+        if wm in ("department", "dept_to_dept"):
+            s["teamworkCompleted" if is_done else "teamworkPending"] += 1
+        if _task_is_overdue(t, now_dt=now_dt):
+            s["overdue"] += 1
+        asg_u = str(t.get("assigneeUsername") or "").strip().casefold()
+        cr_u = str(t.get("creatorUsername") or "").strip().casefold()
+        acc = str(t.get("acceptanceStatus") or "")
+        is_my_dept_target = bool(not asg_u and t.get("targetDepartment") and _dept_matches(u_depts, t.get("targetDepartment")))
+        if not is_done and st != "Declined":
+            if acc == "pending" and ((uname_cf and asg_u == uname_cf) or is_my_dept_target):
+                s["awaitingMyAccept"] += 1
+            if (uname_cf and asg_u == uname_cf) or is_my_dept_target:
+                s["assignedToMePending"] += 1
+            if uname_cf and cr_u == uname_cf and (asg_u != uname_cf):
+                s["assignedByMePending"] += 1
+    return s
+
+
+@app.get("/api/tasks")
+@signed_in
+def list_workspace_tasks():
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    with db() as conn:
+        doc = _load_tasks_doc(conn)
+        people, depts = _task_people_and_depts(conn)
+        # Lightweight recent tickets list for optional Ticket <-> Task linking
+        recent_tickets = []
+        try:
+            t_rows = conn.execute(
+                "SELECT id, display_name, department, factory, status, primary_category, description "
+                "FROM tickets ORDER BY updated_at DESC LIMIT 80"
+            ).fetchall()
+            for r in t_rows:
+                recent_tickets.append({
+                    "id": str(r[0] or ""),
+                    "name": str(r[1] or ""),
+                    "dept": str(r[2] or ""),
+                    "site": str(r[3] or ""),
+                    "status": str(r[4] or ""),
+                    "primary": str(r[5] or ""),
+                    "summary": str(r[6] or "")[:120],
+                })
+        except Exception:
+            recent_tickets = []
+
+    visible = [t for t in doc["tasks"] if _task_visible_to(t, profile, is_adm)]
+    visible.sort(key=lambda x: str(x.get("updatedAt") or x.get("createdAt") or ""), reverse=True)
+    summary = _task_summary_for(visible, profile)
+    can_write = is_adm or module_access(profile, "tasks", write=True)
+    return jsonify(
+        tasks=visible,
+        summary=summary,
+        people=people,
+        departments=depts,
+        tickets=recent_tickets,
+        canWrite=can_write,
+        me={
+            "username": str(profile.get("username") or ""),
+            "name": str(profile.get("name") or profile.get("username") or ""),
+            "dept": str(profile.get("dept") or profile.get("department") or ""),
+            "site": str(profile.get("site") or ""),
+            "isAdmin": is_adm,
+        },
+        serverNow=_task_now_iso(),
+    )
+
+
+@app.post("/api/tasks")
+@signed_in
+def create_workspace_task():
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    body = request.get_json(silent=True) or {}
+    title = str(body.get("title") or "").strip()[:200]
+    if not title:
+        return jsonify(error="Task title is required."), 400
+    description = str(body.get("description") or "").strip()[:4000]
+    cadence = str(body.get("cadence") or "daily").strip().lower()
+    if cadence not in _TASK_CADENCES:
+        cadence = "daily"
+    work_mode = str(body.get("workMode") or "personal").strip().lower()
+    if work_mode not in _TASK_WORK_MODES:
+        work_mode = "personal"
+    priority = str(body.get("priority") or "Normal").strip()
+    if priority not in _TASK_PRIORITIES:
+        priority = "Normal"
+    due_at = str(body.get("dueAt") or "").strip()[:40]
+    try:
+        default_rem = 60 if cadence == "daily" else (240 if cadence == "weekly" else 1440)
+        rem_raw = body.get("reminderIntervalMins")
+        rem_mins = default_rem if rem_raw is None or rem_raw == "" else max(0, min(10080, int(rem_raw)))
+    except (TypeError, ValueError):
+        rem_mins = 60
+    recurring = bool(body.get("recurring"))
+    linked_ticket_id = str(body.get("linkedTicketId") or "").strip()[:80]
+    checklist = _task_clean_checklist(body.get("checklist") or [])
+
+    creator_u = str(profile.get("username") or "").strip()
+    creator_u_cf = creator_u.casefold()
+    creator_name = str(profile.get("name") or creator_u or "User").strip()[:120]
+    creator_dept = str(profile.get("dept") or profile.get("department") or "").strip()[:120]
+    creator_site = str(profile.get("site") or "").strip()[:60]
+
+    with db() as conn:
+        people, _depts = _task_people_and_depts(conn)
+        doc = _load_tasks_doc(conn, for_update=True)
+
+        req_asg = str(body.get("assigneeUsername") or "").strip()
+        target_dept = str(body.get("targetDepartment") or "").strip()[:120]
+        source_dept = str(body.get("sourceDepartment") or creator_dept).strip()[:120]
+
+        asg_person = _task_resolve_person(people, req_asg) if req_asg else None
+        if req_asg and not asg_person:
+            return jsonify(error=f"Assignee '{req_asg}' was not found."), 400
+
+        if work_mode == "personal":
+            assignee_u = creator_u
+            assignee_name = creator_name
+            assignee_dept = creator_dept
+            target_dept = ""
+            source_dept = creator_dept
+            acc_status = "self"
+            status = "Pending"
+        elif work_mode == "delegated":
+            if not asg_person:
+                return jsonify(error="Select a user to assign this task to."), 400
+            assignee_u = asg_person["username"]
+            assignee_name = asg_person["name"]
+            assignee_dept = asg_person["dept"]
+            if not target_dept:
+                target_dept = assignee_dept
+            if assignee_u.casefold() == creator_u_cf:
+                acc_status = "self"
+                status = "Pending"
+            else:
+                acc_status = "pending"
+                status = "Awaiting Acceptance"
+        elif work_mode == "department":
+            if not target_dept:
+                target_dept = creator_dept or (asg_person["dept"] if asg_person else "")
+            if not target_dept:
+                return jsonify(error="Select a department for this Team Work task."), 400
+            assignee_u = asg_person["username"] if asg_person else ""
+            assignee_name = asg_person["name"] if asg_person else ""
+            assignee_dept = target_dept
+            if assignee_u and assignee_u.casefold() == creator_u_cf:
+                acc_status = "self"
+                status = "Pending"
+            else:
+                acc_status = "pending"
+                status = "Awaiting Acceptance"
+        else:  # dept_to_dept
+            if not target_dept:
+                return jsonify(error="Select a target department for Department-to-Department handoff."), 400
+            if not source_dept:
+                source_dept = creator_dept or "Workspace"
+            assignee_u = asg_person["username"] if asg_person else ""
+            assignee_name = asg_person["name"] if asg_person else ""
+            assignee_dept = target_dept
+            acc_status = "pending"
+            status = "Awaiting Acceptance"
+
+        # Resolve optional watchers & shared departments
+        watchers = []
+        seen_w = set()
+        for wu in (body.get("watcherUsernames") or []):
+            wp = _task_resolve_person(people, wu)
+            if wp and wp["username"].casefold() not in seen_w:
+                seen_w.add(wp["username"].casefold())
+                watchers.append({"username": wp["username"], "name": wp["name"], "dept": wp["dept"]})
+        shared_depts = []
+        seen_sd = set()
+        for sd in (body.get("sharedDepartments") or []):
+            s = str(sd or "").strip()[:120]
+            if s and s.casefold() not in seen_sd:
+                seen_sd.add(s.casefold())
+                shared_depts.append(s)
+
+        now_iso = _task_now_iso()
+        task_id = "TSK-" + uuid.uuid4().hex[:8].upper()
+        chain = []
+        if acc_status == "pending":
+            chain.append({
+                "fromUsername": creator_u,
+                "fromName": creator_name,
+                "toUsername": assignee_u,
+                "toName": assignee_name or (f"{target_dept} Dept" if target_dept else ""),
+                "toDepartment": target_dept,
+                "note": "Initial assignment",
+                "at": now_iso,
+            })
+
+        task = {
+            "id": task_id,
+            "title": title,
+            "description": description,
+            "cadence": cadence,
+            "workMode": work_mode,
+            "priority": priority,
+            "status": status,
+            "acceptanceStatus": acc_status,
+            "creatorUsername": creator_u,
+            "creatorName": creator_name,
+            "creatorDept": creator_dept,
+            "creatorSite": creator_site,
+            "assigneeUsername": assignee_u,
+            "assigneeName": assignee_name,
+            "assigneeDept": assignee_dept,
+            "sourceDepartment": source_dept,
+            "targetDepartment": target_dept,
+            "watchers": watchers,
+            "sharedDepartments": shared_depts,
+            "involvedUsers": [],
+            "delegationChain": chain,
+            "dueAt": due_at,
+            "committedDueAt": "",
+            "acceptancePlan": "",
+            "acceptedByUsername": "",
+            "acceptedByName": "",
+            "acceptedAt": "",
+            "declineReason": "",
+            "declinedByUsername": "",
+            "declinedByName": "",
+            "declinedAt": "",
+            "reminderIntervalMins": rem_mins,
+            "lastRemindedAt": "",
+            "recurring": recurring,
+            "parentTaskId": "",
+            "spawnedNextId": "",
+            "linkedTicketId": linked_ticket_id,
+            "checklist": checklist,
+            "attachments": [],
+            "comments": [],
+            "timeline": [],
+            "completedAt": "",
+            "completedByUsername": "",
+            "completedByName": "",
+            "completionNote": "",
+            "createdAt": now_iso,
+            "updatedAt": now_iso,
+        }
+        _task_rebuild_involved(task)
+        target_desc = (
+            f"{source_dept} → {target_dept} Dept" if work_mode == "dept_to_dept"
+            else (f"{target_dept} Dept" + (f" ({assignee_name})" if assignee_name else "") if work_mode == "department"
+                  else (assignee_name if assignee_u.casefold() != creator_u_cf else "Self"))
+        )
+        _task_add_timeline(task, "created", creator_u, creator_name, f"Created {cadence} task ({work_mode}) assigned to {target_desc}")
+        doc["tasks"].insert(0, task)
+        _save_tasks_doc(conn, doc)
+
+        if acc_status == "pending" or watchers or shared_depts:
+            _task_notify(
+                conn, task,
+                title=f"📋 New Task Assigned: {title}" if work_mode != "dept_to_dept" else f"🤝 Dept Handoff ({source_dept} → {target_dept}): {title}",
+                body=f"{creator_name} assigned [{task_id}] ({cadence.capitalize()} · {priority}) to {target_desc}. Please accept with ETA & plan, decline, or reassign.",
+                event_key=f"tsk-create:{task_id}",
+                level="info",
+                kind="task",
+                exclude_username=creator_u_cf,
+            )
+        else:
+            _pg_emit_notify(conn, "task", {"taskId": task_id, "action": "created"})
+
+    return jsonify(ok=True, task=task), 201
+
+
+@app.get("/api/tasks/<task_id>")
+@signed_in
+def get_workspace_task(task_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    with db() as conn:
+        doc = _load_tasks_doc(conn)
+    task = next((t for t in doc["tasks"] if str(t.get("id")) == str(task_id)), None)
+    if not task:
+        return jsonify(error="Task not found."), 404
+    if not _task_visible_to(task, profile, is_adm):
+        return jsonify(error="Access denied to this task."), 403
+    return jsonify(ok=True, task=task)
+
+
+@app.patch("/api/tasks/<task_id>")
+@signed_in
+def update_workspace_task(task_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname = str(profile.get("username") or "").strip()
+    uname_cf = uname.casefold()
+    actor_name = str(profile.get("name") or uname or "User").strip()[:120]
+    body = request.get_json(silent=True) or {}
+
+    next_task = None
+    with db() as conn:
+        doc = _load_tasks_doc(conn, for_update=True)
+        task = next((t for t in doc["tasks"] if str(t.get("id")) == str(task_id)), None)
+        if not task:
+            return jsonify(error="Task not found."), 404
+        if not _task_visible_to(task, profile, is_adm):
+            return jsonify(error="Access denied to this task."), 403
+
+        old_status = str(task.get("status") or "Pending")
+        changes = []
+        if "title" in body:
+            tval = str(body.get("title") or "").strip()[:200]
+            if not tval:
+                return jsonify(error="Task title cannot be empty."), 400
+            if tval != task.get("title"):
+                task["title"] = tval
+                changes.append("title")
+        if "description" in body:
+            task["description"] = str(body.get("description") or "").strip()[:4000]
+            changes.append("description")
+        if "cadence" in body:
+            cad = str(body.get("cadence") or "").strip().lower()
+            if cad in _TASK_CADENCES:
+                task["cadence"] = cad
+                changes.append(f"cadence→{cad}")
+        if "priority" in body:
+            pr = str(body.get("priority") or "").strip()
+            if pr in _TASK_PRIORITIES:
+                task["priority"] = pr
+                changes.append(f"priority→{pr}")
+        if "dueAt" in body:
+            task["dueAt"] = str(body.get("dueAt") or "").strip()[:40]
+            changes.append("due date")
+        if "committedDueAt" in body:
+            task["committedDueAt"] = str(body.get("committedDueAt") or "").strip()[:40]
+            changes.append("committed ETA")
+        if "acceptancePlan" in body:
+            task["acceptancePlan"] = str(body.get("acceptancePlan") or "").strip()[:2000]
+        if "reminderIntervalMins" in body:
+            try:
+                task["reminderIntervalMins"] = max(0, min(10080, int(body.get("reminderIntervalMins") or 0)))
+                changes.append("reminder schedule")
+            except (TypeError, ValueError):
+                pass
+        if "recurring" in body:
+            task["recurring"] = bool(body.get("recurring"))
+        if "linkedTicketId" in body:
+            task["linkedTicketId"] = str(body.get("linkedTicketId") or "").strip()[:80]
+            changes.append("linked ticket")
+        if "checklist" in body and isinstance(body.get("checklist"), list):
+            task["checklist"] = _task_clean_checklist(body.get("checklist"))
+            done_cnt = sum(1 for c in task["checklist"] if c.get("done"))
+            changes.append(f"checklist ({done_cnt}/{len(task['checklist'])})")
+
+        new_status = str(body.get("status") or "").strip()
+        if new_status in ("Pending", "In progress", "Completed"):
+            task["status"] = new_status
+            if new_status == "Completed" and old_status != "Completed":
+                task["completedAt"] = _task_now_iso()
+                task["completedByUsername"] = uname
+                task["completedByName"] = actor_name
+                task["completionNote"] = str(body.get("completionNote") or "").strip()[:1000]
+                if task.get("acceptanceStatus") == "pending":
+                    task["acceptanceStatus"] = "accepted"
+                changes.append("marked Completed")
+            elif new_status != "Completed" and old_status == "Completed":
+                task["completedAt"] = ""
+                task["completedByUsername"] = ""
+                task["completedByName"] = ""
+                changes.append(f"reopened to {new_status}")
+            elif new_status != old_status:
+                changes.append(f"status→{new_status}")
+
+        task["updatedAt"] = _task_now_iso()
+        _task_rebuild_involved(task)
+        if changes:
+            _task_add_timeline(task, "updated", uname, actor_name, "Updated: " + ", ".join(changes))
+
+        # Auto-spawn next cycle if recurring task was just completed
+        if task.get("status") == "Completed" and old_status != "Completed" and task.get("recurring") and not task.get("spawnedNextId"):
+            nxt_id = "TSK-" + uuid.uuid4().hex[:8].upper()
+            now_iso = _task_now_iso()
+            next_task = {
+                **task,
+                "id": nxt_id,
+                "status": "Pending" if task.get("acceptanceStatus") == "self" else "Awaiting Acceptance",
+                "acceptanceStatus": "self" if task.get("acceptanceStatus") == "self" else "pending",
+                "dueAt": _task_next_due_iso(task.get("dueAt") or task.get("committedDueAt"), task.get("cadence", "daily")),
+                "committedDueAt": "",
+                "acceptancePlan": "",
+                "acceptedByUsername": "",
+                "acceptedByName": "",
+                "acceptedAt": "",
+                "declineReason": "",
+                "declinedByUsername": "",
+                "declinedByName": "",
+                "declinedAt": "",
+                "lastRemindedAt": "",
+                "completedAt": "",
+                "completedByUsername": "",
+                "completedByName": "",
+                "completionNote": "",
+                "parentTaskId": task["id"],
+                "spawnedNextId": "",
+                "checklist": [{**c, "done": False} for c in (task.get("checklist") or [])],
+                "attachments": [],
+                "comments": [],
+                "timeline": [],
+                "createdAt": now_iso,
+                "updatedAt": now_iso,
+            }
+            _task_add_timeline(next_task, "created", uname, actor_name, f"Auto-scheduled next {next_task['cadence']} cycle from {task['id']}")
+            task["spawnedNextId"] = nxt_id
+            doc["tasks"].insert(0, next_task)
+
+        _save_tasks_doc(conn, doc)
+
+        if task.get("status") == "Completed" and old_status != "Completed":
+            _task_notify(
+                conn, task,
+                title=f"🎉 Task Completed: {task.get('title', '')}",
+                body=f"{actor_name} completed [{task['id']}]." + (f" Note: {task.get('completionNote')}" if task.get("completionNote") else ""),
+                event_key=f"tsk-done:{task['id']}:{uuid.uuid4().hex[:6]}",
+                level="ok",
+                kind="task",
+                exclude_username=uname_cf,
+            )
+        elif changes:
+            _task_notify(
+                conn, task,
+                title=f"✏️ Task Updated: {task.get('title', '')}",
+                body=f"{actor_name} updated [{task['id']}] ({', '.join(changes)}).",
+                event_key=f"tsk-upd:{task['id']}:{uuid.uuid4().hex[:6]}",
+                level="info",
+                kind="task",
+                exclude_username=uname_cf,
+            )
+
+    return jsonify(ok=True, task=task, nextTask=next_task)
+
+
+@app.delete("/api/tasks/<task_id>")
+@signed_in
+def delete_workspace_task(task_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname_cf = str(profile.get("username") or "").strip().casefold()
+    with db() as conn:
+        doc = _load_tasks_doc(conn, for_update=True)
+        idx = next((i for i, t in enumerate(doc["tasks"]) if str(t.get("id")) == str(task_id)), -1)
+        if idx < 0:
+            return jsonify(error="Task not found."), 404
+        task = doc["tasks"][idx]
+        if not is_adm and str(task.get("creatorUsername") or "").strip().casefold() != uname_cf:
+            return jsonify(error="Only the task creator or an Administrator can delete this task."), 403
+        for att in (task.get("attachments") or []):
+            sname = Path(str(att.get("storedName") or "")).name
+            if sname:
+                try:
+                    (TASK_UPLOAD_DIR / sname).unlink(missing_ok=True)
+                except OSError:
+                    pass
+        doc["tasks"].pop(idx)
+        _save_tasks_doc(conn, doc)
+        _pg_emit_notify(conn, "task", {"taskId": task_id, "action": "deleted"})
+    return jsonify(ok=True, deletedId=task_id)
+
+
+@app.post("/api/tasks/<task_id>/accept")
+@signed_in
+def accept_workspace_task(task_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname = str(profile.get("username") or "").strip()
+    uname_cf = uname.casefold()
+    actor_name = str(profile.get("name") or uname or "User").strip()[:120]
+    actor_dept = str(profile.get("dept") or profile.get("department") or "").strip()[:120]
+    body = request.get_json(silent=True) or {}
+
+    committed_due = str(body.get("committedDueAt") or "").strip()[:40]
+    plan = str(body.get("acceptancePlan") or "").strip()[:2000]
+    if not committed_due:
+        return jsonify(error="Please specify when this task will be completed (Planned Completion Date & Time)."), 400
+    if len(plan) < 3:
+        return jsonify(error="Please explain the action plan / how this task will be completed."), 400
+
+    with db() as conn:
+        doc = _load_tasks_doc(conn, for_update=True)
+        task = next((t for t in doc["tasks"] if str(t.get("id")) == str(task_id)), None)
+        if not task:
+            return jsonify(error="Task not found."), 404
+        if not _task_visible_to(task, profile, is_adm):
+            return jsonify(error="Access denied to this task."), 403
+
+        asg_cf = str(task.get("assigneeUsername") or "").strip().casefold()
+        u_depts = _task_user_dept_set(profile)
+        in_target_dept = bool(task.get("targetDepartment") and _dept_matches(u_depts, task.get("targetDepartment")))
+        if not is_adm and asg_cf and asg_cf != uname_cf and not in_target_dept:
+            return jsonify(error="Only the assigned user, target department member, or Administrator can accept this task."), 403
+
+        now_iso = _task_now_iso()
+        if not task.get("assigneeUsername"):
+            task["assigneeUsername"] = uname
+            task["assigneeName"] = actor_name
+            if not task.get("assigneeDept"):
+                task["assigneeDept"] = actor_dept or task.get("targetDepartment", "")
+        task["acceptanceStatus"] = "accepted"
+        task["status"] = "In progress"
+        task["committedDueAt"] = committed_due
+        task["acceptancePlan"] = plan
+        task["acceptedByUsername"] = uname
+        task["acceptedByName"] = actor_name
+        task["acceptedAt"] = now_iso
+        task["declineReason"] = ""
+        task["updatedAt"] = now_iso
+        _task_rebuild_involved(task)
+        _task_add_timeline(task, "accepted", uname, actor_name, f"Accepted task · ETA: {committed_due} · Plan: {plan[:200]}")
+        _save_tasks_doc(conn, doc)
+
+        _task_notify(
+            conn, task,
+            title=f"✅ Task Accepted by {actor_name}: {task.get('title', '')}",
+            body=f"[{task['id']}] Committed ETA: {committed_due} · Plan: {plan[:220]}",
+            event_key=f"tsk-accept:{task['id']}:{uuid.uuid4().hex[:6]}",
+            level="ok",
+            kind="task",
+            exclude_username=uname_cf,
+        )
+    return jsonify(ok=True, task=task)
+
+
+@app.post("/api/tasks/<task_id>/decline")
+@signed_in
+def decline_workspace_task(task_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname = str(profile.get("username") or "").strip()
+    uname_cf = uname.casefold()
+    actor_name = str(profile.get("name") or uname or "User").strip()[:120]
+    body = request.get_json(silent=True) or {}
+    reason = str(body.get("reason") or "").strip()[:1000]
+    if len(reason) < 2:
+        return jsonify(error="Please provide a reason for declining this task."), 400
+
+    with db() as conn:
+        doc = _load_tasks_doc(conn, for_update=True)
+        task = next((t for t in doc["tasks"] if str(t.get("id")) == str(task_id)), None)
+        if not task:
+            return jsonify(error="Task not found."), 404
+        if not _task_visible_to(task, profile, is_adm):
+            return jsonify(error="Access denied to this task."), 403
+
+        now_iso = _task_now_iso()
+        task["acceptanceStatus"] = "declined"
+        task["status"] = "Declined"
+        task["declineReason"] = reason
+        task["declinedByUsername"] = uname
+        task["declinedByName"] = actor_name
+        task["declinedAt"] = now_iso
+        task["updatedAt"] = now_iso
+        _task_rebuild_involved(task)
+        _task_add_timeline(task, "declined", uname, actor_name, f"Declined task · Reason: {reason[:240]}")
+        _save_tasks_doc(conn, doc)
+
+        _task_notify(
+            conn, task,
+            title=f"❌ Task Declined by {actor_name}: {task.get('title', '')}",
+            body=f"[{task['id']}] Reason: {reason[:260]}. You can reassign it to another person or department.",
+            event_key=f"tsk-decline:{task['id']}:{uuid.uuid4().hex[:6]}",
+            level="warn",
+            kind="task",
+            exclude_username=uname_cf,
+        )
+    return jsonify(ok=True, task=task)
+
+
+@app.post("/api/tasks/<task_id>/reassign")
+@signed_in
+def reassign_workspace_task(task_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname = str(profile.get("username") or "").strip()
+    uname_cf = uname.casefold()
+    actor_name = str(profile.get("name") or uname or "User").strip()[:120]
+    body = request.get_json(silent=True) or {}
+    to_user_raw = str(body.get("toUsername") or "").strip()
+    to_dept = str(body.get("toDepartment") or "").strip()[:120]
+    note = str(body.get("note") or "").strip()[:1000]
+    if not to_user_raw and not to_dept:
+        return jsonify(error="Select a new colleague or target department to reassign this task."), 400
+
+    with db() as conn:
+        people, _depts = _task_people_and_depts(conn)
+        doc = _load_tasks_doc(conn, for_update=True)
+        task = next((t for t in doc["tasks"] if str(t.get("id")) == str(task_id)), None)
+        if not task:
+            return jsonify(error="Task not found."), 404
+        if not _task_visible_to(task, profile, is_adm):
+            return jsonify(error="Access denied to this task."), 403
+
+        target_person = _task_resolve_person(people, to_user_raw) if to_user_raw else None
+        if to_user_raw and not target_person:
+            return jsonify(error=f"User '{to_user_raw}' was not found."), 400
+
+        prev_assignee_u = str(task.get("assigneeUsername") or "")
+        new_u = target_person["username"] if target_person else ""
+        new_name = target_person["name"] if target_person else ""
+        new_dept = to_dept or (target_person["dept"] if target_person else task.get("targetDepartment", ""))
+
+        now_iso = _task_now_iso()
+        chain = list(task.get("delegationChain") or [])
+        chain.append({
+            "fromUsername": uname,
+            "fromName": actor_name,
+            "toUsername": new_u,
+            "toName": new_name or (f"{new_dept} Dept" if new_dept else ""),
+            "toDepartment": new_dept,
+            "note": note or "Forwarded / Reassigned",
+            "at": now_iso,
+        })
+        task["delegationChain"] = chain[-30:]
+        task["assigneeUsername"] = new_u
+        task["assigneeName"] = new_name
+        task["assigneeDept"] = new_dept
+        if to_dept:
+            task["targetDepartment"] = to_dept
+            if task.get("workMode") == "personal":
+                task["workMode"] = "department"
+        elif task.get("workMode") == "personal" and new_u.casefold() != uname_cf:
+            task["workMode"] = "delegated"
+
+        if new_u and new_u.casefold() == uname_cf:
+            task["acceptanceStatus"] = "self"
+            task["status"] = "Pending"
+        else:
+            task["acceptanceStatus"] = "pending"
+            task["status"] = "Awaiting Acceptance"
+        task["declineReason"] = ""
+        task["updatedAt"] = now_iso
+        # Keep previous assignee + actor + new assignee + creator in involvedUsers
+        inv = list(task.get("involvedUsers") or [])
+        for extra_u in (prev_assignee_u, uname, new_u):
+            if extra_u:
+                inv.append(extra_u)
+        task["involvedUsers"] = inv
+        _task_rebuild_involved(task)
+
+        target_lbl = new_name + (f" ({new_dept})" if new_dept else "") if new_name else f"{new_dept} Dept"
+        _task_add_timeline(task, "reassigned", uname, actor_name, f"Forwarded to {target_lbl}" + (f" · Note: {note[:200]}" if note else ""))
+        _save_tasks_doc(conn, doc)
+
+        _task_notify(
+            conn, task,
+            title=f"↪️ Task Forwarded to {target_lbl}: {task.get('title', '')}",
+            body=f"{actor_name} reassigned [{task['id']}] to {target_lbl}." + (f" Note: {note[:200]}" if note else ""),
+            event_key=f"tsk-reassign:{task['id']}:{uuid.uuid4().hex[:6]}",
+            level="info",
+            kind="task",
+            exclude_username=uname_cf,
+            extra_users=[prev_assignee_u, new_u],
+            extra_depts=[new_dept] if new_dept else None,
+        )
+    return jsonify(ok=True, task=task)
+
+
+@app.post("/api/tasks/<task_id>/share")
+@signed_in
+def share_workspace_task(task_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname = str(profile.get("username") or "").strip()
+    uname_cf = uname.casefold()
+    actor_name = str(profile.get("name") or uname or "User").strip()[:120]
+    body = request.get_json(silent=True) or {}
+    raw_users = body.get("usernames") if isinstance(body.get("usernames"), list) else []
+    raw_depts = body.get("departments") if isinstance(body.get("departments"), list) else []
+    note = str(body.get("note") or "").strip()[:500]
+    if not raw_users and not raw_depts:
+        return jsonify(error="Choose at least one colleague or department to share with."), 400
+
+    with db() as conn:
+        people, _depts = _task_people_and_depts(conn)
+        doc = _load_tasks_doc(conn, for_update=True)
+        task = next((t for t in doc["tasks"] if str(t.get("id")) == str(task_id)), None)
+        if not task:
+            return jsonify(error="Task not found."), 404
+        if not _task_visible_to(task, profile, is_adm):
+            return jsonify(error="Access denied to this task."), 403
+
+        watchers = list(task.get("watchers") or [])
+        seen_w = {str(w.get("username") or "").casefold() for w in watchers if isinstance(w, dict)}
+        added_names = []
+        added_users = []
+        for ru in raw_users:
+            p = _task_resolve_person(people, ru)
+            if p and p["username"].casefold() not in seen_w:
+                seen_w.add(p["username"].casefold())
+                watchers.append({"username": p["username"], "name": p["name"], "dept": p["dept"]})
+                added_names.append(p["name"])
+                added_users.append(p["username"])
+        task["watchers"] = watchers
+
+        shared_depts = list(task.get("sharedDepartments") or [])
+        seen_sd = {str(d).casefold() for d in shared_depts}
+        added_depts = []
+        for rd in raw_depts:
+            ds = str(rd or "").strip()[:120]
+            if ds and ds.casefold() not in seen_sd:
+                seen_sd.add(ds.casefold())
+                shared_depts.append(ds)
+                added_depts.append(ds)
+                added_names.append(f"{ds} Dept")
+        task["sharedDepartments"] = shared_depts
+        task["updatedAt"] = _task_now_iso()
+        _task_rebuild_involved(task)
+
+        lbl = ", ".join(added_names) if added_names else "colleagues"
+        _task_add_timeline(task, "shared", uname, actor_name, f"Shared task & attachments with {lbl}" + (f" · {note[:160]}" if note else ""))
+        _save_tasks_doc(conn, doc)
+
+        _task_notify(
+            conn, task,
+            title=f"📤 Task & Files Shared: {task.get('title', '')}",
+            body=f"{actor_name} shared [{task['id']}] ({len(task.get('attachments') or [])} attachment(s)) with {lbl}." + (f" Note: {note[:180]}" if note else ""),
+            event_key=f"tsk-share:{task['id']}:{uuid.uuid4().hex[:6]}",
+            level="info",
+            kind="task",
+            exclude_username=uname_cf,
+            extra_users=added_users,
+            extra_depts=added_depts,
+        )
+    return jsonify(ok=True, task=task, addedNames=added_names)
+
+
+@app.post("/api/tasks/<task_id>/comments")
+@signed_in
+def add_workspace_task_comment(task_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname = str(profile.get("username") or "").strip()
+    uname_cf = uname.casefold()
+    actor_name = str(profile.get("name") or uname or "User").strip()[:120]
+    body = request.get_json(silent=True) or {}
+    text = str(body.get("text") or "").strip()[:2000]
+    att_ids = [str(x)[:60] for x in (body.get("attachmentIds") or []) if str(x).strip()][:10]
+    if not text and not att_ids:
+        return jsonify(error="Enter a comment or attach a file."), 400
+
+    with db() as conn:
+        doc = _load_tasks_doc(conn, for_update=True)
+        task = next((t for t in doc["tasks"] if str(t.get("id")) == str(task_id)), None)
+        if not task:
+            return jsonify(error="Task not found."), 404
+        if not _task_visible_to(task, profile, is_adm):
+            return jsonify(error="Access denied to this task."), 403
+
+        comment = {
+            "id": "cmt-" + uuid.uuid4().hex[:10],
+            "authorUsername": uname,
+            "authorName": actor_name,
+            "text": text,
+            "attachmentIds": att_ids,
+            "createdAt": _task_now_iso(),
+        }
+        comments = list(task.get("comments") or [])
+        comments.append(comment)
+        task["comments"] = comments[-150:]
+        task["updatedAt"] = _task_now_iso()
+        _task_rebuild_involved(task)
+        _task_add_timeline(task, "comment", uname, actor_name, f"Commented: {text[:180]}" if text else "Shared attachment in discussion")
+        _save_tasks_doc(conn, doc)
+
+        _task_notify(
+            conn, task,
+            title=f"💬 Comment on {task.get('title', '')}",
+            body=f"{actor_name}: {text[:240]}" if text else f"{actor_name} shared a file on [{task['id']}].",
+            event_key=f"tsk-cmt:{comment['id']}",
+            level="info",
+            kind="task",
+            exclude_username=uname_cf,
+        )
+    return jsonify(ok=True, comment=comment, task=task), 201
+
+
+@app.post("/api/tasks/<task_id>/attachments")
+@signed_in
+def upload_workspace_task_attachments(task_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname = str(profile.get("username") or "").strip()
+    uname_cf = uname.casefold()
+    actor_name = str(profile.get("name") or uname or "User").strip()[:120]
+
+    files = request.files.getlist("files") + request.files.getlist("file")
+    files = [f for f in files if f and getattr(f, "filename", "")]
+    if not files:
+        return jsonify(error="Choose or paste at least one file to upload."), 400
+
+    with db() as conn:
+        doc = _load_tasks_doc(conn, for_update=True)
+        task = next((t for t in doc["tasks"] if str(t.get("id")) == str(task_id)), None)
+        if not task:
+            return jsonify(error="Task not found."), 404
+        if not _task_visible_to(task, profile, is_adm):
+            return jsonify(error="Access denied to this task."), 403
+
+        existing = list(task.get("attachments") or [])
+        if len(existing) + len(files) > _TASK_MAX_ATTACHMENTS:
+            return jsonify(error=f"Maximum {_TASK_MAX_ATTACHMENTS} attachments allowed per task."), 400
+
+        TASK_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        added = []
+        for f in files[:10]:
+            orig_name = Path(str(f.filename or "attachment")).name[:180]
+            ext = Path(orig_name).suffix.lower()
+            if not ext:
+                guessed = mimetypes.guess_extension(str(f.mimetype or "")) or ".bin"
+                ext = ".jpg" if guessed == ".jpe" else guessed
+                orig_name = orig_name + ext
+            if ext not in _TASK_ALLOWED_EXTS:
+                return jsonify(error=f"File type '{ext}' is not supported."), 400
+            raw_bytes = f.read(_TASK_MAX_FILE_BYTES + 1)
+            if len(raw_bytes) > _TASK_MAX_FILE_BYTES:
+                return jsonify(error=f"File '{orig_name}' exceeds 15 MB limit."), 400
+            if not raw_bytes:
+                continue
+            att_id = "att-" + uuid.uuid4().hex[:10]
+            safe_stem = secure_filename(Path(orig_name).stem)[:60] or "file"
+            stored = f"{task_id}_{att_id}_{safe_stem}{ext}"
+            (TASK_UPLOAD_DIR / stored).write_bytes(raw_bytes)
+            mime = str(f.mimetype or mimetypes.guess_type(orig_name)[0] or "application/octet-stream")[:120]
+            rec = {
+                "id": att_id,
+                "name": orig_name,
+                "storedName": stored,
+                "size": len(raw_bytes),
+                "mime": mime,
+                "url": f"/api/tasks/{task_id}/attachments/{att_id}",
+                "uploadedBy": uname,
+                "uploadedByName": actor_name,
+                "uploadedAt": _task_now_iso(),
+            }
+            existing.append(rec)
+            added.append(rec)
+
+        if not added:
+            return jsonify(error="Uploaded file was empty."), 400
+        task["attachments"] = existing
+        task["updatedAt"] = _task_now_iso()
+        _task_rebuild_involved(task)
+        _task_add_timeline(task, "attachment", uname, actor_name, f"Attached {len(added)} file(s): " + ", ".join(a["name"] for a in added[:3]))
+        _save_tasks_doc(conn, doc)
+
+        _task_notify(
+            conn, task,
+            title=f"📎 File Attached to {task.get('title', '')}",
+            body=f"{actor_name} attached {', '.join(a['name'] for a in added[:3])} on [{task['id']}].",
+            event_key=f"tsk-att:{added[0]['id']}",
+            level="info",
+            kind="task",
+            exclude_username=uname_cf,
+        )
+    return jsonify(ok=True, attachments=added, task=task), 201
+
+
+@app.get("/api/tasks/<task_id>/attachments/<att_id>")
+@signed_in
+def serve_workspace_task_attachment(task_id, att_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    with db() as conn:
+        doc = _load_tasks_doc(conn)
+    task = next((t for t in doc["tasks"] if str(t.get("id")) == str(task_id)), None)
+    if not task:
+        abort(404)
+    if not _task_visible_to(task, profile, is_adm):
+        abort(403)
+    att = next((a for a in (task.get("attachments") or []) if str(a.get("id")) == str(att_id)), None)
+    if not att:
+        abort(404)
+    clean_name = Path(str(att.get("storedName") or "")).name
+    if not clean_name:
+        abort(404)
+    target = (TASK_UPLOAD_DIR / clean_name).resolve()
+    if not target.is_relative_to(TASK_UPLOAD_DIR.resolve()) or not target.is_file():
+        abort(404)
+    as_dl = str(request.args.get("download") or "") in ("1", "true", "yes")
+    return send_from_directory(str(TASK_UPLOAD_DIR), clean_name, as_attachment=as_dl, download_name=att.get("name") or clean_name)
+
+
+@app.delete("/api/tasks/<task_id>/attachments/<att_id>")
+@signed_in
+def delete_workspace_task_attachment(task_id, att_id):
+    profile = session.get("profile") or {}
+    is_adm = bool(session.get("is_admin"))
+    uname_cf = str(profile.get("username") or "").strip().casefold()
+    with db() as conn:
+        doc = _load_tasks_doc(conn, for_update=True)
+        task = next((t for t in doc["tasks"] if str(t.get("id")) == str(task_id)), None)
+        if not task:
+            return jsonify(error="Task not found."), 404
+        if not _task_visible_to(task, profile, is_adm):
+            return jsonify(error="Access denied to this task."), 403
+        atts = list(task.get("attachments") or [])
+        idx = next((i for i, a in enumerate(atts) if str(a.get("id")) == str(att_id)), -1)
+        if idx < 0:
+            return jsonify(error="Attachment not found."), 404
+        att = atts[idx]
+        if not is_adm and uname_cf not in (str(att.get("uploadedBy") or "").casefold(), str(task.get("creatorUsername") or "").casefold()):
+            return jsonify(error="Only the uploader, task creator, or Administrator can remove this attachment."), 403
+        clean_name = Path(str(att.get("storedName") or "")).name
+        if clean_name:
+            try:
+                (TASK_UPLOAD_DIR / clean_name).unlink(missing_ok=True)
+            except OSError:
+                pass
+        atts.pop(idx)
+        task["attachments"] = atts
+        task["updatedAt"] = _task_now_iso()
+        _save_tasks_doc(conn, doc)
+    return jsonify(ok=True, task=task)
+
+
+@app.route("/api/tasks/reminders/check", methods=["GET", "POST"])
+@signed_in
+def check_workspace_task_reminders():
+    profile = session.get("profile") or {}
+    uname_cf = str(profile.get("username") or "").strip().casefold()
+    body = request.get_json(silent=True) or {}
+    force_id = str(body.get("forceTaskId") or "").strip() if session.get("is_admin") else ""
+    with db() as conn:
+        mine, total = _evaluate_task_reminders(conn, caller_username_cf=uname_cf, force_task_id=force_id or None)
+    return jsonify(ok=True, reminders=mine, firedCount=len(total), serverNow=_task_now_iso())
 
 
 init_db()
