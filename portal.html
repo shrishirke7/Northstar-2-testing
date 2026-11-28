@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script>(function(){try{var t=localStorage.getItem('northstar-ui-theme');document.documentElement.dataset.theme=(t==='dark')?'dark':'light';}catch(_){document.documentElement.dataset.theme='light';}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#157a54">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -192,6 +193,27 @@ html,body{overflow-x:hidden;max-width:100%}
   #publicTable tbody td[data-label]::before{content:attr(data-label) ':';font-size:11px;font-weight:800;color:#5a6961;text-transform:uppercase;letter-spacing:.4px;flex-shrink:0}
   #portalLiveToastStack{top:calc(12px + env(safe-area-inset-top,0px));left:10px;right:10px;bottom:auto;max-width:none}
 }
+.portal-theme-btn{background:#eef3f0;color:#273b30;border:1px solid #d5dfd9;width:38px;height:38px;padding:0;justify-content:center;border-radius:10px}
+.portal-theme-btn .pt-sun{display:none}
+.portal-theme-btn .pt-moon{display:block}
+html[data-theme="dark"] .portal-theme-btn .pt-sun{display:block;color:#fbbf24}
+html[data-theme="dark"] .portal-theme-btn .pt-moon{display:none}
+html[data-theme="dark"]{color-scheme:dark;color:#f1f5f9;background:#0a1020}
+html[data-theme="dark"] body{background:#0a1020;color:#f1f5f9}
+html[data-theme="dark"] .card{background:#111a2e;border-color:#1f2d47;box-shadow:0 14px 36px rgba(0,0,0,.42)}
+html[data-theme="dark"] h1,html[data-theme="dark"] h2,html[data-theme="dark"] .pm-title{color:#f8fafc}
+html[data-theme="dark"] .sub,html[data-theme="dark"] .small,html[data-theme="dark"] .field label,html[data-theme="dark"] td small{color:#94a3b8}
+html[data-theme="dark"] input,html[data-theme="dark"] select,html[data-theme="dark"] textarea{background:#0b1222;border-color:#263654;color:#f1f5f9}
+html[data-theme="dark"] .portal-mode-btn,html[data-theme="dark"] .desk-pill,html[data-theme="dark"] .pill-choice,html[data-theme="dark"] .portal-tab,html[data-theme="dark"] .pg-dir-btn,html[data-theme="dark"] .portal-theme-btn,html[data-theme="dark"] .button.muted{background:#16223a;border-color:#263654;color:#e2e8f0}
+html[data-theme="dark"] .portal-mode-btn.active{background:#192847;border-color:#10b981}
+html[data-theme="dark"] .portal-mode-btn.active .pm-title{color:#f8fafc}
+html[data-theme="dark"] .pm-sub{background:#1e2d4a;color:#cbd5e1}
+html[data-theme="dark"] .filters,html[data-theme="dark"] .pill-group,html[data-theme="dark"] .mat-box,html[data-theme="dark"] .pg-photo-box{background:#0d1629;border-color:#1f2d47}
+html[data-theme="dark"] .filters label{background:#16223a;border-color:#263654;color:#e2e8f0}
+html[data-theme="dark"] .table-scroll{border-color:#1f2d47}
+html[data-theme="dark"] th{background:#0d1d2b;color:#34d399;border-bottom-color:#1f2d47}
+html[data-theme="dark"] td{color:#e2e8f0;border-bottom-color:#19253d}
+html[data-theme="dark"] tr:hover td{background:rgba(56,189,248,.05)}
 </style>
 </head>
 <body>
@@ -207,6 +229,7 @@ html,body{overflow-x:hidden;max-width:100%}
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button type="button" class="portal-theme-btn" id="portalThemeToggleBtn" aria-label="Switch Dark / Light UI" title="Switch Dark / Light UI" onclick="(function(){var d=document.documentElement;var n=d.dataset.theme==='dark'?'light':'dark';d.dataset.theme=n;try{localStorage.setItem('northstar-ui-theme',n);}catch(_){}})()"><svg class="pt-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><svg class="pt-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.2M12 19.8V22M4.93 4.93l1.56 1.56M17.51 17.51l1.56 1.56M2 12h2.2M19.8 12H22M4.93 19.07l1.56-1.56M17.51 6.49l1.56-1.56"/></svg></button>
         <a class="button muted" id="portalSignInBtn" href="/">Sign in to Swarnshilp ↗</a>
       </div>
     </div>
