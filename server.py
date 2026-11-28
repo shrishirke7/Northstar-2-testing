@@ -2365,6 +2365,66 @@ def live_pulse():
         return jsonify(**_pulse_versions(conn, include_internal=True))
 
 
+_IT_DEPT_TOKENS_CF = {
+    "it", "it dept", "it department", "information technology", "it infra",
+    "it infrastructure", "it support", "it helpdesk", "it help desk", "mis", "systems", "it admin",
+}
+
+
+def _is_it_department_name(dept_val):
+    raw = str(dept_val or "").strip().casefold()
+    if not raw:
+        return False
+    if raw in _IT_DEPT_TOKENS_CF:
+        return True
+    cleaned = re.sub(r"[^a-z0-9]+", " ", raw).strip()
+    if cleaned in _IT_DEPT_TOKENS_CF:
+        return True
+    toks = cleaned.split()
+    return bool(toks and toks[0] == "it")
+
+
+def _is_cctv_notif_event(ev):
+    dt = str(ev.get("deviceType") or "").strip().casefold()
+    ds = str(ev.get("deviceSubtype") or "").strip().casefold()
+    tv = str(ev.get("targetView") or "").strip().casefold()
+    if dt == "surveillance" or tv == "surveillance" or ds in ("cctv", "nvr", "dvr", "camera", "ip camera"):
+        return True
+    hay = " ".join(str(ev.get(k) or "") for k in ("kind", "title", "body", "targetTag")).casefold()
+    return any(tok in hay for tok in ("cctv", "surveillance", "nvr", "dvr", "camera"))
+
+
+def _is_device_notif_event(ev):
+    ev_kind = str(ev.get("kind") or "").strip().casefold()
+    tv = str(ev.get("targetView") or "").strip().casefold()
+    if ev_kind in ("online", "offline", "critical", "device_offline", "device_online", "cctv", "cctv_offline", "cctv_online", "surveillance", "network", "asset"):
+        return True
+    if ev.get("targetTag") or ev.get("deviceType") or tv in ("assets", "surveillance", "monitoring", "datacenter", "snmp"):
+        return True
+    return False
+
+
+def _user_notif_grants(who, is_adm):
+    is_it_user = _is_it_department_name(who.get("dept") or who.get("department") or "")
+    can_notif_mod = is_adm or module_access(who, "notifications")
+    can_tickets = is_adm or who.get("role") == "IT Ticketing" or module_access(who, "tickets", write=True) or (module_access(who, "tickets") and isinstance(who.get("allowed_complaint_desks"), list) and len(who.get("allowed_complaint_desks")) > 0)
+    can_tasks = is_adm or module_access(who, "tasks")
+    can_visitors = is_adm or module_access(who, "visitors")
+    can_gatepass = is_adm or module_access(who, "gatepass")
+    can_surveillance = is_adm or module_access(who, "surveillance") or (can_notif_mod and is_it_user)
+    can_assets_net = is_adm or module_access(who, "assets") or module_access(who, "network") or module_access(who, "data_center") or module_access(who, "snmp") or (can_notif_mod and is_it_user)
+    return {
+        "is_it_user": is_it_user,
+        "can_notif_mod": can_notif_mod,
+        "can_tickets": can_tickets,
+        "can_tasks": can_tasks,
+        "can_visitors": can_visitors,
+        "can_gatepass": can_gatepass,
+        "can_surveillance": can_surveillance,
+        "can_assets_net": can_assets_net,
+    }
+
+
 @app.get("/api/notifications/history")
 @signed_in
 def get_notification_history():
@@ -2383,16 +2443,18 @@ def get_notification_history():
     is_adm = bool(session.get("is_admin"))
     uname_cf = str(who.get("username") or "").strip().casefold()
     dname_cf = str(who.get("name") or "").strip().casefold()
-    can_tickets = is_adm or who.get("role") == "IT Ticketing" or module_access(who, "tickets", write=True) or (module_access(who, "tickets") and isinstance(who.get("allowed_complaint_desks"), list) and len(who.get("allowed_complaint_desks")) > 0)
-    can_tasks = is_adm or module_access(who, "tasks")
+    grants = _user_notif_grants(who, is_adm)
+    can_tickets = grants["can_tickets"]
+    can_tasks = grants["can_tasks"]
     user_depts_set = {str(x or "").strip().casefold() for x in (who.get("dept"), who.get("department")) if str(x or "").strip()}
-    can_visitors = is_adm or module_access(who, "visitors")
-    can_gatepass = is_adm or module_access(who, "gatepass")
-    can_devices = is_adm or module_access(who, "notifications")
+    can_visitors = grants["can_visitors"]
+    can_gatepass = grants["can_gatepass"]
+    can_surveillance = grants["can_surveillance"]
+    can_assets_net = grants["can_assets_net"]
     visible = []
     unread_count = 0
     for ev in doc["events"]:
-        ev_kind = str(ev.get("kind") or "")
+        ev_kind = str(ev.get("kind") or "").strip().casefold()
         if ev_kind in ("task", "task_reminder"):
             if not can_tasks:
                 continue
@@ -2450,8 +2512,16 @@ def get_notification_history():
                 "forName": ev.get("targetHostName") or "",
             }, who, is_adm):
                 continue
-        elif ev_kind in ("online", "offline", "critical") or ev.get("targetTag"):
-            if not can_devices:
+        elif _is_device_notif_event(ev):
+            if _is_cctv_notif_event(ev):
+                if not can_surveillance:
+                    continue
+            else:
+                if not can_assets_net:
+                    continue
+        else:
+            # Strict default-deny: unknown/misc system alerts only visible to Administrators
+            if not is_adm:
                 continue
         eid = str(ev.get("id") or "")
         created = str(ev.get("createdAt") or "")
@@ -2558,9 +2628,12 @@ def live_alerts_feed():
     is_adm = bool(session.get("is_admin"))
     uname_cf = str(who.get("username") or "").strip().casefold()
     dname_cf = str(who.get("name") or "").strip().casefold()
-    can_tickets = is_adm or who.get("role") == "IT Ticketing" or module_access(who, "tickets", write=True) or (module_access(who, "tickets") and isinstance(who.get("allowed_complaint_desks"), list) and len(who.get("allowed_complaint_desks")) > 0)
+    grants = _user_notif_grants(who, is_adm)
+    can_tickets = grants["can_tickets"]
     can_tk_mgr = is_adm or who.get("role") == "IT Ticketing" or module_access(who, "tickets", write=True)
-    can_devices = is_adm or module_access(who, "notifications")
+    can_surveillance = grants["can_surveillance"]
+    can_assets_net = grants["can_assets_net"]
+    can_devices = can_surveillance or can_assets_net
     want_tickets = request.args.get("tickets", "1") != "0"
     want_devices = request.args.get("devices", "1") != "0"
     want_sounds = request.args.get("sounds", "0") == "1"
@@ -2596,14 +2669,25 @@ def live_alerts_feed():
         if want_devices and can_devices:
             a_row = conn.execute("SELECT value FROM app_state WHERE key='assets'").fetchone()
             a_list = a_row[0] if a_row and isinstance(a_row[0], list) else []
-            out["deviceStates"] = [
-                {"tag": str(a.get("tag") or ""), "name": str(a.get("name") or ""), "type": str(a.get("type") or ""),
-                 "subtype": str(a.get("subtype") or ""), "site": str(a.get("site") or ""),
-                 "ipAddress": str(a.get("ipAddress") or a.get("ip_address") or ""),
-                 "ipStatus": str(a.get("ipStatus") or a.get("status") or ""),
-                 "ipCheckedAt": str(a.get("ipCheckedAt") or ""), "lastSeen": str(a.get("lastSeen") or a.get("seen") or "")}
-                for a in a_list if isinstance(a, dict)
-            ]
+            dev_rows = []
+            for a in a_list:
+                if not isinstance(a, dict):
+                    continue
+                a_type = str(a.get("type") or "")
+                a_sub = str(a.get("subtype") or "")
+                is_surv_dev = (a_type.casefold() == "surveillance" or a_sub.casefold() in ("cctv", "nvr", "dvr", "camera", "ip camera") or "cctv" in str(a.get("name") or "").casefold() or "cctv" in str(a.get("tag") or "").casefold())
+                if is_surv_dev and not can_surveillance:
+                    continue
+                if not is_surv_dev and not can_assets_net:
+                    continue
+                dev_rows.append({
+                    "tag": str(a.get("tag") or ""), "name": str(a.get("name") or ""), "type": a_type,
+                    "subtype": a_sub, "site": str(a.get("site") or ""),
+                    "ipAddress": str(a.get("ipAddress") or a.get("ip_address") or ""),
+                    "ipStatus": str(a.get("ipStatus") or a.get("status") or ""),
+                    "ipCheckedAt": str(a.get("ipCheckedAt") or ""), "lastSeen": str(a.get("lastSeen") or a.get("seen") or ""),
+                })
+            out["deviceStates"] = dev_rows
         out["pulse"] = _pulse_versions(conn, include_internal=True)
         out["serverNow"] = datetime.now(timezone.utc).isoformat()
     return jsonify(**out)
@@ -16047,6 +16131,133 @@ def check_ad_domain_services(dom_id):
     return jsonify(ok=True, domainId=dom_id, **diag)
 
 
+_AD_SYSTEM_CONTAINERS_CF = {
+    "users", "departments", "domain controllers", "computers", "builtin",
+    "workstations", "security groups", "groups", "distribution groups",
+    "managed service accounts", "foreignsecurityprincipals", "program data",
+    "system", "lostandfound", "ntds quotas", "tpm devices", "keys",
+}
+
+_AD_BUILTIN_GROUPS_CF = {
+    "domain users", "domain admins", "enterprise admins", "schema admins",
+    "administrators", "users", "guests", "domain guests", "domain computers",
+    "domain controllers", "group policy creator owners", "cert publishers",
+    "dnsadmins", "dnsupdateproxy", "ras and ias servers",
+    "allowed rodc password replication group", "denied rodc password replication group",
+    "read-only domain controllers", "enterprise read-only domain controllers",
+    "remote desktop users", "backup operators", "print operators", "server operators",
+    "account operators", "replicator", "pre-windows 2000 compatible access",
+    "windows authorization access group", "terminal server license servers",
+    "incoming forest trust builders", "performance monitor users", "performance log users",
+    "distributed com users", "iis_iusrs", "cryptographic operators", "event log readers",
+    "certificate service dcom access", "rds remote access servers", "rds endpoint servers",
+    "rds management servers", "hyper-v administrators", "access control assistance operators",
+    "remote management users", "all-employees", "all employees", "all users",
+    "vpn-allowed", "vpn users", "everyone", "protected users", "cloneable domain controllers",
+    "enterprise key admins", "key admins",
+}
+
+
+def _ad_non_system_ou_from_dn(dn):
+    for part in str(dn or "").split(","):
+        p = part.strip()
+        if p.lower().startswith("ou="):
+            val = p.split("=", 1)[1].strip()
+            if val and val.casefold() not in _AD_SYSTEM_CONTAINERS_CF:
+                return val
+    return ""
+
+
+def _ad_build_dept_resolver_ctx(ous, groups, local_dept_names=None):
+    ou_names = {}
+    for o in (ous or []):
+        if not isinstance(o, dict) or o.get("isContainer"):
+            continue
+        nm = str(o.get("name") or _ad_rdn_value(o.get("dn") or "")).strip()
+        if nm and nm.casefold() not in _AD_SYSTEM_CONTAINERS_CF:
+            ou_names[nm.casefold()] = nm
+    local_depts = {}
+    for d in (local_dept_names or []):
+        nm = str(d or "").strip()
+        if nm and nm.casefold() not in _AD_SYSTEM_CONTAINERS_CF:
+            local_depts[nm.casefold()] = nm
+
+    grp_by_dn = {}
+    user_dn_to_groups = {}
+    for g in (groups or []):
+        if not isinstance(g, dict):
+            continue
+        gdn_cf = str(g.get("dn") or "").strip().casefold()
+        if gdn_cf:
+            grp_by_dn[gdn_cf] = g
+        for mdn in (g.get("members") or []):
+            mcf = str(mdn or "").strip().casefold()
+            if mcf:
+                user_dn_to_groups.setdefault(mcf, []).append(g)
+    return ou_names, local_depts, grp_by_dn, user_dn_to_groups
+
+
+def _ad_resolve_user_departments(user, ctx):
+    """Returns (primary_department, all_departments_list) for an AD user.
+    Priority: 1) Explicit AD department attribute, 2) Non-system parent OU,
+    3) Department Security Groups matching an OU or local Department (or located inside a dept OU)."""
+    ou_names, local_depts, grp_by_dn, user_dn_to_groups = ctx
+    found = []
+    seen = set()
+
+    def _add(name):
+        nm = str(name or "").strip()
+        if nm and nm.casefold() not in _AD_SYSTEM_CONTAINERS_CF and nm.casefold() not in seen:
+            seen.add(nm.casefold())
+            found.append(nm)
+
+    explicit = str(user.get("department") or "").strip()
+    if explicit:
+        _add(explicit)
+
+    parent_ou = _ad_non_system_ou_from_dn(user.get("parentDn") or "")
+    if parent_ou:
+        _add(parent_ou)
+
+    # Collect all groups this user belongs to (both memberOf and reverse group.members)
+    u_groups = []
+    seen_gdn = set()
+    for gdn in (user.get("memberOf") or []):
+        gcf = str(gdn or "").strip().casefold()
+        if gcf and gcf not in seen_gdn:
+            seen_gdn.add(gcf)
+            g_obj = grp_by_dn.get(gcf)
+            u_groups.append(g_obj if g_obj else {"dn": gdn, "cn": _ad_rdn_value(gdn), "parentDn": ",".join(str(gdn).split(",")[1:])})
+    u_dn_cf = str(user.get("dn") or "").strip().casefold()
+    for g_obj in user_dn_to_groups.get(u_dn_cf, []):
+        gcf = str(g_obj.get("dn") or "").strip().casefold()
+        if gcf and gcf not in seen_gdn:
+            seen_gdn.add(gcf)
+            u_groups.append(g_obj)
+
+    # First pass: groups whose CN matches a known OU or local Northstar department
+    tier1, tier2 = [], []
+    for g in u_groups:
+        g_cn = str(g.get("cn") or _ad_rdn_value(g.get("dn") or "")).strip()
+        g_cf = g_cn.casefold()
+        if not g_cn or g_cf in _AD_BUILTIN_GROUPS_CF or g_cf in _AD_SYSTEM_CONTAINERS_CF:
+            continue
+        if g_cf in ou_names or g_cf in local_depts:
+            tier1.append(ou_names.get(g_cf) or local_depts.get(g_cf) or g_cn)
+        else:
+            g_parent_ou = _ad_non_system_ou_from_dn(g.get("parentDn") or "")
+            if g_parent_ou:
+                tier2.append(g_parent_ou)
+    for nm in tier1:
+        _add(nm)
+    if not found:
+        for nm in tier2:
+            _add(nm)
+
+    primary = found[0] if found else ""
+    return primary, found
+
+
 @app.get("/api/ad/domains/<dom_id>/directory")
 @signed_in
 def get_ad_domain_directory(dom_id):
@@ -16055,27 +16266,50 @@ def get_ad_domain_directory(dom_id):
     with db() as conn:
         d_doc, dom, c_doc, cache = _ad_get_domain_and_cache(conn, dom_id, for_update=False)
         a_row = conn.execute("SELECT value FROM app_state WHERE key='ad_audit'").fetchone()
+        dept_row = conn.execute("SELECT value FROM app_state WHERE key='departments'").fetchone()
     if not dom:
         return jsonify(error="AD domain not found."), 404
 
     ous = list(cache.get("ous") or [])
-    users = list(cache.get("users") or [])
+    raw_users = list(cache.get("users") or [])
     groups = list(cache.get("groups") or [])
     computers = list(cache.get("computers") or [])
 
-    # Build department summary across all AD users
+    local_dept_names = [_ad_dept_row_info(d)["name"] for d in (dept_row[0] if dept_row and isinstance(dept_row[0], list) else []) if _ad_dept_row_info(d)["name"]]
+    ctx = _ad_build_dept_resolver_ctx(ous, groups, local_dept_names=local_dept_names)
+    ou_names_map = ctx[0]
+
+    # Seed department summary with non-system Department OUs so synced departments never show 0
     dept_map = {}
-    for u in users:
-        dn_dept = str(u.get("department") or "").strip() or "Unassigned"
-        rec = dept_map.setdefault(dn_dept, {"name": dn_dept, "total": 0, "enabled": 0, "disabled": 0, "locked": 0})
-        rec["total"] += 1
-        if u.get("enabled", True):
-            rec["enabled"] += 1
-        else:
-            rec["disabled"] += 1
-        if u.get("lockedOut"):
-            rec["locked"] += 1
-    departments = sorted(dept_map.values(), key=lambda x: (-x["total"], x["name"].casefold()))
+    for ou_nm in ou_names_map.values():
+        dept_map[ou_nm.casefold()] = {"name": ou_nm, "total": 0, "enabled": 0, "disabled": 0, "locked": 0}
+
+    users = []
+    for raw_u in raw_users:
+        u = dict(raw_u) if isinstance(raw_u, dict) else {}
+        primary_dept, all_depts = _ad_resolve_user_departments(u, ctx)
+        u["effectiveDepartment"] = primary_dept
+        u["effectiveDepartments"] = all_depts
+        users.append(u)
+        buckets = all_depts if all_depts else ["Unassigned"]
+        for d_name in buckets:
+            key_cf = d_name.casefold()
+            rec = dept_map.setdefault(key_cf, {"name": d_name, "total": 0, "enabled": 0, "disabled": 0, "locked": 0})
+            rec["total"] += 1
+            if u.get("enabled", True):
+                rec["enabled"] += 1
+            else:
+                rec["disabled"] += 1
+            if u.get("lockedOut"):
+                rec["locked"] += 1
+
+    # Put real departments first (by user count desc, then name), and keep Unassigned at the end only if non-empty
+    real_depts = sorted(
+        [d for d in dept_map.values() if d["name"] != "Unassigned"],
+        key=lambda x: (-x["total"], x["name"].casefold()),
+    )
+    unassigned_rec = dept_map.get("unassigned")
+    departments = real_depts + ([unassigned_rec] if unassigned_rec and unassigned_rec["total"] > 0 else [])
 
     summary = {
         "ous": len(ous),
@@ -16088,7 +16322,7 @@ def get_ad_domain_directory(dom_id):
         "securityGroups": sum(1 for g in groups if g.get("category") != "Distribution"),
         "distGroups": sum(1 for g in groups if g.get("category") == "Distribution"),
         "computers": len(computers),
-        "departments": len([d for d in departments if d["name"] != "Unassigned"]),
+        "departments": len(real_depts),
     }
     all_audit = (a_row[0].get("events") if a_row and isinstance(a_row[0], dict) else [])
     dom_audit = [e for e in all_audit if e.get("domainId") == dom_id][:60]
@@ -16974,7 +17208,7 @@ def _ad_dept_row_info(d):
     return {"name": "", "factory": "ARG", "code": "", "parent": "", "kind": "department"}
 
 
-def _sync_ad_users_into_manual_users(conn, dom, ad_users, default_site="", partial=False):
+def _sync_ad_users_into_manual_users(conn, dom, ad_users, default_site="", partial=False, ous=None, groups=None):
     """Auto-provisions & updates AD users inside manual_users WITHOUT ever overwriting
     local passwords, roles, module_permissions, IPs/MACs, or custom scopes!"""
     dom_id = str(dom.get("id") or "")
@@ -16985,6 +17219,16 @@ def _sync_ad_users_into_manual_users(conn, dom, ad_users, default_site="", parti
     raw_depts = list(d_row[0] if d_row and isinstance(d_row[0], list) else [])
     s_row = conn.execute("SELECT value FROM app_state WHERE key='settings'").fetchone()
     settings_val = s_row[0] if s_row and isinstance(s_row[0], dict) else {}
+
+    if ous is None or groups is None:
+        c_row = conn.execute("SELECT value FROM app_state WHERE key='ad_cache'").fetchone()
+        dom_cache = ((c_row[0] if c_row and isinstance(c_row[0], dict) else {}).get("byDomain") or {}).get(dom_id) or {}
+        if ous is None:
+            ous = list(dom_cache.get("ous") or [])
+        if groups is None:
+            groups = list(dom_cache.get("groups") or [])
+    local_dept_names = [_ad_dept_row_info(d)["name"] for d in raw_depts if _ad_dept_row_info(d)["name"]]
+    dept_ctx = _ad_build_dept_resolver_ctx(ous, groups, local_dept_names=local_dept_names)
 
     known_factories = []
     for f in (settings_val.get("factories") or []):
@@ -17026,7 +17270,8 @@ def _sync_ad_users_into_manual_users(conn, dom, ad_users, default_site="", parti
         seen_dns.add(dn.casefold())
         key = sam.casefold()
         rec = by_dn.get(dn.casefold()) or by_u.get(key)
-        au_dept = str(au.get("department") or "").strip()
+        resolved_dept, _ = _ad_resolve_user_departments(au, dept_ctx)
+        au_dept = str(au.get("department") or "").strip() or resolved_dept
         au_office = str(au.get("office") or "").strip()
         matched_site = dept_factory_map.get(au_dept.casefold(), "")
         if not matched_site and au_office and any(f.casefold() == au_office.casefold() for f in known_factories):
@@ -17064,6 +17309,18 @@ def _sync_ad_users_into_manual_users(conn, dom, ad_users, default_site="", parti
                     rec["active"] = "Inactive"
             updated += 1
         else:
+            is_it_member = _is_it_department_name(au_dept)
+            default_perms = (
+                {
+                    "overview": "write", "assets": "write", "data_center": "write",
+                    "surveillance": "write", "tickets": "write", "tasks": "write",
+                    "maintenance": "write", "ageing": "write", "parts": "write",
+                    "software": "write", "firmware": "write", "network": "write",
+                    "snmp": "write", "notifications": "write", "reports": "write",
+                }
+                if is_it_member else
+                {"tasks": "write"}
+            )
             new_rec = {
                 "username": sam,
                 "id": sam,
@@ -17090,8 +17347,8 @@ def _sync_ad_users_into_manual_users(conn, dom, ad_users, default_site="", parti
                 "adEnabled": au_enabled,
                 "adLockedOut": bool(au.get("lockedOut")),
                 "password_hash": "",
-                "module_permissions": {"tickets": "read", "tasks": "write"},
-                "allowed_complaint_desks": ["*"],
+                "module_permissions": default_perms,
+                "allowed_complaint_desks": ["*"] if is_it_member else [],
                 "gate_scope": "dept",
                 "gate_departments": [],
                 "task_scope": "self",

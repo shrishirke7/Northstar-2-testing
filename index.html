@@ -2023,7 +2023,7 @@ body.ns-vault-shielded #vaultSecurityModal{visibility:hidden!important;opacity:0
     </div>
     <form class="ns-tasks-quick-add" id="nsTasksQuickAddForm" autocomplete="off">
       <span class="ns-qa-ico">⚡</span>
-      <input type="text" id="nsTasksQuickInput" placeholder="Quick-add a task for today and press Enter..." maxlength="200" aria-label="Quick add task title">
+      <input type="text" id="nsTasksQuickInput" placeholder="Type a task title..." maxlength="200" aria-label="Quick add task title">
       <select id="nsTasksQuickCadence" aria-label="Quick task cadence">
         <option value="daily">☀️ Daily</option>
         <option value="weekly">📅 Weekly</option>
@@ -2035,7 +2035,7 @@ body.ns-vault-shielded #vaultSecurityModal{visibility:hidden!important;opacity:0
         <option value="Urgent">Urgent</option>
         <option value="Low">Low</option>
       </select>
-      <button type="submit" class="btn primary" id="nsTasksQuickSubmitBtn">＋ Add</button>
+      <button type="submit" class="btn primary ns-tasks-quick-btn" id="nsTasksQuickSubmitBtn" onclick="window.nsTasksModule?.submitQuickAdd?.(event)">＋ Add</button>
     </form>
   </div>
 
@@ -2118,9 +2118,8 @@ body.ns-vault-shielded #vaultSecurityModal{visibility:hidden!important;opacity:0
 <section class="view" id="view-ad">
   <div class="page-head">
     <div>
-      <div class="eyebrow">Directory Services · Samba 4 · Microsoft AD · Synology · FreeIPA · OpenLDAP</div>
       <h1>Active Directory</h1>
-      <p>Multi-domain real-time <b>DSA.MSC</b> console — connect any AD/LDAP server, sync live users, departments, security groups, OUs &amp; computers, and apply changes directly to AD.</p>
+      <p>Connect your Active Directory servers to sync and manage users, departments, security groups, organizational units, and computers in real time.</p>
     </div>
     <div class="head-actions">
       <span class="ns-ad-ro-pill" id="nsAdReadOnlyPill" style="display:none">👁 Read-only access</span>
@@ -2168,11 +2167,11 @@ body.ns-vault-shielded #vaultSecurityModal{visibility:hidden!important;opacity:0
       </button>
     </div>
 
-    <!-- DSA.MSC Split Workbench -->
+    <!-- Active Directory Split Workbench -->
     <div class="ns-ad-workbench">
       <!-- Left Hierarchical OU Tree & Views -->
       <aside class="panel ns-ad-tree-pane ns-ad-read-allow" id="nsAdTreePane">
-        <div class="ns-ad-tree-section-lbl">DSA.MSC VIEWS</div>
+        <div class="ns-ad-tree-section-lbl">DIRECTORY VIEWS</div>
         <div class="ns-ad-nav-list" id="nsAdSideViews">
           <button type="button" class="ns-ad-nav-item active" data-ad-view="users" onclick="window.nsAdModule?.setView?.('users')"><span>👥 All Users</span><b id="nsAdNavUsers">0</b></button>
           <button type="button" class="ns-ad-nav-item" data-ad-view="groups" onclick="window.nsAdModule?.setView?.('groups')"><span>🛡️ Groups</span><b id="nsAdNavGroups">0</b></button>
@@ -2416,6 +2415,7 @@ body.ns-vault-shielded #vaultSecurityModal{visibility:hidden!important;opacity:0
         <h2 style="margin:4px 0 0">Team Task Oversight, Employee Biography &amp; Reports</h2>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn" id="nsOvManageRolesBtn" style="display:none" onclick="window.nsTasksModule?.openOversightRoleSettings?.()">⚙️ Set Manager &amp; Executive Roles</button>
         <button type="button" class="btn primary ns-ov-excel-btn" id="nsOvExportExcelBtn" onclick="window.nsTasksModule?.exportOversightExcel?.()">📥 Export Excel (.xlsx · Charts &amp; Pivot)</button>
         <button class="close" type="button" onclick="window.nsTasksModule?.closeOversightModal?.()">×</button>
       </div>
@@ -2563,9 +2563,11 @@ function canAccessMod(mod,write=false){if(!serverMode||serverAdmin)return true;c
 function applyModuleAccess(profile=serverProfile){
  if(!serverMode)return;
  const admin=!!serverAdmin;
+ const canTickets=admin||(effectiveModuleGrant(profile,'tickets')!=='none');
+ const canHelpdeskChat=admin||canTickets||(effectiveModuleGrant(profile,'visitors')!=='none')||(effectiveModuleGrant(profile,'gatepass')!=='none');
  document.querySelectorAll('#mainNav button[data-view], .sidebar-bottom button[data-view]').forEach(button=>{
   let key=button.dataset.view,module=permissionViewMap[key];
-  let allowed=admin||(key==='settings')||(key==='tickets')||(key==='messages')||(module&&effectiveModuleGrant(profile,module)!=='none');
+  let allowed=admin||(key==='settings')||(key==='messages'&&canHelpdeskChat)||(module&&effectiveModuleGrant(profile,module)!=='none');
   button.style.display=allowed?'':'none';
  });
  for(const [view,module] of Object.entries(permissionViewMap)){
@@ -2573,7 +2575,7 @@ function applyModuleAccess(profile=serverProfile){
   if(el){
    const g=admin?'write':effectiveModuleGrant(profile,module);
    el.dataset.moduleAccess=g;
-   el.style.display=(g!=='none'||view==='tickets')?'':'none';
+   el.style.display=(g!=='none')?'':'none';
   }
  }
  let ticketing=document.getElementById('ticketingBackendButton');
@@ -2584,7 +2586,11 @@ function applyModuleAccess(profile=serverProfile){
  const mbAssets = document.getElementById('mbNavAssets');
  if(mbAssets) mbAssets.style.display = (admin || effectiveModuleGrant(profile,'assets')!=='none') ? '' : 'none';
  const mbTickets = document.getElementById('mbNavTickets');
- if(mbTickets) mbTickets.style.display = '';
+ if(mbTickets) mbTickets.style.display = canTickets ? '' : 'none';
+ const mbMsgs = document.getElementById('mbNavMessages');
+ if(mbMsgs) mbMsgs.style.display = canHelpdeskChat ? '' : 'none';
+ const hdFab = document.getElementById('nsHelpdeskMsgFab');
+ if(hdFab) hdFab.style.display = canHelpdeskChat ? '' : 'none';
  window.syncDeskScopedLabels?.();
  const viewSettings=document.getElementById('view-settings');
  if(viewSettings){
@@ -2600,11 +2606,12 @@ function applyModuleAccess(profile=serverProfile){
  const bg=document.querySelector('.bottom-grid');if(bg)bg.style.display=(admin||effectiveModuleGrant(profile,'overview')!=='none')?'':'none';
  if(!admin){
   let active=document.querySelector('.view.active'),key=active?.id?.replace('view-','');
-  if(!key||(key!=='settings'&&key!=='tickets'&&currentModuleGrant(key)==='none')){
+  if(!key||(key!=='settings'&&!(key==='messages'&&canHelpdeskChat)&&currentModuleGrant(key)==='none')){
    let next=permissionModules.map(([id])=>Object.keys(permissionViewMap).find(v=>permissionViewMap[v]===id)).find(v=>v&&effectiveModuleGrant(profile,permissionViewMap[v])!=='none');
-   go(next||'tickets');
+   go(next||'settings');
   }
  }
+ window.nsNotifCenter?.resetForCurrentUser?.();
  applyReadOnlyControls(true);
 }
 const nsDebounce=(fn,ms=100)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);}};
@@ -2658,7 +2665,7 @@ function spark(id,values,color){let el=document.getElementById(id);if(!el)return
 function renderSoftware(){const q=(document.getElementById('softwareSearch')?.value||'').toLowerCase(),type=document.getElementById('softwareTypeFilter')?.value||'',state=document.getElementById('softwareStatusFilter')?.value||'',rows=software.filter(s=>(!q||Object.values(s).join(' ').toLowerCase().includes(q))&&(!type||s.type===type)&&(!state||s.state===state));document.getElementById('softwareTable').innerHTML=rows.map(s=>`<tr><td><div class="asset-cell"><span class="software-icon">${s.icon}</span><div><div class="asset-name">${s.name}</div><div class="asset-id">License key · •••• •••• 8X2P</div></div></div></td><td>${s.vendor}</td><td>${s.cat}</td><td>${s.type}</td><td>${s.seats}</td><td>${s.expiry}</td><td><span class="status ${s.state==='Active'?'healthy':'warning'}">${s.state}</span></td></tr>`).join('')}
 function renderLifecycle(){let rows=assets.slice(0,6);document.getElementById('lifecycleTable').innerHTML=rows.map(a=>'<tr><td><div class="asset-name">'+esc(a.name)+'</div><div class="asset-id">'+esc(a.tag)+'</div></td><td>'+esc(categoryLabel(a))+'</td><td>'+a.site+'</td><td><span class="age-pill'+(parseInt(ageLabel(a))>=5?' old':'')+'">'+ageLabel(a)+'</span></td><td>'+esc(a.warranty||'Not recorded')+'</td><td>'+esc(a.lastMaintenance||'Not recorded')+'</td></tr>').join('')}function maintenanceCountForAsset(a){return maintenanceRecords.filter(r=>String(r.tag||r.assetTag||'').toLowerCase()===String(a.tag||'').toLowerCase()).length}function maintenanceRisk(n){return n===0?{label:'Healthy',score:0,cls:'healthy'}:n===1?{label:'Low',score:1,cls:'healthy'}:n===2?{label:'Medium',score:2,cls:'warning'}:{label:'High',score:3,cls:'open'}}function ageYears(date){if(!date)return null;let d=new Date(date+'T00:00:00');if(Number.isNaN(d.getTime())||d>new Date())return null;return Math.floor((Date.now()-d.getTime())/(365.2425*86400000))}function renderAssetAgeing(){let body=document.getElementById('assetAgeingTable');if(!body)return;let ys=[...new Set(assets.map(a=>String(a.purchaseDate||'').slice(0,4)).filter(y=>/^\d{4}$/.test(y)))].sort((a,b)=>b.localeCompare(a)),sel=document.getElementById('ageYear'),oldYear=sel.value;sel.innerHTML='<option value="">All years</option>'+ys.map(y=>'<option>'+y+'</option>').join('');if(ys.includes(oldYear))sel.value=oldYear;let counts={Healthy:0,Low:0,Medium:0,High:0};for(const a of assets)counts[maintenanceRisk(maintenanceCountForAsset(a)).label]++;for(const [k,id] of Object.entries({Healthy:'ageHealthyCount',Low:'ageLowCount',Medium:'ageMediumCount',High:'ageHighCount'}))document.getElementById(id).textContent=counts[k];let q=document.getElementById('ageSearch').value.toLowerCase(),yr=sel.value,from=document.getElementById('ageFrom').value,to=document.getElementById('ageTo').value,risk=document.getElementById('ageRisk').value,sort=document.getElementById('ageSort').value,site=document.getElementById('globalSite')?.value||'All sites';let rows=assets.map(a=>({...a,_count:maintenanceCountForAsset(a),_risk:maintenanceRisk(maintenanceCountForAsset(a))})).filter(a=>{let d=a.purchaseDate||'',hay=[a.name,a.tag,a.owner,a.site].join(' ').toLowerCase();return(!q||hay.includes(q))&&(!yr||d.startsWith(yr))&&(!from||d>=from)&&(!to||d<=to)&&(!risk||a._risk.label===risk)&&(site==='All sites'||a.site===site)});rows.sort((a,b)=>{let x=a.purchaseDate||'',y=b.purchaseDate||'';if(!x)return 1;if(!y)return -1;return sort==='newest'?y.localeCompare(x):x.localeCompare(y)});body.innerHTML=rows.map(a=>{let n=ageYears(a.purchaseDate),age=n===null?'Not recorded':n+' year'+(n===1?'':'s');return '<tr><td><b>'+esc(a.name||'Unnamed asset')+'</b><div class="asset-id">'+esc(a.tag||'')+' · '+esc(a.owner||'Unassigned')+'</div></td><td>'+esc(a.site||'—')+'</td><td>'+esc(a.purchaseDate||'Not recorded')+'</td><td><span class="age-pill'+(n!==null&&n>=5?' old':'')+'">'+age+'</span></td><td>'+a._count+'</td><td><span class="status '+a._risk.cls+'">'+a._risk.label+' · '+a._risk.score+'</span></td></tr>'}).join('')||'<tr><td colspan="6" class="empty-state">No assets match these filters.</td></tr>'}function exportAssetAgeing(){exportCsv('asset-ageing-risk',assets.map(a=>{let n=maintenanceCountForAsset(a),r=maintenanceRisk(n);return{name:a.name,tag:a.tag,site:a.site,purchaseDate:a.purchaseDate||'',ageYears:ageYears(a.purchaseDate)??'',maintenanceCount:n,risk:r.label,riskScore:r.score}}))}function resolve(r){let a=assets.find(x=>x.tag===(r.tag||r.assetTag));return{assetType:r.assetType||a?.type||"",assetName:r.assetName||a?.name||r.tag||r.assetTag||"",factory:r.factory||r.site||a?.site||"",department:r.department||r.dept||a?.dept||"",owner:r.owner||r.user||a?.owner||"Unassigned"}}function resolved(r){return resolve(r)}function renderMaintenance(){let sum=(tag)=>assets.find(x=>x.tag===tag);document.getElementById('maintenanceDue').innerHTML=assets.slice(0,7).map(x=>'<tr><td><b>'+esc(x.name)+'</b><div class="asset-id">'+esc(x.tag)+'</div></td><td>'+x.site+'</td><td><span class="age-pill'+(parseInt(ageLabel(x))>=5?' old':'')+'">'+ageLabel(x)+'</span></td><td>'+esc(x.lastMaintenance||'Not recorded')+'</td><td>'+(x.nextDue||'Not scheduled')+'</td><td><span class="status '+(parseInt(ageLabel(x))>=5?'warning':'healthy')+'">'+(parseInt(ageLabel(x))>=5?'Refresh review':'Working')+'</span></td></tr>').join('');let q=(document.getElementById('maintSearch')?.value||'').toLowerCase();let rows=maintenanceRecords.filter(r=>Object.values(r).join(' ').toLowerCase().includes(q));window.filteredMaintenanceRows=rows.map(r=>({...r,...resolved(r),totalCost:Number(r.partCost||0)+Number(r.laborCost||r.laborActual||r.laborEstimate||0)+Number(r.otherCost||0)}));document.getElementById('maintenanceTable').innerHTML=rows.map(r=>{let x=sum(r.tag);return '<tr><td>'+r.date+'</td><td><b>'+esc(x?.name||r.tag)+'</b><div class="asset-id">'+esc(r.tag)+'</div></td><td><span class="status '+(r.type==='Repair'?'warning':'healthy')+'">'+esc(r.type)+'</span></td><td>'+esc(r.work)+'</td><td>'+esc(r.parts)+'</td><td>₹'+(Number(r.partCost||0)+Number(r.laborCost||r.laborActual||r.laborEstimate||0)+Number(r.otherCost||0)).toLocaleString('en-IN')+'</td><td>'+esc(r.technician)+'</td></tr>'}).join('')}const renderMaintenanceOriginal=renderMaintenance;renderMaintenance=function(){renderMaintenanceOriginal();renderAssetAgeing()};function openMaintenance(){if(document.body.classList.contains('viewer-mode')||!canAccessMod('maintenance',true))return showToast('Read & write access on Maintenance is required');if(!assets.length){showToast('Add an asset before logging maintenance');return}let sel=document.getElementById('maintAssetSelect');sel.innerHTML=assets.map(x=>'<option value="'+esc(x.tag)+'">'+esc(x.tag+' · '+x.name)+'</option>').join('');document.getElementById('maintenanceModal').classList.add('open')}function closeMaintenance(){document.getElementById('maintenanceModal').classList.remove('open')}
 document.getElementById('maintenanceModal').addEventListener('click',e=>{if(e.target.id==='maintenanceModal')closeMaintenance()});document.getElementById('maintenanceForm').addEventListener('submit',e=>{e.preventDefault();if(document.body.classList.contains('viewer-mode')||!canAccessMod('maintenance',true))return showToast('Read & write access on Maintenance is required');let d=Object.fromEntries(new FormData(e.target)),x=assets.find(a=>a.tag===d.assetTag);maintenanceRecords.unshift({...d,partCost:Number(d.partCost||0),laborCost:Number(d.laborCost||0)});if(x){x.lastMaintenance=d.date;x.nextDue=d.nextDue||'Not scheduled'}document.getElementById('serviceTotal').textContent=Number(document.getElementById('serviceTotal').textContent)+1;renderMaintenance();renderAssets();renderLifecycle();e.target.reset();saveAdminData();closeMaintenance();showToast('Service record saved to asset history')});
-function go(key){const __sbEl=document.querySelector('.sidebar');const __sbSavedTop=__sbEl?__sbEl.scrollTop:0;let module=permissionViewMap[key];if(serverMode&&!serverAdmin&&module&&key!=='tickets'&&effectiveModuleGrant(serverProfile,module)==='none'){showToast('You do not have access to this module.');return}if(serverMode&&!serverAdmin&&!module&&!['settings','messages'].includes(key)){showToast('Administrator access is required.');return}document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));let el=document.getElementById('view-'+key);if(!el)return;el.classList.add('active');document.querySelectorAll('.sidebar .nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===key));let names={dashboard:'Overview',assets:'Asset inventory',ageing:'Asset ageing & risk',users:'Users',departments:'Departments',factories:'Factories',software:'Software & licenses',firmware:'Backups & Firmware',credentials:'Credentials Vault',monitoring:'Network monitoring',snmp:'SNMP bandwidth monitoring',notifications:'Notifications',reports:'Reports',datacenter:'Data Center',surveillance:'Surveillance',settings:'Settings',messages:'Helpdesk Messages',tasks:"Task's",ad:'Active Directory',maintenance:'Maintenance & repairs',tickets:window.getScopedTicketsLabel?.('nav')||'IT help desk',ticketing:window.getScopedTicketsLabel?.('backendCrumb')||'Ticketing backend',backups:'Backup & restore',parts:'Parts inventory',valuation:'Valuation',billing:'Billing / Invoices'};document.getElementById('crumb').textContent=window.getModuleDisplayName?window.getModuleDisplayName(key,names[key]||key):(names[key]||key);window.syncDeskScopedLabels?.();window.applyModuleCustomLabels?.();if(key==='dashboard'){renderDashboard();if(serverMode)refreshIpStatusData()}if(key==='datacenter')renderDatacenter();if(key==='surveillance')renderSurveillance();if(key==='factories')window.renderFactoryRows?.();if(key==='departments')window.renderDepts?.();if(key==='snmp')window.loadSnmpModule?.();if(key==='settings')window.loadSoftwareUpdateStatus?.();if(key==='tasks')window.nsTasksModule?.load?.();if(key==='ad')window.nsAdModule?.load?.();applyReadOnlyControls();window.enhanceAllModuleTiles?.();window.scrollTo(0,0);if(__sbEl&&!__sbEl.dataset.nsUserWheel){__sbEl.scrollTop=__sbSavedTop;requestAnimationFrame(()=>{try{if(!__sbEl.dataset.nsUserWheel)__sbEl.scrollTop=__sbSavedTop;}catch(_){}});}}
+function go(key){const __sbEl=document.querySelector('.sidebar');const __sbSavedTop=__sbEl?__sbEl.scrollTop:0;let module=permissionViewMap[key];if(serverMode&&!serverAdmin&&module&&effectiveModuleGrant(serverProfile,module)==='none'){showToast('You do not have access to this module.');return}if(serverMode&&!serverAdmin&&!module&&!['settings','messages'].includes(key)){showToast('Administrator access is required.');return}document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));let el=document.getElementById('view-'+key);if(!el)return;el.classList.add('active');document.querySelectorAll('.sidebar .nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===key));let names={dashboard:'Overview',assets:'Asset inventory',ageing:'Asset ageing & risk',users:'Users',departments:'Departments',factories:'Factories',software:'Software & licenses',firmware:'Backups & Firmware',credentials:'Credentials Vault',monitoring:'Network monitoring',snmp:'SNMP bandwidth monitoring',notifications:'Notifications',reports:'Reports',datacenter:'Data Center',surveillance:'Surveillance',settings:'Settings',messages:'Helpdesk Messages',tasks:"Task's",ad:'Active Directory',maintenance:'Maintenance & repairs',tickets:window.getScopedTicketsLabel?.('nav')||'IT help desk',ticketing:window.getScopedTicketsLabel?.('backendCrumb')||'Ticketing backend',backups:'Backup & restore',parts:'Parts inventory',valuation:'Valuation',billing:'Billing / Invoices'};document.getElementById('crumb').textContent=window.getModuleDisplayName?window.getModuleDisplayName(key,names[key]||key):(names[key]||key);window.syncDeskScopedLabels?.();window.applyModuleCustomLabels?.();if(key==='dashboard'){renderDashboard();if(serverMode)refreshIpStatusData()}if(key==='datacenter')renderDatacenter();if(key==='surveillance')renderSurveillance();if(key==='factories')window.renderFactoryRows?.();if(key==='departments')window.renderDepts?.();if(key==='snmp')window.loadSnmpModule?.();if(key==='settings')window.loadSoftwareUpdateStatus?.();if(key==='tasks')window.nsTasksModule?.load?.();if(key==='ad')window.nsAdModule?.load?.();applyReadOnlyControls();window.enhanceAllModuleTiles?.();window.scrollTo(0,0);if(__sbEl&&!__sbEl.dataset.nsUserWheel){__sbEl.scrollTop=__sbSavedTop;requestAnimationFrame(()=>{try{if(!__sbEl.dataset.nsUserWheel)__sbEl.scrollTop=__sbSavedTop;}catch(_){}});}}
 document.querySelector('.sidebar').addEventListener('click',e=>{const sb=e.currentTarget;const st=sb?sb.scrollTop:0;let b=e.target.closest('button[data-view]');if(b){go(b.dataset.view);if(sb&&!sb.dataset.nsUserWheel){sb.scrollTop=st;requestAnimationFrame(()=>{try{if(!sb.dataset.nsUserWheel)sb.scrollTop=st;}catch(_){}})}}});document.querySelector('.sidebar')?.addEventListener('wheel',e=>{e.currentTarget.dataset.nsUserWheel='1';clearTimeout(e.currentTarget._nsWt);e.currentTarget._nsWt=setTimeout(()=>{delete e.currentTarget.dataset.nsUserWheel;},250);},{passive:true});document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));document.getElementById('globalSite').addEventListener('change',e=>{document.querySelectorAll('.site-chip').forEach(c=>c.classList.toggle('selected',c.dataset.site===e.target.value));renderAssets();renderDashboard()});document.getElementById('siteChips').addEventListener('click',e=>{let c=e.target.closest('.site-chip');if(c){document.querySelectorAll('.site-chip').forEach(x=>x.classList.toggle('selected',x===c));document.getElementById('globalSite').value=c.dataset.site;renderAssets();renderDashboard()}});const renderAssetsDebounced=nsDebounce(renderAssets,110);const renderUsersDebounced=nsDebounce(renderUsers,110);document.getElementById('assetSearch')?.addEventListener('input',renderAssetsDebounced);['typeFilter','deptFilter','assetSubdeptFilter','assetUserFilter','statusFilter','networkSubtypeFilter','assetFactoryFilter'].forEach(id=>document.getElementById(id)?.addEventListener('change',renderAssets));document.getElementById('userSearch')?.addEventListener('input',renderUsersDebounced);['userDeptFilter','userSiteFilter','userEmploymentFilter'].forEach(id=>document.getElementById(id)?.addEventListener('change',renderUsers));document.getElementById('softwareSearch').addEventListener('input',nsDebounce(renderSoftware,110));document.getElementById('softwareTypeFilter').addEventListener('change',renderSoftware);document.getElementById('softwareStatusFilter').addEventListener('change',renderSoftware);document.getElementById('globalSearch').addEventListener('input',nsDebounce(e=>{let q=e.target.value.trim();if(!q)return;let foundUser=users.some(u=>Object.values(u).join(' ').toLowerCase().includes(q.toLowerCase()));if(foundUser){go('users');document.getElementById('userSearch').value=q;renderUsers()}else{go('assets');document.getElementById('assetSearch').value=q;renderAssets()}},140));document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();document.getElementById('globalSearch').focus()}if(e.key==='Escape')closeModal()});function openModal(){const typeSelect=document.querySelector('#assetForm select[name="type"]');if(typeSelect&&![...typeSelect.options].some(o=>o.value==='Surveillance'||o.textContent.trim()==='Surveillance'))typeSelect.add(new Option('Surveillance','Surveillance'));document.getElementById('assetModal').classList.add('open')}function closeModal(){document.getElementById('assetModal').classList.remove('open');try{window.getSelection?.()?.removeAllRanges?.()}catch(_){}}document.getElementById('assetModal').addEventListener('click',e=>{if(e.target.id==='assetModal')closeModal()});document.getElementById('assetForm').addEventListener('submit',async e=>{e.preventDefault();if(assetEditIndex>=0)return;const subBtn=e.target.querySelector('.modal-foot .btn.primary'),origTxt=subBtn?subBtn.textContent:'Add to inventory';if(subBtn){subBtn.disabled=true;subBtn.textContent='Saving asset…'}try{let d=Object.fromEntries(new FormData(e.target));const createdAsset={name:d.name,tag:d.tag,type:d.type,specs:d.specs||'—',owner:d.owner||'Unassigned',dept:d.dept,subdept:d.subdept||'',site:d.site,status:'Not checked',ipStatus:'Not checked',seen:'Not checked',serial:d.serial||'Not recorded',ipAddress:d.ipAddress||'',macAddress:d.macAddress||'',managementUrl:d.managementUrl||'',remoteApp:d.remoteApp||'',remoteId:d.remoteId||'',remotePassword:d.remotePassword||'',networkInterfaces:readAssetNetworkInterfaces(),subtype:d.subtype||'',manufacturer:d.manufacturer||'',model:d.model||'',osType:d.osType||'',osVersion:d.osVersion||'',storageCapacity:d.storageCapacity||'',storageUnit:d.storageUnit||'GB',assetValue:Number(d.assetValue||0),purchaseDate:d.purchaseDate||new Date().toISOString().slice(0,10),warranty:d.warranty||'',lastMaintenance:'Not recorded',photos:[],linkedInvoiceIds:[]};assets.unshift(createdAsset);window.syncFromAssetRecordToIpMappings?.(createdAsset,null);await saveAdminData();const mediaRes=await window.finalizeAssetMediaAndInvoices?.(createdAsset,false);if(mediaRes&&(mediaRes.savedMedia||mediaRes.linkedInvoices)){await saveAdminData()}renderLifecycle();document.getElementById('totalAssets').textContent=assets.length;renderAssets();window.renderCategorySettings?.();window.renderDatacenter?.();window.renderSurveillance?.();renderIpMappings();renderRecent();renderDashboard();e.target.reset();closeModal();showToast('Asset added to your inventory')}catch(err){showToast('Could not save asset: '+(err?.message||err))}finally{if(subBtn){subBtn.disabled=false;subBtn.textContent=origTxt}}});let toastTimer;function showToast(msg){let t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2700)}function filterAssetType(type,subtype='',status=''){go('assets');const tf=document.getElementById('typeFilter');if(tf){const tMatch=type?[...tf.options].find(o=>o.value.toLowerCase()===String(type).toLowerCase()):null;tf.value=tMatch?tMatch.value:(type||'');tf.dispatchEvent(new Event('change'));}const sf=document.getElementById('networkSubtypeFilter');if(sf){const sMatch=subtype?[...sf.options].find(o=>o.value.toLowerCase()===String(subtype).toLowerCase()):null;sf.value=sMatch?sMatch.value:(subtype||'');}const stf=document.getElementById('statusFilter');if(stf)stf.value=status||'';renderAssets()}window.filterAssetType=filterAssetType;async function apiFetch(url,options={}){let headers={"X-Requested-With":"NorthstarIT",...(options.headers||{})};let res;try{res=await fetch(url,{credentials:'same-origin',...options,headers})}catch(e){throw new Error('Cannot reach the Northstar API. Open the app through the Ubuntu server URL and check that its app container is running.')}let data=await res.json().catch(()=>({}));const srvClk=Date.parse(data?.serverNow||res.headers?.get?.('Date')||'');if(Number.isFinite(srvClk))window.__nsServerClockDeltaMs=srvClk-Date.now();if(!res.ok){if(res.status===401&&serverMode&&(data.error==='sign_in_required'||data.error==='session_expired_sign_in_again')){const rngVal=document.getElementById('networkRangesInput')?.value;if(rngVal)try{localStorage.setItem('northstar-network-ranges-draft',rngVal)}catch(_){}clearInterval(window.northstarTicketPoll);clearInterval(window.northstarIpStatusPoll);document.body.classList.remove('ns-authenticated');const ag=document.getElementById('authGate');if(ag)ag.style.display='flex';const errEl=document.getElementById('loginError');if(errEl)errEl.textContent='Your session expired. Sign in again to continue (unsaved range drafts are preserved).';throw new Error('Session expired — please sign in again')}throw new Error(data.error||('Request failed ('+res.status+')'))}return data}async function saveAdminData(onlyKeys=null){persistLocal();if(!serverMode)return;const all={assets,ip_mappings:ipMappings,software,departments:depts,maintenance:maintenanceRecords,parts_catalog:partsCatalog,parts_inventory:partsInventory,parts_stock_entries:partsStockEntries,parts_assignments:partsAssignments,vendors:window.invoiceVendors||[]};const keyOwner={assets:'assets',ip_mappings:'assets',software:'software',departments:'departments',maintenance:'maintenance',parts_catalog:'parts',parts_inventory:'parts',parts_stock_entries:'parts',parts_assignments:'parts',vendors:'billing'};let body={};for(const [k,v] of Object.entries(all)){if(Array.isArray(onlyKeys)&&!onlyKeys.includes(k))continue;if(k==='ip_mappings'){if(!serverAdmin&&!(effectiveModuleGrant(serverProfile,'assets')==='write'||effectiveModuleGrant(serverProfile,'tickets')==='write'))continue;}else if(!serverAdmin&&effectiveModuleGrant(serverProfile,keyOwner[k])!=='write')continue;body[k]=v}if(!Object.keys(body).length)return;try{await apiFetch('/api/data',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}catch(e){showToast('Could not save server data: '+e.message)}}async function refreshServerTickets(){if(window.__nsTicketsFetching)return window.__nsTicketsFetching;window.__nsTicketsFetching=(async()=>{try{let r=await apiFetch('/api/tickets');tickets=r.tickets;if(Array.isArray(tickets))tickets.forEach(t=>window.nsSoundEngine?.markTicketSeen?.(t.id));renderTickets();renderTicketingBackend()}finally{window.__nsTicketsFetching=null}})();return window.__nsTicketsFetching}async function serverSubmitTicket(form){let d=new FormData(form),kind=document.querySelector('input[name="requestKind"]:checked').value,sub=document.querySelector('input[name="ticketSub"]:checked')?.value||'Other';let body=new FormData();body.append('complaintDesk',window.getActiveComplaintDeskId?.()||'it');body.append('kind',kind);body.append('primary',kind==='Material request'?'Material request':document.querySelector('input[name="primaryCategory"]:checked').value);body.append('sub',sub);body.append('description',d.get('description'));body.append('material',d.get('material')||'');for(const file of document.getElementById('ticketFiles').files)body.append('files',file);try{let r=await apiFetch('/api/tickets',{method:'POST',body});window.nsSoundEngine?.markTicketSeen?.(r.id);await refreshServerTickets();window.broadcastLiveTicketSync?.('ticket-created',{id:r.id,kind,complaintDesk:r.complaintDesk});form.reset();document.getElementById('ticketFiles').value='';document.getElementById('ticketFileNames').textContent='';renderTicketSubcats();window.refreshUserTicketNotifications?.();showToast(r.availabilityNotice?('Ticket '+r.id+' submitted · '+r.availabilityNotice):('Ticket '+r.id+' submitted successfully'))}catch(err){showToast(err.message)}}async function hydrateServer(){try{let res=await fetch('/api/profile',{credentials:'same-origin',cache:'no-store'});if(res.status===401){clearInterval(window.northstarTicketPoll);clearInterval(window.northstarIpStatusPoll);document.body.classList.remove('ns-authenticated');document.getElementById('authGate').style.display='flex';document.getElementById('appShell').style.display='none';return}if(!res.ok)return;let profile=await res.json();serverMode=true;serverAdmin=profile.isAdmin;serverProfile=profile.profile;updateProfileUI(profile.profile,profile.isAdmin);let manageTickets=profile.isAdmin||profile.profile.role==='IT Ticketing'||effectiveModuleGrant(profile.profile,'tickets')==='write',ticketingButton=document.getElementById('ticketingBackendButton');if(ticketingButton)ticketingButton.style.display=manageTickets?'':'none';document.body.classList.add('ns-authenticated');document.getElementById('authGate').style.display='none';document.getElementById('appShell').style.display='flex';document.getElementById('localRestoreFile')?.closest('details')?.style.setProperty('display','none');setTicketProfile(profile.profile);let label=document.querySelector('.profile-name');if(label)label.textContent=profile.profile.name;let role=document.querySelector('.profile-role');if(role)role.textContent=profile.isAdmin?'IT administrator':(profile.profile.role||'Employee');applyModuleAccess(serverProfile);let [data] = await Promise.all([apiFetch('/api/data',{cache:'no-store'}), refreshServerTickets().catch(()=>{})]);if(data.settings||data.factories_config){const merged={...workspaceSettings(),...(data.factories_config||{}),...(data.settings||{})};localStorage.setItem('northstar-settings',JSON.stringify(merged));if(merged.factories)localStorage.setItem('northstar-factories',JSON.stringify(merged.factories));applyCompanyName();if(merged.loginBranding&&typeof setLoginBranding==='function')setLoginBranding(merged.loginBranding);window.initializeLoginBranding?.()}updateProfileUI(profile.profile,profile.isAdmin);assets.splice(0,assets.length,...(data.assets||[]));if(Array.isArray(data.ip_mappings)){ipMappings.splice(0,ipMappings.length,...data.ip_mappings);persistMappings();}users.splice(0,users.length,...(data.users||[]));software.splice(0,software.length,...(data.software||[]));depts.splice(0,depts.length,...(data.departments||[]));maintenanceRecords.splice(0,maintenanceRecords.length,...(data.maintenance||[]));partsCatalog.splice(0,partsCatalog.length,...(data.parts_catalog||[]));partsInventory.splice(0,partsInventory.length,...(data.parts_inventory||[]));partsStockEntries.splice(0,partsStockEntries.length,...(data.parts_stock_entries||[]));partsAssignments.splice(0,partsAssignments.length,...(data.parts_assignments||[]));window.invoiceVendors=Array.isArray(data.vendors)?data.vendors:[];if(manageTickets&&!canAccessMod('parts')){apiFetch('/api/tickets/parts-options',{cache:'no-store'}).then(tp=>{if(Array.isArray(tp.parts_inventory))partsInventory.splice(0,partsInventory.length,...tp.parts_inventory);if(Array.isArray(tp.parts_catalog))partsCatalog.splice(0,partsCatalog.length,...tp.parts_catalog)}).catch(()=>{})}window.initLiveBrowserAlerts?.();if(!window.northstarTicketPoll)window.northstarTicketPoll=setInterval(()=>{if(!document.hidden&&serverMode&&(document.getElementById('view-tickets').classList.contains('active')||document.getElementById('view-ticketing').classList.contains('active')))refreshServerTickets().catch(()=>{})},30000);if(serverMode&&!window.northstarIpStatusPoll)window.northstarIpStatusPoll=setInterval(()=>{if(!document.hidden&&serverMode&&['dashboard','assets','users','monitoring','datacenter','surveillance'].some(v=>document.getElementById('view-'+v)?.classList.contains('active')))refreshIpStatusData()},30000);window.reconcileAssetsAndIpMappings?.({persist:false});document.getElementById('totalAssets').textContent=assets.length;document.getElementById('assetCount').textContent=assets.length+' total';renderDashboard();renderRecent();renderLifecycle();applyModuleAccess(serverProfile);window.enhanceAllModuleTiles?.();const __bgRenderStages=[()=>{renderAssets();renderIpMappings();},()=>{renderUsers();renderDepts();renderSoftware();renderSettings();},()=>{renderMonitoring();renderReports();renderMaintenance();renderParts();window.renderFactoryRows?.();window.renderTickets?.();window.renderTicketingBackend?.();window.enhanceAllModuleTiles?.();}];__bgRenderStages.forEach((fn,idx)=>{setTimeout(()=>{try{fn();}catch(_){}}, 25 + idx * 35);});if(!serverAdmin)document.querySelector('#view-tickets .head-actions .btn')?.setAttribute('style','display:none');const tMapBtn=document.getElementById('ticketsMappedAssetsBtn');if(tMapBtn)tMapBtn.style.display=(serverAdmin||manageTickets||canAccessMod('assets'))?'':'none';if(!serverAdmin)document.getElementById('hdAutoIdHelpPanel')?.setAttribute('style','display:none');if(serverAdmin)setTimeout(()=>loadBackups(),180);}catch(e){document.body.classList.remove('ns-authenticated');document.getElementById('authGate').style.display='flex';document.getElementById('appShell').style.display='none';document.getElementById('loginError').textContent=location.protocol==='file:'?'':'Inventory server is unavailable. Contact your administrator.';if(location.protocol==='file:')document.querySelector('.login-security').innerHTML='<span>ⓘ</span> Local preview only · sign in on the installed server to use accounts.'}}function lockTicketRows(){document.querySelectorAll('#ticketTable [data-ticket]').forEach(el=>{let value=el.value,cell=el.closest('td');if(cell&&!cell.dataset.locked){cell.dataset.locked='1';el.replaceWith(document.createTextNode(value||'—'))}})}function updateProfileUI(profile={},isAdmin=false){let name=profile.name||profile.username||'Account',picture=profile.profile_picture||'';let deskRole=profile.role||'User';if(!isAdmin&&typeof window.getVisibleComplaintDesks==='function'&&typeof window.getAllowedComplaintDesks==='function'){const al=window.getAllowedComplaintDesks();if(Array.isArray(al)&&al.length>0){const vd=window.getVisibleComplaintDesks();if(vd.length===1)deskRole=vd[0].name+' · '+(profile.role||'User');else if(vd.length>1&&vd.length<(window.getComplaintDesks?.()||[]).length)deskRole=vd.map(d=>d.name).join(', ')}}else if(!isAdmin&&(profile.dept||profile.department)&&deskRole==='User'){deskRole=(profile.dept||profile.department)+' · User'}let role=isAdmin?'Administrator':deskRole;for(const id of ['topProfileName','menuProfileName']){let e=document.getElementById(id);if(e)e.textContent=name}let r=document.getElementById('menuProfileRole');if(r)r.textContent=role;let avatar=document.getElementById('topAvatar');if(avatar){avatar.innerHTML=picture?'<img src="'+esc(picture)+'?v='+Date.now()+'" alt="">':esc(initials(name)||'U')}let sbAvatar=document.querySelector('.sidebar-account .avatar');if(sbAvatar){sbAvatar.innerHTML=picture?'<img src="'+esc(picture)+'?v='+Date.now()+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">':esc(initials(name)||'U')}let sbName=document.querySelector('.sidebar-account .profile-name');if(sbName)sbName.textContent=name;let sbRole=document.querySelector('.sidebar-account .profile-role');if(sbRole)sbRole.textContent=role}function toggleProfileMenu(){let menu=document.getElementById('profileMenu'),button=document.getElementById('profileMenuButton'),open=menu.hidden;menu.hidden=!open;button.setAttribute('aria-expanded',String(open))}function openPasswordSettings(){document.getElementById('profileMenu').hidden=true;if(!serverMode||serverAdmin||effectiveModuleGrant(serverProfile,'users')!=='none'){go('users');setTimeout(()=>{let form=document.getElementById('changePasswordForm');form?.scrollIntoView({behavior:'smooth',block:'center'});form?.querySelector('[name=current_password]')?.focus()},80);return}window.openSelfSecurityModal?.()}document.addEventListener('click',e=>{let wrap=document.querySelector('.profile-menu-wrap');if(wrap&&!wrap.contains(e.target)){document.getElementById('profileMenu').hidden=true;document.getElementById('profileMenuButton')?.setAttribute('aria-expanded','false')}});document.getElementById('profilePictureInput')?.addEventListener('change',async e=>{let file=e.target.files?.[0];if(!file)return;e.target.value='';if(!serverMode)return showToast('Profile pictures are saved on the installed server.');let body=new FormData();body.append('picture',file);try{let result=await apiFetch('/api/account/profile-picture',{method:'POST',body});serverProfile={...serverProfile,profile_picture:result.profile_picture};updateProfileUI(serverProfile,serverAdmin);showToast('Profile picture updated')}catch(err){showToast('Could not update profile picture: '+err.message)}});async function signOut(){clearInterval(window.northstarTicketPoll);clearInterval(window.northstarIpStatusPoll);try{await apiFetch('/api/logout',{method:'POST'})}catch(e){}serverAdmin=false;serverProfile=null;assets.length=0;users.length=0;software.length=0;depts.length=0;maintenanceRecords.length=0;partsInventory.length=0;partsAssignments.length=0;try{if(location.protocol!=='file:')localStorage.removeItem('northstar-local-data')}catch(e){}location.replace('/')}async function signOutAllDevices(){if(!serverMode)return showToast('Available on the installed Ubuntu server.');if(!confirm('Sign out your account from all open browsers and devices?'))return;try{await apiFetch('/api/account/logout-all',{method:'POST'})}catch(e){}await signOut()}window.addEventListener('pageshow',e=>{if((e.persisted||performance.getEntriesByType?.('navigation')?.[0]?.type==='back_forward')&&location.protocol!=='file:')hydrateServer()});async function loadBackups(){if(!serverMode||!serverAdmin)return;try{let r=await apiFetch('/api/backups'),tbody=document.getElementById('backupTable');tbody.innerHTML=r.backups.length?r.backups.map(b=>'<tr><td><b>'+esc(b.name)+'</b></td><td>'+new Date(b.created).toLocaleString()+'</td><td>'+(b.size/1048576).toFixed(2)+' MB</td><td>Database · ticket attachments · SHA-256 manifest</td><td><a class="link-btn" href="/api/backups/'+encodeURIComponent(b.name)+'">Download</a></td></tr>').join(''):'<tr><td colspan="5" class="empty-state">No backups yet. Scheduled backups will appear here.</td></tr>';if(r.backups[0])document.getElementById('lastBackupAt').textContent=new Date(r.backups[0].created).toLocaleDateString()}catch(e){document.getElementById('backupScheduleState').textContent=e.message}}async function createManualBackup(){if(!serverMode){let payload={format:'northstar-local-backup-v1',created:new Date().toISOString(),assets,users,software,depts,maintenanceRecords,partsCatalog,partsInventory,partsStockEntries,partsAssignments,tickets,settings:workspaceSettings(),factories:JSON.parse(localStorage.getItem('northstar-factories')||'[]'),ipMappings};let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));a.download='northstar-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);showToast('Local backup downloaded');return}let btn=document.getElementById('manualBackupBtn');btn.disabled=true;btn.textContent='Creating backup…';try{let r=await apiFetch('/api/backups',{method:'POST'});showToast('Backup created: '+r.name);await loadBackups()}catch(e){showToast('Backup failed: '+e.message)}finally{btn.disabled=false;btn.innerHTML='＋ &nbsp;Run backup now'}}function bindAuth(){if(location.protocol==='file:')document.getElementById('loginForm').addEventListener('submit',async e=>{e.preventDefault();let btn=e.currentTarget.querySelector('button');btn.disabled=true;document.getElementById('loginError').textContent='';try{let credentials=Object.fromEntries(new FormData(e.currentTarget));if(location.protocol==='file:'){if(!credentials.username.trim()||!credentials.password)throw new Error('Enter a username and password.');serverMode=false;serverAdmin=true;serverProfile={username:credentials.username.trim(),name:credentials.username.trim(),dept:'',site:'',ip:''};updateProfileUI(serverProfile,true);currentProfile=serverProfile;document.getElementById('authGate').style.display='none';document.getElementById('appShell').style.display='flex';document.querySelector('.profile-name').textContent=serverProfile.name;document.querySelector('.profile-role').textContent='Local preview administrator';setTicketProfile(serverProfile);showToast('Local preview only · live server features need Ubuntu deployment');return}await apiFetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(credentials)});await hydrateServer()}catch(err){document.getElementById('loginError').textContent=err.message}finally{btn.disabled=false}});document.querySelector('.profile-dots')?.addEventListener('click',signOut);document.getElementById('ticketForm').addEventListener('submit',e=>{if(serverMode){e.preventDefault();serverSubmitTicket(e.currentTarget)}});document.getElementById('userSearch').insertAdjacentHTML('afterend','');['ticketTable'].forEach(()=>{});hydrateServer()}
 function exportCsv(name,rows){if(!rows||!rows.length){showToast('No records to export');return}let keys=[...new Set(rows.flatMap(r=>Array.isArray(r)?[]:Object.keys(r)))];let csv=[keys.join(','),...rows.map(r=>keys.map(k=>'"'+String(r[k]??'').replaceAll('"','""')+'"').join(','))].join('\r\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));a.download=name+'.csv';a.click();URL.revokeObjectURL(a.href);showToast('CSV downloaded')}
 function persistLocal(){try{localStorage.setItem('northstar-local-data',JSON.stringify({assets,users,software,depts,maintenanceRecords,partsCatalog,partsInventory,partsStockEntries,partsAssignments,tickets,vendors:window.invoiceVendors||[]}));persistMappings();}catch(e){}renderDashboard();renderMonitoring();renderReports();window.updateMappedAssetBadges?.();}
@@ -9988,6 +9995,7 @@ let lastPulseGatepassRev = '';
             deviceSubtype: d.subtype || '',
             transitionStatus: status
           };
+          if(typeof window.nsNotifCanSeeItem === 'function' && !window.nsNotifCanSeeItem(meta)) return;
           if(critical && ((status === 'offline' && cfg.criticalCriteria?.alertOnOffline !== false) || (status === 'online' && cfg.criticalCriteria?.alertOnOnline !== false))){
             triggered.push({ type: 'critical', tag, status, name: d.name });
             triggerEventAlert('critical', 'CRITICAL DEVICE ' + status.toUpperCase() + ': ' + (d.name || tag), (d.type || 'Device') + (d.subtype ? ' · ' + d.subtype : '') + ' · IP ' + (d.ipAddress || d.ip || '-') + ' · ' + (d.site || d.factory || '-'), status === 'offline' ? 'critical' : 'ok', meta);
@@ -10798,14 +10806,63 @@ let lastPulseGatepassRev = '';
   let activeNotifViewTab = 'history';
   let lastNotifOwner = '';
 
-  function syncUserNotifLocalCache(){
+  function isItDeptLocal(){
+    try{
+      const raw = String((typeof serverProfile !== 'undefined' && (serverProfile?.dept || serverProfile?.department)) || '').trim().toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+      if(!raw) return false;
+      return raw === 'it' || raw.startsWith('it ') || raw === 'information technology' || raw === 'mis' || raw === 'systems';
+    }catch(_){ return false; }
+  }
+  function hasMod(mod){
+    try{
+      if(!isSrv()) return true;
+      if(typeof serverAdmin !== 'undefined' && serverAdmin) return true;
+      if(typeof canAccessMod === 'function') return canAccessMod(mod, false);
+    }catch(_){}
+    return false;
+  }
+  function isCctvItem(item){
+    const dt = String(item?.deviceType || '').toLowerCase();
+    const ds = String(item?.deviceSubtype || '').toLowerCase();
+    const tv = String(item?.targetView || '').toLowerCase();
+    if(dt === 'surveillance' || tv === 'surveillance' || ['cctv','nvr','dvr','camera','ip camera'].includes(ds)) return true;
+    const hay = [item?.kind, item?.title, item?.body, item?.targetTag].join(' ').toLowerCase();
+    return /\b(cctv|surveillance|nvr|dvr|camera)\b/.test(hay);
+  }
+  function isDeviceItem(item){
+    const k = String(item?.kind || item?.eventKey || '').toLowerCase();
+    const tv = String(item?.targetView || '').toLowerCase();
+    if(['online','offline','critical','device_offline','device_online','cctv','cctv_offline','cctv_online','surveillance','network','asset'].includes(k)) return true;
+    return Boolean(item?.targetTag || item?.deviceType || ['assets','surveillance','monitoring','datacenter','snmp'].includes(tv));
+  }
+  function canSeeNotifItem(item){
+    if(!item || typeof item !== 'object') return false;
+    if(!isSrv()) return true;
+    try{ if(typeof serverAdmin !== 'undefined' && serverAdmin) return true; }catch(_){}
+    const k = String(item.kind || item.eventKey || '').toLowerCase();
+    if(k === 'task' || k === 'task_reminder') return hasMod('tasks');
+    if(k === 'visitor') return hasMod('visitors');
+    if(k === 'gatepass') return hasMod('gatepass');
+    if(k === 'ticket' || k === 'material_request' || k === 'ticket_reminder' || k === 'helpdesk_message'){
+      return hasMod('tickets') || String(item.targetRole || '').toLowerCase() === 'requester';
+    }
+    if(isDeviceItem(item)){
+      const itNotif = hasMod('notifications') && isItDeptLocal();
+      if(isCctvItem(item)) return hasMod('surveillance') || itNotif;
+      return hasMod('assets') || hasMod('network') || hasMod('data_center') || hasMod('snmp') || itNotif;
+    }
+    return false;
+  }
+  window.nsNotifCanSeeItem = canSeeNotifItem;
+
+  function syncUserNotifLocalCache(forceReset=false){
     const owner = notifUserKey();
-    if(lastNotifOwner === owner) return;
+    if(!forceReset && lastNotifOwner === owner) return;
     lastNotifOwner = owner;
     try{ silentMode = localStorage.getItem(lsSilentKey()) === '1'; }catch(_){ silentMode = false; }
     try{
       const cached = JSON.parse(localStorage.getItem(lsHistoryKey()) || '[]');
-      notifItems = Array.isArray(cached) ? cached : [];
+      notifItems = Array.isArray(cached) ? cached.map(normNotifItem).filter(x => x && canSeeNotifItem(x)) : [];
     }catch(_){ notifItems = []; }
   }
   syncUserNotifLocalCache();
@@ -10833,17 +10890,19 @@ let lastPulseGatepassRev = '';
       complaintDesk: String(n.complaintDesk || ''),
       targetTag: String(n.targetTag || ''),
       targetIp: String(n.targetIp || ''),
+      deviceType: String(n.deviceType || ''),
+      deviceSubtype: String(n.deviceSubtype || ''),
       factory: String(n.factory || ''),
       read: !!n.read,
       createdAt: String(n.createdAt || new Date().toISOString())
     };
   }
 
-  function mergeNotifItems(incoming){
+  function mergeNotifItems(incoming, replaceAll=false){
     const map = new Map();
     const put = (raw) => {
       const item = normNotifItem(raw);
-      if(!item) return;
+      if(!item || !canSeeNotifItem(item)) return;
       const prev = map.get(item.id);
       if(prev){
         map.set(item.id, { ...prev, ...item, read: prev.read || item.read });
@@ -10851,7 +10910,7 @@ let lastPulseGatepassRev = '';
         map.set(item.id, item);
       }
     };
-    notifItems.forEach(put);
+    if(!replaceAll) notifItems.forEach(put);
     (Array.isArray(incoming) ? incoming : []).forEach(put);
     notifItems = Array.from(map.values())
       .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -10905,7 +10964,8 @@ let lastPulseGatepassRev = '';
   }
 
   function renderTopShade(){
-    const unread = notifItems.filter(x => !x.read).length;
+    const visibleAll = notifItems.filter(canSeeNotifItem);
+    const unread = visibleAll.filter(x => !x.read).length;
     const badge = document.getElementById('nsTopNotifBadge');
     if(badge){
       badge.textContent = unread > 99 ? '99+' : String(unread);
@@ -10917,12 +10977,25 @@ let lastPulseGatepassRev = '';
     const drop = document.getElementById('nsTopNotifDropdown');
     if(!drop) return;
 
-    const list = notifItems.filter(item => {
+    const showTicketsChip = hasMod('tickets');
+    const showTasksChip = hasMod('tasks');
+    const showDevicesChip = hasMod('surveillance') || hasMod('assets') || hasMod('network') || hasMod('data_center') || hasMod('snmp') || (hasMod('notifications') && isItDeptLocal());
+    if(shadeFilter === 'tickets' && !showTicketsChip) shadeFilter = 'all';
+    if(shadeFilter === 'tasks' && !showTasksChip) shadeFilter = 'all';
+    if(shadeFilter === 'devices' && !showDevicesChip) shadeFilter = 'all';
+
+    const list = visibleAll.filter(item => {
       if(shadeFilter === 'unread') return !item.read;
+      if(shadeFilter === 'tasks') return item.kind === 'task' || item.kind === 'task_reminder';
       if(shadeFilter === 'tickets') return item.kind === 'ticket' || item.kind === 'material_request' || item.kind === 'helpdesk_message' || item.kind === 'ticket_reminder';
-      if(shadeFilter === 'devices') return item.kind === 'online' || item.kind === 'offline' || item.kind === 'critical';
+      if(shadeFilter === 'devices') return isDeviceItem(item);
       return true;
     }).slice(0, 35);
+
+    const shadeTabs = [['all','All'],['unread','Unread ('+unread+')']];
+    if(showTasksChip) shadeTabs.push(['tasks',"Task's"]);
+    if(showTicketsChip) shadeTabs.push(['tickets','Tickets & Chat']);
+    if(showDevicesChip) shadeTabs.push(['devices','Devices']);
 
     const permState = (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported';
     const needsPermBtn = (permState === 'default');
@@ -10953,7 +11026,7 @@ let lastPulseGatepassRev = '';
       ${statusStripHtml}
       <div class="ns-shade-subbar">
         <div class="ns-shade-chips">
-          ${[['all','All'],['unread','Unread ('+unread+')'],['tickets','Tickets & Chat'],['devices','Devices']].map(([k,lbl]) =>
+          ${shadeTabs.map(([k,lbl]) =>
             `<button type="button" class="ns-shade-chip ${shadeFilter===k?'active':''}" data-shade-filter="${k}">${lbl}</button>`
           ).join('')}
         </div>
@@ -10985,7 +11058,7 @@ let lastPulseGatepassRev = '';
         }).join('') : `<div style="padding:26px 14px;text-align:center;color:#728078;font-size:11px">No notifications in this filter yet.</div>`}
       </div>
       <div class="ns-shade-foot">
-        <button type="button" class="btn" style="font-size:10px;padding:6px 10px" onclick="nsNotifCenter.openHistoryModule()">📜 View Notification History (${notifItems.length})</button>
+        ${hasMod('notifications') ? `<button type="button" class="btn" style="font-size:10px;padding:6px 10px" onclick="nsNotifCenter.openHistoryModule()">📜 View Notification History (${visibleAll.length})</button>` : `<span style="font-size:10.5px;color:#64748b">Showing notifications for your permitted modules</span>`}
         <button type="button" class="link-btn" style="font-size:10px;color:#b53d38" onclick="nsNotifCenter.clearHistory('all')">Clear all</button>
       </div>
     `;
@@ -11316,11 +11389,20 @@ let lastPulseGatepassRev = '';
 
   window.nsNotifCenter = {
     isSilent: () => !!silentMode,
-    getItems: () => notifItems.slice(),
+    getItems: () => notifItems.filter(canSeeNotifItem),
+    canSeeItem: canSeeNotifItem,
+    resetForCurrentUser(){
+      syncUserNotifLocalCache(true);
+      syncSilentUI();
+      renderTopShade();
+      if(isSrv()){
+        this.refreshFromServer();
+      }
+    },
     recordEvent(ev){
       const item = normNotifItem(ev);
-      if(!item) return;
-      mergeNotifItems([item]);
+      if(!item || !canSeeNotifItem(item)) return;
+      mergeNotifItems([item], false);
       renderTopShade();
       if(document.getElementById('view-notifications')?.classList.contains('active')){
         renderHistoryModule();
@@ -11352,7 +11434,7 @@ let lastPulseGatepassRev = '';
         const res = await apiCall('/api/notifications/history?limit=150');
         const list = Array.isArray(res?.events) ? res.events : (Array.isArray(res?.items) ? res.items : null);
         if(list){
-          mergeNotifItems(list);
+          mergeNotifItems(list, true);
           const srvSilent = typeof res.silentMode === 'boolean' ? res.silentMode : res.silent;
           if(typeof srvSilent === 'boolean'){
             silentMode = srvSilent;
@@ -25790,6 +25872,12 @@ let lastPulseGatepassRev = '';
       fab.className = 'ns-hd-fab';
       fab.setAttribute('aria-label', 'Helpdesk Messages & Smart Assistant');
       fab.innerHTML = `<span style="display:inline-flex;align-items:center">${SHREE_CHAT_LOGO}</span><span>Helpdesk</span><span id="nsMsgFabBadge" class="ns-hd-fab-badge">0</span>`;
+      try{
+        if(typeof serverMode !== 'undefined' && serverMode && !serverAdmin && typeof effectiveModuleGrant === 'function' && typeof serverProfile !== 'undefined'){
+          const okHd = effectiveModuleGrant(serverProfile,'tickets')!=='none' || effectiveModuleGrant(serverProfile,'visitors')!=='none' || effectiveModuleGrant(serverProfile,'gatepass')!=='none';
+          if(!okHd) fab.style.display = 'none';
+        }
+      }catch(_){}
       document.body.appendChild(fab);
 
       let dragStart = null;
@@ -30491,16 +30579,22 @@ let lastPulseGatepassRev = '';
 }
 .ns-qa-ico{font-size:16px;line-height:1}
 .ns-tasks-quick-add input{
-  flex:1;min-width:150px;border:none;background:transparent;outline:none;
-  font-size:13px;font-weight:600;color:#0f172a;padding:6px 4px;
+  flex:1;min-width:120px;border:1.5px solid #cbd5e1;border-radius:10px;background:#f8fafc;outline:none;
+  font-size:12.5px;font-weight:600;color:#0f172a;padding:6px 10px;transition:border-color .16s,box-shadow .16s,background .16s;
+}
+.ns-tasks-quick-add input:focus{
+  border-color:#6366f1;background:#fff;box-shadow:0 0 0 3px rgba(99,102,241,.16);
+}
+.ns-tasks-quick-add input.ns-qa-pulse{
+  border-color:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.25);background:#fffbeb;
 }
 .ns-tasks-quick-add select{
-  border:1px solid #cbd5e1;border-radius:9px;padding:6px 8px;font-size:11.5px;font-weight:700;
+  border:1px solid #cbd5e1;border-radius:9px;padding:7px 9px;font-size:11.5px;font-weight:700;
   background:#f8fafc;color:#1e293b;cursor:pointer;
 }
 .ns-tasks-quick-add button[type="submit"]{
-  padding:7px 14px;border-radius:10px;font-weight:700;border:none;
-  background:linear-gradient(135deg,#059669,#10b981);color:#fff;cursor:pointer;
+  padding:8px 15px;border-radius:10px;font-weight:700;border:none;
+  background:linear-gradient(135deg,#059669,#10b981);color:#fff;cursor:pointer;flex-shrink:0;
 }
 
 /* 5 Vibrant KPI Tiles */
@@ -30853,7 +30947,8 @@ html[data-theme="dark"] .ns-tasks-hero-kicker{color:#a5b4fc}
 html[data-theme="dark"] .ns-tasks-hero-copy h2{color:#f8fafc}
 html[data-theme="dark"] .ns-tasks-hero-copy p{color:#94a3b8}
 html[data-theme="dark"] .ns-tasks-quick-add{background:rgba(15,23,42,.86);border-color:#334155}
-html[data-theme="dark"] .ns-tasks-quick-add input{color:#f8fafc}
+html[data-theme="dark"] .ns-tasks-quick-add input{color:#f8fafc;background:#0b1220;border-color:#334155}
+html[data-theme="dark"] .ns-tasks-quick-add input:focus{border-color:#818cf8;background:#0f172a}
 html[data-theme="dark"] .ns-tasks-quick-add select{background:#1e293b;color:#e2e8f0;border-color:#334155}
 html[data-theme="dark"] .ns-tk-kpi{background:#111a2e;border-left-color:#22304d;border-right-color:#22304d;border-bottom-color:#22304d;box-shadow:0 6px 20px rgba(0,0,0,.3)}
 html[data-theme="dark"] .ns-tk-kpi-amber{border-top-color:#f59e0b}
@@ -31049,6 +31144,10 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
     if(roPill) roPill.style.display = writable ? 'none' : 'inline-flex';
     if(newBtn) newBtn.style.display = writable ? '' : 'none';
     if(qaForm) qaForm.style.display = writable ? '' : 'none';
+    const ovRolesBtn = document.getElementById('nsOvManageRolesBtn');
+    if(ovRolesBtn){
+      ovRolesBtn.style.display = state.me.isAdmin ? '' : 'none';
+    }
     if(ovBtn){
       ovBtn.style.display = hasOversight ? '' : 'none';
       ovBtn.innerHTML = state.taskScope === 'executive' || state.me.isAdmin
@@ -31776,31 +31875,55 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
     }
   }
 
+  let quickAddBusy = false;
   async function handleQuickAdd(e){
-    e.preventDefault();
-    if(!canAccessTasks(true) || !state.canWrite) return toast('Read-only access.');
+    if(e && typeof e.preventDefault === 'function') e.preventDefault();
+    if(quickAddBusy) return;
+    if(!canAccessTasks(true) || !state.canWrite) return toast('Read-only access on Task\'s.');
     const inp = document.getElementById('nsTasksQuickInput');
     const title = String(inp?.value || '').trim();
-    if(!title) return;
+    if(!title){
+      if(inp){
+        inp.focus();
+        inp.classList.remove('ns-qa-pulse');
+        void inp.offsetWidth;
+        inp.classList.add('ns-qa-pulse');
+        setTimeout(() => inp.classList.remove('ns-qa-pulse'), 1400);
+      }
+      toast('✏️ Type a task title in the quick-add box first, then click + Add (or click "+ New Task" for full options).');
+      return;
+    }
     const cadence = document.getElementById('nsTasksQuickCadence')?.value || 'daily';
     const priority = document.getElementById('nsTasksQuickPriority')?.value || 'Normal';
     const btn = document.getElementById('nsTasksQuickSubmitBtn');
-    if(btn) btn.disabled = true;
+    quickAddBusy = true;
+    if(btn){ btn.disabled = true; btn.textContent = 'Adding…'; }
     try{
-      await api('/api/tasks', {
+      const res = await api('/api/tasks', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ title, cadence, priority, workMode:'personal', reminderIntervalMins: cadence==='daily'?60:(cadence==='weekly'?240:1440) })
       });
       if(inp) inp.value = '';
-      if(['daily','weekly','monthly'].includes(cadence) && state.section !== 'all'){
-        setSection(cadence);
+      // Clear filters that could hide the freshly added task
+      const srch = document.getElementById('nsTasksSearch');
+      if(srch && srch.value) srch.value = '';
+      const scf = document.getElementById('nsTasksScopeFilter');
+      if(scf && ['awaiting','overdue','shared'].includes(scf.value)) scf.value = '';
+      if(state.stateFilter === 'completed'){
+        state.stateFilter = 'pending';
+        document.querySelectorAll('#nsTasksStateSeg .ns-tk-seg').forEach(b => b.classList.toggle('active', b.dataset.taskState === 'pending'));
       }
-      await load();
-      toast(`⚡ Added ${cadence} task!`);
+      if(['daily','weekly','monthly'].includes(cadence) && state.section !== 'all'){
+        state.section = cadence;
+        document.querySelectorAll('#nsTasksMainTabs .ns-tk-tab').forEach(b => b.classList.toggle('active', b.dataset.taskSec === cadence));
+      }
+      await load({ silent: false });
+      toast(`⚡ Added ${cadence} task${res?.task?.id ? ' (' + res.task.id + ')' : ''}: ${title}`);
     }catch(err){
       toast(err.message || 'Could not add task');
     }finally{
-      if(btn) btn.disabled = false;
+      quickAddBusy = false;
+      if(btn){ btn.disabled = false; btn.textContent = '＋ Add'; }
     }
   }
 
@@ -32618,6 +32741,12 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
       if(checked) state.selectedWatchers.add(k); else state.selectedWatchers.delete(k);
     },
     openOversightModal, closeOversightModal, loadOversight, setOversightTab,
+    openOversightRoleSettings(){
+      closeOversightModal();
+      if(typeof window.go === 'function') window.go('users');
+      toast('⚙️ Click Edit on any user → scroll to "Task\'s Oversight & Reporting Scope" to set Department Manager or Executive Pulse.');
+    },
+    submitQuickAdd(e){ handleQuickAdd(e); },
     filterOversightByDept, openEmployeeBiography, clearBiographyUser, openTaskFromOversight, exportOversightExcel,
     addModalChecklistItem(){
       const inp = document.getElementById('nsTaskChkNewInput');
@@ -32640,7 +32769,7 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
   };
 })();
 </script>
-<!-- WAVE 14: ACTIVE DIRECTORY (DSA.MSC) MODALS -->
+<!-- WAVE 14: ACTIVE DIRECTORY MODALS -->
 <!-- 1. Configure / Add AD Server Wizard (Nextcloud / ERPNext / Sophos XGS style) -->
 <div class="modal-backdrop" id="nsAdDomainModal" onclick="if(event.target===this)window.nsAdModule?.closeModal?.('nsAdDomainModal')">
   <div class="modal ns-ad-modal-box" style="max-width:780px">
@@ -32789,15 +32918,15 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
           <div class="ns-ad-field"><label for="nsAdUDisplay">Display Name / Full Name *</label><input type="text" id="nsAdUDisplay" required maxlength="120"></div>
           <div class="ns-ad-field"><label for="nsAdUSam">User Logon Name (sAMAccountName) *</label><input type="text" id="nsAdUSam" required maxlength="64" placeholder="e.g. rohit.sharma"></div>
           <div class="ns-ad-field"><label for="nsAdUUpn">User Principal Name (UPN)</label><input type="text" id="nsAdUUpn" maxlength="160" placeholder="rohit.sharma@company.local"></div>
-          <div class="ns-ad-field"><label for="nsAdUOu">Organizational Unit (OU)</label><select id="nsAdUOu"></select></div>
+          <div class="ns-ad-field"><label for="nsAdUOu">Organizational Unit (OU)</label><select id="nsAdUOu" onchange="window.nsAdModule?.onUserOuChange?.(this.value)"></select></div>
         </div>
 
         <div class="ns-ad-sec-hd" style="margin-top:14px">Department, Role &amp; Contact</div>
         <div class="ns-ad-grid-2">
-          <div class="ns-ad-field"><label for="nsAdUDept">Department</label><input type="text" id="nsAdUDept" maxlength="100" list="nsAdDeptDatalist" placeholder="e.g. IT, Finance, Production"><datalist id="nsAdDeptDatalist"></datalist></div>
+          <div class="ns-ad-field"><label for="nsAdUDept">Department</label><select id="nsAdUDept"><option value="">— Select Department —</option></select></div>
           <div class="ns-ad-field"><label for="nsAdUTitle">Job Title</label><input type="text" id="nsAdUTitle" maxlength="100" placeholder="e.g. System Engineer"></div>
           <div class="ns-ad-field"><label for="nsAdUCompany">Company</label><input type="text" id="nsAdUCompany" maxlength="100"></div>
-          <div class="ns-ad-field"><label for="nsAdUOffice">Office / Factory</label><input type="text" id="nsAdUOffice" maxlength="100" placeholder="e.g. HQ-ARG"></div>
+          <div class="ns-ad-field"><label for="nsAdUOffice">Office / Factory</label><select id="nsAdUOffice"><option value="">— Select Factory / Office —</option></select></div>
           <div class="ns-ad-field"><label for="nsAdUMail">Email Address</label><input type="email" id="nsAdUMail" maxlength="160"></div>
           <div class="ns-ad-field"><label for="nsAdUPhone">Phone / Mobile</label><input type="text" id="nsAdUPhone" maxlength="60"></div>
           <div class="ns-ad-field"><label for="nsAdUManager">Manager</label><select id="nsAdUManager"><option value="">— None —</option></select></div>
@@ -32908,9 +33037,15 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
           <div class="ns-ad-field"><label for="nsAdGrpDesc">Description</label><input type="text" id="nsAdGrpDesc" maxlength="250"></div>
         </div>
 
-        <div class="ns-ad-sec-hd" style="margin-top:14px">Group Members <span id="nsAdGrpMemCount" style="font-weight:700;opacity:.75"></span></div>
+        <div class="ns-ad-sec-hd" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <span>Group Members <span id="nsAdGrpMemCount" style="font-weight:700;opacity:.85"></span></span>
+          <div class="ns-ad-mem-tabs" role="tablist">
+            <button type="button" class="ns-ad-mem-tab active" id="nsAdGrpMemAllBtn" onclick="window.nsAdModule?.setGroupMemFilter?.('all')">All Users</button>
+            <button type="button" class="ns-ad-mem-tab" id="nsAdGrpMemSelBtn" onclick="window.nsAdModule?.setGroupMemFilter?.('selected')">✓ Selected Only</button>
+          </div>
+        </div>
         <input type="text" class="filter-input" id="nsAdGrpMemSearch" placeholder="⌕ Filter users by name, username, or department..." oninput="window.nsAdModule?.renderGroupMemberPicker?.()" style="width:100%;margin-bottom:8px">
-        <div id="nsAdGrpMemPicker" class="ns-ad-chip-picker" style="max-height:220px;overflow-y:auto"></div>
+        <div id="nsAdGrpMemPicker" class="ns-ad-chip-picker" style="max-height:240px;overflow-y:auto"></div>
       </div>
       <div class="ns-ad-modal-foot">
         <button type="button" class="btn" onclick="window.nsAdModule?.closeModal?.('nsAdGroupModal')">Cancel</button>
@@ -33052,7 +33187,7 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
 </div>
 
 <style id="ns-wave14-ad-css">
-/* WAVE 14: ACTIVE DIRECTORY (DSA.MSC) — MODERN LIGHT & DARK UI (ZERO BLINK) */
+/* WAVE 14: ACTIVE DIRECTORY — MODERN LIGHT & DARK UI (ZERO BLINK) */
 #view-ad .ns-ad-hero-btn{background:linear-gradient(135deg,#0284c7,#4f46e5)!important;border:0!important;color:#fff!important;box-shadow:0 6px 16px rgba(79,70,229,.28);transition:transform .16s ease,box-shadow .16s ease}
 #view-ad .ns-ad-hero-btn:hover{transform:translateY(-1px);box-shadow:0 9px 22px rgba(79,70,229,.38)}
 #view-ad .ns-ad-ro-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;font-size:12px;font-weight:700;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa}
@@ -33109,7 +33244,7 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
 #view-ad .ns-ad-kpi-val{font:800 28px/1.15 Manrope,system-ui,sans-serif;color:#0f172a;margin:6px 0 3px}
 #view-ad .ns-ad-kpi-sub{font-size:11.5px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* DSA.MSC Split Workbench */
+/* Active Directory Split Workbench */
 #view-ad .ns-ad-workbench{display:grid;grid-template-columns:242px minmax(0,1fr);gap:14px;align-items:start}
 #view-ad .ns-ad-main-body .table-wrap{max-height:540px;overflow:auto}
 #view-ad .ns-ad-main-body table th,#view-ad .ns-ad-main-body table td{padding:9px 10px;vertical-align:middle;white-space:normal}
@@ -33209,8 +33344,16 @@ html[data-theme="dark"] .ns-tk-check-pill{background:rgba(16,185,129,.12);border
 .ns-ad-details summary{padding:10px 13px;font-size:12.5px;font-weight:700;color:#334155;cursor:pointer}
 .ns-ad-details-body{padding:0 13px 13px}
 .ns-ad-chip-picker{display:flex;flex-wrap:wrap;gap:7px;padding:10px;border-radius:11px;border:1px solid #e2e8f0;background:#f8fafc}
-.ns-ad-chip-opt{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:9px;background:#fff;border:1px solid #cbd5e1;font-size:12px;font-weight:600;color:#1e293b;cursor:pointer}
+.ns-ad-chip-opt{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:9px;background:#fff;border:1px solid #cbd5e1;font-size:12px;font-weight:600;color:#1e293b;cursor:pointer;transition:border-color .14s,background .14s}
 .ns-ad-chip-opt:hover{border-color:#6366f1}
+.ns-ad-chip-opt.is-selected{background:#eef2ff;border-color:#6366f1;color:#312e81;font-weight:700;box-shadow:0 2px 6px rgba(79,70,229,.12)}
+.ns-ad-mem-tabs{display:inline-flex;gap:4px;padding:2px;border-radius:8px;background:#f1f5f9;border:1px solid #e2e8f0;text-transform:none;letter-spacing:0}
+.ns-ad-mem-tab{border:0;background:transparent;color:#475569;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer}
+.ns-ad-mem-tab.active{background:#4f46e5;color:#fff}
+html[data-theme="dark"] .ns-ad-chip-opt.is-selected{background:rgba(99,102,241,.28);border-color:#818cf8;color:#e0e7ff}
+html[data-theme="dark"] .ns-ad-mem-tabs{background:#0b1220;border-color:rgba(148,163,184,.25)}
+html[data-theme="dark"] .ns-ad-mem-tab{color:#94a3b8}
+html[data-theme="dark"] .ns-ad-mem-tab.active{background:#6366f1;color:#fff}
 
 /* DARK THEME SUPPORT */
 html[data-theme="dark"] #view-ad .ns-ad-ro-pill{background:rgba(194,65,12,.18);color:#fdba74;border-color:rgba(251,146,60,.35)}
@@ -33365,6 +33508,7 @@ html[data-theme="dark"] .ns-ad-ds-row{border-bottom-color:rgba(148,163,184,.12);
     loading: false,
     grpMemberSet: new Set(),
     grpOrigMemberSet: new Set(),
+    grpMemFilter: 'all',
     ugSelectedSet: new Set(),
     ugOrigSet: new Set(),
   };
@@ -33520,7 +33664,7 @@ html[data-theme="dark"] .ns-ad-ds-row{border-bottom-color:rgba(148,163,184,.12);
         <div class="ns-ad-onboard">
           <div class="ns-ad-onboard-ico">🏛️</div>
           <h2>Connect Your Active Directory Server</h2>
-          <p>Connect <b>Samba 4 AD DC (Ubuntu)</b>, <b>Microsoft Windows Server AD</b>, <b>Synology Directory Server</b>, <b>Red Hat FreeIPA</b>, or <b>OpenLDAP</b> — just like Nextcloud, ERPNext &amp; Sophos XGS. Once connected, manage Users, Departments, Groups, OUs, Passwords &amp; Computers in real time like <code>DSA.MSC</code>.</p>
+          <p>Connect <b>Samba 4 AD DC (Ubuntu)</b>, <b>Microsoft Windows Server AD</b>, <b>Synology Directory Server</b>, <b>Red Hat FreeIPA</b>, or <b>OpenLDAP</b> — just like Nextcloud, ERPNext &amp; Sophos XGS. Once connected, manage Users, Departments, Groups, OUs, Passwords &amp; Computers in real time from one unified directory console.</p>
           <div class="ns-ad-onboard-presets">
             <button type="button" class="ns-ad-preset-btn ns-ad-write-only" onclick="window.nsAdModule?.openDomainModal?.(false,'samba4')">🐧 Connect Samba 4 AD (Ubuntu)</button>
             <button type="button" class="ns-ad-preset-btn ns-ad-write-only" onclick="window.nsAdModule?.openDomainModal?.(false,'ms_ad')">🪟 Connect Microsoft AD</button>
@@ -33529,7 +33673,7 @@ html[data-theme="dark"] .ns-ad-ds-row{border-bottom-color:rgba(148,163,184,.12);
             <button type="button" class="ns-ad-preset-btn ns-ad-write-only" onclick="window.nsAdModule?.openDomainModal?.(false,'openldap')">📂 Connect OpenLDAP</button>
           </div>
           <div style="margin-top:6px">
-            <button type="button" class="btn ns-ad-write-only" id="nsAdLaunchDemoBtn" onclick="window.nsAdModule?.launchDemoLab?.()">🧪 Launch Instant Samba 4 Preview Lab (Try DSA.MSC Now)</button>
+            <button type="button" class="btn ns-ad-write-only" id="nsAdLaunchDemoBtn" onclick="window.nsAdModule?.launchDemoLab?.()">🧪 Launch Instant Samba 4 Preview Lab</button>
           </div>
         </div>`;
       return;
@@ -33665,15 +33809,86 @@ html[data-theme="dark"] .ns-ad-ds-row{border-bottom-color:rgba(148,163,184,.12);
     host.innerHTML = html;
   }
 
+  const SYSTEM_AD_CONTAINERS = new Set(['users','departments','domain controllers','computers','builtin','workstations','security groups','groups','distribution groups','managed service accounts','foreignsecurityprincipals','program data','system']);
+
+  function userEffectiveDept(u){
+    return String(u?.department || u?.effectiveDepartment || '').trim();
+  }
+  function userMatchesDept(u, dpVal){
+    if(!dpVal) return true;
+    const eff = userEffectiveDept(u);
+    const list = Array.isArray(u?.effectiveDepartments) ? u.effectiveDepartments : (eff ? [eff] : []);
+    if(dpVal === '__unassigned__') return !eff && !list.length;
+    const target = dpVal.toLowerCase();
+    if(eff.toLowerCase() === target) return true;
+    if(list.some(x => String(x || '').toLowerCase() === target)) return true;
+    if(rdnVal(u?.parentDn || '').toLowerCase() === target) return true;
+    return false;
+  }
+
+  function collectAllDepartmentOptions(){
+    const map = new Map();
+    const put = v => {
+      const s = String(v || '').trim();
+      if(!s || s.toLowerCase() === 'unassigned' || SYSTEM_AD_CONTAINERS.has(s.toLowerCase())) return;
+      if(!map.has(s.toLowerCase())) map.set(s.toLowerCase(), s);
+    };
+    try{
+      if(typeof depts !== 'undefined' && Array.isArray(depts)){
+        depts.forEach(d => put(Array.isArray(d) ? d[0] : (d?.name || '')));
+      }
+    }catch(_){}
+    (state.directory?.departments || []).forEach(d => put(d.name));
+    (state.directory?.ous || []).forEach(o => { if(!o.isContainer) put(o.name); });
+    return Array.from(map.values()).sort((a,b) => a.localeCompare(b));
+  }
+
+  function fillAdUserDeptAndOffice(selectedDept='', selectedOffice=''){
+    const dSel = $('nsAdUDept');
+    if(dSel){
+      const list = collectAllDepartmentOptions();
+      const sel = String(selectedDept || '').trim();
+      if(sel && !list.some(x => x.toLowerCase() === sel.toLowerCase())) list.unshift(sel);
+      dSel.innerHTML = '<option value="">— Select Department —</option>' + list.map(d => `<option value="${escH(d)}">${escH(d)}</option>`).join('');
+      const match = list.find(x => x.toLowerCase() === sel.toLowerCase());
+      dSel.value = match || '';
+    }
+    const oSel = $('nsAdUOffice');
+    if(oSel){
+      let codes = [];
+      try{ codes = (typeof factoryCodes === 'function' ? factoryCodes() : []) || []; }catch(_){}
+      if(!codes.length) codes = ['SS-ALL', 'ARG', 'ARB', 'ARC', 'ARF'];
+      const list = [...new Set(codes.map(c => String(c || '').trim()).filter(Boolean))];
+      const sel = String(selectedOffice || '').trim();
+      if(sel && !list.some(x => x.toLowerCase() === sel.toLowerCase())) list.unshift(sel);
+      oSel.innerHTML = '<option value="">— Select Factory / Office —</option>' + list.map(c => `<option value="${escH(c)}">${escH(c)}</option>`).join('');
+      const match = list.find(x => x.toLowerCase() === sel.toLowerCase());
+      oSel.value = match || '';
+    }
+  }
+
+  function onUserOuChange(ouDn){
+    if($('nsAdUserEditDn')?.value) return;
+    const dSel = $('nsAdUDept');
+    if(!dSel) return;
+    const nm = rdnVal(ouDn || '').trim();
+    if(!nm || SYSTEM_AD_CONTAINERS.has(nm.toLowerCase())) return;
+    const opt = [...dSel.options].find(o => o.value.toLowerCase() === nm.toLowerCase());
+    if(opt) dSel.value = opt.value;
+  }
+
   function populateDeptFilter(){
     const sel = $('nsAdDeptFilter');
     if(!sel || !state.directory) return;
     const prev = sel.value;
-    const depts = (state.directory.departments || []).map(d => d.name).filter(n => n && n !== 'Unassigned');
-    sel.innerHTML = '<option value="">All departments</option>' + depts.map(d => `<option value="${escH(d)}">${escH(d)}</option>`).join('');
-    if(depts.includes(prev)) sel.value = prev;
-    const dl = $('nsAdDeptDatalist');
-    if(dl) dl.innerHTML = depts.map(d => `<option value="${escH(d)}">`).join('');
+    const allDepts = state.directory.departments || [];
+    const real = allDepts.map(d => d.name).filter(n => n && n !== 'Unassigned');
+    const hasUnassigned = allDepts.some(d => d.name === 'Unassigned' && Number(d.total || 0) > 0);
+    sel.innerHTML = '<option value="">All departments</option>' +
+      real.map(d => `<option value="${escH(d)}">${escH(d)}</option>`).join('') +
+      (hasUnassigned ? '<option value="__unassigned__">Unassigned</option>' : '');
+    if(prev === '__unassigned__' && hasUnassigned) sel.value = prev;
+    else if(real.includes(prev)) sel.value = prev;
   }
 
   function setView(v){
@@ -33746,19 +33961,21 @@ html[data-theme="dark"] .ns-ad-ds-row{border-bottom-color:rgba(148,163,184,.12);
       if(stVal === 'disabled') rows = rows.filter(u => u.enabled === false);
       if(stVal === 'locked') rows = rows.filter(u => !!u.lockedOut);
       if(stVal === 'mustchange') rows = rows.filter(u => !!u.mustChangePassword);
-      if(dpVal) rows = rows.filter(u => String(u.department || '').toLowerCase() === dpVal.toLowerCase());
-      if(q) rows = rows.filter(u => [u.displayName, u.samAccountName, u.upn, u.mail, u.department, u.title, u.office, u.dn].join(' ').toLowerCase().includes(q));
+      if(dpVal) rows = rows.filter(u => userMatchesDept(u, dpVal));
+      if(q) rows = rows.filter(u => [u.displayName, u.samAccountName, u.upn, u.mail, u.department, u.effectiveDepartment, ...(u.effectiveDepartments || []), u.title, u.office, u.dn].join(' ').toLowerCase().includes(q));
 
       if(!rows.length){
         body.innerHTML = `<div class="empty-state" style="padding:36px 16px;text-align:center">No Active Directory users match the current OU or filter.</div>`;
         return;
       }
       body.innerHTML = `<div class="table-wrap"><table><thead><tr>
-        <th>USER</th><th>LOGON / UPN</th><th>DEPT · OU</th><th>GROUPS &amp; STATUS</th>${state.canWrite ? '<th>DSA.MSC ACTIONS</th>' : ''}
+        <th>USER</th><th>LOGON / UPN</th><th>DEPT · OU</th><th>GROUPS &amp; STATUS</th>${state.canWrite ? '<th>ACTIONS</th>' : ''}
       </tr></thead><tbody>` + rows.map(u => {
         const avCls = u.lockedOut ? 'lck' : (!u.enabled ? 'dis' : '');
         const grpNames = (u.memberOf || []).map(rdnVal);
         const dnEsc = escH(u.dn).replace(/'/g, "\\'");
+        const effDept = userEffectiveDept(u);
+        const isInferredDept = !u.department && !!u.effectiveDepartment;
         const badges = [
           u.enabled ? '<span class="ns-ad-pill ok">● Enabled</span>' : '<span class="ns-ad-pill muted">⏸ Disabled</span>',
           u.lockedOut ? '<span class="ns-ad-pill err">🔒 Locked</span>' : '',
@@ -33768,7 +33985,7 @@ html[data-theme="dark"] .ns-ad-ds-row{border-bottom-color:rgba(148,163,184,.12);
         return `<tr>
           <td><div class="ns-ad-u-cell"><span class="ns-ad-avatar ${avCls}">${escH(inits(u.displayName || u.samAccountName))}</span><div style="min-width:0"><div class="ns-ad-u-name">${escH(u.displayName || u.cn)}</div><div class="ns-ad-u-meta">${escH(u.mail || u.phone || '—')}</div></div></div></td>
           <td><div class="ns-ad-mono" style="font-weight:700">${escH(u.samAccountName)}</div><div class="ns-ad-u-meta ns-ad-mono">${escH(u.upn || '')}</div></td>
-          <td><div style="font-weight:700">${escH(u.department || '—')}</div><div class="ns-ad-u-meta">${escH([u.title, u.office].filter(Boolean).join(' · ') || '')}</div><div style="margin-top:3px"><span class="ns-ad-pill muted" title="${escH(u.parentDn)}">📁 ${escH(rdnVal(u.parentDn))}</span></div></td>
+          <td><div style="font-weight:700">${escH(effDept || '—')}${isInferredDept ? ' <span style="font-size:10px;font-weight:600;opacity:.65">(AD Group/OU)</span>' : ''}</div><div class="ns-ad-u-meta">${escH([u.title, u.office].filter(Boolean).join(' · ') || '')}</div><div style="margin-top:3px"><span class="ns-ad-pill muted" title="${escH(u.parentDn)}">📁 ${escH(rdnVal(u.parentDn))}</span></div></td>
           <td><div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">${badges}<button type="button" class="ns-ad-act-btn ns-ad-read-allow" style="padding:2px 6px;font-size:11px" title="${escH(grpNames.join(', ') || 'No groups')}" onclick="window.nsAdModule?.openUserGroupsModal?.('${dnEsc}')">🛡️ ${grpNames.length}</button></div></td>
           ${state.canWrite ? `<td><div class="ns-ad-row-acts">
             <button type="button" class="ns-ad-act-btn" title="Edit user properties" onclick="window.nsAdModule?.openUserModal?.('${dnEsc}')">✏️ Edit</button>
@@ -33938,7 +34155,7 @@ html[data-theme="dark"] .ns-ad-ds-row{border-bottom-color:rgba(148,163,184,.12);
     setView('users');
     const dp = $('nsAdDeptFilter');
     if(dp){
-      dp.value = deptName === 'Unassigned' ? '' : deptName;
+      dp.value = deptName === 'Unassigned' ? '__unassigned__' : deptName;
     }
     renderOuTree();
     renderMain();
@@ -34155,7 +34372,7 @@ html[data-theme="dark"] .ns-ad-ds-row{border-bottom-color:rgba(148,163,184,.12);
     if(el){ el.value = chars.join(''); el.focus(); }
   }
 
-  /* ---- User CRUD + DSA.MSC Actions ---- */
+  /* ---- User CRUD & Directory Actions ---- */
   function autoFillUserNames(){
     if($('nsAdUserEditDn').value) return;
     const fn = $('nsAdUFn').value.trim(), ln = $('nsAdULn').value.trim();
@@ -34188,6 +34405,8 @@ html[data-theme="dark"] .ns-ad-ds-row{border-bottom-color:rgba(148,163,184,.12);
 
     const defaultOu = src?.parentDn || state.selectedOuDn || (state.directory.ous?.[0]?.dn || state.directory.domain?.baseDn || '');
     fillOuSelect('nsAdUOu', defaultOu);
+    fillAdUserDeptAndOffice(src ? userEffectiveDept(src) : '', src?.office || '');
+    if(!src) onUserOuChange(defaultOu);
     const mgrSel = $('nsAdUManager');
     mgrSel.innerHTML = '<option value="">— None —</option>' + users.filter(x => !isEdit || x.dn !== u.dn).map(x => `<option value="${escH(x.dn)}">${escH(x.displayName)} (${escH(x.samAccountName)})</option>`).join('');
 
@@ -34197,10 +34416,8 @@ html[data-theme="dark"] .ns-ad-ds-row{border-bottom-color:rgba(148,163,184,.12);
       $('nsAdUDisplay').value = isEdit ? (src.displayName || '') : '';
       $('nsAdUSam').value = isEdit ? (src.samAccountName || '') : '';
       $('nsAdUUpn').value = isEdit ? (src.upn || '') : '';
-      $('nsAdUDept').value = src.department || '';
       $('nsAdUTitle').value = src.title || '';
       $('nsAdUCompany').value = src.company || '';
-      $('nsAdUOffice').value = src.office || '';
       $('nsAdUMail').value = isEdit ? (src.mail || '') : '';
       $('nsAdUPhone').value = isEdit ? (src.phone || src.mobile || '') : '';
       $('nsAdUManager').value = src.managerDn || '';
@@ -34289,12 +34506,19 @@ html[data-theme="dark"] .ns-ad-ds-row{border-bottom-color:rgba(148,163,184,.12);
     $('nsAdUGLabel').textContent = `${u.displayName} (${u.samAccountName})`;
     state.ugOrigSet = new Set(u.memberOf || []);
     state.ugSelectedSet = new Set(u.memberOf || []);
-    const grps = state.directory?.groups || [];
-    $('nsAdUGPicker').innerHTML = grps.length ? grps.map(g => `
-      <label class="ns-ad-chip-opt">
-        <input type="checkbox" ${state.ugSelectedSet.has(g.dn)?'checked':''} ${!state.canWrite?'disabled':''} onchange="window.nsAdModule?.toggleUG?.('${escH(g.dn).replace(/'/g,"\\'")}',this.checked)">
+    const grps = [...(state.directory?.groups || [])].sort((a,b) => {
+      const sa = state.ugSelectedSet.has(a.dn) ? 0 : 1;
+      const sb = state.ugSelectedSet.has(b.dn) ? 0 : 1;
+      if(sa !== sb) return sa - sb;
+      return String(a.cn || '').localeCompare(String(b.cn || ''));
+    });
+    $('nsAdUGPicker').innerHTML = grps.length ? grps.map(g => {
+      const sel = state.ugSelectedSet.has(g.dn);
+      return `<label class="ns-ad-chip-opt${sel?' is-selected':''}">
+        <input type="checkbox" ${sel?'checked':''} ${!state.canWrite?'disabled':''} onchange="window.nsAdModule?.toggleUG?.('${escH(g.dn).replace(/'/g,"\\'")}',this.checked);this.closest('.ns-ad-chip-opt')?.classList.toggle('is-selected',this.checked)">
         🛡️ ${escH(g.cn)} <small style="opacity:.7">(${escH(g.category || 'Security')})</small>
-      </label>`).join('') : '<span class="ns-ad-u-meta">No groups in this domain.</span>';
+      </label>`;
+    }).join('') : '<span class="ns-ad-u-meta">No groups in this domain.</span>';
     $('nsAdUGSaveBtn').style.display = state.canWrite ? '' : 'none';
     openModal('nsAdUserGroupsModal');
   }
@@ -34325,26 +34549,55 @@ html[data-theme="dark"] .ns-ad-ds-row{border-bottom-color:rgba(148,163,184,.12);
       state.grpOrigMemberSet = new Set();
       state.grpMemberSet = new Set();
     }
+    state.grpMemFilter = 'all';
     $('nsAdGrpMemSearch').value = '';
     renderGroupMemberPicker();
     openModal('nsAdGroupModal');
+  }
+
+  function setGroupMemFilter(mode){
+    state.grpMemFilter = mode === 'selected' ? 'selected' : 'all';
+    renderGroupMemberPicker();
   }
 
   function renderGroupMemberPicker(){
     const host = $('nsAdGrpMemPicker');
     if(!host || !state.directory) return;
     const q = String($('nsAdGrpMemSearch')?.value || '').trim().toLowerCase();
-    const users = (state.directory.users || []).filter(u => !q || [u.displayName, u.samAccountName, u.department].join(' ').toLowerCase().includes(q));
-    $('nsAdGrpMemCount').textContent = `(${state.grpMemberSet.size} selected)`;
-    host.innerHTML = users.length ? users.map(u => `
-      <label class="ns-ad-chip-opt">
-        <input type="checkbox" ${state.grpMemberSet.has(u.dn)?'checked':''} onchange="window.nsAdModule?.toggleGrpMem?.('${escH(u.dn).replace(/'/g,"\\'")}',this.checked)">
-        👤 ${escH(u.displayName)} <small style="opacity:.7">(${escH(u.department || u.samAccountName)})</small>
-      </label>`).join('') : '<span class="ns-ad-u-meta">No users match filter.</span>';
+    const allUsers = state.directory.users || [];
+    const selCount = state.grpMemberSet.size;
+    $('nsAdGrpMemCount').textContent = `(${selCount} selected)`;
+    const allBtn = $('nsAdGrpMemAllBtn');
+    const selBtn = $('nsAdGrpMemSelBtn');
+    if(allBtn) allBtn.classList.toggle('active', state.grpMemFilter === 'all');
+    if(selBtn){
+      selBtn.classList.toggle('active', state.grpMemFilter === 'selected');
+      selBtn.textContent = `✓ Selected Only (${selCount})`;
+    }
+    let users = allUsers.filter(u => {
+      if(state.grpMemFilter === 'selected' && !state.grpMemberSet.has(u.dn)) return false;
+      if(!q) return true;
+      return [u.displayName, u.samAccountName, u.department, u.effectiveDepartment].join(' ').toLowerCase().includes(q);
+    });
+    // Sort selected members FIRST so admins immediately see current members at the top!
+    users = [...users].sort((a,b) => {
+      const sa = state.grpMemberSet.has(a.dn) ? 0 : 1;
+      const sb = state.grpMemberSet.has(b.dn) ? 0 : 1;
+      if(sa !== sb) return sa - sb;
+      return String(a.displayName || a.samAccountName || '').localeCompare(String(b.displayName || b.samAccountName || ''));
+    });
+    host.innerHTML = users.length ? users.map(u => {
+      const isSel = state.grpMemberSet.has(u.dn);
+      const deptLbl = userEffectiveDept(u) || u.samAccountName;
+      return `<label class="ns-ad-chip-opt${isSel?' is-selected':''}">
+        <input type="checkbox" ${isSel?'checked':''} onchange="window.nsAdModule?.toggleGrpMem?.('${escH(u.dn).replace(/'/g,"\\'")}',this.checked)">
+        👤 ${escH(u.displayName)} <small style="opacity:.75">(${escH(deptLbl)})</small>
+      </label>`;
+    }).join('') : `<span class="ns-ad-u-meta">${state.grpMemFilter==='selected' ? 'No members selected in this group yet.' : 'No users match filter.'}</span>`;
   }
   function toggleGrpMem(udn, chk){
     if(chk) state.grpMemberSet.add(udn); else state.grpMemberSet.delete(udn);
-    $('nsAdGrpMemCount').textContent = `(${state.grpMemberSet.size} selected)`;
+    renderGroupMemberPicker();
   }
 
   async function deleteGroup(dn){
@@ -34803,9 +35056,9 @@ html[data-theme="dark"] .ns-ad-ds-row{border-bottom-color:rgba(148,163,184,.12);
     renderMain, loadServices, filterByDepartment,
     openDomainModal, openDomainModalById, closeModal, pickFlavor, onSecurityChange, onDemoToggle,
     testDomainForm, launchDemoLab, syncDomainById, syncActiveDomain, deleteDomain,
-    openUserModal, copyUser, autoFillUserNames, genStrongPwd, openPwdModal, unlockUser, toggleUserStatus, deleteUser,
+    openUserModal, copyUser, autoFillUserNames, onUserOuChange, genStrongPwd, openPwdModal, unlockUser, toggleUserStatus, deleteUser,
     openMoveModal, openUserGroupsModal, toggleUG,
-    openGroupModal, renderGroupMemberPicker, toggleGrpMem, deleteGroup,
+    openGroupModal, setGroupMemFilter, renderGroupMemberPicker, toggleGrpMem, deleteGroup,
     openOuModal, deleteOu, computerAction, importToNorthstar,
     syncAllFromUsersTab, openDeptSyncModal, loadDeptSyncPreview, setDeptSyncTab, executeDeptSyncAction,
     getState: () => state,
